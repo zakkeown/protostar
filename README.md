@@ -81,4 +81,10 @@ events, enforces dependency ordering, and attaches evidence refs to passed or
 failed tasks without modifying repository files. Use `--fail-task-ids` with a
 comma-separated list to exercise failure and downstream blocking behavior.
 
+The review stage is a deterministic mechanical gate. It checks that execution
+artifacts match the plan, every confirmed acceptance criterion is covered, and
+passed work has evidence. A passing review moves the manifest to
+`ready-to-release`; repairable findings move it to `repairing`; critical
+consistency or intent-coverage failures move it to `blocked`.
+
 `@protostar/dogpile-adapter` links to the sibling Dogpile checkout at `../dogpile`.

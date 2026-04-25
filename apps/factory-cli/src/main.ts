@@ -3,7 +3,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
-import { createFactoryRunManifest, recordStageArtifacts } from "@protostar/artifacts";
+import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
 import {
   assertPlanGraphFromPlanningPileResult,
   assertPlanningPileResult,
@@ -14,7 +14,7 @@ import { prepareExecutionRun, runExecutionDryRun, type ExecutionDryRunResult } f
 import { assertConfirmedIntent } from "@protostar/intent";
 import { authorizeFactoryStart } from "@protostar/policy";
 import { defineWorkspace } from "@protostar/repo";
-import { createReviewGate } from "@protostar/review";
+import { createMechanicalReviewGate, type ReviewVerdict } from "@protostar/review";
 
 interface RunCommandOptions {
   readonly intentPath: string;
@@ -92,9 +92,11 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     execution,
     failTaskIds: options.failTaskIds
   });
-  const review = createReviewGate({
+  const review = createMechanicalReviewGate({
+    intent,
     plan,
-    execution
+    execution,
+    executionResult
   });
   const planningMission = buildPlanningMission(intent);
   const reviewMission = buildReviewMission(intent, plan);
@@ -128,10 +130,10 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     },
     {
       stage: "review" as const,
-      status: "pending" as const,
+      status: review.verdict === "pass" ? ("passed" as const) : ("failed" as const),
       artifacts: [
         artifact("review", "pile-mission", "review-mission.txt", "Model-visible review pile mission."),
-        artifact("review", "review-gate", "review-gate.json", "Initial deterministic review gate.")
+        artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings.")
       ]
     }
   ].reduce(
@@ -143,10 +145,11 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       }),
     manifest
   );
+  const reviewedManifest = setFactoryRunStatus(finalManifest, statusForReviewVerdict(review.verdict));
 
   await mkdir(runDir, { recursive: true });
   await writeJson(resolve(runDir, "intent.json"), intent);
-  await writeJson(resolve(runDir, "manifest.json"), finalManifest);
+  await writeJson(resolve(runDir, "manifest.json"), reviewedManifest);
   await writeFile(resolve(runDir, "planning-mission.txt"), `${planningMission.intent}\n`, "utf8");
   await writeFile(resolve(runDir, "review-mission.txt"), `${reviewMission.intent}\n`, "utf8");
   await writeJson(resolve(runDir, "planning-result.json"), planningPileResult);
@@ -188,6 +191,16 @@ function artifact(
     uri,
     description
   };
+}
+
+function statusForReviewVerdict(verdict: ReviewVerdict) {
+  if (verdict === "pass") {
+    return "ready-to-release";
+  }
+  if (verdict === "repair") {
+    return "repairing";
+  }
+  return "blocked";
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {

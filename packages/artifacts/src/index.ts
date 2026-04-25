@@ -77,6 +77,16 @@ export function recordStageArtifacts(
   };
 }
 
+export function setFactoryRunStatus(
+  manifest: FactoryRunManifest,
+  status: FactoryRunStatus
+): FactoryRunManifest {
+  return {
+    ...manifest,
+    status
+  };
+}
+
 function pendingStage(stage: FactoryStage): StageRecord {
   return {
     stage,

@@ -7,5 +7,5 @@
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../artifacts" }, { "path": "../planning" }, { "path": "../execution" }]
+  "references": [{ "path": "../artifacts" }, { "path": "../intent" }, { "path": "../planning" }, { "path": "../execution" }]
 }
