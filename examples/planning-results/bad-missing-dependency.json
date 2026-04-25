@@ -1,0 +1,6 @@
+{
+  "kind": "planning-pile-result",
+  "source": "fixture",
+  "modelProviderId": "deterministic-planning-fixture",
+  "output": "{\n  \"strategy\": \"This fixture should fail because a task depends on a missing task id.\",\n  \"tasks\": [\n    {\n      \"id\": \"task-bad\",\n      \"title\": \"Depend on a task that does not exist\",\n      \"kind\": \"implementation\",\n      \"dependsOn\": [\"task-missing\"],\n      \"covers\": [\"ac_spine\"],\n      \"requiredCapabilities\": {},\n      \"risk\": \"low\"\n    }\n  ]\n}"
+}

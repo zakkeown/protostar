@@ -51,7 +51,10 @@ Run the CLI directly with a different intent or output directory:
 
 ```sh
 pnpm run build
-pnpm --filter @protostar/factory-cli start -- run --intent examples/intents/scaffold.json --out .protostar/runs
+pnpm --filter @protostar/factory-cli start -- run \
+  --intent examples/intents/scaffold.json \
+  --out .protostar/runs \
+  --planning-fixture examples/planning-results/scaffold.json
 ```
 
 Each run bundle currently contains:
@@ -59,9 +62,15 @@ Each run bundle currently contains:
 - `intent.json`
 - `manifest.json`
 - `planning-mission.txt`
+- `planning-result.json`
 - `review-mission.txt`
 - `plan.json`
 - `execution-plan.json`
 - `review-gate.json`
+
+The planning fixture is a deterministic stand-in for a future live Dogpile
+planning run. Its `output` field must be JSON that parses into a valid
+`PlanGraph`; invalid dependencies or malformed tasks fail before a run bundle is
+written.
 
 `@protostar/dogpile-adapter` links to the sibling Dogpile checkout at `../dogpile`.

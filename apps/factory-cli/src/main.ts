@@ -4,10 +4,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
 import { createFactoryRunManifest, recordStageArtifacts } from "@protostar/artifacts";
-import { buildPlanningMission, buildReviewMission } from "@protostar/dogpile-adapter";
+import {
+  assertPlanGraphFromPlanningPileResult,
+  assertPlanningPileResult,
+  buildPlanningMission,
+  buildReviewMission
+} from "@protostar/dogpile-adapter";
 import { prepareExecutionRun } from "@protostar/execution";
-import { assertConfirmedIntent, type AcceptanceCriterion } from "@protostar/intent";
-import { createPlanGraph, type PlanTask } from "@protostar/planning";
+import { assertConfirmedIntent } from "@protostar/intent";
 import { authorizeFactoryStart } from "@protostar/policy";
 import { defineWorkspace } from "@protostar/repo";
 import { createReviewGate } from "@protostar/review";
@@ -15,6 +19,7 @@ import { createReviewGate } from "@protostar/review";
 interface RunCommandOptions {
   readonly intentPath: string;
   readonly outDir: string;
+  readonly planningFixturePath: string;
   readonly runId?: string;
 }
 
@@ -47,8 +52,10 @@ async function main(): Promise<void> {
 async function runFactory(options: RunCommandOptions): Promise<RunCommandResult> {
   const workspaceRoot = process.env["INIT_CWD"] ?? process.cwd();
   const intentPath = resolve(workspaceRoot, options.intentPath);
+  const planningFixturePath = resolve(workspaceRoot, options.planningFixturePath);
   const outDir = resolve(workspaceRoot, options.outDir);
   const intent = assertConfirmedIntent(JSON.parse(await readFile(intentPath, "utf8")));
+  const planningPileResult = assertPlanningPileResult(JSON.parse(await readFile(planningFixturePath, "utf8")));
   const runId = options.runId ?? createRunId(intent.id);
   const runDir = resolve(outDir, runId);
 
@@ -66,7 +73,10 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     runId,
     intentId: intent.id
   });
-  const plan = createBootstrapPlan(runId, intent.id, intent.acceptanceCriteria);
+  const plan = assertPlanGraphFromPlanningPileResult(planningPileResult, {
+    intentId: intent.id,
+    defaultPlanId: `plan_${runId}`
+  });
   const workspace = defineWorkspace({
     root: workspaceRoot,
     trust: "trusted",
@@ -97,7 +107,8 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       status: "pending" as const,
       artifacts: [
         artifact("planning", "pile-mission", "planning-mission.txt", "Model-visible planning pile mission."),
-        artifact("planning", "bootstrap-plan", "plan.json", "Deterministic bootstrap plan used until a live planning pile lands.")
+        artifact("planning", "pile-result", "planning-result.json", "Raw structured planning pile result."),
+        artifact("planning", "plan-graph", "plan.json", "Plan graph parsed and validated from the planning pile result.")
       ]
     },
     {
@@ -130,6 +141,7 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
   await writeJson(resolve(runDir, "manifest.json"), finalManifest);
   await writeFile(resolve(runDir, "planning-mission.txt"), `${planningMission.intent}\n`, "utf8");
   await writeFile(resolve(runDir, "review-mission.txt"), `${reviewMission.intent}\n`, "utf8");
+  await writeJson(resolve(runDir, "planning-result.json"), planningPileResult);
   await writeJson(resolve(runDir, "plan.json"), plan);
   await writeJson(resolve(runDir, "execution-plan.json"), execution);
   await writeJson(resolve(runDir, "review-gate.json"), review);
@@ -141,36 +153,13 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       "intent.json",
       "manifest.json",
       "planning-mission.txt",
+      "planning-result.json",
       "review-mission.txt",
       "plan.json",
       "execution-plan.json",
       "review-gate.json"
     ]
   };
-}
-
-function createBootstrapPlan(
-  runId: string,
-  intentId: Parameters<typeof createPlanGraph>[0]["intentId"],
-  acceptanceCriteria: readonly AcceptanceCriterion[]
-) {
-  const tasks: readonly PlanTask[] = acceptanceCriteria.map((criterion, index) => ({
-    id: `task-${criterion.id.replace(/^ac_/, "")}`,
-    title: `Satisfy ${criterion.id}: ${criterion.statement}`,
-    kind: criterion.verification === "test" ? "verification" : "implementation",
-    dependsOn: index === 0 ? [] : [`task-${acceptanceCriteria[index - 1]?.id.replace(/^ac_/, "")}`],
-    covers: [criterion.id],
-    requiredCapabilities: {},
-    risk: "low"
-  }));
-
-  return createPlanGraph({
-    planId: `plan_${runId}`,
-    intentId,
-    strategy:
-      "Bootstrap deterministic plan from acceptance criteria. Replace with PlanningPile output in the next unit.",
-    tasks
-  });
 }
 
 function artifact(
@@ -251,6 +240,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     options: {
       intentPath: flags.intent,
       outDir: flags.out,
+      planningFixturePath: flags.planningFixture ?? "examples/planning-results/scaffold.json",
       ...(flags.runId !== undefined ? { runId: flags.runId } : {})
     }
   };
@@ -290,10 +280,10 @@ function helpText(): string {
     "Protostar Factory",
     "",
     "Commands:",
-    `  ${executable} run --intent <path> --out <dir> [--run-id <id>]`,
+    `  ${executable} run --intent <path> --out <dir> [--planning-fixture <path>] [--run-id <id>]`,
     "",
     "Example:",
-    `  ${executable} run --intent examples/intents/scaffold.json --out .protostar/runs`
+    `  ${executable} run --intent examples/intents/scaffold.json --out .protostar/runs --planning-fixture examples/planning-results/scaffold.json`
   ].join("\n");
 }
 

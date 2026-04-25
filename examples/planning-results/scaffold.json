@@ -1,0 +1,6 @@
+{
+  "kind": "planning-pile-result",
+  "source": "fixture",
+  "modelProviderId": "deterministic-planning-fixture",
+  "output": "{\n  \"strategy\": \"Parse a deterministic planning-pile result into a durable plan graph, then use that plan graph as the execution and review input.\",\n  \"tasks\": [\n    {\n      \"id\": \"task-intent-artifact-spine\",\n      \"title\": \"Preserve the confirmed intent and run manifest as durable artifacts\",\n      \"kind\": \"implementation\",\n      \"dependsOn\": [],\n      \"covers\": [\"ac_workspace\"],\n      \"requiredCapabilities\": {},\n      \"risk\": \"low\"\n    },\n    {\n      \"id\": \"task-planning-pile-contract\",\n      \"title\": \"Parse fixture planning output into a validated plan graph\",\n      \"kind\": \"implementation\",\n      \"dependsOn\": [\"task-intent-artifact-spine\"],\n      \"covers\": [\"ac_spine\"],\n      \"requiredCapabilities\": {},\n      \"risk\": \"low\"\n    },\n    {\n      \"id\": \"task-plan-artifact-verification\",\n      \"title\": \"Write planning result and plan graph artifacts for later execution and review\",\n      \"kind\": \"verification\",\n      \"dependsOn\": [\"task-planning-pile-contract\"],\n      \"covers\": [\"ac_spine\"],\n      \"requiredCapabilities\": {},\n      \"risk\": \"low\"\n    }\n  ]\n}"
+}
