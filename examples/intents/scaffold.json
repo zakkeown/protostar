@@ -1,0 +1,48 @@
+{
+  "id": "intent_dark_factory_scaffold",
+  "title": "Scaffold a dark software factory control plane",
+  "problem": "Create the first executable spine for a system that can plan, execute, review, repair, and prepare releases after intent confirmation.",
+  "requester": "local-operator",
+  "confirmedAt": "2026-04-25T00:00:00.000Z",
+  "acceptanceCriteria": [
+    {
+      "id": "ac_workspace",
+      "statement": "The repo has a domain-first monorepo scaffold with package boundaries for intent, planning, execution, review, policy, artifacts, repo, and Dogpile coordination.",
+      "verification": "evidence"
+    },
+    {
+      "id": "ac_spine",
+      "statement": "A CLI composition path can construct a confirmed intent, run manifest, plan graph, execution plan, and review gate.",
+      "verification": "test"
+    }
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": ".",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "typescript",
+        "reason": "Compile the factory control-plane contracts.",
+        "risk": "low"
+      },
+      {
+        "tool": "dogpile",
+        "reason": "Coordinate planning and review piles over bounded factory artifacts.",
+        "risk": "medium"
+      }
+    ],
+    "budget": {
+      "maxTokens": 60000,
+      "timeoutMs": 300000,
+      "maxRepairLoops": 2
+    }
+  },
+  "constraints": [
+    "Dogpile is a coordination cell, not the factory authority boundary."
+  ]
+}

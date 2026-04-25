@@ -7,9 +7,9 @@
   "description": "Dark software factory control plane built from explicit intent, policy, execution, review, and Dogpile coordination cells.",
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b --pretty false --noEmit",
+    "typecheck": "tsc -b --pretty false",
     "verify": "pnpm run typecheck",
-    "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start"
+    "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --intent examples/intents/scaffold.json --out .protostar/runs"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

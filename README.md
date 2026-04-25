@@ -43,4 +43,25 @@ pnpm run typecheck
 pnpm run factory
 ```
 
+`pnpm run factory` builds the workspace and runs the sample confirmed intent at
+`examples/intents/scaffold.json`, writing a local run bundle under
+`.protostar/runs/<runId>/`.
+
+Run the CLI directly with a different intent or output directory:
+
+```sh
+pnpm run build
+pnpm --filter @protostar/factory-cli start -- run --intent examples/intents/scaffold.json --out .protostar/runs
+```
+
+Each run bundle currently contains:
+
+- `intent.json`
+- `manifest.json`
+- `planning-mission.txt`
+- `review-mission.txt`
+- `plan.json`
+- `execution-plan.json`
+- `review-gate.json`
+
 `@protostar/dogpile-adapter` links to the sibling Dogpile checkout at `../dogpile`.

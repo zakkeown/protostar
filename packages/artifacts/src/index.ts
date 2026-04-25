@@ -27,6 +27,14 @@ export interface FactoryRunManifest {
   readonly stages: readonly StageRecord[];
 }
 
+export interface RecordStageArtifactsInput {
+  readonly stage: FactoryStage;
+  readonly status?: StageRecord["status"];
+  readonly artifacts: readonly StageArtifactRef[];
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+}
+
 export function createFactoryRunManifest(input: {
   readonly runId: string;
   readonly intentId: IntentId;
@@ -44,6 +52,28 @@ export function createFactoryRunManifest(input: {
       pendingStage("review"),
       pendingStage("release")
     ]
+  };
+}
+
+export function recordStageArtifacts(
+  manifest: FactoryRunManifest,
+  input: RecordStageArtifactsInput
+): FactoryRunManifest {
+  return {
+    ...manifest,
+    stages: manifest.stages.map((stageRecord) => {
+      if (stageRecord.stage !== input.stage) {
+        return stageRecord;
+      }
+
+      return {
+        ...stageRecord,
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.startedAt !== undefined ? { startedAt: input.startedAt } : {}),
+        ...(input.completedAt !== undefined ? { completedAt: input.completedAt } : {}),
+        artifacts: [...stageRecord.artifacts, ...input.artifacts]
+      };
+    })
   };
 }
 
