@@ -1,0 +1,21 @@
+{
+  "name": "protostar-factory",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "description": "Dark software factory control plane built from explicit intent, policy, execution, review, and Dogpile coordination cells.",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false --noEmit",
+    "verify": "pnpm run typecheck",
+    "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

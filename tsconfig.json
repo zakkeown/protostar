@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/intent" },
+    { "path": "packages/artifacts" },
+    { "path": "packages/policy" },
+    { "path": "packages/planning" },
+    { "path": "packages/repo" },
+    { "path": "packages/execution" },
+    { "path": "packages/review" },
+    { "path": "packages/dogpile-adapter" },
+    { "path": "apps/factory-cli" }
+  ]
+}

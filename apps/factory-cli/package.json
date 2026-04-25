@@ -1,0 +1,24 @@
+{
+  "name": "@protostar/factory-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "protostar-factory": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false --noEmit",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@protostar/artifacts": "workspace:*",
+    "@protostar/dogpile-adapter": "workspace:*",
+    "@protostar/execution": "workspace:*",
+    "@protostar/intent": "workspace:*",
+    "@protostar/planning": "workspace:*",
+    "@protostar/policy": "workspace:*",
+    "@protostar/repo": "workspace:*",
+    "@protostar/review": "workspace:*"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@protostar/artifacts": ["packages/artifacts/src/index.ts"],
+      "@protostar/dogpile-adapter": ["packages/dogpile-adapter/src/index.ts"],
+      "@protostar/execution": ["packages/execution/src/index.ts"],
+      "@protostar/intent": ["packages/intent/src/index.ts"],
+      "@protostar/planning": ["packages/planning/src/index.ts"],
+      "@protostar/policy": ["packages/policy/src/index.ts"],
+      "@protostar/repo": ["packages/repo/src/index.ts"],
+      "@protostar/review": ["packages/review/src/index.ts"]
+    }
+  }
+}

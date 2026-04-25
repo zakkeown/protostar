@@ -1,0 +1,23 @@
+{
+  "name": "@protostar/execution",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false --noEmit"
+  },
+  "dependencies": {
+    "@protostar/planning": "workspace:*",
+    "@protostar/repo": "workspace:*"
+  },
+  "sideEffects": false
+}
