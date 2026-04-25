@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@protostar/artifacts": "workspace:*",
     "@protostar/planning": "workspace:*",
     "@protostar/repo": "workspace:*"
   },

@@ -62,6 +62,9 @@ importers:
 
   packages/execution:
     dependencies:
+      '@protostar/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
       '@protostar/planning':
         specifier: workspace:*
         version: link:../planning

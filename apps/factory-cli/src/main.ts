@@ -10,7 +10,7 @@ import {
   buildPlanningMission,
   buildReviewMission
 } from "@protostar/dogpile-adapter";
-import { prepareExecutionRun } from "@protostar/execution";
+import { prepareExecutionRun, runExecutionDryRun, type ExecutionDryRunResult } from "@protostar/execution";
 import { assertConfirmedIntent } from "@protostar/intent";
 import { authorizeFactoryStart } from "@protostar/policy";
 import { defineWorkspace } from "@protostar/repo";
@@ -20,6 +20,7 @@ interface RunCommandOptions {
   readonly intentPath: string;
   readonly outDir: string;
   readonly planningFixturePath: string;
+  readonly failTaskIds: readonly string[];
   readonly runId?: string;
 }
 
@@ -87,6 +88,10 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     plan,
     workspace
   });
+  const executionResult = runExecutionDryRun({
+    execution,
+    failTaskIds: options.failTaskIds
+  });
   const review = createReviewGate({
     plan,
     execution
@@ -104,7 +109,7 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     },
     {
       stage: "planning" as const,
-      status: "pending" as const,
+      status: "passed" as const,
       artifacts: [
         artifact("planning", "pile-mission", "planning-mission.txt", "Model-visible planning pile mission."),
         artifact("planning", "pile-result", "planning-result.json", "Raw structured planning pile result."),
@@ -113,9 +118,12 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     },
     {
       stage: "execution" as const,
-      status: "pending" as const,
+      status: executionResult.status === "passed" ? ("passed" as const) : ("failed" as const),
       artifacts: [
-        artifact("execution", "execution-plan", "execution-plan.json", "Execution task ordering derived from the plan graph.")
+        artifact("execution", "execution-plan", "execution-plan.json", "Execution task ordering derived from the plan graph."),
+        artifact("execution", "execution-events", "execution-events.json", "Dry-run execution lifecycle events."),
+        artifact("execution", "execution-result", "execution-result.json", "Dry-run execution result."),
+        ...executionResult.evidence
       ]
     },
     {
@@ -131,7 +139,7 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       recordStageArtifacts(current, {
         ...stage,
         startedAt,
-        ...(stage.status === "passed" ? { completedAt: startedAt } : {})
+        ...(stage.status === "passed" || stage.status === "failed" ? { completedAt: startedAt } : {})
       }),
     manifest
   );
@@ -144,6 +152,9 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
   await writeJson(resolve(runDir, "planning-result.json"), planningPileResult);
   await writeJson(resolve(runDir, "plan.json"), plan);
   await writeJson(resolve(runDir, "execution-plan.json"), execution);
+  await writeJson(resolve(runDir, "execution-events.json"), executionResult.events);
+  await writeJson(resolve(runDir, "execution-result.json"), executionResult);
+  await writeExecutionEvidence(runDir, executionResult);
   await writeJson(resolve(runDir, "review-gate.json"), review);
 
   return {
@@ -157,6 +168,9 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       "review-mission.txt",
       "plan.json",
       "execution-plan.json",
+      "execution-events.json",
+      "execution-result.json",
+      ...executionResult.evidence.map((ref) => ref.uri),
       "review-gate.json"
     ]
   };
@@ -178,6 +192,24 @@ function artifact(
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+async function writeExecutionEvidence(runDir: string, result: ExecutionDryRunResult): Promise<void> {
+  const evidenceDir = resolve(runDir, "execution-evidence");
+  await mkdir(evidenceDir, { recursive: true });
+  await Promise.all(
+    result.tasks.flatMap((task) =>
+      task.evidence.map((ref) =>
+        writeJson(resolve(runDir, ref.uri), {
+          planTaskId: task.planTaskId,
+          status: task.status,
+          reason: task.reason ?? null,
+          blockedBy: task.blockedBy ?? [],
+          evidence: ref
+        })
+      )
+    )
+  );
 }
 
 function createRunId(intentId: string): string {
@@ -241,6 +273,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       intentPath: flags.intent,
       outDir: flags.out,
       planningFixturePath: flags.planningFixture ?? "examples/planning-results/scaffold.json",
+      failTaskIds: parseFailTaskIds(flags.failTaskIds),
       ...(flags.runId !== undefined ? { runId: flags.runId } : {})
     }
   };
@@ -274,13 +307,23 @@ function flagName(flag: string): string {
   return flag.slice(2).replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
+function parseFailTaskIds(value: string | undefined): readonly string[] {
+  if (value === undefined || value.trim().length === 0) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
 function helpText(): string {
   const executable = basename(process.argv[1] ?? "protostar-factory");
   return [
     "Protostar Factory",
     "",
     "Commands:",
-    `  ${executable} run --intent <path> --out <dir> [--planning-fixture <path>] [--run-id <id>]`,
+    `  ${executable} run --intent <path> --out <dir> [--planning-fixture <path>] [--fail-task-ids <ids>] [--run-id <id>]`,
     "",
     "Example:",
     `  ${executable} run --intent examples/intents/scaffold.json --out .protostar/runs --planning-fixture examples/planning-results/scaffold.json`

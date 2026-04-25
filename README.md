@@ -66,11 +66,19 @@ Each run bundle currently contains:
 - `review-mission.txt`
 - `plan.json`
 - `execution-plan.json`
+- `execution-events.json`
+- `execution-result.json`
+- `execution-evidence/*.json`
 - `review-gate.json`
 
 The planning fixture is a deterministic stand-in for a future live Dogpile
 planning run. Its `output` field must be JSON that parses into a valid
 `PlanGraph`; invalid dependencies or malformed tasks fail before a run bundle is
 written.
+
+The execution stage is currently a deterministic dry run. It emits task lifecycle
+events, enforces dependency ordering, and attaches evidence refs to passed or
+failed tasks without modifying repository files. Use `--fail-task-ids` with a
+comma-separated list to exercise failure and downstream blocking behavior.
 
 `@protostar/dogpile-adapter` links to the sibling Dogpile checkout at `../dogpile`.
