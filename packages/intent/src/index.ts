@@ -61,6 +61,26 @@ export interface ConfirmedIntentParseResult {
   readonly errors: readonly string[];
 }
 
+export type IntentAmbiguityMode = "greenfield" | "brownfield";
+export type IntentClarityDimension = "goal" | "constraints" | "successCriteria" | "context";
+
+export const INTENT_AMBIGUITY_THRESHOLD = 0.2;
+
+export interface IntentClarityScore {
+  readonly dimension: IntentClarityDimension;
+  readonly clarity: number;
+  readonly weight: number;
+  readonly rationale: string;
+}
+
+export interface IntentAmbiguityAssessment {
+  readonly mode: IntentAmbiguityMode;
+  readonly threshold: number;
+  readonly ambiguity: number;
+  readonly accepted: boolean;
+  readonly scores: readonly IntentClarityScore[];
+}
+
 export function defineConfirmedIntent(input: ConfirmedIntentInput): ConfirmedIntent {
   if (input.acceptanceCriteria.length === 0) {
     throw new Error("Confirmed intent requires at least one acceptance criterion.");
@@ -135,6 +155,37 @@ export function assertConfirmedIntent(value: unknown): ConfirmedIntent {
   return result.intent;
 }
 
+export function assessConfirmedIntentAmbiguity(
+  intent: ConfirmedIntent,
+  input?: {
+    readonly mode?: IntentAmbiguityMode;
+    readonly threshold?: number;
+  }
+): IntentAmbiguityAssessment {
+  const mode = input?.mode ?? "brownfield";
+  const threshold = input?.threshold ?? INTENT_AMBIGUITY_THRESHOLD;
+  const scores = scoreIntentClarity(intent, mode);
+  const weightedClarity = scores.reduce((total, score) => total + score.clarity * score.weight, 0);
+  const ambiguity = roundScore(1 - weightedClarity);
+
+  return {
+    mode,
+    threshold,
+    ambiguity,
+    accepted: ambiguity <= threshold,
+    scores
+  };
+}
+
+export function assertIntentAmbiguityAccepted(assessment: IntentAmbiguityAssessment): IntentAmbiguityAssessment {
+  if (!assessment.accepted) {
+    throw new Error(
+      `Intent ambiguity ${assessment.ambiguity.toFixed(2)} exceeds threshold ${assessment.threshold.toFixed(2)}.`
+    );
+  }
+  return assessment;
+}
+
 function parseAcceptanceCriteria(value: unknown, errors: string[]): readonly AcceptanceCriterion[] {
   if (!Array.isArray(value)) {
     errors.push("acceptanceCriteria must be an array.");
@@ -169,6 +220,94 @@ function parseAcceptanceCriteria(value: unknown, errors: string[]): readonly Acc
       }
     ];
   });
+}
+
+function scoreIntentClarity(intent: ConfirmedIntent, mode: IntentAmbiguityMode): readonly IntentClarityScore[] {
+  const weights = mode === "greenfield"
+    ? {
+        goal: 0.4,
+        constraints: 0.3,
+        successCriteria: 0.3
+      }
+    : {
+        goal: 0.35,
+        constraints: 0.25,
+        successCriteria: 0.25,
+        context: 0.15
+      };
+
+  return Object.entries(weights).map(([dimension, weight]) => {
+    const score = scoreDimension(intent, dimension as IntentClarityDimension);
+    return {
+      dimension: dimension as IntentClarityDimension,
+      clarity: score.clarity,
+      weight,
+      rationale: score.rationale
+    };
+  });
+}
+
+function scoreDimension(
+  intent: ConfirmedIntent,
+  dimension: IntentClarityDimension
+): {
+  readonly clarity: number;
+  readonly rationale: string;
+} {
+  if (dimension === "goal") {
+    const clarity = average([
+      intent.title.trim().length >= 12 ? 1 : 0.55,
+      intent.problem.trim().length >= 80 ? 1 : 0.65
+    ]);
+    return {
+      clarity,
+      rationale: "Goal clarity is estimated from title and problem specificity."
+    };
+  }
+
+  if (dimension === "constraints") {
+    const clarity = average([
+      intent.constraints.length > 0 ? 1 : 0.45,
+      intent.capabilityEnvelope.repoScopes.length > 0 ? 1 : 0.45,
+      intent.capabilityEnvelope.toolPermissions.length > 0 ? 1 : 0.45,
+      Object.keys(intent.capabilityEnvelope.budget).length > 0 ? 1 : 0.5
+    ]);
+    return {
+      clarity,
+      rationale: "Constraint clarity is estimated from explicit constraints, repo scope, tools, and budget."
+    };
+  }
+
+  if (dimension === "successCriteria") {
+    const clarity = intent.acceptanceCriteria.length === 0
+      ? 0
+      : average(
+          intent.acceptanceCriteria.flatMap((criterion) => [
+            criterion.statement.trim().length >= 24 ? 1 : 0.55,
+            criterion.verification === "manual" ? 0.65 : 1
+          ])
+        );
+    return {
+      clarity,
+      rationale: "Success criteria clarity is estimated from AC specificity and non-manual verification signals."
+    };
+  }
+
+  return {
+    clarity: intent.capabilityEnvelope.repoScopes.length > 0 ? 1 : 0.4,
+    rationale: "Context clarity is estimated from whether the intent names a repo scope."
+  };
+}
+
+function average(values: readonly number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  return roundScore(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function roundScore(value: number): number {
+  return Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
 }
 
 function parseCapabilityEnvelope(value: unknown, errors: string[]): CapabilityEnvelope {

@@ -20,9 +20,15 @@ importers:
       '@protostar/artifacts':
         specifier: workspace:*
         version: link:../../packages/artifacts
+      '@protostar/delivery':
+        specifier: workspace:*
+        version: link:../../packages/delivery
       '@protostar/dogpile-adapter':
         specifier: workspace:*
         version: link:../../packages/dogpile-adapter
+      '@protostar/evaluation':
+        specifier: workspace:*
+        version: link:../../packages/evaluation
       '@protostar/execution':
         specifier: workspace:*
         version: link:../../packages/execution
@@ -48,6 +54,15 @@ importers:
         specifier: workspace:*
         version: link:../intent
 
+  packages/delivery:
+    dependencies:
+      '@protostar/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
+      '@protostar/review':
+        specifier: workspace:*
+        version: link:../review
+
   packages/dogpile-adapter:
     dependencies:
       '@dogpile/sdk':
@@ -59,6 +74,12 @@ importers:
       '@protostar/planning':
         specifier: workspace:*
         version: link:../planning
+
+  packages/evaluation:
+    dependencies:
+      '@protostar/review':
+        specifier: workspace:*
+        version: link:../review
 
   packages/execution:
     dependencies:

@@ -1,5 +1,5 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
-import type { ExecutionDryRunResult, ExecutionRunPlan } from "@protostar/execution";
+import { runExecutionDryRun, type ExecutionDryRunResult, type ExecutionRunPlan } from "@protostar/execution";
 import type { ConfirmedIntent } from "@protostar/intent";
 import type { PlanGraph } from "@protostar/planning";
 
@@ -34,6 +34,34 @@ export interface MechanicalReviewGateInput {
   readonly executionResult: ExecutionDryRunResult;
 }
 
+export type ReviewExecutionLoopAction = "approved" | "repair-and-retry" | "blocked" | "repair-limit-reached";
+export type ReviewExecutionLoopStatus = "approved" | "blocked" | "repair-limit-reached";
+
+export interface ReviewExecutionLoopIteration {
+  readonly attempt: number;
+  readonly action: ReviewExecutionLoopAction;
+  readonly executionResult: ExecutionDryRunResult;
+  readonly reviewGate: ReviewGate;
+  readonly repairTaskIds: readonly string[];
+}
+
+export interface ReviewExecutionLoopResult {
+  readonly status: ReviewExecutionLoopStatus;
+  readonly maxRepairLoops: number;
+  readonly iterations: readonly ReviewExecutionLoopIteration[];
+  readonly finalExecutionResult: ExecutionDryRunResult;
+  readonly finalReviewGate: ReviewGate;
+}
+
+export interface ReviewExecutionLoopInput {
+  readonly intent: ConfirmedIntent;
+  readonly plan: PlanGraph;
+  readonly execution: ExecutionRunPlan;
+  readonly initialFailTaskIds?: readonly string[];
+  readonly maxRepairLoops?: number;
+  readonly now?: () => string;
+}
+
 export function createReviewGate(input: {
   readonly plan: PlanGraph;
   readonly execution: ExecutionRunPlan;
@@ -54,6 +82,91 @@ export function createReviewGate(input: {
   };
 }
 
+export function runMechanicalReviewExecutionLoop(input: ReviewExecutionLoopInput): ReviewExecutionLoopResult {
+  const maxRepairLoops = Math.max(0, input.maxRepairLoops ?? 0);
+  const failTaskIds = new Set(input.initialFailTaskIds ?? []);
+  const iterations: ReviewExecutionLoopIteration[] = [];
+
+  for (let attempt = 0; attempt <= maxRepairLoops; attempt += 1) {
+    const executionResult = runExecutionDryRun({
+      execution: input.execution,
+      failTaskIds: [...failTaskIds],
+      ...(input.now !== undefined ? { now: input.now } : {})
+    });
+    const reviewGate = createMechanicalReviewGate({
+      intent: input.intent,
+      plan: input.plan,
+      execution: input.execution,
+      executionResult
+    });
+    const repairTaskIds = uniqueRepairTaskIds(reviewGate);
+
+    if (reviewGate.verdict === "pass") {
+      iterations.push({
+        attempt,
+        action: "approved",
+        executionResult,
+        reviewGate,
+        repairTaskIds
+      });
+      return {
+        status: "approved",
+        maxRepairLoops,
+        iterations,
+        finalExecutionResult: executionResult,
+        finalReviewGate: reviewGate
+      };
+    }
+
+    if (reviewGate.verdict === "block") {
+      iterations.push({
+        attempt,
+        action: "blocked",
+        executionResult,
+        reviewGate,
+        repairTaskIds
+      });
+      return {
+        status: "blocked",
+        maxRepairLoops,
+        iterations,
+        finalExecutionResult: executionResult,
+        finalReviewGate: reviewGate
+      };
+    }
+
+    if (attempt >= maxRepairLoops || repairTaskIds.length === 0) {
+      iterations.push({
+        attempt,
+        action: "repair-limit-reached",
+        executionResult,
+        reviewGate,
+        repairTaskIds
+      });
+      return {
+        status: "repair-limit-reached",
+        maxRepairLoops,
+        iterations,
+        finalExecutionResult: executionResult,
+        finalReviewGate: reviewGate
+      };
+    }
+
+    iterations.push({
+      attempt,
+      action: "repair-and-retry",
+      executionResult,
+      reviewGate,
+      repairTaskIds
+    });
+    for (const repairTaskId of repairTaskIds) {
+      failTaskIds.delete(repairTaskId);
+    }
+  }
+
+  throw new Error("Review execution loop exited unexpectedly.");
+}
+
 export function createMechanicalReviewGate(input: MechanicalReviewGateInput): ReviewGate {
   const findings: ReviewFinding[] = [
     ...reviewExecutionConsistency(input),
@@ -68,6 +181,16 @@ export function createMechanicalReviewGate(input: MechanicalReviewGateInput): Re
     execution: input.execution,
     findings
   });
+}
+
+function uniqueRepairTaskIds(reviewGate: ReviewGate): readonly string[] {
+  return [
+    ...new Set(
+      reviewGate.findings.flatMap((finding) =>
+        finding.repairTaskId !== undefined ? [finding.repairTaskId] : []
+      )
+    )
+  ];
 }
 
 function reviewExecutionConsistency(input: MechanicalReviewGateInput): readonly ReviewFinding[] {

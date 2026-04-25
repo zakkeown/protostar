@@ -4,23 +4,33 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
 import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
+import { createGitHubPrDeliveryPlan } from "@protostar/delivery";
 import {
   assertPlanGraphFromPlanningPileResult,
   assertPlanningPileResult,
   buildPlanningMission,
   buildReviewMission
 } from "@protostar/dogpile-adapter";
-import { prepareExecutionRun, runExecutionDryRun, type ExecutionDryRunResult } from "@protostar/execution";
-import { assertConfirmedIntent } from "@protostar/intent";
+import { createEvaluationReport, decideEvolution, type OntologySnapshot } from "@protostar/evaluation";
+import { prepareExecutionRun, type ExecutionDryRunResult } from "@protostar/execution";
+import {
+  assertConfirmedIntent,
+  assertIntentAmbiguityAccepted,
+  assessConfirmedIntentAmbiguity,
+  type ConfirmedIntent,
+  type IntentAmbiguityMode
+} from "@protostar/intent";
 import { authorizeFactoryStart } from "@protostar/policy";
+import type { PlanGraph } from "@protostar/planning";
 import { defineWorkspace } from "@protostar/repo";
-import { createMechanicalReviewGate, type ReviewVerdict } from "@protostar/review";
+import { runMechanicalReviewExecutionLoop, type ReviewVerdict } from "@protostar/review";
 
 interface RunCommandOptions {
   readonly intentPath: string;
   readonly outDir: string;
   readonly planningFixturePath: string;
   readonly failTaskIds: readonly string[];
+  readonly intentMode: IntentAmbiguityMode;
   readonly runId?: string;
 }
 
@@ -56,6 +66,11 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
   const planningFixturePath = resolve(workspaceRoot, options.planningFixturePath);
   const outDir = resolve(workspaceRoot, options.outDir);
   const intent = assertConfirmedIntent(JSON.parse(await readFile(intentPath, "utf8")));
+  const ambiguityAssessment = assertIntentAmbiguityAccepted(
+    assessConfirmedIntentAmbiguity(intent, {
+      mode: options.intentMode
+    })
+  );
   const planningPileResult = assertPlanningPileResult(JSON.parse(await readFile(planningFixturePath, "utf8")));
   const runId = options.runId ?? createRunId(intent.id);
   const runDir = resolve(outDir, runId);
@@ -88,15 +103,27 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
     plan,
     workspace
   });
-  const executionResult = runExecutionDryRun({
-    execution,
-    failTaskIds: options.failTaskIds
-  });
-  const review = createMechanicalReviewGate({
+  const loop = runMechanicalReviewExecutionLoop({
     intent,
     plan,
     execution,
-    executionResult
+    initialFailTaskIds: options.failTaskIds,
+    maxRepairLoops: intent.capabilityEnvelope.budget.maxRepairLoops ?? 0
+  });
+  const executionResult = loop.finalExecutionResult;
+  const review = loop.finalReviewGate;
+  const evaluationReport = createEvaluationReport({
+    runId,
+    reviewGate: review
+  });
+  const evolutionDecision = decideEvolution({
+    previous: createIntentOntologySnapshot(intent),
+    current: createPlanOntologySnapshot(plan)
+  });
+  const deliveryPlan = createGitHubPrDeliveryPlan({
+    runId,
+    reviewGate: review,
+    title: intent.title
   });
   const planningMission = buildPlanningMission(intent);
   const reviewMission = buildReviewMission(intent, plan);
@@ -106,7 +133,8 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       stage: "intent" as const,
       status: "passed" as const,
       artifacts: [
-        artifact("intent", "confirmed-intent", "intent.json", "Normalized confirmed intent input.")
+        artifact("intent", "confirmed-intent", "intent.json", "Normalized confirmed intent input."),
+        artifact("intent", "intent-ambiguity", "intent-ambiguity.json", "Ouroboros-style intent ambiguity assessment.")
       ]
     },
     {
@@ -125,6 +153,7 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
         artifact("execution", "execution-plan", "execution-plan.json", "Execution task ordering derived from the plan graph."),
         artifact("execution", "execution-events", "execution-events.json", "Dry-run execution lifecycle events."),
         artifact("execution", "execution-result", "execution-result.json", "Dry-run execution result."),
+        artifact("execution", "review-execution-loop", "review-execution-loop.json", "Review-execute-review loop transcript."),
         ...executionResult.evidence
       ]
     },
@@ -133,22 +162,33 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       status: review.verdict === "pass" ? ("passed" as const) : ("failed" as const),
       artifacts: [
         artifact("review", "pile-mission", "review-mission.txt", "Model-visible review pile mission."),
-        artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings.")
+        artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings."),
+        artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report stub."),
+        artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision stub.")
       ]
+    },
+    {
+      stage: "release" as const,
+      status: deliveryPlan.status === "ready" ? ("passed" as const) : ("skipped" as const),
+      artifacts: deliveryPlan.artifacts
     }
   ].reduce(
     (current, stage) =>
       recordStageArtifacts(current, {
         ...stage,
         startedAt,
-        ...(stage.status === "passed" || stage.status === "failed" ? { completedAt: startedAt } : {})
+        ...(stage.status === "passed" || stage.status === "failed" || stage.status === "skipped"
+          ? { completedAt: startedAt }
+          : {})
       }),
     manifest
   );
   const reviewedManifest = setFactoryRunStatus(finalManifest, statusForReviewVerdict(review.verdict));
 
   await mkdir(runDir, { recursive: true });
+  await mkdir(resolve(runDir, "delivery"), { recursive: true });
   await writeJson(resolve(runDir, "intent.json"), intent);
+  await writeJson(resolve(runDir, "intent-ambiguity.json"), ambiguityAssessment);
   await writeJson(resolve(runDir, "manifest.json"), reviewedManifest);
   await writeFile(resolve(runDir, "planning-mission.txt"), `${planningMission.intent}\n`, "utf8");
   await writeFile(resolve(runDir, "review-mission.txt"), `${reviewMission.intent}\n`, "utf8");
@@ -157,14 +197,20 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
   await writeJson(resolve(runDir, "execution-plan.json"), execution);
   await writeJson(resolve(runDir, "execution-events.json"), executionResult.events);
   await writeJson(resolve(runDir, "execution-result.json"), executionResult);
+  await writeJson(resolve(runDir, "review-execution-loop.json"), loop);
   await writeExecutionEvidence(runDir, executionResult);
   await writeJson(resolve(runDir, "review-gate.json"), review);
+  await writeJson(resolve(runDir, "evaluation-report.json"), evaluationReport);
+  await writeJson(resolve(runDir, "evolution-decision.json"), evolutionDecision);
+  await writeJson(resolve(runDir, "delivery-plan.json"), deliveryPlan);
+  await writeFile(resolve(runDir, "delivery/pr-body.md"), `${deliveryPlan.body}\n`, "utf8");
 
   return {
     runId,
     runDir,
     artifacts: [
       "intent.json",
+      "intent-ambiguity.json",
       "manifest.json",
       "planning-mission.txt",
       "planning-result.json",
@@ -173,9 +219,38 @@ async function runFactory(options: RunCommandOptions): Promise<RunCommandResult>
       "execution-plan.json",
       "execution-events.json",
       "execution-result.json",
+      "review-execution-loop.json",
       ...executionResult.evidence.map((ref) => ref.uri),
-      "review-gate.json"
+      "review-gate.json",
+      "evaluation-report.json",
+      "evolution-decision.json",
+      "delivery-plan.json",
+      "delivery/pr-body.md"
     ]
+  };
+}
+
+function createIntentOntologySnapshot(intent: ConfirmedIntent): OntologySnapshot {
+  return {
+    generation: 0,
+    fields: intent.acceptanceCriteria.map((criterion) => ({
+      name: criterion.id,
+      type: criterion.verification,
+      description: criterion.statement
+    }))
+  };
+}
+
+function createPlanOntologySnapshot(plan: PlanGraph): OntologySnapshot {
+  return {
+    generation: 1,
+    fields: plan.tasks.flatMap((task) =>
+      task.covers.map((criterionId) => ({
+        name: criterionId,
+        type: task.kind,
+        description: task.title
+      }))
+    )
   };
 }
 
@@ -279,6 +354,13 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       message: "Missing required --out <dir>."
     };
   }
+  const intentMode = parseIntentMode(flags.intentMode);
+  if (!intentMode.ok) {
+    return {
+      type: "error",
+      message: intentMode.error
+    };
+  }
 
   return {
     type: "run",
@@ -287,6 +369,7 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       outDir: flags.out,
       planningFixturePath: flags.planningFixture ?? "examples/planning-results/scaffold.json",
       failTaskIds: parseFailTaskIds(flags.failTaskIds),
+      intentMode: intentMode.mode,
       ...(flags.runId !== undefined ? { runId: flags.runId } : {})
     }
   };
@@ -330,13 +413,40 @@ function parseFailTaskIds(value: string | undefined): readonly string[] {
     .filter((entry) => entry.length > 0);
 }
 
+function parseIntentMode(value: string | undefined):
+  | {
+      readonly ok: true;
+      readonly mode: IntentAmbiguityMode;
+    }
+  | {
+      readonly ok: false;
+      readonly error: string;
+    } {
+  if (value === undefined) {
+    return {
+      ok: true,
+      mode: "brownfield"
+    };
+  }
+  if (value === "greenfield" || value === "brownfield") {
+    return {
+      ok: true,
+      mode: value
+    };
+  }
+  return {
+    ok: false,
+    error: "--intent-mode must be greenfield or brownfield."
+  };
+}
+
 function helpText(): string {
   const executable = basename(process.argv[1] ?? "protostar-factory");
   return [
     "Protostar Factory",
     "",
     "Commands:",
-    `  ${executable} run --intent <path> --out <dir> [--planning-fixture <path>] [--fail-task-ids <ids>] [--run-id <id>]`,
+    `  ${executable} run --intent <path> --out <dir> [--planning-fixture <path>] [--intent-mode <mode>] [--fail-task-ids <ids>] [--run-id <id>]`,
     "",
     "Example:",
     `  ${executable} run --intent examples/intents/scaffold.json --out .protostar/runs --planning-fixture examples/planning-results/scaffold.json`

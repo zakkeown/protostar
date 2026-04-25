@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@protostar/artifacts": "workspace:*",
+    "@protostar/delivery": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
+    "@protostar/evaluation": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*",
