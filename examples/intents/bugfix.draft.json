@@ -1,0 +1,74 @@
+{
+  "draftId": "draft_bugfix_policy_admission",
+  "title": "Fix bugfix policy admission path",
+  "problem": "The bugfix policy row exists in the policy table, but operators need deterministic admission to report that bugfix is still unsupported with a stub capability cap.",
+  "requester": "ouroboros-ac-80301",
+  "mode": "brownfield",
+  "goalArchetype": "bugfix",
+  "context": "Protostar already has unsupported feature-add and refactor admission paths; this draft exercises the v0.0.1 bugfix policy row.",
+  "acceptanceCriteria": [
+    {
+      "statement": "The bugfix admission response reports the selected bugfix policy row and its stub capability cap.",
+      "verification": "evidence"
+    },
+    {
+      "statement": "Bugfix drafts remain unconfirmed while the bugfix policy row is unsupported.",
+      "verification": "test"
+    }
+  ],
+  "constraints": [
+    "Keep the work inside the intent-facing policy admission surface.",
+    "Do not change execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if bugfix admission remains unsupported or if the stub cap cannot be reported deterministically."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "packages/policy",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Run focused policy admission tests.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 120000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "bugfix-draft",
+    "expectedGoalArchetype": "bugfix",
+    "expectedOutcome": "blocked",
+    "expectedBlockReasons": [
+      "bugfix policy row is unsupported in v0.0.1",
+      "draft remains unconfirmed while bugfix capability caps are stubbed"
+    ],
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "unsupported",
+        "goalArchetype": "bugfix",
+        "policyStatus": "stub",
+        "blockingFindings": [
+          "unsupported-goal-archetype"
+        ]
+      }
+    }
+  }
+}

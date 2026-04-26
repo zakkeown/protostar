@@ -1,0 +1,69 @@
+{
+  "draftId": "draft_greenfield_clear_promoted",
+  "title": "Polish intent admission copy",
+  "problem": "The examples/intents/greenfield/clear-promoted.draft.json intent admission copy needs clearer operator-facing wording while preserving deterministic admission behavior.",
+  "requester": "ouroboros-ac-100002",
+  "mode": "greenfield",
+  "goalArchetype": "cosmetic-tweak",
+  "acceptanceCriteria": [
+    {
+      "statement": "The greenfield fixture contains complete intent fields, measurable acceptance criteria, and a bounded capability envelope without changing admission behavior.",
+      "verification": "evidence"
+    },
+    {
+      "statement": "The draft promotes through deterministic intent admission with ambiguity at or below 0.20.",
+      "verification": "test"
+    }
+  ],
+  "constraints": [
+    "Keep authority limited to examples/intents/greenfield fixture files.",
+    "Do not change execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if deterministic admission reports ambiguity above 0.20.",
+    "Stop if policy flags authority outside examples/intents/greenfield."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "examples/intents/greenfield",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Verify the deterministic intent admission fixture path.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 30000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "clear-intent-draft",
+    "expectedOutcome": "promoted",
+    "expectedAmbiguityMaximum": 0.2,
+    "expectedGoalArchetype": "cosmetic-tweak",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "promoted",
+      "expectedAmbiguityStatus": {
+        "mode": "greenfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
+      }
+    }
+  }
+}

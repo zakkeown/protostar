@@ -1,63 +1,10 @@
-import type { FactoryStage } from "@protostar/artifacts";
-import type { ConfirmedIntent } from "@protostar/intent";
-
-export interface FactoryAutonomyPolicy {
-  readonly allowDarkRun: boolean;
-  readonly requiredHumanCheckpoints: readonly FactoryStage[];
-  readonly maxAutonomousRisk: "low" | "medium" | "high";
-}
-
-export type PolicyVerdict =
-  | {
-      readonly type: "allow";
-      readonly rationale: string;
-    }
-  | {
-      readonly type: "needs-human";
-      readonly checkpoint: FactoryStage;
-      readonly rationale: string;
-    }
-  | {
-      readonly type: "block";
-      readonly rationale: string;
-    };
-
-export function authorizeFactoryStart(intent: ConfirmedIntent, policy: FactoryAutonomyPolicy): PolicyVerdict {
-  if (!policy.allowDarkRun) {
-    return {
-      type: "needs-human",
-      checkpoint: "intent",
-      rationale: "Autonomous factory runs are disabled by policy."
-    };
-  }
-
-  if (policy.requiredHumanCheckpoints.includes("planning")) {
-    return {
-      type: "needs-human",
-      checkpoint: "planning",
-      rationale: "Policy requires a human planning checkpoint before execution."
-    };
-  }
-
-  const highestToolRisk = intent.capabilityEnvelope.toolPermissions.some((grant) => grant.risk === "high")
-    ? "high"
-    : intent.capabilityEnvelope.toolPermissions.some((grant) => grant.risk === "medium")
-      ? "medium"
-      : "low";
-
-  if (riskRank(highestToolRisk) > riskRank(policy.maxAutonomousRisk)) {
-    return {
-      type: "block",
-      rationale: `Capability envelope exceeds autonomous risk limit: ${highestToolRisk}.`
-    };
-  }
-
-  return {
-    type: "allow",
-    rationale: "Confirmed intent and capability envelope fit the autonomy policy."
-  };
-}
-
-function riskRank(risk: "low" | "medium" | "high"): number {
-  return risk === "high" ? 3 : risk === "medium" ? 2 : 1;
-}
+export { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, GOAL_ARCHETYPE_POLICY_TABLE, INTENT_ARCHETYPE_REGISTRY, REFACTOR_GOAL_ARCHETYPE, REPO_SCOPE_ACCESS_VALUES, SUPPORTED_GOAL_ARCHETYPES, V0_0_1_INTENT_ARCHETYPE_IDS, V0_0_1_INTENT_ARCHETYPE_REGISTRY } from "./archetypes.js";
+export type { FactoryAutonomyPolicy, GoalArchetype, GoalArchetypeBudgetPolicy, GoalArchetypeCapabilityGrantKind, GoalArchetypeCapabilityGrantsPolicy, GoalArchetypeCompatibilityBudgetCaps, GoalArchetypeExecuteGrantPolicy, GoalArchetypeExecutionScope, GoalArchetypePolicy, GoalArchetypePolicyEntry, GoalArchetypePolicyStatus, GoalArchetypePolicyTable, GoalArchetypeRepoScopePolicy, GoalArchetypeToolPermissionGrantPolicy, GoalArchetypeToolPermissionLimitsPolicy, GoalArchetypeToolPermissionsPolicy, GoalArchetypeWriteGrantPolicy, IntentArchetypeAutoTagScore, IntentArchetypeAutoTagSignal, IntentArchetypeAutoTagSignalSource, IntentArchetypeAutoTagSuggestion, IntentArchetypeCapabilityCapStatus, IntentArchetypeRegistry, IntentArchetypeRegistryEntry, IntentArchetypeSupportStatus, RepoAccessLevel, V001IntentArchetypeId } from "./archetypes.js";
+export { ADMISSION_DECISION_ARTIFACT_NAME, ADMISSION_DECISION_OUTCOMES, ADMISSION_DECISION_SCHEMA_VERSION, CAPABILITY_ENVELOPE_BUDGET_LIMIT_VIOLATION_CODES, CAPABILITY_ENVELOPE_EXECUTE_GRANT_VIOLATION_CODES, CAPABILITY_ENVELOPE_TOOL_PERMISSION_VIOLATION_CODES, CAPABILITY_ENVELOPE_WRITE_GRANT_VIOLATION_CODES, DUPLICATE_ACCEPTANCE_CRITERION_POLICY_CODE, INTENT_ARCHETYPE_PROPOSAL_LOW_CONFIDENCE_THRESHOLD, LOW_CONFIDENCE_GOAL_ARCHETYPE_POLICY_CODE, MANUAL_UNJUSTIFIED_ACCEPTANCE_CRITERION_POLICY_CODE, REPO_SCOPE_ADMISSION_REASON_CODES } from "./admission-contracts.js";
+export type { AdmissionDecisionAmbiguityDetail, AdmissionDecisionArtifactDetails, AdmissionDecisionArtifactPayload, AdmissionDecisionGateSummary, AdmissionDecisionOutcome, AdmitBugfixCapabilityEnvelopeInput, AdmitBugfixCapabilityEnvelopeResult, AdmitCosmeticTweakCapabilityEnvelopeInput, AdmitCosmeticTweakCapabilityEnvelopeResult, AdmitFeatureAddCapabilityEnvelopeInput, AdmitFeatureAddCapabilityEnvelopeResult, AdmitRefactorCapabilityEnvelopeInput, AdmitRefactorCapabilityEnvelopeResult, BugfixCapabilityEnvelopeUnsupportedDecision, CapabilityEnvelopeBudgetCapKey, CapabilityEnvelopeBudgetLimitViolation, CapabilityEnvelopeBudgetLimitViolationCode, CapabilityEnvelopeBudgetOverage, CapabilityEnvelopeExecuteGrantOverage, CapabilityEnvelopeExecuteGrantViolation, CapabilityEnvelopeExecuteGrantViolationCode, CapabilityEnvelopeOverageBase, CapabilityEnvelopeOverageDetection, CapabilityEnvelopeOverageFinding, CapabilityEnvelopeOverageKind, CapabilityEnvelopeRepoScopeOverage, CapabilityEnvelopeToolPermissionOverage, CapabilityEnvelopeToolPermissionViolation, CapabilityEnvelopeToolPermissionViolationCode, CapabilityEnvelopeWriteGrantViolation, CapabilityEnvelopeWriteGrantViolationCode, CosmeticTweakCapabilityEnvelopeGrant, CreateAdmissionDecisionArtifactInput, DetectCapabilityEnvelopeOveragesInput, EvaluateRepoScopeAdmissionInput, FeatureAddCapabilityEnvelopeUnsupportedDecision, IntentAdmissionAcceptanceCriterionReference, IntentAdmissionHardZeroDimensionId, IntentAdmissionHardZeroReason, IntentAdmissionHardZeroReasonSource, IntentAdmissionIssueCode, IntentAdmissionIssueReference, IntentAdmissionMissingFieldDetection, IntentAdmissionMissingFieldDetectionSource, IntentAdmissionOutputContractSections, IntentAdmissionPolicyFinding, IntentAdmissionPolicyFindingCode, IntentAdmissionRequiredClarification, IntentAdmissionRequiredClarificationSource, IntentAmbiguityAdmissionDecision, IntentPromotionFailureDetails, IntentPromotionFailureState, PromoteIntentDraftInput, PromoteIntentDraftResult, RefactorCapabilityEnvelopeUnsupportedDecision, RepoScopeAdmissionDecision, RepoScopeAdmissionReasonCode, RepoScopeAdmissionResult, RepoScopeAdmissionResultKind, RepoScopeAdmissionResultSeverity, RepoScopeAdmissionVerdict, RequiredIntentDraftDimensionCheck, RequiredIntentDraftFieldCheck, ValidateCapabilityEnvelopeBudgetLimitsInput, ValidateCapabilityEnvelopeBudgetLimitsResult, ValidateCapabilityEnvelopeExecuteGrantsInput, ValidateCapabilityEnvelopeExecuteGrantsResult, ValidateCapabilityEnvelopeRepoScopesInput, ValidateCapabilityEnvelopeToolPermissionsInput, ValidateCapabilityEnvelopeToolPermissionsResult, ValidateCapabilityEnvelopeWriteGrantsInput, ValidateCapabilityEnvelopeWriteGrantsResult, ValidateIntentDraftCapabilityEnvelopeAdmissionInput, ValidateIntentDraftCapabilityEnvelopeAdmissionResult } from "./admission-contracts.js";
+export { authorizeFactoryStart, createAdmissionDecisionArtifact, evaluateIntentAmbiguityAdmission, promoteIntentDraft } from "./admission.js";
+export type { PolicyVerdict } from "./admission.js";
+export { autoTagIntentDraftArchetype, proposeIntentDraftArchetype } from "./archetype-autotag.js";
+export { admitBugfixCapabilityEnvelope, admitCosmeticTweakCapabilityEnvelope, admitFeatureAddCapabilityEnvelope, admitRefactorCapabilityEnvelope, detectCapabilityEnvelopeOverages, evaluateIntentDraftPolicy, validateIntentDraftCapabilityEnvelopeAdmission } from "./capability-admission.js";
+export { evaluateRepoScopeAdmission, validateCapabilityEnvelopeRepoScopes, validateCapabilityEnvelopeWriteGrants } from "./repo-scope-admission.js";
+export { validateCapabilityEnvelopeBudgetLimits, validateCapabilityEnvelopeExecuteGrants, validateCapabilityEnvelopeToolPermissions } from "./capability-grant-admission.js";

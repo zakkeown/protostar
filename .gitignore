@@ -6,3 +6,4 @@ dist/
 .env
 .env.*
 !.env.example
+.ouroboros_eval_artifact.md

@@ -1,0 +1,67 @@
+{
+  "draftId": "draft_cosmetic_settings_copy",
+  "title": "Polish settings copy",
+  "problem": "The settings page contains unclear operator-facing copy, and the bounded cosmetic update should leave behavior unchanged while making the text easier to scan.",
+  "requester": "local-operator",
+  "mode": "brownfield",
+  "goalArchetype": "cosmetic-tweak",
+  "context": "The change is limited to the settings surface in the current Protostar repository checkout.",
+  "acceptanceCriteria": [
+    {
+      "statement": "The settings page copy uses the approved operator-facing wording without changing behavior.",
+      "verification": "evidence"
+    },
+    {
+      "statement": "The focused intent admission tests pass with deterministic ordering and stable normalized AC ids.",
+      "verification": "test"
+    }
+  ],
+  "constraints": [
+    "Do not touch execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop after one bounded cosmetic admission repair loop is consumed."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "packages/intent",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Run the focused deterministic admission tests.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 120000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "cosmetic-tweak-draft",
+    "expectedGoalArchetype": "cosmetic-tweak",
+    "expectedOutcome": "promoted",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "promoted",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "draftId": "draft_greenfield_weak_blocked",
+  "title": "Polish operator copy",
+  "problem": "Make the operator-facing intent intake copy better and easier to scan.",
+  "requester": "ouroboros-ac-100001",
+  "mode": "greenfield",
+  "goalArchetype": "cosmetic-tweak",
+  "acceptanceCriteria": [
+    {
+      "statement": "It feels better.",
+      "verification": "manual"
+    }
+  ],
+  "constraints": [
+    "Protostar authority is limited to the examples/intents/greenfield fixture surface; do not change execution, review, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if admission reports ambiguity above 0.20 or if policy flags fixture authority outside examples/intents/greenfield."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "examples/intents/greenfield",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Verify the deterministic intent admission fixture path.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 30000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "weak-intent-draft",
+    "expectedOutcome": "blocked",
+    "expectedBlockReasons": [
+      "manual acceptance criterion has no justification",
+      "acceptance criterion uses subjective wording",
+      "ambiguity score must exceed the 0.20 admission ceiling"
+    ],
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "greenfield",
+        "threshold": 0.2,
+        "expectedAccepted": false,
+        "expectedScore": 0.325,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
+      }
+    }
+  }
+}

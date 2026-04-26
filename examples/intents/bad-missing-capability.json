@@ -1,0 +1,43 @@
+{
+  "id": "intent_bad_missing_capability",
+  "title": "Clarify factory intake routing",
+  "problem": "Exercise a confirmed intent shape whose capability envelope is structurally present but missing the authority and budget details required for admission.",
+  "requester": "local-operator",
+  "confirmedAt": "2026-04-25T00:00:00.000Z",
+  "acceptanceCriteria": [
+    {
+      "id": "ac_missing_capability_fixture",
+      "statement": "The ambiguity gate reports structural missing dimensions and concrete clarification prompts for the incomplete capability envelope.",
+      "verification": "evidence"
+    }
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [],
+    "toolPermissions": [],
+    "budget": {}
+  },
+  "constraints": [],
+  "metadata": {
+    "fixtureKind": "bad-confirmed-intent",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": false,
+        "expectedScore": 0.4,
+        "structurallyMissingDimensions": [
+          "constraints",
+          "context"
+        ]
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "structurally-missing",
+        "evaluation": "confirmed-intent ambiguity fixture",
+        "repoScopes": 0,
+        "toolPermissions": 0,
+        "budgetKeys": []
+      }
+    }
+  }
+}

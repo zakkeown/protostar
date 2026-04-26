@@ -1,4 +1,4 @@
-import type { AcceptanceCriterionId, CapabilityEnvelope, IntentId, RiskLevel } from "@protostar/intent";
+import type { AcceptanceCriterionId, CapabilityEnvelope, ConfirmedIntent, IntentId, RiskLevel } from "@protostar/intent";
 
 export type PlanTaskKind = "research" | "design" | "implementation" | "verification" | "release";
 
@@ -25,39 +25,70 @@ export interface PlanGraphValidation {
   readonly errors: readonly string[];
 }
 
-export function createPlanGraph(input: {
+export interface CreatePlanGraphInput {
   readonly planId: string;
-  readonly intentId: IntentId;
+  readonly intent: ConfirmedIntent;
   readonly strategy: string;
   readonly tasks: readonly PlanTask[];
   readonly createdAt?: string;
-}): PlanGraph {
+}
+
+export interface ValidatePlanGraphInput {
+  readonly graph: PlanGraph;
+  readonly intent: ConfirmedIntent;
+}
+
+export function createPlanGraph(input: CreatePlanGraphInput): PlanGraph {
   const graph = {
     planId: input.planId,
-    intentId: input.intentId,
+    intentId: input.intent.id,
     createdAt: input.createdAt ?? new Date().toISOString(),
     strategy: input.strategy,
     tasks: input.tasks
   };
-  const validation = validatePlanGraph(graph);
+  const validation = validatePlanGraph({
+    graph,
+    intent: input.intent
+  });
   if (!validation.ok) {
     throw new Error(`Invalid plan graph: ${validation.errors.join("; ")}`);
   }
   return graph;
 }
 
-export function validatePlanGraph(graph: PlanGraph): PlanGraphValidation {
+export function validatePlanGraph(input: ValidatePlanGraphInput): PlanGraphValidation {
+  const graph = input.graph;
+  const intent = input.intent;
   const errors: string[] = [];
   const taskIds = new Set(graph.tasks.map((task) => task.id));
+  const acceptanceCriterionIds = new Set(intent.acceptanceCriteria.map((criterion) => criterion.id));
+  const coveredAcceptanceCriterionIds = new Set<AcceptanceCriterionId>();
+
+  if (graph.intentId !== intent.id) {
+    errors.push(`Plan graph intent ${graph.intentId} must match confirmed intent ${intent.id}.`);
+  }
 
   for (const task of graph.tasks) {
     if (task.covers.length === 0) {
       errors.push(`Task ${task.id} must cover at least one acceptance criterion.`);
     }
+    for (const criterionId of task.covers) {
+      if (!acceptanceCriterionIds.has(criterionId)) {
+        errors.push(`Task ${task.id} covers acceptance criterion ${criterionId} outside confirmed intent ${intent.id}.`);
+      } else {
+        coveredAcceptanceCriterionIds.add(criterionId);
+      }
+    }
     for (const dependency of task.dependsOn) {
       if (!taskIds.has(dependency)) {
         errors.push(`Task ${task.id} depends on missing task ${dependency}.`);
       }
+    }
+  }
+
+  for (const criterion of intent.acceptanceCriteria) {
+    if (!coveredAcceptanceCriterionIds.has(criterion.id)) {
+      errors.push(`Acceptance criterion ${criterion.id} is not covered by any plan task.`);
     }
   }
 

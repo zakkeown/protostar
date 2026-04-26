@@ -1,0 +1,108 @@
+{
+  "mode": "brownfield",
+  "threshold": 0.2,
+  "ambiguity": 0.4,
+  "accepted": false,
+  "scores": [
+    {
+      "dimension": "goal",
+      "score": 0,
+      "clarity": 1,
+      "weight": 0.35,
+      "weightedScore": 0,
+      "structurallyMissing": false,
+      "rationale": "Goal ambiguity is estimated from title and problem specificity.",
+      "missingFields": [],
+      "requiredClarifications": []
+    },
+    {
+      "dimension": "constraints",
+      "score": 1,
+      "clarity": 0,
+      "weight": 0.25,
+      "weightedScore": 0.25,
+      "structurallyMissing": true,
+      "rationale": "Constraint ambiguity is estimated from explicit constraints, repo scope, tools, and budget.",
+      "missingFields": [
+        "constraints",
+        "capabilityEnvelope.repoScopes",
+        "capabilityEnvelope.toolPermissions",
+        "capabilityEnvelope.budget"
+      ],
+      "requiredClarifications": [
+        "List any explicit operator, product, or safety constraints.",
+        "Name the repository paths and access levels the factory may use.",
+        "Name the tools the factory may invoke and why they are needed.",
+        "Set at least one budget limit such as timeout, tokens, spend, or repair loops."
+      ]
+    },
+    {
+      "dimension": "successCriteria",
+      "score": 0,
+      "clarity": 1,
+      "weight": 0.25,
+      "weightedScore": 0,
+      "structurallyMissing": false,
+      "rationale": "Success-criteria ambiguity is estimated from AC specificity and non-manual verification signals.",
+      "missingFields": [],
+      "requiredClarifications": []
+    },
+    {
+      "dimension": "context",
+      "score": 1,
+      "clarity": 0,
+      "weight": 0.15,
+      "weightedScore": 0.15,
+      "structurallyMissing": true,
+      "rationale": "Context ambiguity is estimated from whether the intent names a repo scope.",
+      "missingFields": [
+        "capabilityEnvelope.repoScopes"
+      ],
+      "requiredClarifications": [
+        "Identify the brownfield workspace and path context for the requested change."
+      ]
+    }
+  ],
+  "missingFields": [
+    "constraints",
+    "capabilityEnvelope.repoScopes",
+    "capabilityEnvelope.toolPermissions",
+    "capabilityEnvelope.budget"
+  ],
+  "requiredClarifications": [
+    "List any explicit operator, product, or safety constraints.",
+    "Name the repository paths and access levels the factory may use.",
+    "Name the tools the factory may invoke and why they are needed.",
+    "Set at least one budget limit such as timeout, tokens, spend, or repair loops.",
+    "Identify the brownfield workspace and path context for the requested change."
+  ],
+  "structurallyMissingDimensions": [
+    "constraints",
+    "context"
+  ],
+  "metadata": {
+    "fixtureKind": "ambiguity-assessment",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": false,
+        "expectedScore": 0.4,
+        "structurallyMissingDimensions": [
+          "constraints",
+          "context"
+        ]
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "structurally-missing",
+        "sourceFixture": "examples/intents/bad-missing-capability.json",
+        "missingFields": [
+          "capabilityEnvelope.repoScopes",
+          "capabilityEnvelope.toolPermissions",
+          "capabilityEnvelope.budget"
+        ]
+      }
+    }
+  }
+}

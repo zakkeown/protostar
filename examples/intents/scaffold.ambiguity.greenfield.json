@@ -1,0 +1,61 @@
+{
+  "mode": "greenfield",
+  "threshold": 0.2,
+  "ambiguity": 0,
+  "accepted": true,
+  "scores": [
+    {
+      "dimension": "goal",
+      "score": 0,
+      "clarity": 1,
+      "weight": 0.4,
+      "weightedScore": 0,
+      "structurallyMissing": false,
+      "rationale": "Goal ambiguity is estimated from title and problem specificity.",
+      "missingFields": [],
+      "requiredClarifications": []
+    },
+    {
+      "dimension": "constraints",
+      "score": 0,
+      "clarity": 1,
+      "weight": 0.3,
+      "weightedScore": 0,
+      "structurallyMissing": false,
+      "rationale": "Constraint ambiguity is estimated from explicit constraints, repo scope, tools, and budget.",
+      "missingFields": [],
+      "requiredClarifications": []
+    },
+    {
+      "dimension": "successCriteria",
+      "score": 0,
+      "clarity": 1,
+      "weight": 0.3,
+      "weightedScore": 0,
+      "structurallyMissing": false,
+      "rationale": "Success-criteria ambiguity is estimated from AC specificity and non-manual verification signals.",
+      "missingFields": [],
+      "requiredClarifications": []
+    }
+  ],
+  "missingFields": [],
+  "requiredClarifications": [],
+  "structurallyMissingDimensions": [],
+  "metadata": {
+    "fixtureKind": "ambiguity-assessment",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "accepted",
+      "expectedAmbiguityStatus": {
+        "mode": "greenfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "satisfied-by-source-fixture",
+        "sourceFixture": "examples/intents/scaffold.draft.json"
+      }
+    }
+  }
+}

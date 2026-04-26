@@ -1,0 +1,70 @@
+{
+  "draftId": "draft_brownfield_clear_promoted",
+  "title": "Add brownfield intent admission fixtures",
+  "problem": "The Protostar repository needs brownfield draft examples that prove the deterministic admission gate blocks weak intents and promotes complete bounded intents without touching factory execution internals.",
+  "requester": "ouroboros-ac-1102",
+  "mode": "brownfield",
+  "goalArchetype": "cosmetic-tweak",
+  "context": "Protostar is an existing TypeScript workspace whose factory CLI can route draft intent JSON through packages/intent and packages/policy before creating confirmed intent artifacts.",
+  "acceptanceCriteria": [
+    {
+      "statement": "The examples/intents/brownfield directory contains one blocked weak draft and one promoted clear draft with brownfield mode.",
+      "verification": "evidence"
+    },
+    {
+      "statement": "The clear brownfield fixture promotes through deterministic intent admission with ambiguity at or below 0.20.",
+      "verification": "test"
+    }
+  ],
+  "constraints": [
+    "Keep authority limited to examples/intents/brownfield fixture files.",
+    "Do not change execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if deterministic admission reports ambiguity above 0.20.",
+    "Stop if policy flags authority outside examples/intents/brownfield."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "examples/intents/brownfield",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Verify the deterministic intent admission fixture path.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 30000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "clear-intent-draft",
+    "expectedOutcome": "promoted",
+    "expectedAmbiguityMaximum": 0.2,
+    "expectedGoalArchetype": "cosmetic-tweak",
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "promoted",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
+      }
+    }
+  }
+}

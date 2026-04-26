@@ -1,6 +1,6 @@
 import { budget, convergence, firstOf } from "@dogpile/sdk";
 import type { AgentSpec, DogpileOptions } from "@dogpile/sdk";
-import type { AcceptanceCriterionId, CapabilityEnvelope, ConfirmedIntent, IntentId, RiskLevel } from "@protostar/intent";
+import type { AcceptanceCriterionId, CapabilityEnvelope, ConfirmedIntent, RiskLevel } from "@protostar/intent";
 import { createPlanGraph, type PlanGraph, type PlanTask, type PlanTaskKind } from "@protostar/planning";
 
 export type FactoryPileKind = "planning" | "review" | "execution-coordination";
@@ -124,7 +124,7 @@ export function buildPlanningMission(intent: ConfirmedIntent): FactoryPileMissio
 export function parsePlanningPileResult(
   result: PlanningPileResult,
   context: {
-    readonly intentId: IntentId;
+    readonly intent: ConfirmedIntent;
     readonly defaultPlanId: string;
   }
 ): PlanningPileParseResult {
@@ -138,7 +138,7 @@ export function parsePlanningPileResult(
       ok: true,
       plan: createPlanGraph({
         planId: parsed.output.planId ?? context.defaultPlanId,
-        intentId: context.intentId,
+        intent: context.intent,
         strategy: parsed.output.strategy,
         tasks: parsed.output.tasks,
         ...(parsed.output.createdAt !== undefined ? { createdAt: parsed.output.createdAt } : {})
@@ -155,7 +155,7 @@ export function parsePlanningPileResult(
 export function assertPlanGraphFromPlanningPileResult(
   result: PlanningPileResult,
   context: {
-    readonly intentId: IntentId;
+    readonly intent: ConfirmedIntent;
     readonly defaultPlanId: string;
   }
 ): PlanGraph {

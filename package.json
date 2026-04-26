@@ -8,8 +8,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "verify": "pnpm run typecheck",
-    "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --intent examples/intents/scaffold.json --out .protostar/runs"
+    "verify": "pnpm run typecheck && pnpm --filter @protostar/intent test && pnpm --filter @protostar/factory-cli test",
+    "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --draft examples/intents/scaffold.draft.json --out .protostar/runs"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

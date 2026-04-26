@@ -1,0 +1,74 @@
+{
+  "draftId": "draft_refactor_policy_helpers",
+  "title": "Refactor policy admission helpers",
+  "problem": "The policy admission helpers need internal extraction and cleanup so future policy rows can be wired without changing operator-visible behavior.",
+  "requester": "ouroboros-ac-80301",
+  "mode": "brownfield",
+  "goalArchetype": "refactor",
+  "context": "Protostar already has feature-add and cosmetic-tweak admission paths; this draft exercises the v0.0.1 refactor policy row.",
+  "acceptanceCriteria": [
+    {
+      "statement": "The refactor admission response reports the selected refactor policy row and its stub capability cap.",
+      "verification": "evidence"
+    },
+    {
+      "statement": "Refactor drafts remain unconfirmed while the refactor policy row is unsupported.",
+      "verification": "test"
+    }
+  ],
+  "constraints": [
+    "Keep the work inside the intent-facing policy admission surface.",
+    "Do not change execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if refactor admission remains unsupported or if the stub cap cannot be reported deterministically."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "packages/policy",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Run focused policy admission tests.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 120000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "refactor-draft",
+    "expectedGoalArchetype": "refactor",
+    "expectedOutcome": "blocked",
+    "expectedBlockReasons": [
+      "refactor policy row is unsupported in v0.0.1",
+      "draft remains unconfirmed while refactor capability caps are stubbed"
+    ],
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": true,
+        "expectedScore": 0,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "unsupported",
+        "goalArchetype": "refactor",
+        "policyStatus": "stub",
+        "blockingFindings": [
+          "unsupported-goal-archetype"
+        ]
+      }
+    }
+  }
+}

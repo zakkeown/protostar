@@ -1,0 +1,67 @@
+{
+  "draftId": "draft_brownfield_weak_blocked",
+  "title": "Polish fixture copy",
+  "problem": "Make the brownfield fixture copy better for operators while keeping the existing repo behavior unchanged.",
+  "requester": "ouroboros-ac-1102",
+  "mode": "brownfield",
+  "goalArchetype": "cosmetic-tweak",
+  "context": "Protostar is an existing TypeScript workspace with intent admission examples under examples/intents and deterministic draft promotion in the factory CLI.",
+  "acceptanceCriteria": [
+    {
+      "statement": "The fixture feels better.",
+      "verification": "manual"
+    }
+  ],
+  "constraints": [
+    "Protostar authority is limited to creating and validating JSON fixture files under examples/intents/brownfield; do not change execution, review repair, delivery, or Dogpile planning internals."
+  ],
+  "stopConditions": [
+    "Stop if admission reports ambiguity above 0.20, if the required-field checklist fails, or if policy flags authority outside examples/intents/brownfield."
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar",
+        "path": "examples/intents/brownfield",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "node:test",
+        "permissionLevel": "use",
+        "reason": "Verify the deterministic intent admission fixture path.",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeoutMs": 30000,
+      "maxRepairLoops": 1
+    }
+  },
+  "metadata": {
+    "fixtureKind": "weak-intent-draft",
+    "expectedOutcome": "blocked",
+    "expectedBlockReasons": [
+      "manual acceptance criterion has no justification",
+      "acceptance criterion uses subjective wording",
+      "ambiguity score must exceed the 0.20 admission ceiling"
+    ],
+    "admissionExpectation": {
+      "expectedAdmissionOutcome": "blocked",
+      "expectedAmbiguityStatus": {
+        "mode": "brownfield",
+        "threshold": 0.2,
+        "expectedAccepted": false,
+        "expectedScore": 0.213,
+        "structurallyMissingDimensions": []
+      },
+      "expectedCapabilityEnvelopeResult": {
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
+      }
+    }
+  }
+}

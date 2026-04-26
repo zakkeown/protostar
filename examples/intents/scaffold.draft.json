@@ -1,21 +1,17 @@
 {
-  "id": "intent_dark_factory_scaffold",
-  "sourceDraftId": "draft_dark_factory_scaffold",
-  "mode": "brownfield",
-  "goalArchetype": "cosmetic-tweak",
+  "draftId": "draft_dark_factory_scaffold",
   "title": "Polish sample factory run admission fixture",
   "problem": "The sample factory run needs clear operator-facing fixture wording that demonstrates draft admission, AC normalization, and policy-gated promotion without changing runtime behavior.",
   "requester": "local-operator",
-  "confirmedAt": "2026-04-25T00:00:00.000Z",
+  "mode": "brownfield",
+  "goalArchetype": "cosmetic-tweak",
   "context": "Protostar is an existing TypeScript workspace whose factory CLI promotes draft intent JSON before composing deterministic planning, execution, review, evaluation, and delivery artifacts.",
   "acceptanceCriteria": [
     {
-      "id": "ac_f83218ad181d3db3",
       "statement": "The sample factory run fixture documents draft admission artifacts and policy-gated promotion without changing runtime behavior.",
       "verification": "evidence"
     },
     {
-      "id": "ac_f2445295f9ba1e78",
       "statement": "The default factory CLI command promotes the sample draft through admission and writes the deterministic run bundle.",
       "verification": "test"
     }
@@ -56,9 +52,9 @@
     "Stop if policy reports unresolved capability-envelope findings."
   ],
   "metadata": {
-    "fixtureKind": "confirmed-intent",
+    "fixtureKind": "sample-factory-draft",
     "admissionExpectation": {
-      "expectedAdmissionOutcome": "accepted-confirmed-intent",
+      "expectedAdmissionOutcome": "promoted",
       "expectedAmbiguityStatus": {
         "mode": "brownfield",
         "threshold": 0.2,
@@ -67,14 +63,10 @@
         "structurallyMissingDimensions": []
       },
       "expectedCapabilityEnvelopeResult": {
-        "status": "present",
-        "evaluation": "confirmed-intent structural parse",
-        "repoScopes": 1,
-        "toolPermissions": 2,
-        "budgetKeys": [
-          "timeoutMs",
-          "maxRepairLoops"
-        ]
+        "status": "allowed",
+        "goalArchetype": "cosmetic-tweak",
+        "policyStatus": "wired",
+        "unresolvedFindings": []
       }
     }
   }

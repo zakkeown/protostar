@@ -47,8 +47,8 @@ pnpm run typecheck
 pnpm run factory
 ```
 
-`pnpm run factory` builds the workspace and runs the sample confirmed intent at
-`examples/intents/scaffold.json`, writing a local run bundle under
+`pnpm run factory` builds the workspace, promotes the sample intent draft at
+`examples/intents/scaffold.draft.json`, and writes a local run bundle under
 `.protostar/runs/<runId>/`.
 
 Run the CLI directly with a different intent or output directory:
@@ -56,15 +56,20 @@ Run the CLI directly with a different intent or output directory:
 ```sh
 pnpm run build
 pnpm --filter @protostar/factory-cli start -- run \
-  --intent examples/intents/scaffold.json \
+  --draft examples/intents/scaffold.draft.json \
   --out .protostar/runs \
+  --confirmed-intent-output .protostar/confirmed-intent.json \
   --planning-fixture examples/planning-results/scaffold.json
 ```
 
 Each run bundle currently contains:
 
 - `intent.json`
+- `intent-draft.json` for draft inputs
+- `clarification-report.json` for draft inputs
+- `admission-decision.json` for draft inputs
 - `intent-ambiguity.json`
+- `intent-archetype-suggestion.json` for draft inputs
 - `manifest.json`
 - `planning-mission.txt`
 - `planning-result.json`
@@ -91,9 +96,26 @@ events, enforces dependency ordering, and attaches evidence refs to passed or
 failed tasks without modifying repository files. Use `--fail-task-ids` with a
 comma-separated list to exercise failure and downstream blocking behavior.
 
-The intent stage uses an Ouroboros-style ambiguity gate. Brownfield runs are the
-default and must score `ambiguity <= 0.2` before planning begins; use
-`--intent-mode greenfield` to switch to the greenfield weights.
+The intent stage uses an Ouroboros-style admission gate. Draft runs are promoted
+to immutable `ConfirmedIntent` values only after required fields pass, acceptance
+criteria normalize, archetype policy checks run, and ambiguity scores
+`<= 0.2`; draft runs also persist a deterministic archetype suggestion with a
+confidence score. Draft runs also persist `clarification-report.json`, whose
+schema is exported by `@protostar/intent` as `CLARIFICATION_REPORT_JSON_SCHEMA`
+and records deterministic questions, required clarifications, missing fields, and
+unresolved question entries. Draft runs persist `admission-decision.json`, whose
+payload is exported by `@protostar/policy` as `AdmissionDecisionArtifactPayload`;
+its `decision` is exactly one of `allow`, `block`, or `escalate` and its required
+details include ambiguity evidence, required-field and required-dimension
+checklists, missing-field detections, hard-zero reasons, clarification questions,
+policy findings, archetype suggestion, and failure details when no
+`ConfirmedIntent` was created. Promoted draft runs preserve the admitted
+`sourceDraftId`, `mode`, `goalArchetype`, `context`, and `stopConditions` on the
+confirmed intent artifact. Use `--intent-mode greenfield` to switch to the
+greenfield weights. Already-confirmed fixtures can still be passed with
+`--intent`. Use `--confirmed-intent-output` to write the admitted intent to an
+explicit `confirmed-intent.json` or `intent.json` path; failed draft hardening
+does not create that file.
 
 The review stage is a deterministic mechanical gate inside a review-execute-review
 loop. It checks that execution artifacts match the plan, every confirmed

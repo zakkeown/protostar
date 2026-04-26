@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "test": "pnpm run build && node --test dist/*.test.js",
     "typecheck": "tsc -b --pretty false",
     "start": "node dist/main.js"
   },
