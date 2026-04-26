@@ -11,13 +11,13 @@ apps/
   factory-cli/        # first operator surface and composition smoke path
 
 packages/
-  intent/             # confirmed intent, acceptance criteria, capability envelope
+  intent/             # draft, ambiguity, acceptance criteria, clarification report, confirmed intent
   planning/           # plan DAG contracts and validation
   execution/          # execution work graph contracts
   review/             # review gate, findings, repair/block/pass verdicts
   evaluation/         # mechanical/semantic/consensus eval and evolution stubs
   delivery/           # post-approval delivery plans such as gh PR creation
-  policy/             # autonomy policy and human-confirmation boundary
+  policy/             # admission, archetypes, capability envelope admission, policy artifacts
   artifacts/          # run manifest, stage records, trace/artifact refs
   repo/               # workspace/repository boundary contracts
   dogpile-adapter/    # factory pile presets over @dogpile/sdk
@@ -87,9 +87,11 @@ Each run bundle currently contains:
 - `delivery/pr-body.md`
 
 The planning fixture is a deterministic stand-in for a future live Dogpile
-planning run. Its `output` field must be JSON that parses into a valid
-`PlanGraph`; invalid dependencies or malformed tasks fail before a run bundle is
-written.
+planning run. Its `output` field is treated only as candidate-plan source data:
+it must parse into a candidate `PlanGraph`, then `planning-admission.json` must
+allow that candidate before `plan.json` is written for execution. Invalid
+dependencies, malformed tasks, authority expansion, or execution-ready/admitted
+fields fail before execution and review artifacts are written.
 
 The execution stage is currently a deterministic dry run. It emits task lifecycle
 events, enforces dependency ordering, and attaches evidence refs to passed or
@@ -101,10 +103,11 @@ to immutable `ConfirmedIntent` values only after required fields pass, acceptanc
 criteria normalize, archetype policy checks run, and ambiguity scores
 `<= 0.2`; draft runs also persist a deterministic archetype suggestion with a
 confidence score. Draft runs also persist `clarification-report.json`, whose
-schema is exported by `@protostar/intent` as `CLARIFICATION_REPORT_JSON_SCHEMA`
-and records deterministic questions, required clarifications, missing fields, and
-unresolved question entries. Draft runs persist `admission-decision.json`, whose
-payload is exported by `@protostar/policy` as `AdmissionDecisionArtifactPayload`;
+schema is exported by `@protostar/intent/clarification-report` as
+`CLARIFICATION_REPORT_JSON_SCHEMA` and records deterministic questions, required
+clarifications, missing fields, and unresolved question entries. Draft runs
+persist `admission-decision.json`, whose payload is exported by
+`@protostar/policy/artifacts` as `AdmissionDecisionArtifactPayload`;
 its `decision` is exactly one of `allow`, `block`, or `escalate` and its required
 details include ambiguity evidence, required-field and required-dimension
 checklists, missing-field detections, hard-zero reasons, clarification questions,

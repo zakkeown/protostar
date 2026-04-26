@@ -1,0 +1,6 @@
+{
+  "kind": "planning-pile-result",
+  "source": "fixture",
+  "modelProviderId": "deterministic-planning-fixture",
+  "output": "{\n  \"strategy\": \"This fixture should fail because the candidate plan leaves a required acceptance criterion without task coverage.\",\n  \"tasks\": [\n    {\n      \"id\": \"task-cover-only-fixture-docs\",\n      \"title\": \"Cover only the fixture documentation criterion\",\n      \"kind\": \"implementation\",\n      \"dependsOn\": [],\n      \"covers\": [\"ac_f83218ad181d3db3\"],\n      \"requiredCapabilities\": {\n        \"repoScopes\": [],\n        \"toolPermissions\": [],\n        \"budget\": {}\n      },\n      \"risk\": \"low\"\n    }\n  ]\n}"
+}

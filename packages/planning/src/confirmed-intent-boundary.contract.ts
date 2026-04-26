@@ -52,7 +52,18 @@ const planTasks: readonly PlanTask[] = [
           path: "packages/planning",
           access: "write"
         }
-      ]
+      ],
+      toolPermissions: [
+        {
+          tool: "tsc",
+          reason: "Exercise the confirmed-intent planning boundary.",
+          risk: "low"
+        }
+      ],
+      budget: {
+        timeoutMs: 30_000,
+        maxRepairLoops: 0
+      }
     },
     risk: "low"
   }

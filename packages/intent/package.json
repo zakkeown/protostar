@@ -9,6 +9,26 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./draft": {
+      "types": "./dist/draft/index.d.ts",
+      "import": "./dist/draft/index.js"
+    },
+    "./ambiguity": {
+      "types": "./dist/ambiguity/index.d.ts",
+      "import": "./dist/ambiguity/index.js"
+    },
+    "./acceptance-criteria": {
+      "types": "./dist/acceptance-criteria/index.d.ts",
+      "import": "./dist/acceptance-criteria/index.js"
+    },
+    "./clarification-report": {
+      "types": "./dist/clarification-report/index.d.ts",
+      "import": "./dist/clarification-report/index.js"
+    },
+    "./confirmed-intent": {
+      "types": "./dist/confirmed-intent/index.d.ts",
+      "import": "./dist/confirmed-intent/index.js"
     }
   },
   "scripts": {

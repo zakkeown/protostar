@@ -1,0 +1,6 @@
+{
+  "kind": "planning-pile-result",
+  "source": "fixture",
+  "modelProviderId": "deterministic-planning-fixture",
+  "output": "{\n  \"strategy\": \"This fixture should fail because a candidate plan task references an acceptance criterion outside the governing intent or phase contract.\",\n  \"tasks\": [\n    {\n      \"id\": \"task-cover-fixture-docs\",\n      \"title\": \"Cover the fixture documentation criterion\",\n      \"kind\": \"implementation\",\n      \"dependsOn\": [],\n      \"covers\": [\"ac_f83218ad181d3db3\"],\n      \"requiredCapabilities\": {\n        \"repoScopes\": [],\n        \"toolPermissions\": [],\n        \"budget\": {}\n      },\n      \"risk\": \"low\"\n    },\n    {\n      \"id\": \"task-reference-unknown-ac\",\n      \"title\": \"Attempt to smuggle an undeclared acceptance criterion into task coverage\",\n      \"kind\": \"verification\",\n      \"dependsOn\": [\"task-cover-fixture-docs\"],\n      \"covers\": [\"ac_f2445295f9ba1e78\", \"ac_candidate_plan_only_unknown\"],\n      \"requiredCapabilities\": {\n        \"repoScopes\": [],\n        \"toolPermissions\": [],\n        \"budget\": {}\n      },\n      \"risk\": \"low\"\n    }\n  ]\n}"
+}

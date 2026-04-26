@@ -1,0 +1,35 @@
+export {
+  INTENT_AMBIGUITY_DIMENSION_WEIGHTS,
+  INTENT_AMBIGUITY_THRESHOLD,
+  INTENT_AMBIGUITY_WEIGHTING_PROFILES,
+  INTENT_AMBIGUITY_WEIGHTING_PROFILE_IDS,
+  assertIntentAmbiguityAccepted,
+  assessConfirmedIntentAmbiguity,
+  assessCosmeticTweakAmbiguityDetails,
+  assessIntentAmbiguity,
+  getIntentAmbiguityWeightingProfile,
+  scoreConstraintsAmbiguity,
+  scoreContextAmbiguity,
+  scoreGoalAmbiguity,
+  scoreIntentAmbiguityDimension,
+  scoreIntentClarity,
+  scoreSuccessCriteriaAmbiguity
+} from "../ambiguity-scoring.js";
+export type {
+  CosmeticTweakAmbiguityDetailAssessment,
+  CosmeticTweakAmbiguityDetailId,
+  CosmeticTweakAmbiguityDetailSignal,
+  IntentAmbiguityAssessment,
+  IntentAmbiguityDimensionId,
+  IntentAmbiguityDimensionScore,
+  IntentAmbiguityDimensionSignal,
+  IntentAmbiguityDimensionWeight,
+  IntentAmbiguityMode,
+  IntentAmbiguityScoringSubject,
+  IntentAmbiguityWeightingProfile,
+  IntentAmbiguityWeightingProfileId,
+  IntentAmbiguityWeightingProfileInput,
+  IntentClarityDimension,
+  IntentClarityScore,
+  ScoreIntentAmbiguityDimensionInput
+} from "../ambiguity-scoring.js";

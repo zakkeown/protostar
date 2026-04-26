@@ -9,14 +9,24 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.ts",
+      "import": "./dist/schema/index.js"
+    },
+    "./artifacts": {
+      "types": "./dist/artifacts/index.d.ts",
+      "import": "./dist/artifacts/index.js"
     }
   },
   "scripts": {
     "build": "tsc -b",
+    "test": "pnpm run build && node --test dist/*.test.js",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@protostar/intent": "workspace:*"
+    "@protostar/intent": "workspace:*",
+    "@protostar/policy": "workspace:*"
   },
   "sideEffects": false
 }

@@ -4,8 +4,9 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
+    "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../intent" }]
+  "references": [{ "path": "../intent" }, { "path": "../policy" }]
 }

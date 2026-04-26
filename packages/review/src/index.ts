@@ -1,7 +1,15 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
-import { runExecutionDryRun, type ExecutionDryRunResult, type ExecutionRunPlan } from "@protostar/execution";
-import type { ConfirmedIntent } from "@protostar/intent";
-import type { PlanGraph } from "@protostar/planning";
+import {
+  runExecutionDryRun,
+  validateAdmittedPlanExecutionArtifact,
+  type ExecutionAdmittedPlanAdmissionViolation,
+  type ExecutionDryRunResult,
+  type ExecutionRunPlan
+} from "@protostar/execution";
+import {
+  PLANNING_ADMISSION_ARTIFACT_NAME,
+  type AdmittedPlanExecutionArtifact
+} from "@protostar/planning";
 
 export type ReviewVerdict = "pass" | "repair" | "block";
 export type ReviewSeverity = "info" | "minor" | "major" | "critical";
@@ -28,11 +36,37 @@ export interface ReviewGate {
 }
 
 export interface MechanicalReviewGateInput {
-  readonly intent: ConfirmedIntent;
-  readonly plan: PlanGraph;
+  readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly execution: ExecutionRunPlan;
   readonly executionResult: ExecutionDryRunResult;
 }
+
+export type ReviewAdmittedPlanAdmissionViolationCode =
+  | "review-admission-boundary-failed-planning-result"
+  | "review-admission-boundary-failed-admission-result"
+  | "review-admission-boundary-candidate-plan"
+  | "review-admission-boundary-raw-plan"
+  | "review-admission-boundary-invalid-artifact";
+
+export interface ReviewAdmittedPlanAdmissionViolation {
+  readonly code: ReviewAdmittedPlanAdmissionViolationCode;
+  readonly path: string;
+  readonly message: string;
+  readonly executionViolationCode?: ExecutionAdmittedPlanAdmissionViolation["code"];
+}
+
+export type ReviewAdmittedPlanAdmissionValidation =
+  | {
+      readonly ok: true;
+      readonly artifact: AdmittedPlanExecutionArtifact;
+      readonly violations: readonly [];
+      readonly errors: readonly [];
+    }
+  | {
+      readonly ok: false;
+      readonly violations: readonly ReviewAdmittedPlanAdmissionViolation[];
+      readonly errors: readonly string[];
+    };
 
 export type ReviewExecutionLoopAction = "approved" | "repair-and-retry" | "blocked" | "repair-limit-reached";
 export type ReviewExecutionLoopStatus = "approved" | "blocked" | "repair-limit-reached";
@@ -54,19 +88,49 @@ export interface ReviewExecutionLoopResult {
 }
 
 export interface ReviewExecutionLoopInput {
-  readonly intent: ConfirmedIntent;
-  readonly plan: PlanGraph;
+  readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly execution: ExecutionRunPlan;
   readonly initialFailTaskIds?: readonly string[];
   readonly maxRepairLoops?: number;
   readonly now?: () => string;
 }
 
+export function validateReviewAdmittedPlanArtifact(
+  value: unknown
+): ReviewAdmittedPlanAdmissionValidation {
+  const executionValidation = validateAdmittedPlanExecutionArtifact(value);
+  if (executionValidation.ok) {
+    return {
+      ok: true,
+      artifact: executionValidation.artifact,
+      violations: [],
+      errors: []
+    };
+  }
+
+  const violations = executionValidation.violations.map(reviewAdmissionViolationFromExecution);
+  return {
+    ok: false,
+    violations,
+    errors: violations.map((violation) => violation.message)
+  };
+}
+
+export function assertReviewAdmittedPlanArtifact(
+  value: unknown
+): asserts value is AdmittedPlanExecutionArtifact {
+  const validation = validateReviewAdmittedPlanArtifact(value);
+  if (!validation.ok) {
+    throw new Error(`Invalid admitted plan review artifact: ${validation.errors.join("; ")}`);
+  }
+}
+
 export function createReviewGate(input: {
-  readonly plan: PlanGraph;
+  readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly execution: ExecutionRunPlan;
   readonly findings?: readonly ReviewFinding[];
 }): ReviewGate {
+  assertReviewAdmittedPlanArtifact(input.admittedPlan);
   const findings = input.findings ?? [];
   const verdict: ReviewVerdict = findings.some((finding) => finding.severity === "critical")
     ? "block"
@@ -75,7 +139,7 @@ export function createReviewGate(input: {
       : "pass";
 
   return {
-    planId: input.plan.planId,
+    planId: input.admittedPlan.planId,
     runId: input.execution.runId,
     verdict,
     findings
@@ -83,6 +147,7 @@ export function createReviewGate(input: {
 }
 
 export function runMechanicalReviewExecutionLoop(input: ReviewExecutionLoopInput): ReviewExecutionLoopResult {
+  assertReviewAdmittedPlanArtifact(input.admittedPlan);
   const maxRepairLoops = Math.max(0, input.maxRepairLoops ?? 0);
   const failTaskIds = new Set(input.initialFailTaskIds ?? []);
   const iterations: ReviewExecutionLoopIteration[] = [];
@@ -94,8 +159,7 @@ export function runMechanicalReviewExecutionLoop(input: ReviewExecutionLoopInput
       ...(input.now !== undefined ? { now: input.now } : {})
     });
     const reviewGate = createMechanicalReviewGate({
-      intent: input.intent,
-      plan: input.plan,
+      admittedPlan: input.admittedPlan,
       execution: input.execution,
       executionResult
     });
@@ -168,19 +232,71 @@ export function runMechanicalReviewExecutionLoop(input: ReviewExecutionLoopInput
 }
 
 export function createMechanicalReviewGate(input: MechanicalReviewGateInput): ReviewGate {
+  assertReviewAdmittedPlanArtifact(input.admittedPlan);
   const findings: ReviewFinding[] = [
     ...reviewExecutionConsistency(input),
     ...reviewExecutionCompletion(input.executionResult),
-    ...reviewTaskEvidence(input.executionResult),
-    ...reviewAcceptanceCoverage(input),
-    ...reviewAcceptancePassedEvidence(input)
+    ...reviewTaskEvidence(input.executionResult)
   ];
 
   return createReviewGate({
-    plan: input.plan,
+    admittedPlan: input.admittedPlan,
     execution: input.execution,
     findings
   });
+}
+
+function reviewAdmissionViolationFromExecution(
+  violation: ExecutionAdmittedPlanAdmissionViolation
+): ReviewAdmittedPlanAdmissionViolation {
+  if (violation.code === "admitted-plan-artifact-failed-planning-result") {
+    return {
+      code: "review-admission-boundary-failed-planning-result",
+      path: violation.path,
+      executionViolationCode: violation.code,
+      message:
+        "Review admission rejects failed planning results at the planning boundary; pass only the admitted-plan execution artifact created from persisted planning-admission.json handoff evidence. " +
+        violation.message
+    };
+  }
+
+  if (violation.code === "admitted-plan-artifact-failed-admission-result") {
+    return {
+      code: "review-admission-boundary-failed-admission-result",
+      path: violation.path,
+      executionViolationCode: violation.code,
+      message:
+        "Review admission rejects failed planning admission results at the planning boundary; pass only the admitted-plan execution artifact created from persisted planning-admission.json handoff evidence. " +
+        violation.message
+    };
+  }
+
+  if (violation.code === "admitted-plan-artifact-candidate-plan-object") {
+    return {
+      code: "review-admission-boundary-candidate-plan",
+      path: violation.path,
+      executionViolationCode: violation.code,
+      message:
+        "Review admission rejects candidate PlanGraph objects at the planning boundary; pass only the admitted-plan execution artifact created from persisted planning-admission.json handoff evidence."
+    };
+  }
+
+  if (violation.code === "admitted-plan-artifact-raw-plan-object") {
+    return {
+      code: "review-admission-boundary-raw-plan",
+      path: violation.path,
+      executionViolationCode: violation.code,
+      message:
+        "Review admission rejects candidate or raw PlanGraph inputs at the planning boundary; pass only the admitted-plan execution artifact created from persisted planning-admission.json handoff evidence."
+    };
+  }
+
+  return {
+    code: "review-admission-boundary-invalid-artifact",
+    path: violation.path,
+    executionViolationCode: violation.code,
+    message: `Review admission requires an admitted-plan execution artifact from planning-admission.json handoff evidence: ${violation.message}`
+  };
 }
 
 function uniqueRepairTaskIds(reviewGate: ReviewGate): readonly string[] {
@@ -195,8 +311,13 @@ function uniqueRepairTaskIds(reviewGate: ReviewGate): readonly string[] {
 
 function reviewExecutionConsistency(input: MechanicalReviewGateInput): readonly ReviewFinding[] {
   const findings: ReviewFinding[] = [];
-  const expectedTaskIds = new Set(input.plan.tasks.map((task) => task.id));
+  const admittedPlan = input.admittedPlan;
+  const expectedTaskById = new Map(admittedPlan.tasks.map((task) => [task.planTaskId, task]));
+  const expectedTaskIds = new Set(expectedTaskById.keys());
+  const expectedTaskIdsForMembership = new Set<string>(expectedTaskIds);
+  const executionTaskById = new Map(input.execution.tasks.map((task) => [task.planTaskId, task]));
   const executionTaskIds = new Set(input.execution.tasks.map((task) => task.planTaskId));
+  const resultTaskById = new Map(input.executionResult.tasks.map((task) => [task.planTaskId, task]));
   const resultTaskIds = new Set(input.executionResult.tasks.map((task) => task.planTaskId));
 
   if (input.execution.runId !== input.executionResult.runId) {
@@ -210,48 +331,87 @@ function reviewExecutionConsistency(input: MechanicalReviewGateInput): readonly 
     );
   }
 
-  if (input.execution.planId !== input.plan.planId || input.executionResult.planId !== input.plan.planId) {
+  if (input.execution.planId !== admittedPlan.planId || input.executionResult.planId !== admittedPlan.planId) {
     findings.push(
       finding({
         ruleId: "execution-result-consistency",
         severity: "critical",
-        summary: "Execution artifacts do not all reference the reviewed plan id.",
-        evidence: [planArtifact(), executionPlanArtifact(), executionResultArtifact()]
+        summary: "Execution artifacts do not all reference the admitted plan id.",
+        evidence: [planningAdmissionArtifact(), executionPlanArtifact(), executionResultArtifact()]
+      })
+    );
+  }
+
+  if (!sameAdmittedPlanEvidence(input.execution.admittedPlan, admittedPlan.evidence)) {
+    findings.push(
+      finding({
+        ruleId: "execution-result-consistency",
+        severity: "critical",
+        summary: "Execution plan was not derived from the reviewed admitted plan artifact evidence.",
+        evidence: [planningAdmissionArtifact(), executionPlanArtifact()]
       })
     );
   }
 
   for (const taskId of expectedTaskIds) {
-    if (!executionTaskIds.has(taskId)) {
+    const admittedTask = expectedTaskById.get(taskId);
+    const executionTask = executionTaskById.get(taskId);
+    const resultTask = resultTaskById.get(taskId);
+
+    if (executionTask === undefined) {
       findings.push(
         finding({
           ruleId: "execution-result-consistency",
           severity: "critical",
           summary: `Plan task ${taskId} is missing from the execution plan.`,
-          evidence: [planArtifact(), executionPlanArtifact()]
+          evidence: [planningAdmissionArtifact(), executionPlanArtifact()]
+        })
+      );
+    } else if (
+      admittedTask !== undefined &&
+      (executionTask.title !== admittedTask.title || !sameOrderedValues(executionTask.dependsOn, admittedTask.dependsOn))
+    ) {
+      findings.push(
+        finding({
+          ruleId: "execution-result-consistency",
+          severity: "critical",
+          summary: `Execution plan task ${taskId} does not match the admitted plan artifact task contract.`,
+          evidence: [planningAdmissionArtifact(), executionPlanArtifact()]
         })
       );
     }
-    if (!resultTaskIds.has(taskId)) {
+    if (resultTask === undefined) {
       findings.push(
         finding({
           ruleId: "execution-result-consistency",
           severity: "critical",
           summary: `Plan task ${taskId} is missing from the execution result.`,
-          evidence: [planArtifact(), executionResultArtifact()]
+          evidence: [planningAdmissionArtifact(), executionResultArtifact()]
+        })
+      );
+    } else if (
+      admittedTask !== undefined &&
+      (resultTask.title !== admittedTask.title || !sameOrderedValues(resultTask.dependsOn, admittedTask.dependsOn))
+    ) {
+      findings.push(
+        finding({
+          ruleId: "execution-result-consistency",
+          severity: "critical",
+          summary: `Execution result task ${taskId} does not match the admitted plan artifact task contract.`,
+          evidence: [planningAdmissionArtifact(), executionResultArtifact()]
         })
       );
     }
   }
 
   for (const taskId of [...executionTaskIds, ...resultTaskIds]) {
-    if (!expectedTaskIds.has(taskId)) {
+    if (!expectedTaskIdsForMembership.has(taskId)) {
       findings.push(
         finding({
           ruleId: "execution-result-consistency",
           severity: "critical",
           summary: `Execution artifacts reference task ${taskId}, which is not in the reviewed plan.`,
-          evidence: [planArtifact(), executionPlanArtifact(), executionResultArtifact()]
+          evidence: [planningAdmissionArtifact(), executionPlanArtifact(), executionResultArtifact()]
         })
       );
     }
@@ -317,71 +477,6 @@ function reviewTaskEvidence(executionResult: ExecutionDryRunResult): readonly Re
   });
 }
 
-function reviewAcceptanceCoverage(input: MechanicalReviewGateInput): readonly ReviewFinding[] {
-  const findings: ReviewFinding[] = [];
-  const criterionIds = new Set(input.intent.acceptanceCriteria.map((criterion) => criterion.id));
-  const coveredCriterionIds = new Set(input.plan.tasks.flatMap((task) => task.covers));
-
-  for (const criterion of input.intent.acceptanceCriteria) {
-    if (!coveredCriterionIds.has(criterion.id)) {
-      findings.push(
-        finding({
-          ruleId: "intent-acceptance-covered",
-          severity: "critical",
-          summary: `Acceptance criterion ${criterion.id} is not covered by the plan.`,
-          evidence: [intentArtifact(), planArtifact()]
-        })
-      );
-    }
-  }
-
-  for (const coveredCriterionId of coveredCriterionIds) {
-    if (!criterionIds.has(coveredCriterionId)) {
-      findings.push(
-        finding({
-          ruleId: "intent-acceptance-covered",
-          severity: "major",
-          summary: `Plan covers unknown acceptance criterion ${coveredCriterionId}.`,
-          evidence: [intentArtifact(), planArtifact()]
-        })
-      );
-    }
-  }
-
-  return findings;
-}
-
-function reviewAcceptancePassedEvidence(input: MechanicalReviewGateInput): readonly ReviewFinding[] {
-  const resultByTaskId = new Map(input.executionResult.tasks.map((task) => [task.planTaskId, task]));
-
-  return input.intent.acceptanceCriteria.flatMap((criterion): ReviewFinding[] => {
-    const coveringTasks = input.plan.tasks.filter((task) => task.covers.includes(criterion.id));
-    if (coveringTasks.length === 0) {
-      return [];
-    }
-
-    if (
-      coveringTasks.some((task) => {
-        const taskResult = resultByTaskId.get(task.id);
-        return taskResult?.status === "passed" && taskResult.evidence.length > 0;
-      })
-    ) {
-      return [];
-    }
-
-    const repairTaskId = coveringTasks.find((task) => resultByTaskId.get(task.id)?.status !== "passed")?.id;
-    return [
-      finding({
-        ruleId: "acceptance-evidence-passed",
-        severity: "major",
-        summary: `Acceptance criterion ${criterion.id} has no passed execution evidence.`,
-        evidence: [planArtifact(), executionResultArtifact()],
-        ...(repairTaskId !== undefined ? { repairTaskId } : {})
-      })
-    ];
-  });
-}
-
 function finding(input: {
   readonly ruleId: ReviewRuleId;
   readonly severity: ReviewSeverity;
@@ -398,21 +493,12 @@ function finding(input: {
   };
 }
 
-function intentArtifact(): StageArtifactRef {
-  return {
-    stage: "intent",
-    kind: "confirmed-intent",
-    uri: "intent.json",
-    description: "Normalized confirmed intent input."
-  };
-}
-
-function planArtifact(): StageArtifactRef {
+function planningAdmissionArtifact(): StageArtifactRef {
   return {
     stage: "planning",
-    kind: "plan-graph",
-    uri: "plan.json",
-    description: "Plan graph parsed and validated from the planning pile result."
+    kind: "planning-admission",
+    uri: PLANNING_ADMISSION_ARTIFACT_NAME,
+    description: "Planning admission evidence that admitted the reviewed plan."
   };
 }
 
@@ -423,6 +509,23 @@ function executionPlanArtifact(): StageArtifactRef {
     uri: "execution-plan.json",
     description: "Execution task ordering derived from the plan graph."
   };
+}
+
+function sameAdmittedPlanEvidence(
+  left: ExecutionRunPlan["admittedPlan"],
+  right: AdmittedPlanExecutionArtifact["evidence"]
+): boolean {
+  return left.planId === right.planId &&
+    left.intentId === right.intentId &&
+    left.planGraphUri === right.planGraphUri &&
+    left.planningAdmissionArtifact === right.planningAdmissionArtifact &&
+    left.planningAdmissionUri === right.planningAdmissionUri &&
+    left.validationSource === right.validationSource &&
+    left.proofSource === right.proofSource;
+}
+
+function sameOrderedValues(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function executionResultArtifact(): StageArtifactRef {

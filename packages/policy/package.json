@@ -9,6 +9,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./admission": {
+      "types": "./dist/admission/index.d.ts",
+      "import": "./dist/admission/index.js"
+    },
+    "./archetypes": {
+      "types": "./dist/archetypes/index.d.ts",
+      "import": "./dist/archetypes/index.js"
+    },
+    "./capability-envelope": {
+      "types": "./dist/capability-envelope/index.d.ts",
+      "import": "./dist/capability-envelope/index.js"
+    },
+    "./artifacts": {
+      "types": "./dist/artifacts/index.d.ts",
+      "import": "./dist/artifacts/index.js"
     }
   },
   "scripts": {

@@ -7,3 +7,4 @@ dist/
 .env.*
 !.env.example
 .ouroboros_eval_artifact.md
+.claude/scheduled_tasks.lock

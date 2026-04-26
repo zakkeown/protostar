@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createAcceptanceCriterionId, parseConfirmedIntent } from "@protostar/intent";
+import { createAcceptanceCriterionId } from "@protostar/intent/acceptance-criteria";
+import { parseConfirmedIntent } from "@protostar/intent/confirmed-intent";
+import {
+  hashPlanGraph,
+  PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS,
+  PLAN_GRAPH_ADMISSION_VALIDATORS,
+  PLANNING_ADMISSION_ARTIFACT_NAME,
+  PLANNING_ADMISSION_SCHEMA_VERSION,
+  type PlanGraph
+} from "@protostar/planning/schema";
+
+import { runFactory, type FactoryCompositionDependencies } from "./main.js";
 
 interface CliResult {
   readonly exitCode: number | null;
@@ -19,6 +30,11 @@ const repoRoot = resolve(distDir, "../../..");
 const cliPath = resolve(distDir, "main.js");
 const sampleFactoryDraftFixtureRelativePath = "examples/intents/scaffold.draft.json";
 const legacySampleConfirmedIntentFixtureRelativePath = "examples/intents/scaffold.json";
+const missingAcceptanceCoveragePlanningFixtureRelativePath =
+  "examples/planning-results/bad-missing-acceptance-coverage.json";
+const cyclicPlanningFixtureRelativePath = "examples/planning-results/bad-cyclic-plan-graph.json";
+const authorityExpansionPlanningFixtureRelativePath =
+  "examples/planning-results/bad-capability-envelope-expansion.json";
 const suppressedIntentOutputFiles = [
   "intent-draft.json",
   "clarification-report.json",
@@ -31,10 +47,24 @@ const downstreamArtifactFiles = [
   "planning-mission.txt",
   "planning-result.json",
   "plan.json",
+  "planning-admission.json",
   "execution-plan.json",
   "execution-events.json",
   "execution-result.json",
   "review-execution-loop.json",
+  "review-gate.json",
+  "evaluation-report.json",
+  "evolution-decision.json",
+  "delivery-plan.json",
+  "delivery/pr-body.md"
+] as const;
+const executionAndReviewArtifactFiles = [
+  "execution-plan.json",
+  "execution-events.json",
+  "execution-result.json",
+  "review-execution-loop.json",
+  "execution-evidence/task-cli-capability-overage.json",
+  "review-mission.txt",
   "review-gate.json",
   "evaluation-report.json",
   "evolution-decision.json",
@@ -328,7 +358,41 @@ describe("factory CLI draft admission hardening", () => {
         ]
       );
 
+      const planningStage = manifestStages.find((stage) => stage["stage"] === "planning");
+      assert.notEqual(planningStage, undefined, "Expected manifest to include planning stage.");
+      if (planningStage === undefined) {
+        return;
+      }
+      assert.equal(planningStage["status"], "passed");
+      const planningArtifacts = readObjectArrayProperty(planningStage, "artifacts");
+      assert.deepEqual(
+        planningArtifacts.map((artifactEntry) => ({
+          kind: artifactEntry["kind"],
+          uri: artifactEntry["uri"]
+        })),
+        [
+          {
+            kind: "pile-mission",
+            uri: "planning-mission.txt"
+          },
+          {
+            kind: "candidate-plan-source",
+            uri: "planning-result.json"
+          },
+          {
+            kind: "plan-graph",
+            uri: "plan.json"
+          },
+          {
+            kind: "planning-admission",
+            uri: "planning-admission.json"
+          }
+        ]
+      );
+
       await assertDownstreamArtifactsWritten(outDir, runId);
+      await assertPlanningResultIsCandidatePlanSource(runDir);
+      await assertPlanningAdmissionSmokeEvidence(runDir, intent.id);
     });
   });
 
@@ -400,10 +464,14 @@ describe("factory CLI draft admission hardening", () => {
       assertStageStatus(manifestStages, "release", "passed");
 
       const plan = await readJsonObject(resolve(runDir, "plan.json"));
+      await assertPlanningResultIsCandidatePlanSource(runDir);
       assert.equal(plan["intentId"], confirmedIntent["id"]);
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assertThinAcceptedPlanningAdmission(planningAdmission, plan);
       const executionPlan = await readJsonObject(resolve(runDir, "execution-plan.json"));
       assert.equal(executionPlan["runId"], runId);
       assert.equal(executionPlan["planId"], plan["planId"]);
+      assertExecutionPlanUsesPlanningAdmissionHandoff(executionPlan, plan);
       const executionResult = await readJsonObject(resolve(runDir, "execution-result.json"));
       assert.equal(executionResult["runId"], runId);
       assert.equal(executionResult["planId"], plan["planId"]);
@@ -412,6 +480,816 @@ describe("factory CLI draft admission hardening", () => {
       assert.equal(reviewGate["runId"], runId);
       assert.equal(reviewGate["planId"], plan["planId"]);
       assert.equal(reviewGate["verdict"], "pass");
+    });
+  });
+
+  it("persists admitted planning evidence before later downstream artifact writes", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_planning_admission_durable_before_downstream";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await mkdir(runDir, { recursive: true });
+      await writeFile(resolve(runDir, "delivery"), "force downstream delivery artifact mkdir failure\n", "utf8");
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /delivery/);
+
+      const plan = await readJsonObject(resolve(runDir, "plan.json"));
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assertThinAcceptedPlanningAdmission(planningAdmission, plan);
+      assert.equal(await pathExists(resolve(runDir, "execution-plan.json")), false);
+    });
+  });
+
+  it("validates every planning candidate and persists per-candidate admission results", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const acceptanceCriterionIds = acceptanceCriterionIdsForDraft(draft);
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-candidates.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_multi_candidate_planning_admission";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, multiCandidatePlanningFixture(acceptanceCriterionIds));
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.equal(result.stderr, "");
+
+      const plan = await readJsonObject(resolve(runDir, "plan.json"));
+      assert.equal(plan["planId"], `plan_${runId}_candidate_2`);
+      assert.equal(plan["strategy"], "Admit the valid middle candidate after all candidates are checked.");
+
+      const planningResult = await readJson(resolve(runDir, "planning-result.json"));
+      assert.equal(Array.isArray(planningResult), true);
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "allow");
+      assert.equal(planningAdmission["admitted"], true);
+      assert.equal(planningAdmission["planId"], plan["planId"]);
+      assert.equal(Object.hasOwn(planningAdmission, "details"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+      assert.deepEqual(readObjectProperty(planningAdmission, "candidateAdmissionSummary"), {
+        allCandidatesValidated: true,
+        candidateCount: 3,
+        admittedCandidateIndex: 1,
+        rejectedCandidateCount: 2
+      });
+
+      const candidateAdmissionResults = readObjectArrayProperty(planningAdmission, "candidateAdmissionResults");
+      assert.deepEqual(
+        candidateAdmissionResults.map((candidateResult) => ({
+          candidateIndex: candidateResult["candidateIndex"],
+          planId: candidateResult["planId"],
+          decision: candidateResult["decision"],
+          admitted: candidateResult["admitted"],
+          violationCount: readObjectProperty(candidateResult, "validation")["violationCount"]
+        })),
+        [
+          {
+            candidateIndex: 0,
+            planId: `plan_${runId}_candidate_1`,
+            decision: "block",
+            admitted: false,
+            violationCount: acceptanceCriterionIds.length + 1
+          },
+          {
+            candidateIndex: 1,
+            planId: `plan_${runId}_candidate_2`,
+            decision: "allow",
+            admitted: true,
+            violationCount: 0
+          },
+          {
+            candidateIndex: 2,
+            planId: `plan_${runId}_candidate_3`,
+            decision: "block",
+            admitted: false,
+            violationCount: 1
+          }
+        ]
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(candidateAdmissionResults[0] ?? {}, "rejectionReasons").map(
+          ({ code }) => code
+        ),
+        ["empty-task-coverage", ...acceptanceCriterionIds.map(() => "uncovered-acceptance-criterion")]
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(candidateAdmissionResults[2] ?? {}, "rejectionReasons").map(
+          ({ code }) => code
+        ),
+        ["missing-task-dependency"]
+      );
+
+      const executionPlan = await readJsonObject(resolve(runDir, "execution-plan.json"));
+      assert.equal(executionPlan["planId"], plan["planId"]);
+      assertExecutionPlanUsesPlanningAdmissionHandoff(executionPlan, plan);
+    });
+  });
+
+  it("admits Dogpile candidate plans before creating execution run plans", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "dogpile-planning-result.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_dogpile_candidate_admitted_before_execution";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, dogpilePlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.equal(result.stderr, "");
+
+      const planningResult = await readJsonObject(resolve(runDir, "planning-result.json"));
+      assert.equal(planningResult["kind"], "planning-pile-result");
+      assert.equal(planningResult["source"], "dogpile");
+      assert.equal(planningResult["traceRef"], "trace-dogpile-candidate-admission-before-execution");
+      await assertPlanningResultIsCandidatePlanSource(runDir);
+
+      const plan = await readJsonObject(resolve(runDir, "plan.json"));
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assertThinAcceptedPlanningAdmission(planningAdmission, plan);
+
+      const executionPlan = await readJsonObject(resolve(runDir, "execution-plan.json"));
+      assert.equal(executionPlan["runId"], runId);
+      assert.equal(executionPlan["planId"], plan["planId"]);
+      assertExecutionPlanUsesPlanningAdmissionHandoff(executionPlan, plan);
+      await assertReviewCompositionUsesPlanningAdmissionBoundary(runDir, plan);
+
+      const manifest = await readJsonObject(resolve(runDir, "manifest.json"));
+      const manifestStages = readObjectArrayProperty(manifest, "stages");
+      assertStageAppearsBefore(manifestStages, "planning", "execution");
+    });
+  });
+
+  it("feeds downstream composition from packages/planning admitted-plan results", async () => {
+    await assertFactoryCompositionUsesPlanningAdmissionBoundary();
+  });
+
+  it("does not expose an admitted plan when planning admission evidence cannot be persisted", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_planning_admission_required_before_plan";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await mkdir(resolve(runDir, "planning-admission.json"), { recursive: true });
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /planning-admission\.json/);
+      assert.equal(
+        await pathExists(resolve(runDir, "plan.json")),
+        false,
+        "plan.json must not be exposed before planning-admission.json is durably written."
+      );
+      assert.equal(await pathExists(resolve(runDir, "execution-plan.json")), false);
+    });
+  });
+
+  it("prevents rejected Dogpile candidate plans from reaching execution", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_planning_capability_rejection_evidence";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(
+        planningFixturePath,
+        dogpileUnauthorizedCapabilityPlanningFixture(acceptanceCriterionIdsForDraft(draft))
+      );
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Planning admission rejected plan graph:/);
+      assert.match(result.stderr, /outside confirmed intent capability envelope/);
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      const planningResult = await readJsonObject(resolve(runDir, "planning-result.json"));
+      const expectedPlanId = `plan_${runId}`;
+      const intentId = planningAdmission["intentId"];
+      assert.equal(typeof intentId, "string");
+      assert.equal(planningResult["source"], "dogpile");
+      assert.equal(await pathExists(resolve(runDir, "planning-admission.json")), true);
+      assert.equal(
+        await pathExists(resolve(runDir, "plan.json")),
+        false,
+        "Rejected candidate plan must not be emitted as the admitted plan artifact."
+      );
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(planningAdmission["planId"], expectedPlanId);
+      const planningAttempt = readObjectProperty(planningAdmission, "planningAttempt");
+      assert.equal(planningAttempt["candidatePlanId"], expectedPlanId);
+      assert.equal(planningAttempt["intentId"], intentId);
+      assert.equal(typeof planningAttempt["candidatePlanCreatedAt"], "string");
+      const candidatePlanCreatedAt = planningAttempt["candidatePlanCreatedAt"];
+      assert.deepEqual(readObjectProperty(planningAdmission, "candidateSource"), {
+        kind: "candidate-plan-graph",
+        planId: expectedPlanId,
+        uri: "plan.json",
+        pointer: "#",
+        createdAt: candidatePlanCreatedAt,
+        sourceOfTruth: "PlanGraph"
+      });
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+
+      const details = readObjectProperty(planningAdmission, "details");
+      assert.equal(Object.hasOwn(details, "taskCapabilityAdmissions"), false);
+      assert.equal(Object.hasOwn(details, "acceptanceCoverage"), false);
+      const validation = readObjectProperty(details, "validation");
+      assert.equal(validation["validator"], "validatePlanGraph");
+      assert.equal(validation["ok"], false);
+      assert.equal(validation["violationCount"], 3);
+      const failure = readObjectProperty(details, "failure");
+      assert.equal(failure["state"], "validation-failed");
+      assert.equal(failure["status"], "no-plan-admitted");
+      assert.equal(failure["admittedPlanCreated"], false);
+      assert.equal(failure["violationCount"], 3);
+      assert.deepEqual(readObjectProperty(failure, "candidatePlan"), {
+        planId: expectedPlanId,
+        intentId,
+        createdAt: candidatePlanCreatedAt,
+        source: {
+          kind: "candidate-plan-graph",
+          planId: expectedPlanId,
+          uri: "plan.json",
+          pointer: "#",
+          createdAt: candidatePlanCreatedAt,
+          sourceOfTruth: "PlanGraph"
+        }
+      });
+      assert.deepEqual(
+        readObjectArrayProperty(validation, "capabilityViolationDiagnostics").map(
+          ({ taskId, violatedRule, capabilityPath, severity }) => ({
+            taskId,
+            violatedRule,
+            capabilityPath,
+            severity
+          })
+        ),
+        [
+          {
+            taskId: "task-cli-capability-overage",
+            violatedRule: "task-required-repo-scope-outside-intent-envelope",
+            capabilityPath: "tasks.task-cli-capability-overage.requiredCapabilities.repoScopes.0",
+            severity: "block"
+          },
+          {
+            taskId: "task-cli-capability-overage",
+            violatedRule: "task-required-tool-permission-outside-intent-envelope",
+            capabilityPath: "tasks.task-cli-capability-overage.requiredCapabilities.toolPermissions.0",
+            severity: "block"
+          },
+          {
+            taskId: "task-cli-capability-overage",
+            violatedRule: "task-required-budget-outside-intent-envelope",
+            capabilityPath: "tasks.task-cli-capability-overage.requiredCapabilities.budget.timeoutMs",
+            severity: "block"
+          }
+        ]
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(validation, "violations").map(({ code, path, taskId }) => ({ code, path, taskId })),
+        [
+          {
+            code: "task-required-repo-scope-outside-intent-envelope",
+            path: "tasks.task-cli-capability-overage.requiredCapabilities.repoScopes.0",
+            taskId: "task-cli-capability-overage"
+          },
+          {
+            code: "task-required-tool-permission-outside-intent-envelope",
+            path: "tasks.task-cli-capability-overage.requiredCapabilities.toolPermissions.0",
+            taskId: "task-cli-capability-overage"
+          },
+          {
+            code: "task-required-budget-outside-intent-envelope",
+            path: "tasks.task-cli-capability-overage.requiredCapabilities.budget.timeoutMs",
+            taskId: "task-cli-capability-overage"
+          }
+        ]
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map(({ code, path, taskId }) => ({
+          code,
+          path,
+          taskId
+        })),
+        readObjectArrayProperty(validation, "violations").map(({ code, path, taskId }) => ({
+          code,
+          path,
+          taskId
+        }))
+      );
+      assert.deepEqual(
+        planningAdmission["errors"],
+        readObjectArrayProperty(validation, "violations").map((violation) => violation["message"])
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map((violation) => violation["message"]),
+        planningAdmission["errors"]
+      );
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
+    });
+  });
+
+  it("spies on the execution entrypoint and proves rejected planning never invokes execution", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_rejected_planning_execution_entrypoint_spy";
+      const runDir = resolve(outDir, runId);
+      const prepareExecutionRunSpy = mock.fn<FactoryCompositionDependencies["prepareExecutionRun"]>(
+        () => {
+          throw new Error("Rejected planning result invoked the execution entrypoint.");
+        }
+      );
+
+      await writeJson(draftPath, draft);
+      await writeJson(
+        planningFixturePath,
+        dogpileUnauthorizedCapabilityPlanningFixture(acceptanceCriterionIdsForDraft(draft))
+      );
+
+      await assert.rejects(
+        async () => {
+          await runFactory(
+            {
+              intentDraftPath: draftPath,
+              outDir,
+              planningFixturePath,
+              failTaskIds: [],
+              intentMode: "brownfield",
+              runId
+            },
+            {
+              prepareExecutionRun: prepareExecutionRunSpy
+            }
+          );
+        },
+        /Planning admission rejected plan graph:/
+      );
+
+      assert.equal(
+        prepareExecutionRunSpy.mock.callCount(),
+        0,
+        "Rejected planning results must hard-block before prepareExecutionRun is invoked."
+      );
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(await pathExists(resolve(runDir, "plan.json")), false);
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
+    });
+  });
+
+  it("rejects the missing-AC-coverage fixture before any admitted plan can be produced", async () => {
+    await withTempDir(async (tempDir) => {
+      const draftPath = resolve(repoRoot, sampleFactoryDraftFixtureRelativePath);
+      const draft = await readJsonObject(draftPath);
+      const planningFixturePath = resolve(repoRoot, missingAcceptanceCoveragePlanningFixtureRelativePath);
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_missing_ac_coverage_rejection";
+      const runDir = resolve(outDir, runId);
+      const missingAcceptanceCriterionId = acceptanceCriterionIdsForDraft(draft)[1];
+      assert.equal(typeof missingAcceptanceCriterionId, "string");
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Planning admission rejected plan graph:/);
+      assert.match(
+        result.stderr,
+        new RegExp(`Acceptance criterion ${missingAcceptanceCriterionId} is not covered by any plan task\\.`)
+      );
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      const expectedPlanId = `plan_${runId}`;
+      const intentId = planningAdmission["intentId"];
+      assert.equal(typeof intentId, "string");
+      assert.equal(await pathExists(resolve(runDir, "planning-admission.json")), true);
+      assert.equal(
+        await pathExists(resolve(runDir, "plan.json")),
+        false,
+        "The missing-AC-coverage fixture must not produce an admitted plan artifact."
+      );
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(planningAdmission["planId"], expectedPlanId);
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+
+      const details = readObjectProperty(planningAdmission, "details");
+      assert.deepEqual(readObjectProperty(details, "gate"), {
+        planGraphValidationPassed: false,
+        taskCapabilityRequirementsExtracted: false,
+        taskRiskCompatibilityEvidenceAttached: true,
+        acceptanceCriterionCoverageEvidenceAttached: false
+      });
+      assert.equal(Object.hasOwn(details, "taskCapabilityAdmissions"), false);
+      assert.equal(Object.hasOwn(details, "acceptanceCoverage"), false);
+      const validation = readObjectProperty(details, "validation");
+      const violations = readObjectArrayProperty(validation, "violations");
+      assert.equal(validation["validator"], "validatePlanGraph");
+      assert.equal(validation["ok"], false);
+      assert.equal(validation["violationCount"], 1);
+      assert.deepEqual(
+        violations.map(({ code, path, acceptanceCriterionId }) => ({ code, path, acceptanceCriterionId })),
+        [
+          {
+            code: "uncovered-acceptance-criterion",
+            path: "acceptanceCriteria",
+            acceptanceCriterionId: missingAcceptanceCriterionId
+          }
+        ]
+      );
+
+      const failure = readObjectProperty(details, "failure");
+      assert.equal(failure["state"], "validation-failed");
+      assert.equal(failure["status"], "no-plan-admitted");
+      assert.equal(failure["admittedPlanCreated"], false);
+      assert.equal(failure["violationCount"], 1);
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map(({ code, path, acceptanceCriterionId }) => ({
+          code,
+          path,
+          acceptanceCriterionId
+        })),
+        violations.map(({ code, path, acceptanceCriterionId }) => ({ code, path, acceptanceCriterionId }))
+      );
+      assert.deepEqual(planningAdmission["errors"], [
+        `Acceptance criterion ${missingAcceptanceCriterionId} is not covered by any plan task.`
+      ]);
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
+    });
+  });
+
+  it("loads the cyclic planning fixture and rejects it before any admitted-plan handoff can reach execution", async () => {
+    await withTempDir(async (tempDir) => {
+      const draftPath = resolve(repoRoot, sampleFactoryDraftFixtureRelativePath);
+      const planningFixturePath = resolve(repoRoot, cyclicPlanningFixtureRelativePath);
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_cyclic_plan_rejection";
+      const runDir = resolve(outDir, runId);
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Planning admission rejected plan graph:/);
+      assert.match(
+        result.stderr,
+        /Task task-cycle-a cannot depend on task-cycle-b because task-cycle-b already depends on task-cycle-a\./
+      );
+      assert.match(result.stderr, /Plan graph contains a dependency cycle\./);
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      const expectedPlanId = `plan_${runId}`;
+      assert.equal(await pathExists(resolve(runDir, "planning-admission.json")), true);
+      assert.equal(
+        await pathExists(resolve(runDir, "plan.json")),
+        false,
+        "The cyclic fixture must not produce an admitted plan artifact."
+      );
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(planningAdmission["planId"], expectedPlanId);
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+
+      const details = readObjectProperty(planningAdmission, "details");
+      assert.deepEqual(readObjectProperty(details, "gate"), {
+        planGraphValidationPassed: false,
+        taskCapabilityRequirementsExtracted: false,
+        taskRiskCompatibilityEvidenceAttached: true,
+        acceptanceCriterionCoverageEvidenceAttached: false
+      });
+      assert.equal(Object.hasOwn(details, "taskCapabilityAdmissions"), false);
+      assert.equal(Object.hasOwn(details, "acceptanceCoverage"), false);
+
+      const validation = readObjectProperty(details, "validation");
+      const violations = readObjectArrayProperty(validation, "violations");
+      assert.equal(validation["validator"], "validatePlanGraph");
+      assert.equal(validation["ok"], false);
+      assert.equal(validation["violationCount"], 3);
+      assert.deepEqual(
+        violations.map(({ code, path, message }) => ({ code, path, message })),
+        [
+          {
+            code: "dependency-cycle",
+            path: "tasks.task-cycle-a.dependsOn.0",
+            message:
+              "Task task-cycle-a cannot depend on task-cycle-b because task-cycle-b already depends on task-cycle-a."
+          },
+          {
+            code: "dependency-cycle",
+            path: "tasks.task-cycle-b.dependsOn.0",
+            message:
+              "Task task-cycle-b cannot depend on task-cycle-a because task-cycle-a already depends on task-cycle-b."
+          },
+          {
+            code: "dependency-cycle",
+            path: "tasks.dependsOn",
+            message: "Plan graph contains a dependency cycle."
+          }
+        ]
+      );
+
+      const failure = readObjectProperty(details, "failure");
+      assert.equal(failure["state"], "validation-failed");
+      assert.equal(failure["status"], "no-plan-admitted");
+      assert.equal(failure["admittedPlanCreated"], false);
+      assert.equal(failure["violationCount"], 3);
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map(({ code, path, message }) => ({
+          code,
+          path,
+          message
+        })),
+        violations.map(({ code, path, message }) => ({ code, path, message }))
+      );
+      assert.deepEqual(
+        planningAdmission["errors"],
+        violations.map((violation) => violation["message"])
+      );
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
+    });
+  });
+
+  it("rejects the authority-expansion fixture before any admitted plan can be produced", async () => {
+    await withTempDir(async (tempDir) => {
+      const draftPath = resolve(repoRoot, sampleFactoryDraftFixtureRelativePath);
+      const planningFixturePath = resolve(repoRoot, authorityExpansionPlanningFixtureRelativePath);
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_authority_expansion_rejection";
+      const runDir = resolve(outDir, runId);
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Planning admission rejected plan graph:/);
+      assert.match(result.stderr, /outside confirmed intent capability envelope/);
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      const expectedPlanId = `plan_${runId}`;
+      assert.equal(await pathExists(resolve(runDir, "planning-admission.json")), true);
+      assert.equal(
+        await pathExists(resolve(runDir, "plan.json")),
+        false,
+        "The authority-expansion fixture must not produce an admitted plan artifact."
+      );
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(planningAdmission["planId"], expectedPlanId);
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+
+      const details = readObjectProperty(planningAdmission, "details");
+      assert.deepEqual(readObjectProperty(details, "gate"), {
+        planGraphValidationPassed: false,
+        taskCapabilityRequirementsExtracted: false,
+        taskRiskCompatibilityEvidenceAttached: true,
+        acceptanceCriterionCoverageEvidenceAttached: false
+      });
+      assert.equal(Object.hasOwn(details, "taskCapabilityAdmissions"), false);
+      assert.equal(Object.hasOwn(details, "acceptanceCoverage"), false);
+
+      const validation = readObjectProperty(details, "validation");
+      const violations = readObjectArrayProperty(validation, "violations");
+      assert.equal(validation["validator"], "validatePlanGraph");
+      assert.equal(validation["ok"], false);
+      assert.equal(validation["violationCount"], 5);
+      assert.deepEqual(
+        violations.map(({ code, path, taskId }) => ({ code, path, taskId })),
+        [
+          {
+            code: "task-required-repo-scope-outside-intent-envelope",
+            path: "tasks.task-expand-beyond-envelope.requiredCapabilities.repoScopes.0",
+            taskId: "task-expand-beyond-envelope"
+          },
+          {
+            code: "task-required-tool-permission-outside-intent-envelope",
+            path: "tasks.task-expand-beyond-envelope.requiredCapabilities.toolPermissions.0",
+            taskId: "task-expand-beyond-envelope"
+          },
+          {
+            code: "task-required-execute-grant-outside-intent-envelope",
+            path: "tasks.task-expand-beyond-envelope.requiredCapabilities.executeGrants.0",
+            taskId: "task-expand-beyond-envelope"
+          },
+          {
+            code: "task-required-budget-outside-intent-envelope",
+            path: "tasks.task-expand-beyond-envelope.requiredCapabilities.budget.timeoutMs",
+            taskId: "task-expand-beyond-envelope"
+          },
+          {
+            code: "task-required-budget-outside-intent-envelope",
+            path: "tasks.task-expand-beyond-envelope.requiredCapabilities.budget.maxRepairLoops",
+            taskId: "task-expand-beyond-envelope"
+          }
+        ]
+      );
+
+      const failure = readObjectProperty(details, "failure");
+      assert.equal(failure["state"], "validation-failed");
+      assert.equal(failure["status"], "no-plan-admitted");
+      assert.equal(failure["admittedPlanCreated"], false);
+      assert.equal(failure["violationCount"], 5);
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map(({ code, path, taskId }) => ({
+          code,
+          path,
+          taskId
+        })),
+        violations.map(({ code, path, taskId }) => ({ code, path, taskId }))
+      );
+      assert.deepEqual(
+        readObjectArrayProperty(validation, "capabilityViolationDiagnostics").map(
+          ({ taskId, violatedRule, capabilityPath, severity }) => ({
+            taskId,
+            violatedRule,
+            capabilityPath,
+            severity
+          })
+        ),
+        [
+          {
+            taskId: "task-expand-beyond-envelope",
+            violatedRule: "task-required-repo-scope-outside-intent-envelope",
+            capabilityPath: "tasks.task-expand-beyond-envelope.requiredCapabilities.repoScopes.0",
+            severity: "block"
+          },
+          {
+            taskId: "task-expand-beyond-envelope",
+            violatedRule: "task-required-tool-permission-outside-intent-envelope",
+            capabilityPath: "tasks.task-expand-beyond-envelope.requiredCapabilities.toolPermissions.0",
+            severity: "block"
+          },
+          {
+            taskId: "task-expand-beyond-envelope",
+            violatedRule: "task-required-execute-grant-outside-intent-envelope",
+            capabilityPath: "tasks.task-expand-beyond-envelope.requiredCapabilities.executeGrants.0",
+            severity: "block"
+          },
+          {
+            taskId: "task-expand-beyond-envelope",
+            violatedRule: "task-required-budget-outside-intent-envelope",
+            capabilityPath: "tasks.task-expand-beyond-envelope.requiredCapabilities.budget.timeoutMs",
+            severity: "block"
+          },
+          {
+            taskId: "task-expand-beyond-envelope",
+            violatedRule: "task-required-budget-outside-intent-envelope",
+            capabilityPath: "tasks.task-expand-beyond-envelope.requiredCapabilities.budget.maxRepairLoops",
+            severity: "block"
+          }
+        ]
+      );
+      assert.deepEqual(
+        planningAdmission["errors"],
+        violations.map((violation) => violation["message"])
+      );
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
     });
   });
 
@@ -459,17 +1337,32 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
-  it("emits admission-decision.json when an admitted draft fails after admission", async () => {
+  it("persists planning-admission.json when candidate plan creation fails before admission", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "invalid-planning-fixture.json");
       const outDir = resolve(tempDir, "out");
-      const runId = "run_cli_post_admission_failure";
+      const runId = "run_cli_planning_pre_admission_failure";
+      const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, {
-        kind: "not-a-planning-pile-result"
+        kind: "planning-pile-result",
+        source: "fixture",
+        output: JSON.stringify({
+          strategy: "",
+          tasks: [
+            {
+              id: "candidate-without-task-prefix",
+              title: "",
+              kind: "unsupported",
+              dependsOn: ["missing-prefix"],
+              covers: ["not-an-ac"],
+              risk: "extreme"
+            }
+          ]
+        })
       });
 
       const result = await runCli([
@@ -488,9 +1381,11 @@ describe("factory CLI draft admission hardening", () => {
 
       assert.equal(result.exitCode, 1);
       assert.equal(result.stdout, "");
-      assert.notEqual(result.stderr, "");
+      assert.match(result.stderr, /Planning admission failed before candidate PlanGraph admission:/);
+      assert.match(result.stderr, /strategy must be a non-empty string/);
+      assert.match(result.stderr, /requiredCapabilities must be provided/);
 
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readJsonObject(resolve(runDir, "admission-decision.json"));
       assert.equal(admissionDecision["decision"], "allow");
       assert.equal(admissionDecision["admitted"], true);
       assert.equal(admissionDecision["draftId"], draft["draftId"]);
@@ -498,6 +1393,66 @@ describe("factory CLI draft admission hardening", () => {
       const admissionGate = readObjectProperty(admissionDetails, "gate");
       assert.equal(admissionGate["policyPassed"], true);
       assert.equal(admissionGate["confirmedIntentCreated"], true);
+
+      const planningAdmission = await readJsonObject(resolve(runDir, "planning-admission.json"));
+      assert.equal(planningAdmission["artifact"], "planning-admission.json");
+      assert.equal(planningAdmission["decision"], "block");
+      assert.equal(planningAdmission["admissionStatus"], "no-plan-admitted");
+      assert.equal(planningAdmission["admitted"], false);
+      assert.equal(planningAdmission["planId"], `plan_${runId}`);
+      assert.equal(planningAdmission["intentId"], admissionDecision["confirmedIntentId"]);
+      assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+      assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+      assert.equal(await pathExists(resolve(runDir, "planning-admission.json")), true);
+      assert.deepEqual(readObjectProperty(planningAdmission, "candidateSource"), {
+        kind: "planning-pile-result",
+        uri: "planning-result.json",
+        pointer: "#",
+        sourceOfTruth: "PlanningPileResult"
+      });
+
+      const details = readObjectProperty(planningAdmission, "details");
+      assert.deepEqual(readObjectProperty(details, "gate"), {
+        planGraphValidationPassed: false,
+        candidatePlanCreated: false,
+        taskCapabilityRequirementsExtracted: false,
+        taskRiskCompatibilityEvidenceAttached: false,
+        acceptanceCriterionCoverageEvidenceAttached: false
+      });
+      const validation = readObjectProperty(details, "validation");
+      assert.equal(validation["validator"], "createCandidatePlanGraph");
+      assert.equal(validation["ok"], false);
+      const violations = readObjectArrayProperty(validation, "violations");
+      const violationMessages = violations.map((violation) => violation["message"]);
+      assert.deepEqual(violationMessages, [
+        "strategy must be a non-empty string.",
+        "tasks[0].title must be a non-empty string.",
+        "tasks[0].requiredCapabilities must be provided in normalized capability-envelope shape.",
+        "tasks[0].kind must be research, design, implementation, verification, or release.",
+        "tasks[0].risk must be low, medium, or high.",
+        "tasks[0].id must start with task-.",
+        "tasks[0].dependsOn[0] must start with task-.",
+        "tasks[0].covers entries must start with ac_."
+      ]);
+      assert.equal(validation["violationCount"], violationMessages.length);
+      const failure = readObjectProperty(details, "failure");
+      assert.equal(failure["state"], "pre-admission-failed");
+      assert.equal(failure["status"], "no-plan-admitted");
+      assert.equal(failure["admittedPlanCreated"], false);
+      assert.equal(failure["candidatePlanCreated"], false);
+      assert.equal(failure["candidatePlanId"], `plan_${runId}`);
+      assert.deepEqual(
+        readObjectArrayProperty(failure, "rejectionReasons").map(({ code, path, message }) => ({
+          code,
+          path,
+          message
+        })),
+        violations.map(({ code, path, message }) => ({ code, path, message }))
+      );
+      assert.deepEqual(planningAdmission["errors"], violationMessages);
+      assert.equal(await pathExists(resolve(runDir, "planning-result.json")), true);
+      assert.equal(await pathExists(resolve(runDir, "plan.json")), false);
+      await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
     });
   });
 
@@ -1220,6 +2175,12 @@ function readObjectArrayProperty(record: Record<string, unknown>, key: string): 
 }
 
 function cosmeticPlanningFixture(acceptanceCriterionIds: readonly string[]): Record<string, unknown> {
+  const noRequiredCapabilities = {
+    repoScopes: [],
+    toolPermissions: [],
+    budget: {}
+  };
+
   return {
     kind: "planning-pile-result",
     source: "fixture",
@@ -1232,11 +2193,387 @@ function cosmeticPlanningFixture(acceptanceCriterionIds: readonly string[]): Rec
         kind: "verification",
         dependsOn: index === 0 ? [] : [`task-cli-success-${index}`],
         covers: [criterionId],
-        requiredCapabilities: {},
+        requiredCapabilities: noRequiredCapabilities,
         risk: "low"
       }))
     })
   };
+}
+
+function dogpilePlanningFixture(acceptanceCriterionIds: readonly string[]): Record<string, unknown> {
+  return {
+    ...cosmeticPlanningFixture(acceptanceCriterionIds),
+    source: "dogpile",
+    modelProviderId: "dogpile-planning-cell",
+    traceRef: "trace-dogpile-candidate-admission-before-execution"
+  };
+}
+
+function multiCandidatePlanningFixture(acceptanceCriterionIds: readonly string[]): readonly Record<string, unknown>[] {
+  const noRequiredCapabilities = {
+    repoScopes: [],
+    toolPermissions: [],
+    budget: {}
+  };
+
+  return [
+    {
+      kind: "planning-pile-result",
+      source: "fixture",
+      modelProviderId: "deterministic-cli-rejected-first-candidate",
+      output: JSON.stringify({
+        strategy: "Reject this first candidate but continue validating later candidates.",
+        tasks: [
+          {
+            id: "task-cli-first-candidate-empty-coverage",
+            title: "Trip coverage admission in the first candidate",
+            kind: "verification",
+            dependsOn: [],
+            covers: [],
+            requiredCapabilities: noRequiredCapabilities,
+            risk: "low"
+          }
+        ]
+      })
+    },
+    {
+      kind: "planning-pile-result",
+      source: "fixture",
+      modelProviderId: "deterministic-cli-admitted-middle-candidate",
+      output: JSON.stringify({
+        strategy: "Admit the valid middle candidate after all candidates are checked.",
+        tasks: acceptanceCriterionIds.map((criterionId, index) => ({
+          id: `task-cli-middle-candidate-${index + 1}`,
+          title: `Cover multi-candidate acceptance criterion ${index + 1}`,
+          kind: "verification",
+          dependsOn: index === 0 ? [] : [`task-cli-middle-candidate-${index}`],
+          covers: [criterionId],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }))
+      })
+    },
+    {
+      kind: "planning-pile-result",
+      source: "fixture",
+      modelProviderId: "deterministic-cli-rejected-last-candidate",
+      output: JSON.stringify({
+        strategy: "Reject this last candidate after an admissible candidate has already appeared.",
+        tasks: acceptanceCriterionIds.map((criterionId, index) => ({
+          id: `task-cli-last-candidate-${index + 1}`,
+          title: `Cover late candidate acceptance criterion ${index + 1}`,
+          kind: "verification",
+          dependsOn: index === 0 ? ["task-cli-last-candidate-missing"] : [`task-cli-last-candidate-${index}`],
+          covers: [criterionId],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }))
+      })
+    }
+  ];
+}
+
+function unauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: readonly string[]): Record<string, unknown> {
+  const [firstCriterionId, secondCriterionId] = acceptanceCriterionIds;
+  assert.equal(typeof firstCriterionId, "string");
+  assert.equal(typeof secondCriterionId, "string");
+
+  return {
+    kind: "planning-pile-result",
+    source: "fixture",
+    modelProviderId: "deterministic-cli-capability-rejection-fixture",
+    output: JSON.stringify({
+      strategy: "Request capabilities outside the confirmed intent envelope and persist rejection evidence.",
+      tasks: [
+        {
+          id: "task-cli-capability-overage",
+          title: "Attempt to exceed confirmed intent authority",
+          kind: "verification",
+          dependsOn: [],
+          covers: [firstCriterionId],
+          requiredCapabilities: {
+            repoScopes: [
+              {
+                workspace: "protostar",
+                path: "packages/planning",
+                access: "write"
+              }
+            ],
+            toolPermissions: [
+              {
+                tool: "node:test",
+                permissionLevel: "admin",
+                reason: "Attempt to exceed the admitted test runner permission.",
+                risk: "low"
+              }
+            ],
+            budget: {
+              timeoutMs: 600000
+            }
+          },
+          risk: "low"
+        },
+        {
+          id: "task-cli-capability-control",
+          title: "Keep acceptance coverage complete while another task fails capability admission",
+          kind: "verification",
+          dependsOn: ["task-cli-capability-overage"],
+          covers: [secondCriterionId],
+          requiredCapabilities: {
+            repoScopes: [],
+            toolPermissions: [],
+            budget: {}
+          },
+          risk: "low"
+        }
+      ]
+    })
+  };
+}
+
+function dogpileUnauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: readonly string[]): Record<string, unknown> {
+  return {
+    ...unauthorizedCapabilityPlanningFixture(acceptanceCriterionIds),
+    source: "dogpile",
+    modelProviderId: "dogpile-planning-cell",
+    traceRef: "trace-dogpile-invalid-candidate-blocks-execution"
+  };
+}
+
+function expectedExecutionAdmittedPlanEvidence(plan: Record<string, unknown>): Record<string, unknown> {
+  return {
+    planId: plan["planId"],
+    intentId: plan["intentId"],
+    planGraphUri: "plan.json",
+    planningAdmissionArtifact: "planning-admission.json",
+    planningAdmissionUri: "planning-admission.json",
+    validationSource: "planning-admission.json",
+    proofSource: "PlanGraph"
+  };
+}
+
+function assertThinAcceptedPlanningAdmission(
+  planningAdmission: Record<string, unknown>,
+  plan: Record<string, unknown>
+): void {
+  assert.deepEqual(Object.keys(planningAdmission).sort(), [
+    "admissionStatus",
+    "admitted",
+    "admittedAt",
+    "artifact",
+    "candidatePlan",
+    "candidateSource",
+    "decision",
+    "errors",
+    "intentId",
+    "plan_hash",
+    "planId",
+    "planningAttempt",
+    "schemaVersion",
+    "validator_versions",
+    "validators_passed"
+  ].sort());
+  assert.equal(typeof planningAdmission["admittedAt"], "string");
+
+  const candidateSource = {
+    kind: "candidate-plan-graph",
+    planId: plan["planId"],
+    uri: "plan.json",
+    pointer: "#",
+    createdAt: plan["createdAt"],
+    sourceOfTruth: "PlanGraph"
+  };
+
+  assert.deepEqual(planningAdmission, {
+    schemaVersion: PLANNING_ADMISSION_SCHEMA_VERSION,
+    artifact: PLANNING_ADMISSION_ARTIFACT_NAME,
+    decision: "allow",
+    admissionStatus: "plan-admitted",
+    admitted: true,
+    admittedAt: planningAdmission["admittedAt"],
+    planningAttempt: {
+      id: `planning-attempt:${String(plan["planId"])}`,
+      candidatePlanId: plan["planId"],
+      intentId: plan["intentId"],
+      candidatePlanCreatedAt: plan["createdAt"]
+    },
+    candidateSource,
+    candidatePlan: {
+      planId: plan["planId"],
+      intentId: plan["intentId"],
+      createdAt: plan["createdAt"],
+      source: candidateSource
+    },
+    planId: plan["planId"],
+    intentId: plan["intentId"],
+    plan_hash: hashPlanGraph(plan as unknown as PlanGraph),
+    validators_passed: [...PLAN_GRAPH_ADMISSION_VALIDATORS],
+    validator_versions: PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS,
+    errors: []
+  });
+  assert.equal(Object.hasOwn(planningAdmission, "details"), false);
+  assert.equal(Object.hasOwn(planningAdmission, "admittedPlan"), false);
+  assert.equal(Object.hasOwn(planningAdmission, "handoff"), false);
+}
+
+function assertExecutionPlanUsesPlanningAdmissionHandoff(
+  executionPlan: Record<string, unknown>,
+  plan: Record<string, unknown>
+): void {
+  assert.deepEqual(
+    readObjectProperty(executionPlan, "admittedPlan"),
+    expectedExecutionAdmittedPlanEvidence(plan)
+  );
+  assert.equal(Object.hasOwn(executionPlan, "strategy"), false);
+  assert.equal(Object.hasOwn(executionPlan, "acceptanceCriteria"), false);
+  assert.equal(Object.hasOwn(executionPlan, "__protostarPlanAdmissionState"), false);
+
+  const executionTasks = readObjectArrayProperty(executionPlan, "tasks");
+  const planTasks = readObjectArrayProperty(plan, "tasks");
+  assert.deepEqual(
+    executionTasks.map((task) => ({
+      planTaskId: task["planTaskId"],
+      title: task["title"],
+      dependsOn: task["dependsOn"]
+    })),
+    planTasks.map((task) => ({
+      planTaskId: task["id"],
+      title: task["title"],
+      dependsOn: task["dependsOn"]
+    }))
+  );
+
+  for (const executionTask of executionTasks) {
+    assert.deepEqual(
+      Object.keys(executionTask).sort(),
+      ["dependsOn", "planTaskId", "status", "title"].sort()
+    );
+    assert.equal(Object.hasOwn(executionTask, "id"), false);
+    assert.equal(Object.hasOwn(executionTask, "kind"), false);
+    assert.equal(Object.hasOwn(executionTask, "covers"), false);
+    assert.equal(Object.hasOwn(executionTask, "requiredCapabilities"), false);
+    assert.equal(Object.hasOwn(executionTask, "risk"), false);
+  }
+}
+
+async function assertReviewCompositionUsesPlanningAdmissionBoundary(
+  runDir: string,
+  plan: Record<string, unknown>
+): Promise<void> {
+  const reviewMission = await readFile(resolve(runDir, "review-mission.txt"), "utf8");
+  assert.match(reviewMission, /Review input artifact: planning-admission\.json/);
+  assert.match(reviewMission, /Planning admission decision: allow/);
+  assert.match(reviewMission, /Planning admission status: plan-admitted/);
+  assert.match(reviewMission, /Plan proof source: PlanGraph at plan\.json/);
+
+  for (const task of readObjectArrayProperty(plan, "tasks")) {
+    const taskId = task["id"];
+    const taskTitle = task["title"];
+    assert.equal(typeof taskId, "string");
+    assert.equal(typeof taskTitle, "string");
+    const planTaskId = taskId as string;
+    const planTaskTitle = taskTitle as string;
+    assert.equal(
+      reviewMission.includes(planTaskId),
+      false,
+      `Review mission must not inline candidate PlanGraph task id ${planTaskId}.`
+    );
+    assert.equal(
+      reviewMission.includes(planTaskTitle),
+      false,
+      `Review mission must not inline candidate PlanGraph task title ${planTaskTitle}.`
+    );
+  }
+
+  assertJsonDoesNotContainCandidatePlanBody(
+    await readJsonObject(resolve(runDir, "review-execution-loop.json")),
+    "review-execution-loop.json"
+  );
+  assertJsonDoesNotContainCandidatePlanBody(
+    await readJsonObject(resolve(runDir, "review-gate.json")),
+    "review-gate.json"
+  );
+}
+
+function assertJsonDoesNotContainCandidatePlanBody(value: unknown, path: string): void {
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      assertJsonDoesNotContainCandidatePlanBody(item, `${path}.${index}`);
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  assert.equal(
+    value["__protostarPlanAdmissionState"] === "candidate-plan",
+    false,
+    `${path} must not contain a CandidatePlan admission marker.`
+  );
+  assert.equal(
+    looksLikeRawPlanGraphBody(value),
+    false,
+    `${path} must not inline a candidate PlanGraph body.`
+  );
+  assert.equal(
+    looksLikeRawPlanTaskBody(value),
+    false,
+    `${path} must not inline a raw PlanGraph task body.`
+  );
+
+  for (const [key, item] of Object.entries(value)) {
+    assertJsonDoesNotContainCandidatePlanBody(item, `${path}.${key}`);
+  }
+}
+
+function looksLikeRawPlanGraphBody(value: Record<string, unknown>): boolean {
+  return (
+    Array.isArray(value["acceptanceCriteria"]) &&
+    Array.isArray(value["tasks"]) &&
+    typeof value["strategy"] === "string"
+  );
+}
+
+function looksLikeRawPlanTaskBody(value: Record<string, unknown>): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["kind"] === "string" &&
+    Array.isArray(value["covers"]) &&
+    "requiredCapabilities" in value &&
+    "risk" in value
+  );
+}
+
+function expectedPlanningAdmissionCapabilityAdmissions(
+  acceptanceCriterionIds: readonly string[]
+): readonly Record<string, unknown>[] {
+  const noRequiredCapabilities = {
+    repoScopes: [],
+    toolPermissions: [],
+    budget: {}
+  };
+
+  return acceptanceCriterionIds.map((_, index) => ({
+    taskId: `task-cli-success-${index + 1}`,
+    requestedCapabilities: noRequiredCapabilities,
+    admittedCapabilities: noRequiredCapabilities,
+    verdict: "allow"
+  }));
+}
+
+function expectedPlanningAdmissionCoverage(acceptanceCriterionIds: readonly string[]): readonly Record<string, unknown>[] {
+  return acceptanceCriterionIds.map((acceptanceCriterionId, index) => ({
+    acceptanceCriterionId,
+    acceptedCriterionPath: `acceptanceCriteria.${index}`,
+    coverageLinks: [
+      {
+        taskId: `task-cli-success-${index + 1}`,
+        coveragePath: `tasks.task-cli-success-${index + 1}.covers.0`
+      }
+    ]
+  }));
 }
 
 function acceptanceCriterionIdsForDraft(draft: Record<string, unknown>): readonly string[] {
@@ -1293,6 +2630,118 @@ async function assertSampleFactoryScriptUsesDraftAdmission(): Promise<void> {
   );
 }
 
+async function assertFactoryCompositionUsesPlanningAdmissionBoundary(): Promise<void> {
+  const source = await readFile(resolve(repoRoot, "apps/factory-cli/src/main.ts"), "utf8");
+  assert.match(
+    source,
+    /const candidateAdmission = candidatePlans\.length === 1\s*\?\s*admitCandidatePlan\(/s,
+    "Single Dogpile planning output must be admitted through packages/planning before composition."
+  );
+  assert.match(
+    source,
+    /:\s*admitCandidatePlans\(/s,
+    "Multiple Dogpile planning outputs must use the packages/planning batch admission boundary."
+  );
+  assert.match(
+    source,
+    /const admittedPlan = candidateAdmission\.admittedPlan;/,
+    "Composition must bind the admitted plan returned by planning admission."
+  );
+  assert.match(
+    source,
+    /const persistedPlanningAdmission = await readPersistedPlanningAdmissionArtifact\(runDir\);/,
+    "Composition must re-read persisted planning-admission.json before creating execution handoff evidence."
+  );
+  assert.match(
+    source,
+    /planningAdmission:\s*persistedPlanningAdmission,/,
+    "Execution handoff must consume the persisted planning-admission.json payload, not the in-memory candidate admission."
+  );
+  assert.match(
+    source,
+    /assertAdmittedPlanHandoff\(\{\s*plan: admittedPlanningOutput\.admittedPlan,/s,
+    "Execution handoff must be created from the admitted plan, not from a candidate plan."
+  );
+  assert.match(
+    source,
+    /planningAdmissionArtifact: admittedPlanningOutput\.planningAdmissionArtifact,/s,
+    "Execution handoff must carry forward the emitted planning-admission.json artifact reference."
+  );
+  assert.doesNotMatch(
+    source,
+    /assertAdmittedPlanHandoff\(\{\s*plan:\s*(candidatePlan|firstCandidatePlan),/s,
+    "Candidate plans must not be passed directly into the admitted-plan handoff."
+  );
+  assert.match(
+    source,
+    /dependencies\.prepareExecutionRun\(\{[\s\S]*admittedPlan: admittedPlanHandoff\.executionArtifact/,
+    "Execution must receive only the admitted-plan execution artifact produced from planning-admission evidence."
+  );
+  assert.match(
+    source,
+    /dependencies\.runMechanicalReviewExecutionLoop\(\{[\s\S]*admittedPlan: admittedPlanHandoff\.executionArtifact/,
+    "Review must receive only the admitted-plan execution artifact produced from planning-admission evidence."
+  );
+  assert.match(
+    source,
+    /const reviewMission = buildReviewMission\(intent,\s*admittedPlanningOutput\.planningAdmission\);/,
+    "Review mission must consume the persisted planning-admission.json payload, not a candidate plan object."
+  );
+  assert.doesNotMatch(
+    source,
+    /buildReviewMission\(intent,\s*(candidatePlan|firstCandidatePlan|admittedPlanHandoff\.plan|admittedPlan)\)/,
+    "Review mission must not receive candidate or raw plan graph objects."
+  );
+  assertSourceOrder(
+    source,
+    "const candidateAdmission = candidatePlans.length === 1",
+    "const planningAdmissionArtifact = await writePlanningAdmissionArtifacts({",
+    "Dogpile candidate plans must be admitted before planning-admission.json is persisted."
+  );
+  assertSourceOrder(
+    source,
+    "const planningAdmissionArtifact = await writePlanningAdmissionArtifacts({",
+    "const persistedPlanningAdmission = await readPersistedPlanningAdmissionArtifact(runDir);",
+    "Planning admission must be durably written before downstream stages consume it."
+  );
+  assertSourceOrder(
+    source,
+    "const persistedPlanningAdmission = await readPersistedPlanningAdmissionArtifact(runDir);",
+    "const admittedPlanHandoff = assertAdmittedPlanHandoff({",
+    "Execution handoff must be created from the persisted planning admission payload."
+  );
+  assertSourceOrder(
+    source,
+    "if (!candidateAdmission.ok) {",
+    "const admittedPlan = candidateAdmission.admittedPlan;",
+    "Rejected candidate plans must block before any admitted plan binding exists."
+  );
+  assertSourceOrder(
+    source,
+    "if (!candidateAdmission.ok) {",
+    "const execution = dependencies.prepareExecutionRun({",
+    "Rejected candidate plans must block before execution run plan creation."
+  );
+  assertSourceOrder(
+    source,
+    "const admittedPlanHandoff = assertAdmittedPlanHandoff({",
+    "const execution = dependencies.prepareExecutionRun({",
+    "Execution run plan creation must be downstream of the admitted-plan handoff."
+  );
+  assertSourceOrder(
+    source,
+    "const execution = dependencies.prepareExecutionRun({",
+    "const loop = dependencies.runMechanicalReviewExecutionLoop({",
+    "Review must remain downstream of execution run plan creation."
+  );
+  assertSourceOrder(
+    source,
+    "const persistedPlanningAdmission = await readPersistedPlanningAdmissionArtifact(runDir);",
+    "const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);",
+    "Review mission must be built from the persisted planning admission payload."
+  );
+}
+
 function assertSampleFactoryArgsAvoidLegacyBypass(
   args: readonly string[],
   input: {
@@ -1333,10 +2782,78 @@ async function assertDownstreamArtifactsWritten(outDir: string, runId: string): 
   }
 }
 
+async function assertPlanningAdmissionSmokeEvidence(
+  runDir: string,
+  expectedIntentId: string
+): Promise<void> {
+  const planningAdmissionPath = resolve(runDir, "planning-admission.json");
+  assert.equal(
+    await pathExists(planningAdmissionPath),
+    true,
+    "End-to-end planning attempts must emit planning-admission.json."
+  );
+
+  const plan = await readJsonObject(resolve(runDir, "plan.json"));
+  const planningAdmission = await readJsonObject(planningAdmissionPath);
+  assert.equal(plan["intentId"], expectedIntentId);
+  assertThinAcceptedPlanningAdmission(planningAdmission, plan);
+}
+
+async function assertPlanningResultIsCandidatePlanSource(runDir: string): Promise<void> {
+  const planningResult = await readJsonObject(resolve(runDir, "planning-result.json"));
+  assert.equal(planningResult["kind"], "planning-pile-result");
+  assert.ok(planningResult["source"] === "fixture" || planningResult["source"] === "dogpile");
+  assert.equal(typeof planningResult["output"], "string");
+
+  const planningOutput = parseJsonObject(planningResult["output"] as string);
+  for (const forbiddenKey of ["admittedPlan", "handoff", "executionPlan"]) {
+    assert.equal(
+      Object.hasOwn(planningOutput, forbiddenKey),
+      false,
+      `Planning pile output must stay candidate-only and must not expose ${forbiddenKey}.`
+    );
+  }
+
+  const tasks = readObjectArrayProperty(planningOutput, "tasks");
+  for (const task of tasks) {
+    for (const forbiddenTaskKey of ["readyForExecution", "status", "admittedPlan", "executionPlan"]) {
+      assert.equal(
+        Object.hasOwn(task, forbiddenTaskKey),
+        false,
+        `Planning pile task ${String(task["id"])} must not expose ${forbiddenTaskKey}.`
+      );
+    }
+
+    const requiredCapabilities = readObjectProperty(task, "requiredCapabilities");
+    assert.equal(
+      Object.hasOwn(requiredCapabilities, "admittedCapabilities"),
+      false,
+      `Planning pile task ${String(task["id"])} must not expose admittedCapabilities.`
+    );
+    const budget = readObjectProperty(requiredCapabilities, "budget");
+    assert.equal(
+      Object.hasOwn(budget, "admitted"),
+      false,
+      `Planning pile task ${String(task["id"])} must not expose budget.admitted.`
+    );
+  }
+}
+
 async function assertDownstreamArtifactsSuppressed(outDir: string, runId: string): Promise<void> {
   for (const fileName of downstreamArtifactFiles) {
     const outputPath = resolve(outDir, runId, fileName);
     assert.equal(await pathExists(outputPath), false, `Expected downstream artifact ${outputPath} not to be written.`);
+  }
+}
+
+async function assertExecutionAndReviewArtifactsSuppressed(outDir: string, runId: string): Promise<void> {
+  for (const fileName of executionAndReviewArtifactFiles) {
+    const outputPath = resolve(outDir, runId, fileName);
+    assert.equal(
+      await pathExists(outputPath),
+      false,
+      `Rejected planning candidate must not reach execution artifact ${outputPath}.`
+    );
   }
 }
 
@@ -1348,6 +2865,29 @@ function assertStageStatus(
   const stage = stages.find((entry) => entry["stage"] === stageName);
   assert.notEqual(stage, undefined, `Expected manifest to include ${stageName} stage.`);
   assert.equal(stage?.["status"], expectedStatus, `${stageName} stage should be ${expectedStatus}.`);
+}
+
+function assertStageAppearsBefore(
+  stages: readonly Record<string, unknown>[],
+  earlierStageName: string,
+  laterStageName: string
+): void {
+  const earlierIndex = stages.findIndex((entry) => entry["stage"] === earlierStageName);
+  const laterIndex = stages.findIndex((entry) => entry["stage"] === laterStageName);
+  assert.notEqual(earlierIndex, -1, `Expected manifest to include ${earlierStageName} stage.`);
+  assert.notEqual(laterIndex, -1, `Expected manifest to include ${laterStageName} stage.`);
+  assert.ok(
+    earlierIndex < laterIndex,
+    `${earlierStageName} stage should appear before ${laterStageName} stage.`
+  );
+}
+
+function assertSourceOrder(source: string, earlier: string, later: string, message: string): void {
+  const earlierIndex = source.indexOf(earlier);
+  const laterIndex = source.indexOf(later);
+  assert.notEqual(earlierIndex, -1, `Missing source anchor: ${earlier}`);
+  assert.notEqual(laterIndex, -1, `Missing source anchor: ${later}`);
+  assert.ok(earlierIndex < laterIndex, message);
 }
 
 async function pathExists(path: string): Promise<boolean> {
