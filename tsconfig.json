@@ -6,6 +6,7 @@
     { "path": "packages/admission-e2e" },
     { "path": "packages/artifacts" },
     { "path": "packages/policy" },
+    { "path": "packages/paths" },
     { "path": "packages/planning" },
     { "path": "packages/repo" },
     { "path": "packages/execution" },

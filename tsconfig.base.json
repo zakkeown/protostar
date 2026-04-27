@@ -34,6 +34,7 @@
       "@protostar/planning": ["packages/planning/src/index.ts"],
       "@protostar/planning/artifacts": ["packages/planning/src/artifacts/index.ts"],
       "@protostar/planning/schema": ["packages/planning/src/schema/index.ts"],
+      "@protostar/paths": ["packages/paths/src/index.ts"],
       "@protostar/policy": ["packages/policy/src/index.ts"],
       "@protostar/policy/admission": ["packages/policy/src/admission/index.ts"],
       "@protostar/policy/archetypes": ["packages/policy/src/archetypes/index.ts"],

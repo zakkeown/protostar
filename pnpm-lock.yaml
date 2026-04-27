@@ -137,6 +137,8 @@ importers:
         specifier: workspace:*
         version: link:../authority
 
+  packages/paths: {}
+
   packages/planning:
     dependencies:
       '@protostar/intent':
