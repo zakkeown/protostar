@@ -144,6 +144,24 @@ importers:
         specifier: workspace:*
         version: link:../authority
 
+  packages/lmstudio-adapter:
+    dependencies:
+      '@protostar/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
+      '@protostar/authority':
+        specifier: workspace:*
+        version: link:../authority
+      '@protostar/execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
+      '@protostar/repo':
+        specifier: workspace:*
+        version: link:../repo
+
   packages/paths: {}
 
   packages/planning:

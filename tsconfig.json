@@ -15,6 +15,7 @@
     { "path": "packages/evaluation" },
     { "path": "packages/dogpile-types" },
     { "path": "packages/dogpile-adapter" },
+    { "path": "packages/lmstudio-adapter" },
     { "path": "apps/factory-cli" }
   ]
 }
