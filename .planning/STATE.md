@@ -36,7 +36,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
-| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 and 03-02 complete; phase not verified |
+| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01, 03-02, and 03-03 complete; phase not verified |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
 | 6 | Live Dogpile Piles | Pending |
@@ -55,6 +55,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 3 Plan 03 (`03-03-confirmed-intent-schema-bump-PLAN.md`): hard-bumped confirmed-intent to `schemaVersion: "1.2.0"`, added `capabilityEnvelope.workspace.allowDirty` defaulting and closed-key validation, cascaded signed-intent/authority/planning fixtures, and verified with `pnpm run verify:full`.
 - **2026-04-27:** Completed Phase 3 Plan 01 (`03-01-conflict-errata-deps-and-env-PLAN.md`): recorded CONFLICT-01 erratum, rephrased runtime-dependency posture, pinned `isomorphic-git@1.37.6` + `diff@9.0.0` on `@protostar/repo`, added `.env.example`, ignored `.protostar/workspaces/`, and documented Phase 3 concerns.
 - **2026-04-27:** Completed Phase 3 Plan 02 (`03-02-paths-package-and-agents-carveout-PLAN.md`): added `@protostar/paths` with synchronous `resolveWorkspaceRoot()` tests, registered the package in workspace/TypeScript metadata, and documented the AGENTS.md Q-15 scope-ceiling carve-out.
 - **2026-04-27:** Completed Phase 2 Plan 10 (`02-10-admission-e2e-contract-suite-PLAN.md`): admission-e2e now pins all six Phase 2 authority brand public surfaces, enforces the authority no-fs regression, and verifies signed confirmed-intent artifacts through the stage reader with tamper coverage.
