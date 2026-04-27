@@ -757,7 +757,7 @@ describe("factory CLI draft admission hardening", () => {
       const executionResult = await readJsonObject(resolve(runDir, "execution-result.json"));
       assert.equal(executionResult["runId"], runId);
       assert.equal(executionResult["planId"], plan["planId"]);
-      assert.equal(executionResult["status"], "passed");
+      assert.equal(executionResult["status"], "succeeded");
       const reviewGate = await readJsonObject(resolve(runDir, "review-gate.json"));
       assert.equal(reviewGate["runId"], runId);
       assert.equal(reviewGate["planId"], plan["planId"]);
