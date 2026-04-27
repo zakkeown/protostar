@@ -38,6 +38,10 @@
       "types": "./dist/internal/test-builders.d.ts",
       "import": "./dist/internal/test-builders.js"
     },
+    "./internal/brand-witness": {
+      "types": "./dist/internal/brand-witness.d.ts",
+      "import": "./dist/internal/brand-witness.js"
+    },
     "./schema/clarification-report.schema.json": "./schema/clarification-report.schema.json",
     "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json"
   },
