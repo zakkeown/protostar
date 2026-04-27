@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   classifyPlanTaskPreHandoffVerificationTriggers,
@@ -20,7 +20,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "./index.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_task_required_capabilities",
   title: "Reject task capability envelopes outside normalized shape",
   problem: "Execution must receive task capability requirements in the same normalized envelope shape as policy.",
@@ -488,7 +488,7 @@ describe("PlanGraph task required-capabilities admission boundary", () => {
   });
 
   it("classifies candidate-plan write, PR, and release grants before execution admission", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_pre_handoff_grant_classification",
       title: "Classify candidate-plan capability grants before execution handoff",
       problem:
@@ -697,7 +697,7 @@ describe("PlanGraph task required-capabilities admission boundary", () => {
   });
 
   it("evaluates PR and release authority only from the normalized planning grant model", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_grant_model_evaluation",
       title: "Evaluate planning grants from the normalized model",
       problem:

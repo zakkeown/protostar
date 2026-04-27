@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -14,7 +14,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "./index.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_pre_handoff_verification",
   title: "Verify write and PR authority before execution handoff",
   problem:

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   assertAdmittedPlanHandoff,
@@ -14,7 +14,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "./index.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_admitted_plan_handoff",
   title: "Admit a plan before execution handoff",
   problem: "Execution must only receive a plan after durable planning-admission evidence exists.",

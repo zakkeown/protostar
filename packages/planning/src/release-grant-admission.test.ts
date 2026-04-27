@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -13,7 +13,7 @@ import {
 } from "./index.js";
 import { expectedPlanningAdmissionReleaseGrantRejectionReasons } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_release_grant_admission",
   title: "Admit release authority only through explicit release tasks",
   problem:

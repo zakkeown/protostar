@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -286,7 +286,7 @@ describe("capability-envelope grant field detection", () => {
   });
 
   it("attaches grant field detections to PlanGraph validation from the admitted intent envelope", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_grant_field_detection",
       title: "Detect capability grant fields during planning admission",
       problem:

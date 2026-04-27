@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent, type ConfirmedIntent } from "@protostar/intent";
+import { type ConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -14,7 +15,7 @@ import {
   type PlanningAdmissionPreHandoffVerificationTrigger
 } from "./index.js";
 
-const prAdmittedIntent = defineConfirmedIntent({
+const prAdmittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_pr_capability_envelope_admitted",
   title: "Admit candidate-plan pull request authority from the confirmed envelope",
   problem:
@@ -60,7 +61,7 @@ const prAdmittedIntent = defineConfirmedIntent({
   constraints: ["Candidate plans may not invent pull request authority outside the confirmed envelope."]
 });
 
-const prDeniedIntent = defineConfirmedIntent({
+const prDeniedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_pr_capability_envelope_rejected",
   title: "Reject candidate-plan pull request authority outside the confirmed envelope",
   problem:

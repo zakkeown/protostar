@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanGraph,
@@ -13,7 +13,7 @@ import {
 } from "./index.js";
 import { withAffectedPlanLocations } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_immediate_dependency_loop",
   title: "Reject immediate task dependency loops before execution",
   problem: "Execution must never receive a plan whose task prerequisites can block each other forever.",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   assertAdmittedPlanHandoff,
@@ -18,7 +18,7 @@ import {
 } from "./index.js";
 import { withAffectedPlanLocations } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_unknown_ac_reference",
   title: "Reject plans that reference acceptance criteria outside admitted intent",
   problem: "Planning must not smuggle new acceptance criteria into execution through task coverage.",

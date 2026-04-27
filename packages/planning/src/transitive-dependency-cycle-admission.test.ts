@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanGraph,
@@ -13,7 +13,7 @@ import {
 } from "./index.js";
 import { withAffectedPlanLocations } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_transitive_dependency_cycle",
   title: "Reject transitive task dependency cycles before execution",
   problem: "Execution must never receive a plan whose indirect prerequisites form a closed loop.",

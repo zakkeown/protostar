@@ -1,8 +1,9 @@
-import { defineConfirmedIntent, type ConfirmedIntent, type IntentDraft } from "@protostar/intent";
+import { type ConfirmedIntent, type IntentDraft } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import { createPlanGraph, validatePlanGraph, type PlanGraph, type PlanTask } from "./index.js";
 
-const confirmedIntent = defineConfirmedIntent({
+const confirmedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_confirmed_boundary",
   title: "Prove planning only accepts confirmed intents",
   problem: "Planning APIs must not admit mutable drafts before the intent admission gate hardens them.",

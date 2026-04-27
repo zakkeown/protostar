@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 import { createPlanningPreAdmissionFailureArtifact } from "@protostar/planning/artifacts";
 import {
   admitCandidatePlan,
@@ -16,7 +16,7 @@ import {
   type PlanningPileResult
 } from "@protostar/planning/schema";
 
-const intent = defineConfirmedIntent({
+const intent = buildConfirmedIntentForTest({
   id: "intent_dogpile_candidate_plan_parsing",
   title: "Parse Dogpile planning output as candidate plan data",
   problem:

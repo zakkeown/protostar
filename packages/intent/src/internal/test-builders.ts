@@ -15,7 +15,7 @@
 import {
   mintConfirmedIntent,
   type ConfirmedIntent,
-  type ConfirmedIntentData
+  type ConfirmedIntentMintInput
 } from "../confirmed-intent.js";
 
 /**
@@ -23,10 +23,11 @@ import {
  * running the promotion pipeline. The callsite-mechanical replacement for the
  * deleted public defineConfirmedIntent.
  *
- * Accepts ConfirmedIntentData (the un-branded structural shape) so test
- * fixtures can be authored as plain literals; mintConfirmedIntent then folds
- * deepFreeze + normalization and stamps the module-private brand.
+ * Accepts the loose ConfirmedIntentMintInput shape so test fixtures can omit
+ * optional fields (stopConditions, signature, schemaVersion default to []
+ * / null / "1.0.0"); mintConfirmedIntent folds deepFreeze + normalization
+ * and stamps the module-private brand.
  */
-export function buildConfirmedIntentForTest(data: ConfirmedIntentData): ConfirmedIntent {
-  return mintConfirmedIntent(data);
+export function buildConfirmedIntentForTest(input: ConfirmedIntentMintInput): ConfirmedIntent {
+  return mintConfirmedIntent(input);
 }

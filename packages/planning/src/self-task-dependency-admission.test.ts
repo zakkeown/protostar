@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanGraph,
@@ -13,7 +13,7 @@ import {
 } from "./index.js";
 import { withAffectedPlanLocations } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_self_task_dependency",
   title: "Reject task dependency edges that point back to the declaring task",
   problem: "Execution must never receive a plan with a task that can schedule itself as its own prerequisite.",

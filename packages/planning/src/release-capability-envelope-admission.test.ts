@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent, type ConfirmedIntent } from "@protostar/intent";
+import { type ConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -14,7 +15,7 @@ import {
   type PlanningAdmissionReleaseGrantCondition
 } from "./index.js";
 
-const releaseAdmittedIntent = defineConfirmedIntent({
+const releaseAdmittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_release_capability_envelope_admitted",
   title: "Admit candidate-plan release authority from the confirmed envelope",
   problem:
@@ -60,7 +61,7 @@ const releaseAdmittedIntent = defineConfirmedIntent({
   constraints: ["Candidate plans may not invent release authority outside the confirmed envelope."]
 });
 
-const releaseDeniedIntent = defineConfirmedIntent({
+const releaseDeniedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_release_capability_envelope_rejected",
   title: "Reject candidate-plan release authority outside the confirmed envelope",
   problem:

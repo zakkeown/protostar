@@ -63,7 +63,7 @@ export interface ConfirmedIntentParseFailure {
 
 export type ConfirmedIntentParseResult = ConfirmedIntentParseSuccess | ConfirmedIntentParseFailure;
 
-interface ConfirmedIntentMintInput {
+export interface ConfirmedIntentMintInput {
   readonly id: IntentId;
   readonly sourceDraftId?: IntentDraftId;
   readonly mode?: IntentAmbiguityMode;

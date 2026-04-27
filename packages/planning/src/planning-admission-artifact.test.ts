@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 import {
   assertAdmittedPlanHandoff,
   createPlanningAdmissionArtifact,
@@ -30,7 +30,7 @@ import {
   withAffectedPlanLocations
 } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_admission_artifact",
   title: "Record thin planning admission evidence",
   problem:

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   admitCandidatePlan,
@@ -20,7 +20,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "./index.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_candidate_plan_admission",
   title: "Admit candidate plans through a strict planning boundary",
   problem: "Execution must only receive candidate plans after planning admission validates and admits them.",

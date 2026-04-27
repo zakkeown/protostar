@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   constructPlanTaskDependencyGraph,
@@ -15,7 +15,7 @@ import {
 } from "./index.js";
 import { withAffectedPlanLocations } from "./test-support.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_missing_task_dependency",
   title: "Reject undeclared task dependency edges",
   problem: "Execution must never receive a plan whose dependency graph points at tasks that were not declared.",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 import {
   PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS,
   PLAN_GRAPH_ADMISSION_VALIDATORS,
@@ -53,7 +53,7 @@ type _CandidatePlanGraphCannotBuildReviewMission = Assert<
 
 describe("Dogpile adapter planning result public boundary", () => {
   it("parses Dogpile planning output only as candidate-plan data", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_dogpile_candidate_plan_boundary",
       title: "Keep Dogpile planning output candidate-only",
       problem: "Dogpile planners can propose work, but planning admission owns the admitted-plan boundary.",
@@ -120,7 +120,7 @@ describe("Dogpile adapter planning result public boundary", () => {
   });
 
   it("rejects planning output that attempts to expose admitted or execution-ready plan fields", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_dogpile_reject_admitted_plan_shape",
       title: "Reject admitted plan shaped Dogpile output",
       problem: "Dogpile planning output must not smuggle admitted-plan or execution-ready fields past admission.",
@@ -201,7 +201,7 @@ describe("Dogpile adapter planning result public boundary", () => {
   });
 
   it("builds review missions from planning-admission.json evidence, not candidate plans", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_dogpile_review_uses_planning_admission",
       title: "Review uses planning admission",
       problem: "Review missions must consume the durable planning admission artifact.",

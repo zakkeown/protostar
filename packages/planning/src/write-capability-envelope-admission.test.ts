@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent, type ConfirmedIntent } from "@protostar/intent";
+import { type ConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -14,7 +15,7 @@ import {
   type PlanningAdmissionPreHandoffVerificationTrigger
 } from "./index.js";
 
-const writeAdmittedIntent = defineConfirmedIntent({
+const writeAdmittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_write_capability_envelope_admitted",
   title: "Admit candidate-plan write capabilities from the confirmed envelope",
   problem:
@@ -52,7 +53,7 @@ const writeAdmittedIntent = defineConfirmedIntent({
   constraints: ["Candidate plans may not invent write authority outside the confirmed envelope."]
 });
 
-const readOnlyIntent = defineConfirmedIntent({
+const readOnlyIntent = buildConfirmedIntentForTest({
   id: "intent_planning_write_capability_envelope_rejected",
   title: "Reject candidate-plan write capabilities outside the confirmed envelope",
   problem:

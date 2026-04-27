@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanningAdmissionArtifact,
@@ -24,7 +24,7 @@ const toolByRisk = {
   high: "shell"
 } as const satisfies Record<PlanTaskRiskDeclaration, string>;
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_task_risk_policy_compatibility",
   title: "Reject task risk declarations that undersell required capability risk",
   problem:

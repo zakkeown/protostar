@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanGraph,
@@ -11,7 +11,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "./index.js";
 
-const confirmedIntent = defineConfirmedIntent({
+const confirmedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_acceptance_criteria_contract",
   title: "Represent accepted acceptance criteria inside the plan graph",
   problem: "Planning must carry the accepted criteria it is proving, not just task-local references.",

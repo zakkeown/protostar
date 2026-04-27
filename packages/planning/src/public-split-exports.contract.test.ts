@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 import { createPlanningAdmissionArtifact } from "@protostar/planning/artifacts";
 import {
   createPlanGraph,
@@ -43,7 +43,7 @@ type _PlanGraphValidationViolationRequiresMetadata = Assert<
 
 describe("planning split public entrypoints", () => {
   it("exposes schema contracts including task capability requirements", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_schema_surface",
       title: "Expose planning schema contracts",
       problem:
@@ -132,7 +132,7 @@ describe("planning split public entrypoints", () => {
   });
 
   it("exposes validation result violations without collapsing multiple defects", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_validation_result_surface",
       title: "Expose collected planning validation violations",
       problem:
@@ -299,7 +299,7 @@ describe("planning split public entrypoints", () => {
   });
 
   it("preserves required metadata on every violation in a multi-defect admission result", () => {
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
       id: "intent_planning_violation_metadata_contract",
       title: "Preserve planning violation metadata",
       problem:

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createPlanGraph,
@@ -13,7 +13,7 @@ import {
   type PlanTaskRiskDeclaration
 } from "./index.js";
 
-const admittedIntent = defineConfirmedIntent({
+const admittedIntent = buildConfirmedIntentForTest({
   id: "intent_planning_task_risk_declaration",
   title: "Reject tasks without explicit risk declarations",
   problem: "Execution must not receive plan tasks whose task-level risk was inferred or omitted.",

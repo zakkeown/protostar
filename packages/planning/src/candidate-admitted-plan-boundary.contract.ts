@@ -1,4 +1,4 @@
-import { defineConfirmedIntent } from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   assertAdmittedPlanHandoff,
@@ -23,7 +23,7 @@ type _AdmittedPlanRecordIsNotAdmittedPlan = Assert<
   AdmittedPlanRecord extends AdmittedPlan ? false : true
 >;
 
-const intent = defineConfirmedIntent({
+const intent = buildConfirmedIntentForTest({
   id: "intent_candidate_admitted_plan_boundary",
   title: "Expose candidate and admitted plan contracts",
   problem: "Execution must only receive plans that have crossed the planning admission boundary.",
