@@ -11,7 +11,7 @@ import { type FsAdapter, StageReaderError } from "./fs-adapter.js";
 
 export interface AdmissionDecisionIndexEntry {
   readonly gate: GateName;
-  readonly path: string;
+  readonly artifactPath: string;
   readonly [key: string]: unknown;
 }
 
@@ -215,10 +215,14 @@ function validateAdmissionDecisionIndexEntry(raw: string, path: string, line: nu
   if (!isGateName(parsed["gate"])) {
     throw new StageReaderError("admission-decisions.jsonl", "gate must be a known gate literal", `${path}:${line}`);
   }
-  if (typeof parsed["path"] !== "string") {
-    throw new StageReaderError("admission-decisions.jsonl", "path must be a string", `${path}:${line}`);
+  if (typeof parsed["artifactPath"] === "string") {
+    return parsed as unknown as AdmissionDecisionIndexEntry;
   }
-  return parsed as unknown as AdmissionDecisionIndexEntry;
+  // Legacy fallback: old writers emitted `path` instead of `artifactPath`
+  if (typeof parsed["path"] === "string") {
+    return { ...parsed, artifactPath: parsed["path"] } as unknown as AdmissionDecisionIndexEntry;
+  }
+  throw new StageReaderError("admission-decisions.jsonl", "artifactPath must be a string", `${path}:${line}`);
 }
 
 function parseJsonObject(raw: string, artifact: string, path: string): Record<string, unknown> {
