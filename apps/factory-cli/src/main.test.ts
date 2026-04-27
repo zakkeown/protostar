@@ -2260,7 +2260,7 @@ describe("fail-closed precedence and gate evidence", () => {
     });
   });
 
-  it("validates emitted gate evidence against all four schemas on a successful run", async () => {
+  it("validates emitted gate evidence against all five gate schemas on a successful run", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "intent-draft.json");
@@ -2296,6 +2296,10 @@ describe("fail-closed precedence and gate evidence", () => {
 
       const schemaDir = resolve(repoRoot, "packages");
       const gateSchemas = [
+        {
+          gate: "intent",
+          schemaPath: resolve(schemaDir, "intent/schema/intent-admission-decision.schema.json")
+        },
         {
           gate: "planning",
           schemaPath: resolve(schemaDir, "planning/schema/planning-admission-decision.schema.json")
