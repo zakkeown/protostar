@@ -8,10 +8,9 @@ describe("resolveFactoryConfig", () => {
   it("returns LM Studio defaults when no file or env is provided", () => {
     const result = resolveFactoryConfig({ env: {} });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.errors.join("\n"));
+    const resolved = unwrapResolved(result);
 
-    assert.deepEqual(result.resolved.config, {
+    assert.deepEqual(resolved.config, {
       adapters: {
         coder: {
           provider: "lmstudio",
@@ -23,8 +22,8 @@ describe("resolveFactoryConfig", () => {
         }
       }
     });
-    assert.equal(result.resolved.resolvedFromFile, false);
-    assert.deepEqual(result.resolved.envOverridesApplied, []);
+    assert.equal(resolved.resolvedFromFile, false);
+    assert.deepEqual(resolved.envOverridesApplied, []);
   });
 
   it("merges file values over defaults and preserves missing default fields", () => {
@@ -33,16 +32,15 @@ describe("resolveFactoryConfig", () => {
       env: {}
     });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.errors.join("\n"));
+    const resolved = unwrapResolved(result);
 
-    assert.equal(result.resolved.config.adapters.coder.baseUrl, "http://other:5555/v1");
-    assert.equal(result.resolved.config.adapters.coder.provider, "lmstudio");
-    assert.equal(result.resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
-    assert.equal(result.resolved.config.adapters.coder.apiKeyEnv, "LMSTUDIO_API_KEY");
-    assert.equal(result.resolved.config.adapters.coder.temperature, 0.2);
-    assert.equal(result.resolved.config.adapters.coder.topP, 0.9);
-    assert.equal(result.resolved.resolvedFromFile, true);
+    assert.equal(resolved.config.adapters.coder.baseUrl, "http://other:5555/v1");
+    assert.equal(resolved.config.adapters.coder.provider, "lmstudio");
+    assert.equal(resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
+    assert.equal(resolved.config.adapters.coder.apiKeyEnv, "LMSTUDIO_API_KEY");
+    assert.equal(resolved.config.adapters.coder.temperature, 0.2);
+    assert.equal(resolved.config.adapters.coder.topP, 0.9);
+    assert.equal(resolved.resolvedFromFile, true);
   });
 
   it("applies LMSTUDIO_BASE_URL env over file values", () => {
@@ -51,11 +49,10 @@ describe("resolveFactoryConfig", () => {
       env: { LMSTUDIO_BASE_URL: "http://envhost:9999/v1" }
     });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.errors.join("\n"));
+    const resolved = unwrapResolved(result);
 
-    assert.equal(result.resolved.config.adapters.coder.baseUrl, "http://envhost:9999/v1");
-    assert.deepEqual(result.resolved.envOverridesApplied, ["LMSTUDIO_BASE_URL"]);
+    assert.equal(resolved.config.adapters.coder.baseUrl, "http://envhost:9999/v1");
+    assert.deepEqual(resolved.envOverridesApplied, ["LMSTUDIO_BASE_URL"]);
   });
 
   it("hashes equivalent resolved configs identically and changed models differently", () => {
@@ -93,13 +90,12 @@ describe("resolveFactoryConfig", () => {
       env: {}
     });
 
-    assert.equal(first.ok, true);
-    assert.equal(second.ok, true);
-    assert.equal(third.ok, true);
-    if (!first.ok || !second.ok || !third.ok) throw new Error("expected config resolution to pass");
+    const firstResolved = unwrapResolved(first);
+    const secondResolved = unwrapResolved(second);
+    const thirdResolved = unwrapResolved(third);
 
-    assert.equal(first.resolved.configHash, second.resolved.configHash);
-    assert.notEqual(first.resolved.configHash, third.resolved.configHash);
+    assert.equal(firstResolved.configHash, secondResolved.configHash);
+    assert.notEqual(firstResolved.configHash, thirdResolved.configHash);
   });
 
   it("returns errors for malformed JSON file bytes", () => {
@@ -125,14 +121,13 @@ describe("resolveFactoryConfig", () => {
     ) as FactoryConfigSchema;
     const result = resolveFactoryConfig({ env: {} });
 
-    assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.errors.join("\n"));
+    const resolved = unwrapResolved(result);
 
     assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
     assert.equal(schema.$id, "https://protostar.local/schema/factory-config.schema.json");
     assert.equal(schema.additionalProperties, false);
     assert.deepEqual(schema.required, ["adapters"]);
-    assertConfigSatisfiesSchemaShape(result.resolved.config, schema);
+    assertConfigSatisfiesSchemaShape(resolved.config, schema);
   });
 });
 
@@ -167,4 +162,11 @@ function assertConfigSatisfiesSchemaShape(config: FactoryConfig, schema: Factory
   for (const key of Object.keys(coder)) {
     assert.ok(key in coderSchema.properties, `schema is missing coder.${key}`);
   }
+}
+
+function unwrapResolved(result: ReturnType<typeof resolveFactoryConfig>) {
+  if (!result.ok) {
+    assert.fail(result.errors.join("\n"));
+  }
+  return result.resolved;
 }

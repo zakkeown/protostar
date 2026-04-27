@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/factory-config.schema.json",
+  "title": "FactoryConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapters"],
+  "properties": {
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coder"],
+      "properties": {
+        "coder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "baseUrl", "model", "apiKeyEnv"],
+          "properties": {
+            "provider": { "const": "lmstudio" },
+            "baseUrl": { "type": "string" },
+            "model": { "type": "string" },
+            "apiKeyEnv": { "type": "string", "default": "LMSTUDIO_API_KEY" },
+            "temperature": { "type": "number" },
+            "topP": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

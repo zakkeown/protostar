@@ -1,2 +1,5 @@
-// Public surface populated in Plans 04-04 / 04-05 / 04-06.
-export {};
+export {
+  resolveFactoryConfig,
+  type FactoryConfig,
+  type ResolvedFactoryConfig
+} from "./factory-config.js";
