@@ -35,7 +35,7 @@ export function applyOuterPatternGuard(argv: readonly string[], schema: OuterGua
 
     if (!sawSeparator && arg.startsWith("-")) {
       const flagBody = arg.split("=")[0] ?? arg;
-      if (!schema.allowedFlagPrefixes.includes(flagBody)) {
+      if (!schema.allowedFlagPrefixes.includes(arg) && !schema.allowedFlagPrefixes.includes(flagBody)) {
         throw new ArgvViolation("flag-not-allowed", `flag "${flagBody}" not in allowedFlagPrefixes`);
       }
       continue;
