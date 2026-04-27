@@ -84,6 +84,7 @@ export function buildAuthorizedBudgetOpForTest(
 ): AuthorizedBudgetOp {
   const defaults: AuthorizedBudgetOpData = {
     boundary: "subprocess",
+    budgetKey: "maxUsd",
     amount: 0,
     resolvedEnvelope: defaultResolvedEnvelope
   };

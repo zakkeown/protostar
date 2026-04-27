@@ -2,6 +2,7 @@ import type { CapabilityEnvelope } from "@protostar/intent";
 import type { WorkspaceRef } from "@protostar/repo";
 
 import { assertTrustedWorkspaceForGrant } from "../workspace-trust/predicate.js";
+import { hasWorkspaceGrant } from "./grant-checks.js";
 
 declare const AuthorizedWorkspaceOpBrand: unique symbol;
 
@@ -31,6 +32,10 @@ export function authorizeWorkspaceOp(input: AuthorizedWorkspaceOpData): Authoriz
     requestedAccess: input.access
   });
   if (!trust.ok) errors.push(`workspace ${input.workspace.root} has trust="${input.workspace.trust}"; ${trust.evidence.reason}`);
+
+  if (!hasWorkspaceGrant(input.resolvedEnvelope, { workspace: input.workspace, path: input.path, access: input.access })) {
+    errors.push(`resolvedEnvelope.repoScopes does not grant ${input.access} access to "${input.path}" in workspace "${input.workspace.root}"; check resolvedEnvelope.repoScopes`);
+  }
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, authorized: mintAuthorizedWorkspaceOp(input), errors: [] };

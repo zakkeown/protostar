@@ -1,5 +1,7 @@
 import type { CapabilityEnvelope } from "@protostar/intent";
 
+import { hasNetworkGrant } from "./grant-checks.js";
+
 declare const AuthorizedNetworkOpBrand: unique symbol;
 
 export type NetworkMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
@@ -32,6 +34,10 @@ export function authorizeNetworkOp(input: AuthorizedNetworkOpData): AuthorizeNet
     }
   } catch {
     errors.push(`network url "${input.url}" must be parseable`);
+  }
+
+  if (!hasNetworkGrant(input.resolvedEnvelope)) {
+    errors.push(`toolPermissions network grant required; check toolPermissions network in resolvedEnvelope`);
   }
 
   if (errors.length > 0) return { ok: false, errors };
