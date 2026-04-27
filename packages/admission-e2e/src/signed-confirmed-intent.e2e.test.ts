@@ -173,3 +173,41 @@ function stripSignature<T extends { readonly signature: unknown }>(intent: T): O
   const { signature: _signature, ...body } = intent;
   return body;
 }
+
+describe("Phase 2 - admission decisions index writer/reader compatibility", () => {
+  it("stage reader admissionDecisionsIndex consumes factory-cli-style artifactPath JSONL", async () => {
+    // Simulate factory-cli output: uses canonical `artifactPath` field
+    const runDir = "/runs/run-index-compat-1";
+    const indexEntry = JSON.stringify({
+      runId: "run-index-compat-1",
+      timestamp: "2026-04-27T00:00:00.000Z",
+      gate: "intent",
+      outcome: "allow",
+      artifactPath: `${runDir}/intent-admission-decision.json`,
+      schemaVersion: "1.0.0",
+      precedenceStatus: "no-conflict"
+    });
+    const fs = new InMemoryFs(new Map([
+      [`${runDir}/admission-decisions.jsonl`, `${indexEntry}\n`]
+    ]));
+    const reader = createAuthorityStageReader(runDir, fs);
+    const index = await reader.admissionDecisionsIndex();
+
+    assert.equal(index.length, 1);
+    assert.equal(index[0]?.gate, "intent");
+    assert.equal(index[0]?.artifactPath, `${runDir}/intent-admission-decision.json`);
+  });
+
+  it("stage reader admissionDecisionsIndex rejects entries without artifactPath or path", async () => {
+    const runDir = "/runs/run-index-compat-2";
+    const badEntry = JSON.stringify({ gate: "intent" }); // missing both artifactPath and path
+    const fs = new InMemoryFs(new Map([
+      [`${runDir}/admission-decisions.jsonl`, `${badEntry}\n`]
+    ]));
+    const reader = createAuthorityStageReader(runDir, fs);
+
+    await assert.rejects(
+      () => reader.admissionDecisionsIndex()
+    );
+  });
+});
