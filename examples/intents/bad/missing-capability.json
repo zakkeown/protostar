@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "1.2.0",
   "id": "intent_bad_missing_capability",
   "title": "Clarify factory intake routing",
   "problem": "Exercise a confirmed intent shape whose capability envelope is structurally present but missing the authority and budget details required for admission.",
@@ -14,6 +15,9 @@
   "capabilityEnvelope": {
     "repoScopes": [],
     "toolPermissions": [],
+    "workspace": {
+      "allowDirty": false
+    },
     "budget": {}
   },
   "constraints": [],

@@ -57,12 +57,14 @@ const PERMISSIVE_ENVELOPE: CapabilityEnvelope = {
     { tool: "network", permissionLevel: "use", reason: "http calls", risk: "low" }
   ],
   executeGrants: [{ command: "pnpm", scope: "." }],
+  workspace: { allowDirty: false },
   budget: { maxUsd: 10, maxTokens: 1000, timeoutMs: 60000 }
 };
 
 const EMPTY_ENVELOPE: CapabilityEnvelope = Object.freeze({
   repoScopes: [],
   toolPermissions: [],
+  workspace: { allowDirty: false },
   budget: {}
 });
 
@@ -134,6 +136,7 @@ describe("Phase 2 - fail-closed precedence (missing repo-policy)", () => {
     const intentEnvelope: CapabilityEnvelope = {
       repoScopes: [{ workspace: "main", path: "src", access: "write" }],
       toolPermissions: [{ tool: "shell", permissionLevel: "write", reason: "edit", risk: "medium" }],
+      workspace: { allowDirty: false },
       budget: { maxUsd: 5 }
     };
 
@@ -159,6 +162,7 @@ describe("Phase 2 - fail-closed precedence (missing repo-policy)", () => {
     const intentEnvelope: CapabilityEnvelope = {
       repoScopes: [{ workspace: "main", path: "src", access: "write" }],
       toolPermissions: [],
+      workspace: { allowDirty: false },
       budget: {}
     };
     const precedenceDecision = {
@@ -219,7 +223,7 @@ describe("Phase 2 - verified two-key launch: confirmedIntent()", () => {
     const intent = await reader.confirmedIntent();
 
     assert.equal(intent.id, signedIntent.id);
-    assert.equal(intent.schemaVersion, "1.1.0");
+    assert.equal(intent.schemaVersion, "1.2.0");
   });
 
   it("confirmedIntent() fails when the persisted intent body is mutated", async () => {

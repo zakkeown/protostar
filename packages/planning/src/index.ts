@@ -58,6 +58,7 @@ export interface PlanTaskRequiredCapabilities {
   readonly repoScopes: readonly PlanTaskRepoScopeCapabilityRequirement[];
   readonly toolPermissions: readonly PlanTaskToolPermissionCapabilityRequirement[];
   readonly executeGrants?: readonly PlanTaskExecuteGrantCapabilityRequirement[];
+  readonly workspace?: CapabilityEnvelope["workspace"];
   readonly budget: PlanTaskBudgetCapabilityRequirement;
 }
 
@@ -3945,6 +3946,7 @@ function normalizeTaskRequiredCapabilities(task: PlanTask): TaskRequiredCapabili
       repoScopes: repoScopes ?? [],
       toolPermissions: toolPermissions ?? [],
       ...(executeGrants !== undefined ? { executeGrants } : {}),
+      ...(isRecord(value["workspace"]) ? { workspace: { allowDirty: value["workspace"]["allowDirty"] === true } } : {}),
       budget: budget ?? {}
     },
     violations
@@ -4232,6 +4234,7 @@ function copyPlanTaskRequiredCapabilities(
           executeGrants: capabilities.executeGrants.map((grant) => ({ ...grant }))
         }
       : {}),
+    ...(capabilities.workspace !== undefined ? { workspace: { allowDirty: capabilities.workspace.allowDirty } } : {}),
     budget: { ...capabilities.budget }
   };
 }

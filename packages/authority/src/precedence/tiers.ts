@@ -1,4 +1,4 @@
-import type { ExecuteGrant, FactoryBudget, RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
+import type { CapabilityEnvelopeWorkspace, ExecuteGrant, FactoryBudget, RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
 
 export type TierName = "confirmed-intent" | "policy" | "repo-policy" | "operator-settings";
 
@@ -15,6 +15,7 @@ export interface TierEnvelope {
   readonly repoScopes?: readonly RepoScopeGrant[];
   readonly toolPermissions?: readonly ToolPermissionGrant[];
   readonly executeGrants?: readonly ExecuteGrant[];
+  readonly workspace?: CapabilityEnvelopeWorkspace;
   readonly budget?: FactoryBudget;
   readonly allowedScopes?: readonly string[];
   readonly budgetCaps?: FactoryBudget;

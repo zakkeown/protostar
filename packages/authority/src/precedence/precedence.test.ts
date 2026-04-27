@@ -16,6 +16,7 @@ function envelope(overrides: Partial<CapabilityEnvelope> = {}): CapabilityEnvelo
       { tool: "git", permissionLevel: "write", reason: "commit", risk: "medium" }
     ],
     ...(overrides.executeGrants !== undefined ? { executeGrants: overrides.executeGrants } : {}),
+    workspace: overrides.workspace ?? { allowDirty: false },
     budget: overrides.budget ?? {
       maxUsd: 10,
       maxTokens: 10_000,
@@ -40,6 +41,7 @@ test("empty tiers produce a no-conflict wide-open default", () => {
   assert.equal(witness.status, "no-conflict");
   assert.deepEqual(witness.resolvedEnvelope.repoScopes, []);
   assert.deepEqual(witness.resolvedEnvelope.toolPermissions, []);
+  assert.deepEqual(witness.resolvedEnvelope.workspace, { allowDirty: false });
   assert.deepEqual(witness.resolvedEnvelope.budget, {});
   assert.deepEqual(witness.blockedBy, []);
 });
@@ -72,6 +74,7 @@ test("compatible stricter tier resolves by strict intersection", () => {
   assert.deepEqual(decision.resolvedEnvelope.toolPermissions, [
     { tool: "shell", permissionLevel: "read", reason: "inspect", risk: "low" }
   ]);
+  assert.deepEqual(decision.resolvedEnvelope.workspace, { allowDirty: false });
   assert.deepEqual(decision.resolvedEnvelope.budget, {
     maxUsd: 3,
     maxTokens: 1_000,

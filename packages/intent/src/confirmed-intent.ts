@@ -165,13 +165,9 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
           }))
       }
       : {}),
-    ...(envelope.workspace !== undefined
-      ? {
-          workspace: {
-            allowDirty: envelope.workspace.allowDirty
-          }
-        }
-      : {}),
+    workspace: {
+      allowDirty: envelope.workspace?.allowDirty ?? false
+    },
     budget: copyFactoryBudget(envelope.budget)
   };
 }

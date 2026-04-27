@@ -131,6 +131,9 @@ function setupHappyRun() {
           risk: "low"
         }
       ],
+      workspace: {
+        allowDirty: false
+      },
       budget: {
         timeoutMs: 1000
       }

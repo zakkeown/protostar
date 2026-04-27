@@ -103,6 +103,7 @@ export function normalizeDraftCapabilityEnvelope(
       repoScopes,
       toolPermissions,
       ...(executeGrants !== undefined ? { executeGrants } : {}),
+      workspace: { allowDirty: false },
       budget
     },
     errors: []

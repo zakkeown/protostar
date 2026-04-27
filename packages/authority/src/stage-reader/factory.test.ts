@@ -13,6 +13,7 @@ const runDir = "/runs/run_09";
 const resolvedEnvelope = {
   repoScopes: [{ workspace: "protostar", path: "packages/authority", access: "write" }],
   toolPermissions: [{ tool: "pnpm", reason: "test", risk: "low" }],
+  workspace: { allowDirty: false },
   budget: { maxTokens: 500 }
 } as const satisfies CapabilityEnvelope;
 
@@ -166,7 +167,7 @@ describe("AuthorityStageReader", () => {
     ])));
 
     const parsed = await reader.readParsedConfirmedIntent();
-    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.1.0");
+    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.2.0");
   });
 
   it("confirmedIntent() rejects when policy-snapshot.json is missing", async () => {
@@ -254,7 +255,7 @@ function unsignedIntentBody(): Omit<ConfirmedIntent, typeof Symbol.toStringTag> 
     capabilityEnvelope: resolvedEnvelope,
     constraints: [],
     stopConditions: [],
-    schemaVersion: "1.1.0",
+    schemaVersion: "1.2.0",
     signature: null
   } as unknown as Omit<ConfirmedIntent, typeof Symbol.toStringTag>;
 }

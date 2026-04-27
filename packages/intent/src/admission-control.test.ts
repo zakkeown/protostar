@@ -1208,6 +1208,9 @@ describe("intent admission policy", () => {
           risk: "low"
         }
       ],
+      workspace: {
+        allowDirty: false
+      },
       budget: {
         timeoutMs: 120_000,
         maxRepairLoops: 1

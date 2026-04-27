@@ -35,6 +35,7 @@ export function intersectEnvelopes(tiers: readonly TierConstraint[]): Precedence
     repoScopes: intersectRepoScopes(tiers),
     toolPermissions: subtractDeniedTools(intersectToolPermissions(tiers), tiers),
     ...optionalExecuteGrants(intersectExecuteGrants(tiers)),
+    workspace: intersectWorkspace(tiers),
     budget: intersectBudgets(tiers)
   };
 
@@ -51,6 +52,7 @@ function buildOpenEnvelope(): CapabilityEnvelope {
   return {
     repoScopes: [],
     toolPermissions: [],
+    workspace: { allowDirty: false },
     budget: {}
   };
 }
@@ -85,6 +87,12 @@ function intersectExecuteGrants(tiers: readonly TierConstraint[]): readonly Exec
 
 function optionalExecuteGrants(grants: readonly ExecuteGrant[] | undefined): Pick<CapabilityEnvelope, "executeGrants"> | object {
   return grants === undefined ? {} : { executeGrants: grants };
+}
+
+function intersectWorkspace(tiers: readonly TierConstraint[]): NonNullable<CapabilityEnvelope["workspace"]> {
+  return {
+    allowDirty: tiers.length > 0 && tiers.every((tier) => tier.envelope.workspace?.allowDirty === true)
+  };
 }
 
 function intersectBudgets(tiers: readonly TierConstraint[]): FactoryBudget {
@@ -186,6 +194,7 @@ function sameEnvelopeForPrecedence(left: TierConstraint["envelope"], right: Capa
     sameKeys(left.repoScopes ?? [], right.repoScopes, repoScopeKey) &&
     sameKeys(left.toolPermissions ?? [], right.toolPermissions, toolPermissionKey) &&
     sameKeys(left.executeGrants ?? [], right.executeGrants ?? [], executeGrantKey) &&
+    (left.workspace?.allowDirty ?? false) === (right.workspace?.allowDirty ?? false) &&
     BUDGET_FIELDS.every((field) => (left.budgetCaps ?? left.budget ?? {})[field] === right.budget[field])
   );
 }

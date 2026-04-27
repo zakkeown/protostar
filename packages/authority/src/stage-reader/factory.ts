@@ -236,7 +236,7 @@ function upconvertLegacyConfirmedIntent(parsed: Record<string, unknown>, path: s
       path
     );
   }
-  return { ...parsed, schemaVersion: "1.1.0" };
+  return { ...parsed, schemaVersion: "1.2.0" };
 }
 
 function validateAdmissionDecisionIndexEntry(raw: string, path: string, line: number): AdmissionDecisionIndexEntry {

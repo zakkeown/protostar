@@ -43,6 +43,7 @@ function copyTierEnvelope(envelope: TierConstraint["envelope"]): TierConstraint[
       ? { toolPermissions: envelope.toolPermissions.map((grant) => ({ ...grant })) }
       : {}),
     ...(envelope.executeGrants !== undefined ? { executeGrants: envelope.executeGrants.map((grant) => ({ ...grant })) } : {}),
+    ...(envelope.workspace !== undefined ? { workspace: { allowDirty: envelope.workspace.allowDirty } } : {}),
     ...(envelope.budget !== undefined ? { budget: { ...envelope.budget } } : {}),
     ...(envelope.allowedScopes !== undefined ? { allowedScopes: [...envelope.allowedScopes] } : {}),
     ...(envelope.budgetCaps !== undefined ? { budgetCaps: { ...envelope.budgetCaps } } : {}),
@@ -56,6 +57,7 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
     repoScopes: envelope.repoScopes.map((grant) => ({ ...grant })),
     toolPermissions: envelope.toolPermissions.map((grant) => ({ ...grant })),
     ...(envelope.executeGrants !== undefined ? { executeGrants: envelope.executeGrants.map((grant) => ({ ...grant })) } : {}),
+    workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
     budget: { ...envelope.budget }
   };
 }

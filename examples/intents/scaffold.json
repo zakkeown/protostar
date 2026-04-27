@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "1.2.0",
   "id": "intent_dark_factory_scaffold",
   "sourceDraftId": "draft_dark_factory_scaffold",
   "mode": "brownfield",
@@ -42,6 +43,9 @@
         "risk": "low"
       }
     ],
+    "workspace": {
+      "allowDirty": false
+    },
     "budget": {
       "timeoutMs": 300000,
       "maxRepairLoops": 1
