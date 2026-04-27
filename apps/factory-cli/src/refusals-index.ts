@@ -1,6 +1,12 @@
 import { appendFile } from "node:fs/promises";
 
-export type RefusalStage = "intent" | "planning" | "precedence" | "workspace-trust" | "repo-runtime";
+export type RefusalStage =
+  | "intent"
+  | "planning"
+  | "precedence"
+  | "workspace-trust"
+  | "repo-runtime"
+  | "coder-adapter-ready";
 
 export const REFUSALS_INDEX_FILE_NAME = "refusals.jsonl" as const;
 export const TERMINAL_STATUS_ARTIFACT_NAME = "terminal-status.json" as const;
