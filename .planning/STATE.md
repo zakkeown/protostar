@@ -28,14 +28,14 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Continue Phase 2 Wave 4 with `02-09-stage-reader-and-repo-runtime-PLAN.md`; Plan 08 is complete and GOV-04 is closed at the CLI trust boundary.
+**Next action:** Continue Phase 2 Wave 4 with `02-10-admission-e2e-contract-suite-PLAN.md`; Plan 09 is complete and GOV-03/GOV-04 now have stage-reader and repo-runtime coverage.
 
 ## Phase Status
 
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
-| 2 | Authority + Governance Kernel | In progress — Wave 3 complete; Plan 09 next |
+| 2 | Authority + Governance Kernel | In progress — Wave 4 Plan 09 complete; Plan 10 remains |
 | 3 | Repo Runtime + Sandbox | Pending |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
@@ -55,6 +55,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 2 Plan 09 (`02-09-stage-reader-and-repo-runtime-PLAN.md`): added FsAdapter-injected `AuthorityStageReader`, legacy run fallback/upconversion, shared `assertTrustedWorkspaceForGrant`, intent admission trust enforcement, and repo runtime `WorkspaceTrustError` checks.
 - **2026-04-27:** Completed Phase 2 Plan 08 (`02-08-two-key-launch-and-escalate-PLAN.md`): factory-cli now defaults workspace trust to untrusted, requires `--confirmed-intent` for trusted launch, removes the hardcoded trusted workspace, and writes `escalation-marker.json` with exit code 2 for escalate outcomes.
 - **2026-04-27:** Completed Phase 2 Plan 07 (`02-07-factory-cli-per-gate-writer-PLAN.md`): factory-cli now writes five per-gate admission decisions, `admission-decisions.jsonl`, `policy-snapshot.json`, and signed `intent.json` for new runs.
 - **2026-04-27:** Completed Phase 2 Plan 06b (`02-06b-per-gate-evidence-schemas-PLAN.md`): five owning-package per-gate admission-decision schemas now exist with strict inline base fields and package subpath exports.
