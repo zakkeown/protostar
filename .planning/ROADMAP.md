@@ -1,0 +1,180 @@
+# Roadmap: Protostar Factory v1
+
+**Defined:** 2026-04-26
+**Ordering principle:** *Admit safely, authorize narrowly, mutate carefully, review relentlessly, deliver only after proof.*
+
+Each phase carries forward the prior phase's invariants. No phase ships unless its requirements are verified against the live codebase. The thin-slice cosmetic-tweak loop from the 2026-04-24 v0.1 lock becomes a fixture in Phase 10, not a separate release.
+
+## Phase Overview
+
+| # | Phase | Goal | Blast Radius | Depends on |
+|---|-------|------|--------------|------------|
+| 1 | Intent + Planning Admission | No weak intent or bad plan reaches execution | Contracts only | — |
+| 2 | Authority + Governance Kernel | Settle precedence; enforce capability envelope before mutation lands | Contracts only | 1 |
+| 3 | Repo Runtime + Sandbox | Make the repo boundary real (clone, branch, write, rollback) | First real I/O | 2 |
+| 4 | Execution Engine | Boring, deterministic task runner with resumable journal | Real subprocess + LM Studio calls | 2, 3 |
+| 5 | Review → Repair → Review Loop | Central control loop; no delivery without approved exit | Composes 4 | 4 |
+| 6 | Live Dogpile Piles | Bounded model coordination behind strict schemas | Real model calls | 1, 4, 5 |
+| 7 | Delivery | Real GitHub PR with evidence bundle; no auto-merge | First external write | 5 |
+| 8 | Evaluation + Evolution | Mechanical → semantic → consensus; spec/plan convergence | Real model calls | 5, 6 |
+| 9 | Operator Surface + Resumability | `run` / `status` / `resume` / `cancel` / `inspect` / `deliver` | Operator UX | 4, 7 |
+| 10 | V1 Hardening + Dogfood | Fixture matrix + sacrificial sibling repo + docs + security review | Real GitHub repo, real PRs | 1–9 |
+
+## Phase 1 — Intent + Planning Admission
+
+**Goal:** The front door is sealed. Every path that reaches execution went through ambiguity gate (≤0.2) and planning admission. No fixture or test bypass exists.
+
+**Requirements:** INTENT-01, INTENT-02, INTENT-03, PLAN-A-01, PLAN-A-02, PLAN-A-03
+
+**Success criteria:**
+- `pnpm run verify` covers every package's tests
+- Every fixture in `examples/intents/` and `examples/planning-results/` is exercised through the admission path in CI
+- A fuzzed-bad intent and a fuzzed-bad plan each produce the correct no-admission artifact and refuse to advance
+
+**Notes:** Most of this is wiring + verify-gate fix. The ambiguity gate is already implemented (`packages/intent/src/ambiguity-scoring.ts`); this phase makes its enforcement uncircumventable.
+
+## Phase 2 — Authority + Governance Kernel
+
+**Goal:** Precedence is documented and enforced before any real mutation happens. Capability envelope is a runtime check, not a comment. ConfirmedIntent carries an admission signature that downstream stages verify.
+
+**Requirements:** GOV-01, GOV-02, GOV-03, GOV-04, GOV-05, GOV-06
+
+**Success criteria:**
+- A test demonstrates a denied capability (e.g. `executionScope: "workspace"` with `trust: "untrusted"`) produces an evidence-bearing block at the authority boundary, not the execution stage
+- Admission decision artifacts exist for intent, planning, capability, and repo-scope gates — all schema-versioned
+- Tampering with a `ConfirmedIntent` between admission and execution is detected via signature mismatch
+
+**Notes:** Builds directly on existing `packages/policy/src/admission.ts`, `capability-admission.ts`, `repo-scope-admission.ts`. GOV-06 (signed intent) is new and gates Phase 3.
+
+## Phase 3 — Repo Runtime + Sandbox
+
+**Goal:** The repo boundary is real. `packages/repo` actually clones, branches, reads/writes within caps, applies patches atomically, and rolls back on failure. This is where the dark factory starts touching matter.
+
+**Requirements:** REPO-01, REPO-02, REPO-03, REPO-04, REPO-05, REPO-06, REPO-07, REPO-08, REPO-09
+
+**Success criteria:**
+- Tests against an in-process sacrificial git repo prove: clone, branch, file-write within caps, patch apply, rollback after induced failure, dirty-worktree refusal
+- A subprocess invocation through the `repo`-owned runner refuses an arg outside the allowlist
+- `pnpm install` succeeds on a fresh-clone machine with no sibling `dogpile/` directory
+- `.env.example` documents every var the factory will read in Phases 4–7
+
+**Notes:** Resolves the "`packages/repo` is essentially empty" debt from `.planning/codebase/CONCERNS.md`. Resolves the `@dogpile/sdk` link risk before second contributors.
+
+## Phase 4 — Execution Engine
+
+**Goal:** Replace the dry-run executor with a boring, deterministic, resumable task runner. The first real `ExecutionAdapter` is the LM Studio coder (Qwen3-Coder-Next-MLX-4bit) producing real diffs.
+
+**Requirements:** EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXEC-08
+
+**Success criteria:**
+- Task state transitions are persisted; killing the process mid-run + resuming reaches the same terminal state
+- LM Studio coder adapter produces a non-empty diff for the cosmetic-tweak fixture
+- Adding a stub second adapter (e.g. echo / mock) requires zero contract change in `packages/execution`
+- Lifecycle events are identical between dry-run and real-execution paths (assertion)
+
+**Notes:** Provider abstraction is the load-bearing decision here — locks in Qwen as the first provider without making it the only one.
+
+## Phase 5 — Review → Repair → Review Loop
+
+**Goal:** The central control loop. Mechanical first, model second, repair plans typed, re-execution under shared budget. No delivery unless this loop exits `pass`.
+
+**Requirements:** LOOP-01, LOOP-02, LOOP-03, LOOP-04, LOOP-05, LOOP-06
+
+**Success criteria:**
+- A failed mechanical verdict produces a typed `RepairPlan` that execution consumes; re-execution emits the same lifecycle events
+- Budget exhaustion (N=3) produces a `block` verdict with all judge critiques captured in the run bundle
+- A delivery attempt with anything other than `pass`/`pass` is refused at the contract layer
+
+**Notes:** Existing `runMechanicalReviewExecutionLoop` becomes one half of this loop. The model-review half is wired in Phase 8; this phase locks the loop shape so Phase 8 can plug in.
+
+## Phase 6 — Live Dogpile Piles
+
+**Goal:** Live planning, review, and execution-coordination piles behind strict schemas. Protostar remains authority; Dogpile supplies bounded opinions.
+
+**Requirements:** PILE-01, PILE-02, PILE-03, PILE-04, PILE-05, PILE-06
+
+**Success criteria:**
+- `--planning-mode pile` runs a real planning pile against `@dogpile/sdk` and produces an admitted plan via the unchanged admission path
+- `dogpile-adapter` still does zero filesystem I/O (contract test)
+- Pile timeout / budget exhaustion fails the pile (not the run); fixture-mode fallback still works
+- Schema parse errors on pile output produce the same no-admission artifacts as fixture parse errors
+
+**Notes:** The reason this comes after 4+5 (not before): we want the deterministic engine + control loop to work end-to-end with fixtures before introducing live model variability into planning/review.
+
+## Phase 7 — Delivery
+
+**Goal:** Real GitHub PR delivery via Octokit + PAT, evidence bundle in the PR body, CI status capture. No auto-merge.
+
+**Requirements:** DELIVER-01, DELIVER-02, DELIVER-03, DELIVER-04, DELIVER-05, DELIVER-06, DELIVER-07
+
+**Success criteria:**
+- A `pass` run against the sibling toy repo (Phase 10 dependency) produces a real PR with the full evidence bundle in its body
+- CI status is polled and captured; the run bundle records final CI verdict
+- Branch/title/body validation refuses an injected control character
+- No code path can call `merge`
+
+**Notes:** Phase 7 depends on Phase 5 (loop must exit `pass`) but can execute against a hand-curated `pass` fixture before the toy repo from Phase 10 exists.
+
+## Phase 8 — Evaluation + Evolution
+
+**Goal:** Three-stage evaluation (mechanical → semantic → consensus) with the heterogeneous-local judge panel. Evolution decides `continue` / `converged` / `exhausted` from cross-run ontology snapshots. Specs and plans evolve before code.
+
+**Requirements:** EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVOL-01, EVOL-02, EVOL-03
+
+**Success criteria:**
+- The `status: "skipped"` stubs in `createEvaluationReport` are gone; semantic + consensus produce real numeric scores
+- Two-judge panel runs with different model families (Qwen3-80B + e.g. DeepSeek/Llama via LM Studio); harsher-than-baseline rule documented and enforced
+- `decideEvolution` reads the previous run's snapshot from disk; generation can advance past 0
+- Convergence threshold is justified empirically, not magic-numbered
+
+**Notes:** Plugs into Phase 5's `LOOP-02`. Resolves the stubbed-evaluation tech debt from `.planning/codebase/CONCERNS.md`.
+
+## Phase 9 — Operator Surface + Resumability
+
+**Goal:** CLI commands that make a dark factory legible. You walk away, come back, and understand exactly what happened.
+
+**Requirements:** OP-01, OP-02, OP-03, OP-04, OP-05, OP-06, OP-07, OP-08
+
+**Success criteria:**
+- `protostar-factory status` lists last N runs with verdict + archetype + duration; `--run <id>` prints the manifest summary
+- `protostar-factory resume <id>` recovers a killed run from its task journal (Phase 4 dependency)
+- `protostar-factory inspect <id>` is JSON-stable and pipeable
+- A pruning recipe exists; `.protostar/runs/` does not balloon unattended
+
+**Notes:** TUI is deferred. The product feel is "boring CLI you trust."
+
+## Phase 10 — V1 Hardening + Dogfood
+
+**Goal:** Run the factory against the sibling toy repo until you're bored. Build the fixture matrix. Then docs, package hygiene, security review, ship.
+
+**Requirements:** DOG-01, DOG-02, DOG-03, DOG-04, DOG-05, DOG-06, DOG-07, DOG-08
+
+**Success criteria:**
+- Sibling Tauri+React+TypeScript repo (`../protostar-toy-ttt`) exists and is the registered target
+- Fixture matrix has at least one passing run for each scenario: `accepted`, `ambiguous`, `bad-plan`, `failed-execution`, `repaired-execution`, `blocked-review`, `pr-ready`
+- ≥10 consecutive cosmetic-tweak runs against the toy repo, ≥80% reaching `pr-ready`
+- README + package docs are accurate; `pnpm release` produces shippable artifacts; security review is signed off
+
+**Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs.
+
+## Cross-Phase Constraints
+
+- **Strict TypeScript posture:** `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` apply to every phase; no opt-outs
+- **ESM only:** all new modules use `module: NodeNext` with `.js` import suffixes
+- **Domain-first packages:** no `utils` / `agents` / `factory` catch-all; if multiple stages need a type, lift it to the upstream stage
+- **Authority boundary:** only `apps/factory-cli` and `packages/repo` may touch the filesystem
+- **Stage forward-only data:** later stages must consume durable artifacts via admission helpers, never reach back into earlier stages' private state
+- **Dark autonomy:** no progress logs; the only human-facing output is the evidence bundle and hard-failure errors
+
+## Risk Register
+
+| Risk | Phase | Mitigation |
+|------|-------|------------|
+| `@dogpile/sdk` link blocks fresh contributors | 3 | REPO-08 — publish, vendor, or pinned tarball before adding contributors |
+| Stubbed evaluation lies in artifacts shipped pre-Phase 8 | 8 | EVAL-04 — remove stubs the moment semantic + consensus land; add contract test that no stub status is emitted |
+| Repair loop runaway under live execution | 4, 5 | EXEC-06 + LOOP-04 — capability envelope budget enforced at every retry |
+| Subprocess injection via PR title / branch name | 3, 7 | REPO-04 + DELIVER-02 — allowlist + arg-array validation, never shell strings |
+| `.protostar/runs/` accumulates unbounded | 9 | OP-08 — pruning recipe; observed 208 runs in one day during scaffold work |
+
+---
+*Roadmap defined: 2026-04-26 from operator-supplied 10-phase v1 ordering*
