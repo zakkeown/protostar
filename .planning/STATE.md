@@ -28,14 +28,14 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Continue Phase 2 Wave 1 with Plan 03 completion/summary, then advance to Wave 2.
+**Next action:** Start Phase 2 Wave 2 (`02-04`, `02-05`, `02-06a`, `02-06b`) after dependency checks.
 
 ## Phase Status
 
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
-| 2 | Authority + Governance Kernel | Pending — start here |
+| 2 | Authority + Governance Kernel | In progress — Wave 1 complete; Wave 2 next |
 | 3 | Repo Runtime + Sandbox | Pending |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
@@ -52,6 +52,10 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 - `.planning/ROADMAP.md` — phase-by-phase plan with success criteria
 - `.planning/config.json` — workflow toggles
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
+
+## Recent Sessions
+
+- **2026-04-27:** Completed Phase 2 Plan 03 (`02-03-signature-envelope-extension-PLAN.md`): confirmed-intent artifacts now hard-bump to `schemaVersion: "1.1.0"` and `SignatureEnvelope` carries `canonicalForm: "json-c14n@1.0"` plus deterministic sub-hashes.
 
 ## Key Locks (Carried Forward)
 

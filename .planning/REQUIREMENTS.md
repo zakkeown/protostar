@@ -184,7 +184,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | GOV-03 | Phase 2 | Pending |
 | GOV-04 | Phase 2 | Pending |
 | GOV-05 | Phase 2 | Pending |
-| GOV-06 | Phase 2 | Pending |
+| GOV-06 | Phase 2 | In Progress — Plan 03 signature envelope/schema bump complete; signer/verifier remains |
 | REPO-01 | Phase 3 | Pending |
 | REPO-02 | Phase 3 | Pending |
 | REPO-03 | Phase 3 | Pending |
