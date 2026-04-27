@@ -65,6 +65,8 @@ export {
   validateCapabilityEnvelopeWriteGrants
 } from "../repo-scope-admission.js";
 export { evaluateIntentAmbiguityAdmission, promoteIntentDraft } from "../promote-intent-draft.js";
+export { ADMISSION_DECISION_ARTIFACT_NAME, ADMISSION_DECISION_OUTCOMES, ADMISSION_DECISION_SCHEMA_VERSION, createAdmissionDecisionArtifact } from "../admission-decision.js";
+export type { AdmissionDecisionAmbiguityDetail, AdmissionDecisionArtifactDetails, AdmissionDecisionArtifactPayload, AdmissionDecisionGateSummary, AdmissionDecisionOutcome, CreateAdmissionDecisionArtifactInput } from "../admission-decision.js";
 export {
   CAPABILITY_ENVELOPE_BUDGET_LIMIT_VIOLATION_CODES,
   CAPABILITY_ENVELOPE_EXECUTE_GRANT_VIOLATION_CODES,

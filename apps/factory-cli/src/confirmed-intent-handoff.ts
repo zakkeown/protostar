@@ -5,7 +5,7 @@ import {
   type IntentAmbiguityMode
 } from "@protostar/intent/ambiguity";
 import { assertConfirmedIntent, type ConfirmedIntent } from "@protostar/intent/confirmed-intent";
-import type { PromoteIntentDraftResult } from "@protostar/policy/admission";
+import type { PromoteIntentDraftResult } from "@protostar/intent/admission";
 
 export type ConfirmedIntentHandoffSource = "confirmed-intent-input" | "draft-admission-gate";
 

@@ -25,15 +25,13 @@ import {
 } from "@protostar/intent/clarification-report";
 import { assertConfirmedIntent, type ConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import type { IntentDraft } from "@protostar/intent/draft";
-import {
-  authorizeFactoryStart,
-  promoteIntentDraft
-} from "@protostar/policy/admission";
+import { authorizeFactoryStart } from "@protostar/policy/admission";
 import {
   ADMISSION_DECISION_ARTIFACT_NAME,
   createAdmissionDecisionArtifact,
+  promoteIntentDraft,
   type AdmissionDecisionArtifactPayload
-} from "@protostar/policy/artifacts";
+} from "@protostar/intent/admission";
 import {
   admitCandidatePlan,
   admitCandidatePlans,

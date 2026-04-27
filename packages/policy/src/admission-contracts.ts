@@ -1,11 +1,7 @@
-// Plan 06a: source-of-truth for the promotion-side admission contracts moved to
-// @protostar/intent/promotion-contracts. This file keeps the admission-decision-artifact
-// types (still produced by createAdmissionDecisionArtifact in this package) and
-// re-exports every promotion-side name for backward-compatible barrel resolution.
+// Plan 06a: source-of-truth for both promotion-side and admission-decision-artifact contracts
+// is now @protostar/intent. This file is a backward-compat re-export barrel that preserves
+// every name @protostar/policy ever exposed.
 
-import type { ClarificationQuestion, IntentAdmissionHardZeroReason, IntentAdmissionMissingFieldDetection, IntentAdmissionPolicyFinding, IntentAdmissionRequiredClarification, IntentAmbiguityAssessment, IntentAmbiguityDimensionScore, IntentAmbiguityMode, IntentAmbiguityWeightingProfile, IntentArchetypeAutoTagSuggestion, IntentDraft, IntentDraftId, IntentId, IntentPromotionFailureDetails, PromoteIntentDraftResult, RequiredIntentDraftDimensionCheck, RequiredIntentDraftFieldCheck } from "@protostar/intent";
-
-// Re-exports from intent: every promotion-side declaration that previously lived here.
 export {
   CAPABILITY_ENVELOPE_BUDGET_LIMIT_VIOLATION_CODES,
   CAPABILITY_ENVELOPE_EXECUTE_GRANT_VIOLATION_CODES,
@@ -89,67 +85,17 @@ export type {
   ValidateIntentDraftCapabilityEnvelopeAdmissionResult
 } from "@protostar/intent";
 
-// ──────────────────────────────────────────────────────────
-// Admission-decision artifact (still produced by policy/admission.ts → createAdmissionDecisionArtifact).
-// ──────────────────────────────────────────────────────────
-
-export const ADMISSION_DECISION_ARTIFACT_NAME = "admission-decision.json";
-
-export const ADMISSION_DECISION_SCHEMA_VERSION = "protostar.intent.admission-decision.v1";
-
-export const ADMISSION_DECISION_OUTCOMES = ["allow", "block", "escalate"] as const;
-
-export type AdmissionDecisionOutcome = (typeof ADMISSION_DECISION_OUTCOMES)[number];
-
-export interface AdmissionDecisionGateSummary {
-  readonly ambiguityPassed: boolean;
-  readonly requiredChecklistPassed: boolean;
-  readonly policyPassed: boolean;
-  readonly structurallyMissingAutoFail: boolean;
-  readonly confirmedIntentCreated: boolean;
-}
-
-export interface AdmissionDecisionAmbiguityDetail {
-  readonly mode: IntentAmbiguityAssessment["mode"];
-  readonly ambiguity: number;
-  readonly threshold: number;
-  readonly accepted: boolean;
-  readonly finite: boolean;
-  readonly weightingProfile: IntentAmbiguityWeightingProfile;
-  readonly dimensionScores: readonly IntentAmbiguityDimensionScore[];
-  readonly missingFields: readonly string[];
-  readonly requiredClarifications: readonly string[];
-  readonly structurallyMissingDimensions: readonly IntentAmbiguityDimensionScore["dimension"][];
-}
-
-export interface AdmissionDecisionArtifactDetails {
-  readonly gate: AdmissionDecisionGateSummary;
-  readonly ambiguity: AdmissionDecisionAmbiguityDetail;
-  readonly requiredDimensionChecklist: readonly RequiredIntentDraftDimensionCheck[];
-  readonly requiredFieldChecklist: readonly RequiredIntentDraftFieldCheck[];
-  readonly missingFieldDetections: readonly IntentAdmissionMissingFieldDetection[];
-  readonly requiredClarifications: readonly IntentAdmissionRequiredClarification[];
-  readonly hardZeroReasons: readonly IntentAdmissionHardZeroReason[];
-  readonly clarificationQuestions: readonly ClarificationQuestion[];
-  readonly policyFindings: readonly IntentAdmissionPolicyFinding[];
-  readonly archetypeSuggestion: IntentArchetypeAutoTagSuggestion;
-  readonly failure?: IntentPromotionFailureDetails;
-}
-
-export interface AdmissionDecisionArtifactPayload {
-  readonly schemaVersion: typeof ADMISSION_DECISION_SCHEMA_VERSION;
-  readonly artifact: typeof ADMISSION_DECISION_ARTIFACT_NAME;
-  readonly decision: AdmissionDecisionOutcome;
-  readonly admitted: boolean;
-  readonly draftId?: IntentDraftId;
-  readonly mode: IntentAmbiguityMode;
-  readonly goalArchetype?: string;
-  readonly confirmedIntentId?: IntentId;
-  readonly details: AdmissionDecisionArtifactDetails;
-  readonly errors: readonly string[];
-}
-
-export interface CreateAdmissionDecisionArtifactInput {
-  readonly promotion: PromoteIntentDraftResult;
-  readonly draft?: IntentDraft;
-}
+// Admission-decision-artifact concerns (Plan 06a Rule-4 deviation: also moved to intent).
+export {
+  ADMISSION_DECISION_ARTIFACT_NAME,
+  ADMISSION_DECISION_OUTCOMES,
+  ADMISSION_DECISION_SCHEMA_VERSION
+} from "@protostar/intent";
+export type {
+  AdmissionDecisionAmbiguityDetail,
+  AdmissionDecisionArtifactDetails,
+  AdmissionDecisionArtifactPayload,
+  AdmissionDecisionGateSummary,
+  AdmissionDecisionOutcome,
+  CreateAdmissionDecisionArtifactInput
+} from "@protostar/intent";
