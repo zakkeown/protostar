@@ -111,7 +111,11 @@ importers:
         specifier: workspace:*
         version: link:../planning
 
-  packages/dogpile-types: {}
+  packages/dogpile-types:
+    dependencies:
+      '@dogpile/sdk':
+        specifier: 0.2.0
+        version: 0.2.0
 
   packages/evaluation:
     dependencies:
@@ -191,6 +195,10 @@ importers:
         version: link:../planning
 
 packages:
+
+  '@dogpile/sdk@0.2.0':
+    resolution: {integrity: sha512-DThmOGtpjeGrIxkb4s5sw3SeNWG72B5MniPonfLbWWJmHrJIC+ibfcHH6yABzFC2lLNYqczLCSdoKceVH9nexA==}
+    engines: {node: '>=22'}
 
   '@types/node@22.19.17':
     resolution: {integrity: sha512-wGdMcf+vPYM6jikpS/qhg6WiqSV/OhG+jeeHT/KlVqxYfD40iYJf9/AE1uQxVWFvU7MipKRkRv8NSHiCGgPr8Q==}
@@ -412,6 +420,8 @@ packages:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
 snapshots:
+
+  '@dogpile/sdk@0.2.0': {}
 
   '@types/node@22.19.17':
     dependencies:

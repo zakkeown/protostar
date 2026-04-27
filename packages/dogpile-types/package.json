@@ -16,5 +16,8 @@
     "test": "pnpm run build && node --test dist/*.test.js",
     "typecheck": "tsc -b --pretty false"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "dependencies": {
+    "@dogpile/sdk": "0.2.0"
+  }
 }
