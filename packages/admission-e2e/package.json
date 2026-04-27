@@ -1,0 +1,26 @@
+{
+  "name": "@protostar/admission-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "pnpm run build && node --test dist/*.test.js",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@protostar/intent": "workspace:*",
+    "@protostar/policy": "workspace:*",
+    "@protostar/planning": "workspace:*",
+    "@protostar/execution": "workspace:*"
+  },
+  "sideEffects": false
+}
