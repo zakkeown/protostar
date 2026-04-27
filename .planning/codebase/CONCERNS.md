@@ -188,3 +188,29 @@
 ---
 
 *Concerns audit: 2026-04-26*
+
+## Phase 3 Concerns (added 2026-04-27)
+
+**Runtime-deps lock broken (intentional):**
+- Issue: PROJECT.md previously asserted "zero external runtime deps". Phase 3
+  adds three: `isomorphic-git@1.37.6`, `diff@9.0.0` (both on `@protostar/repo`),
+  `@dogpile/sdk@0.2.0` (on `@protostar/dogpile-adapter`). Locks rephrased
+  explicitly; not a silent break.
+- Files: `packages/repo/package.json`, `packages/dogpile-adapter/package.json`
+- Impact: Operators evaluating dep posture must read the rephrased lock; the
+  audit trail is in `03-CONTEXT.md` Errata E-01.
+
+**Tombstone disk-fill on stuck-run streak:**
+- Issue: Q-11 fresh-clone-per-run + tombstone-on-failure means a streak of
+  100 failed runs accumulates 100 workspace dirs in `.protostar/workspaces/`.
+  A small Tauri toy clone is ~50 MB; 100 streaks = 5 GB.
+- Mitigation: `tombstoneRetentionHours` (default 24) in `repo-policy.json`;
+  operator runs `protostar-factory prune` (Phase 9) to reclaim.
+
+**`diff.applyPatch` is text-only (binary-not-supported):**
+- Issue: Cosmetic-tweak loop touching a `.png` icon will hit the
+  `Binary files ... differ` patch placeholder. `applyChangeSet` records
+  `{status: "skipped-error", error: "binary-not-supported"}` and the review
+  pile decides.
+- Mitigation: Phase 3 v1 detects binary headers via `parsePatch` output and
+  records as evidence. Binary-aware fallback deferred.

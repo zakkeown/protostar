@@ -240,3 +240,27 @@ The repo boundary becomes real. `packages/repo` actually clones, branches, reads
 *Phase: 03-repo-runtime-sandbox*
 *Context gathered: 2026-04-27 via /gsd-discuss-phase --power*
 *All 18 questions answered; next step `/gsd-plan-phase 3`*
+
+---
+
+## Errata (added 2026-04-27 by /gsd-plan-phase)
+
+### E-01 (Q-10 mechanism revision)
+
+Q-10 says "apply via isomorphic-git's apply with hash check". Verified against
+isomorphic-git@1.37.6's 73-function alphabetic index: no `apply`/`applyPatch`/
+`patch` API exists. The *intent* (unified-diff text + pre-image SHA-256 hash
+gate + best-effort partial apply per Q-12) is preserved. The *mechanism*
+revises to:
+
+- **Patch parse:** `diff.parsePatch(uniDiff)` from kpdecker/jsdiff
+- **Patch apply:** `diff.applyPatch(preImage, structured)` (returns `string | false`)
+- **Hash gate:** `node:crypto.createHash("sha256")` (we do this ourselves;
+  `applyPatch` has no native hash check)
+
+`diff@9.0.0` lands as a SECOND runtime dep on `@protostar/repo` alongside
+`isomorphic-git`. PROJECT.md "zero external runtime deps" lock rephrases to
+acknowledge both carve-outs.
+
+Source: `.planning/phases/03-repo-runtime-sandbox/03-RESEARCH.md` §Constraint
+Conflicts CONFLICT-01.
