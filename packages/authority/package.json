@@ -27,8 +27,12 @@
   "files": ["dist", "schema"],
   "scripts": {
     "build": "tsc -b",
-    "test": "pnpm run build && node --test dist/*.test.js",
+    "test": "pnpm run build && node --test \"dist/**/*.test.js\"",
     "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@protostar/intent": "workspace:*",
+    "@protostar/repo": "workspace:*"
   },
   "sideEffects": false
 }
