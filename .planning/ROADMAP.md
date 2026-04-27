@@ -104,7 +104,7 @@ Plans:
 - [x] 03-01-conflict-errata-deps-and-env-PLAN.md — wave 0 — CONFLICT-01 erratum + isomorphic-git@1.37.6 + diff@9.0.0 deps + PROJECT.md rephrase + .gitignore + .env.example + CONCERNS.md addendum (Q-17, Q-01, Q-02)
 - [x] 03-02-paths-package-and-agents-carveout-PLAN.md — wave 0 — `@protostar/paths` skeleton + sync `resolveWorkspaceRoot()` + AGENTS.md scope-ceiling carve-out (Q-15)
 - [x] 03-03-confirmed-intent-schema-bump-PLAN.md — wave 0 — confirmed-intent 1.1.0 → 1.2.0 + `capabilityEnvelope.workspace.allowDirty: false` default + cascade audit of every "1.1.0" literal (Q-14)
-- [ ] 03-04-sacrificial-repo-test-fixture-PLAN.md — wave 0 — `buildSacrificialRepo` programmatic helper + subpath export `./internal/test-fixtures` (Q-18)
+- [x] 03-04-sacrificial-repo-test-fixture-PLAN.md — wave 0 — `buildSacrificialRepo` programmatic helper + subpath export `./internal/test-fixtures` (Q-18)
 - [ ] 03-05-fs-adapter-PLAN.md — wave 1 — TDD: brand-consuming FS adapter w/ re-canonicalize + lstat-symlink-refusal + escape detection (Q-05, Q-06)
 - [ ] 03-06-symlink-audit-PLAN.md — wave 1 — TDD: post-clone tree audit via Node 22 readdir({recursive,withFileTypes}) (Q-06)
 - [ ] 03-08-subprocess-allowlist-and-schemas-PLAN.md — wave 1 — TDD: baseline allowlist + intersect helper + outer pattern guard + per-command schemas (git/pnpm/node/tsc) (Q-07, Q-08)
