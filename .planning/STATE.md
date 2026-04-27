@@ -28,7 +28,7 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Start Phase 2 Wave 2 (`02-04`, `02-05`, `02-06a`, `02-06b`) after dependency checks.
+**Next action:** Continue Phase 2 Wave 2 with remaining downstream admission-decision/schema work after completed `02-04`, `02-05`, and `02-06a` outputs are available.
 
 ## Phase Status
 
@@ -56,6 +56,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 ## Recent Sessions
 
 - **2026-04-27:** Completed Phase 2 Plan 03 (`02-03-signature-envelope-extension-PLAN.md`): confirmed-intent artifacts now hard-bump to `schemaVersion: "1.1.0"` and `SignatureEnvelope` carries `canonicalForm: "json-c14n@1.0"` plus deterministic sub-hashes.
+- **2026-04-27:** Completed Phase 2 Plan 06a (`02-06a-admission-decision-base-PLAN.md`): authority now owns `AdmissionDecisionBase`, re-exports the intent-owned admission outcome literal, and provides `SignedAdmissionDecision` signing/verification.
 
 ## Key Locks (Carried Forward)
 

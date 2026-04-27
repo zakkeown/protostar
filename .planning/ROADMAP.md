@@ -71,7 +71,7 @@ Plans:
 - [x] 02-03-signature-envelope-extension-PLAN.md — wave 1 — extend SignatureEnvelope with canonicalForm; HARD-BUMP confirmed-intent.schema.json to const 1.1.0 (Q-18 user lock — A8 widening overridden in iteration 2)
 - [ ] 02-04-precedence-kernel-PLAN.md — wave 2 — intersectEnvelopes + PrecedenceDecision brand + parseRepoPolicy + DENY_ALL_REPO_POLICY (A3 default-DENY lock)
 - [ ] 02-05-canonicalize-and-signature-PLAN.md — wave 2 — json-c14n@1.0 canonicalizer + buildSignatureEnvelope + verifyConfirmedIntentSignature single helper (Q-15, Q-16, Q-17, Q-18)
-- [ ] 02-06a-admission-decision-base-PLAN.md — wave 2 — AdmissionDecisionBase + SignedAdmissionDecision brand (sixth Phase 2 brand) (Q-13, Q-15, Q-17)
+- [x] 02-06a-admission-decision-base-PLAN.md — wave 2 — AdmissionDecisionBase + SignedAdmissionDecision brand (sixth Phase 2 brand) (Q-13, Q-15, Q-17)
 - [ ] 02-06b-per-gate-evidence-schemas-PLAN.md — wave 2 — 5 per-gate evidence schemas in owning packages + git-mv intent rename + package.json exports (Q-13, Q-14)
 - [ ] 02-07-factory-cli-per-gate-writer-PLAN.md — wave 3 — runFactory wires precedence + per-gate triple-write + signed intent + policy-snapshot + admission-decisions.jsonl (Q-04, Q-14)
 - [ ] 02-08-two-key-launch-and-escalate-PLAN.md — wave 3 — `--trust`/`--confirmed-intent` flags + remove hardcoded trust at main.ts:335 + escalation-marker.json (Q-11, Q-12, A4, A5, A6)
