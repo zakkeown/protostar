@@ -6,7 +6,9 @@ import {
 import type { WorkspaceRef } from "@protostar/repo";
 
 export * from "./adapter-contract.js";
+export * from "./backoff.js";
 export * from "./journal-types.js";
+export * from "./retry-classifier.js";
 
 // EXEC-01 vocab - see Phase 4 Q-01/Q-04. blocked moved to plan-graph.
 export type ExecutionTaskStatus =
