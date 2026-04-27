@@ -42,7 +42,7 @@ Make the repo boundary real. This is where the dark factory starts touching matt
 - [x] **REPO-05**: Patch application + rollback — `applyChangeSet` is atomic; failure restores prior worktree state
 - [x] **REPO-06**: Dirty-worktree handling — refuses to operate on uncommitted changes unless explicitly allowed by capability envelope
 - [x] **REPO-07**: `workspaceRoot` resolved deterministically by walking up to `pnpm-workspace.yaml` (no `INIT_CWD`/`cwd()` reliance)
-- [ ] **REPO-08**: `@dogpile/sdk` is installable on a fresh-clone machine (published, vendored, or pinned tarball) — sibling `link:` removed
+- [x] **REPO-08**: `@dogpile/sdk` is installable on a fresh-clone machine (published, vendored, or pinned tarball) — sibling `link:` removed
 - [x] **REPO-09**: `.env.example` documents every env var (LM Studio endpoint, GitHub PAT, model names) before secrets are referenced
 
 ### Phase 4 — Execution Engine
@@ -192,7 +192,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | REPO-05 | Phase 3 | Complete |
 | REPO-06 | Phase 3 | Complete |
 | REPO-07 | Phase 3 | Complete |
-| REPO-08 | Phase 3 | Pending |
+| REPO-08 | Phase 3 | Complete |
 | REPO-09 | Phase 3 | Complete |
 | EXEC-01 | Phase 4 | Pending |
 | EXEC-02 | Phase 4 | Pending |

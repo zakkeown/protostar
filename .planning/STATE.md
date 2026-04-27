@@ -26,9 +26,9 @@
 
 **Phase 3 — Repo Runtime + Sandbox** (in progress)
 
-Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, strict symlink audit, subprocess validation schemas, the repo-owned subprocess runner, clone/dirty/policy helpers, factory-cli repo-runtime wiring, and admission-e2e repo-runtime evidence contracts are complete.
+Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, strict symlink audit, subprocess validation schemas, the repo-owned subprocess runner, clone/dirty/policy helpers, factory-cli repo-runtime wiring, admission-e2e repo-runtime evidence contracts, and the REPO-08 Dogpile SDK fresh-clone checkpoint are complete.
 
-**Next action:** Continue Phase 3 with Plan 13 fresh-clone Dogpile SDK pin/checkpoint.
+**Next action:** Run Phase 3 verification / `/gsd-verify-work`; then proceed to Phase 4 planning if verification passes.
 
 ## Phase Status
 
@@ -36,7 +36,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
-| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-12 complete; phase not verified |
+| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-13 complete; phase not verified |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
 | 6 | Live Dogpile Piles | Pending |
@@ -55,6 +55,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 3 Plan 13 (`03-13-dogpile-sdk-pin-and-fresh-clone-checkpoint-PLAN.md`): pinned `@dogpile/sdk@0.2.0` on `@protostar/dogpile-types`, replaced the local shim implementation with upstream re-exports, ran the approved no-sibling fresh-clone install smoke with `/Users/zakkeown/Code/dogpile` restored, and filled `03-VALIDATION.md` with a 33-row per-task validation map. `pnpm run verify:full` passed.
 - **2026-04-27:** Completed Phase 3 Plan 12 (`03-12-admission-e2e-contract-suite-PLAN.md`): added five admission-e2e repo-runtime contract tests pinning hash-mismatch, 5-patch best-effort partial application, dirty-worktree refusal, symlink refusal, and subprocess allowlist/argv refusal evidence shapes. `pnpm --filter @protostar/admission-e2e test` passed with 60 tests; `pnpm run verify` passed.
 - **2026-04-27:** Completed Phase 3 Plan 11 (`03-11-barrel-and-factory-cli-wiring-PLAN.md`): added `cleanupWorkspace` with success removal and failure tombstone retention, expanded the `@protostar/repo` barrel, replaced factory-cli `INIT_CWD` workspace-root resolution with `resolveWorkspaceRoot()`, and wired `runFactory` through clone, symlink audit evidence, dirty-worktree refusal, repo-runtime admission decisions, and cleanup/tombstone handling. `pnpm run verify:full` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-27:** Completed Phase 3 Plan 10 (`03-10-clone-and-dirty-and-policy-PLAN.md`): added `cloneWorkspace` with credentialRef auth, retry cancellation, mocked `git.clone` tests, HEAD resolution, and post-clone symlink audit; added `dirtyWorktreeStatus` with the CONFLICT-02 tracked-file statusMatrix filter; added repo runtime policy parsing/loading with Q-02 workspaceRoot recursive-clone refusal; exported repo-policy and repo-runtime admission-decision schemas. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
