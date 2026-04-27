@@ -28,14 +28,14 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Execute Phase 2 gap-closure Plans 11-15, then rerun Phase 2 verification (`/gsd-verify-work`). Initial verification on 2026-04-27 found authority-governance blockers despite green tests; gap-closure planning now targets fail-closed precedence, runtime envelope checks, verified two-key launch, stage-reader safety, schema parity, and regression coverage.
+**Next action:** Rerun Phase 2 verification (`/gsd-verify-work`). Gap-closure Plans 11–15 are complete (Waves 5–7) — 16/16 plans summarized, 502/502 tests pass. Closes T-2-1 (branded read), T-2-2 (envelope brand-laundering), T-2-5 (workspace-trust bypass), T-2-6 (JSONL field mismatch), and adds the Phase 2 cross-gate regression e2e.
 
 ## Phase Status
 
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
-| 2 | Authority + Governance Kernel | In progress — Wave 4 complete; ready for verification |
+| 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
 | 3 | Repo Runtime + Sandbox | Pending |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
