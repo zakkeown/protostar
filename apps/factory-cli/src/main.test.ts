@@ -37,7 +37,10 @@ const authorityExpansionPlanningFixtureRelativePath =
   "examples/planning-results/bad/capability-envelope-expansion.json";
 const suppressedIntentOutputFiles = [
   "intent-draft.json",
-  "clarification-report.json",
+  // Plan 01-08 (Q-08, INTENT-01 runtime): clarification-report.json is now
+  // explicitly written on intent-side ambiguity-gate refusal so Phase 9 inspect
+  // can show the unresolved clarifications. It is therefore no longer in the
+  // suppression list.
   "intent-ambiguity.json",
   "intent-archetype-suggestion.json",
   "intent.json",
@@ -1137,6 +1140,16 @@ describe("factory CLI draft admission hardening", () => {
         planningAdmission["errors"],
         violations.map((violation) => violation["message"])
       );
+
+      // Plan 01-08: refusal triple — terminal-status.json + refusals.jsonl entry alongside no-plan-admitted planning-admission.json
+      await assertRefusalTriple({
+        tempDir,
+        outDir,
+        runId,
+        expectedStage: "planning",
+        expectedRefusalArtifact: "planning-admission.json"
+      });
+
       await assertExecutionAndReviewArtifactsSuppressed(outDir, runId);
     });
   });
@@ -1331,6 +1344,15 @@ describe("factory CLI draft admission hardening", () => {
       const admissionGate = readObjectProperty(admissionDetails, "gate");
       assert.equal(admissionGate["confirmedIntentCreated"], false);
       assert.equal(admissionGate["requiredChecklistPassed"], false);
+
+      // Plan 01-08: refusal triple — clarification-report.json + terminal-status.json + refusals.jsonl entry
+      await assertRefusalTriple({
+        tempDir,
+        outDir,
+        runId,
+        expectedStage: "intent",
+        expectedRefusalArtifact: "clarification-report.json"
+      });
 
       await assertIntentOutputFilesSuppressed(outDir, runId);
       await assertDownstreamArtifactsSuppressed(outDir, runId);
@@ -2766,6 +2788,65 @@ function assertSampleFactoryArgsAvoidLegacyBypass(
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function assertRefusalTriple(input: {
+  readonly tempDir: string;
+  readonly outDir: string;
+  readonly runId: string;
+  readonly expectedStage: "intent" | "planning";
+  readonly expectedRefusalArtifact: string;
+}): Promise<void> {
+  const runDir = resolve(input.outDir, input.runId);
+
+  // 1. Per-run terminal-status.json marker
+  const terminalStatusPath = resolve(runDir, "terminal-status.json");
+  assert.equal(
+    await pathExists(terminalStatusPath),
+    true,
+    `Expected terminal-status.json at ${terminalStatusPath}.`
+  );
+  const terminalStatus = await readJsonObject(terminalStatusPath);
+  assert.equal(terminalStatus["schemaVersion"], "1.0.0");
+  assert.equal(terminalStatus["artifact"], "terminal-status.json");
+  assert.equal(terminalStatus["status"], "refused");
+  assert.equal(terminalStatus["stage"], input.expectedStage);
+  assert.equal(terminalStatus["runId"], input.runId);
+  assert.equal(terminalStatus["refusalArtifact"], input.expectedRefusalArtifact);
+  assert.equal(typeof terminalStatus["reason"], "string");
+
+  // 2. Per-run refusal artifact (clarification-report.json or planning-admission.json/no-plan-admitted)
+  assert.equal(
+    await pathExists(resolve(runDir, input.expectedRefusalArtifact)),
+    true,
+    `Expected refusal artifact ${input.expectedRefusalArtifact} in run dir.`
+  );
+
+  // 3. .protostar/refusals.jsonl with one parseable entry for this run
+  const refusalsIndexPath = resolve(input.outDir, "..", "refusals.jsonl");
+  assert.equal(
+    await pathExists(refusalsIndexPath),
+    true,
+    `Expected refusals.jsonl at ${refusalsIndexPath}.`
+  );
+  const indexContents = await readFile(refusalsIndexPath, "utf8");
+  const indexLines = indexContents.split("\n").filter((segment) => segment.length > 0);
+  const indexEntries = indexLines.map((line) => JSON.parse(line) as Record<string, unknown>);
+  const matching = indexEntries.find((entry) => entry["runId"] === input.runId);
+  assert.notEqual(matching, undefined, `Expected refusals.jsonl entry for runId ${input.runId}.`);
+  if (matching === undefined) {
+    return;
+  }
+  assert.equal(matching["schemaVersion"], "1.0.0");
+  assert.equal(matching["stage"], input.expectedStage);
+  assert.equal(typeof matching["timestamp"], "string");
+  assert.equal(typeof matching["reason"], "string");
+  assert.equal(typeof matching["artifactPath"], "string");
+  assert.equal(
+    (matching["artifactPath"] as string).endsWith(input.expectedRefusalArtifact),
+    true,
+    `Expected artifactPath to end with ${input.expectedRefusalArtifact}, got ${String(matching["artifactPath"])}.`
+  );
 }
 
 async function assertIntentOutputFilesSuppressed(outDir: string, runId: string): Promise<void> {

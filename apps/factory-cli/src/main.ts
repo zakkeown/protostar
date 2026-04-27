@@ -57,6 +57,14 @@ import {
 } from "@protostar/review";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
+import {
+  appendRefusalIndexEntry,
+  buildTerminalStatusArtifact,
+  REFUSALS_INDEX_FILE_NAME,
+  TERMINAL_STATUS_ARTIFACT_NAME,
+  type RefusalIndexEntry,
+  type RefusalStage
+} from "./refusals-index.js";
 
 export interface RunCommandOptions {
   readonly intentPath?: string;
@@ -188,7 +196,28 @@ export async function runFactory(
     await writeAdmissionDecisionArtifact(runDir, admissionDecision);
   }
   if (promotedIntent !== undefined && !promotedIntent.ok) {
-    throw new Error(formatPromotionFailure(promotedIntent));
+    // Persist the clarification-report alongside the admission-decision so
+    // operators (and Phase 9 inspect) have the full intent-side refusal
+    // evidence on disk before runFactory throws. Without this write the
+    // ambiguity-gate refusal path produced no clarification artifact (only
+    // admission-decision.json), violating INTENT-01's runtime half.
+    if (clarificationReport !== undefined) {
+      await mkdir(runDir, { recursive: true });
+      await writeJson(resolve(runDir, CLARIFICATION_REPORT_ARTIFACT_NAME), clarificationReport);
+    }
+    const reason = formatPromotionFailure(promotedIntent);
+    await writeRefusalArtifacts({
+      runDir,
+      outDir,
+      runId,
+      stage: "intent",
+      reason,
+      refusalArtifact:
+        clarificationReport !== undefined
+          ? CLARIFICATION_REPORT_ARTIFACT_NAME
+          : ADMISSION_DECISION_ARTIFACT_NAME
+    });
+    throw new Error(reason);
   }
 
   const confirmedIntentHandoff = createConfirmedIntentHandoff({
@@ -220,6 +249,8 @@ export async function runFactory(
   if (!planningFixtureInput.ok) {
     return await blockPlanningPreAdmission({
       runDir,
+      outDir,
+      runId,
       intent,
       candidatePlanId,
       errors: [planningFixtureInput.error],
@@ -231,6 +262,8 @@ export async function runFactory(
   if (!planningPileResultAdmission.ok) {
     return await blockPlanningPreAdmission({
       runDir,
+      outDir,
+      runId,
       intent,
       candidatePlanId,
       errors: planningPileResultAdmission.errors,
@@ -246,6 +279,8 @@ export async function runFactory(
   if (!parsedCandidatePlans.ok) {
     return await blockPlanningPreAdmission({
       runDir,
+      outDir,
+      runId,
       intent,
       candidatePlanId,
       errors: parsedCandidatePlans.errors,
@@ -261,6 +296,8 @@ export async function runFactory(
   if (firstCandidatePlan === undefined) {
     return await blockPlanningPreAdmission({
       runDir,
+      outDir,
+      runId,
       intent,
       candidatePlanId,
       errors: ["Planning admission requires at least one candidate plan."],
@@ -288,7 +325,16 @@ export async function runFactory(
   });
   const persistedPlanningAdmission = await readPersistedPlanningAdmissionArtifact(runDir);
   if (!candidateAdmission.ok) {
-    throw new Error(`Planning admission rejected plan graph: ${candidateAdmission.errors.join("; ")}`);
+    const reason = `Planning admission rejected plan graph: ${candidateAdmission.errors.join("; ")}`;
+    await writeRefusalArtifacts({
+      runDir,
+      outDir,
+      runId,
+      stage: "planning",
+      reason,
+      refusalArtifact: PLANNING_ADMISSION_ARTIFACT_NAME
+    });
+    throw new Error(reason);
   }
   assertAcceptedPlanningAdmissionArtifact(persistedPlanningAdmission);
   const admittedPlan = candidateAdmission.admittedPlan;
@@ -566,6 +612,44 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function resolveRefusalsIndexPath(outDir: string): string {
+  // refusals.jsonl sits alongside the runs/ directory so a single workspace
+  // accumulates one index regardless of which run dir produced the entry. In
+  // production --out is .protostar/runs, putting the index at
+  // .protostar/refusals.jsonl. In tests --out is tempDir/out, putting the
+  // index at tempDir/refusals.jsonl (hermetic per test).
+  return resolve(outDir, "..", REFUSALS_INDEX_FILE_NAME);
+}
+
+async function writeRefusalArtifacts(input: {
+  readonly runDir: string;
+  readonly outDir: string;
+  readonly runId: string;
+  readonly stage: RefusalStage;
+  readonly reason: string;
+  readonly refusalArtifact: string;
+}): Promise<void> {
+  await mkdir(input.runDir, { recursive: true });
+  const terminalStatus = buildTerminalStatusArtifact({
+    runId: input.runId,
+    stage: input.stage,
+    reason: input.reason,
+    refusalArtifact: input.refusalArtifact
+  });
+  await writeJson(resolve(input.runDir, TERMINAL_STATUS_ARTIFACT_NAME), terminalStatus);
+
+  const refusalsIndexPath = resolveRefusalsIndexPath(input.outDir);
+  const entry: RefusalIndexEntry = {
+    runId: input.runId,
+    timestamp: new Date().toISOString(),
+    stage: input.stage,
+    reason: input.reason,
+    artifactPath: `runs/${input.runId}/${input.refusalArtifact}`,
+    schemaVersion: "1.0.0"
+  };
+  await appendRefusalIndexEntry(refusalsIndexPath, entry);
+}
+
 async function writeConfirmedIntentOutput(path: string, intent: ConfirmedIntent): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeJson(path, intent);
@@ -712,6 +796,8 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 async function blockPlanningPreAdmission(input: {
   readonly runDir: string;
+  readonly outDir: string;
+  readonly runId: string;
   readonly intent: ConfirmedIntent;
   readonly candidatePlanId: string;
   readonly errors: readonly string[];
@@ -732,7 +818,17 @@ async function blockPlanningPreAdmission(input: {
     ...(input.planningPileResult !== undefined ? { planningPileResult: input.planningPileResult } : {})
   });
 
-  throw new Error(formatPlanningPreAdmissionFailure(planningAdmission));
+  const reason = formatPlanningPreAdmissionFailure(planningAdmission);
+  await writeRefusalArtifacts({
+    runDir: input.runDir,
+    outDir: input.outDir,
+    runId: input.runId,
+    stage: "planning",
+    reason,
+    refusalArtifact: PLANNING_ADMISSION_ARTIFACT_NAME
+  });
+
+  throw new Error(reason);
 }
 
 async function writePlanningPreAdmissionFailureArtifacts(input: {
