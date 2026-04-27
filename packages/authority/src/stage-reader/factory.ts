@@ -9,6 +9,9 @@ import {
 } from "../signature/verify.js";
 import { type FsAdapter, StageReaderError } from "./fs-adapter.js";
 
+/** Parsed but unverified intent — for diagnostics and legacy inspection only. */
+export type ParsedConfirmedIntent = ConfirmedIntent;
+
 export interface AdmissionDecisionIndexEntry {
   readonly gate: GateName;
   readonly artifactPath: string;
@@ -23,6 +26,15 @@ export interface AuthorityStageReader {
   workspaceTrustAdmissionDecision(): Promise<AdmissionDecisionBase | null>;
   precedenceDecision(): Promise<PrecedenceDecision | null>;
   policySnapshot(): Promise<PolicySnapshot | null>;
+  /**
+   * Reads and parses intent.json without signature verification.
+   * Use ONLY for diagnostics or legacy inspection. Not authority.
+   */
+  readParsedConfirmedIntent(): Promise<ParsedConfirmedIntent>;
+  /**
+   * Returns a verified, branded ConfirmedIntent. Throws StageReaderError if
+   * signature verification fails, snapshot is missing, or intent is malformed.
+   */
   confirmedIntent(): Promise<ConfirmedIntent>;
   verifyConfirmedIntent(): Promise<VerifyConfirmedIntentSignatureResult>;
   admissionDecisionsIndex(): Promise<readonly AdmissionDecisionIndexEntry[]>;
@@ -82,19 +94,32 @@ export function createAuthorityStageReader(runDir: string, fs: FsAdapter): Autho
       return validatePolicySnapshot(await fs.readFile(path), path);
     },
 
+    async readParsedConfirmedIntent() {
+      const path = `${runDir}/intent.json`;
+      return parsedConfirmedIntent(await fs.readFile(path), path);
+    },
+
     async confirmedIntent() {
       const path = `${runDir}/intent.json`;
-      return validateConfirmedIntent(await fs.readFile(path), path);
+      const result = await this.verifyConfirmedIntent();
+      if (!result.ok) {
+        throw new StageReaderError(
+          "intent.json",
+          `confirmed intent signature verification failed: ${result.errors.join("; ")}`,
+          path
+        );
+      }
+      return result.verified.intent;
     },
 
     async verifyConfirmedIntent() {
-      const intent = await this.confirmedIntent();
+      const intent = await this.readParsedConfirmedIntent();
       const snapshot = await this.policySnapshot();
       if (snapshot === null) {
         return {
           ok: false,
           errors: ["policy-snapshot.json missing - cannot verify signature"],
-          mismatch: { field: "policySnapshotHash", expected: "present", actual: "missing" }
+          mismatch: { field: "policySnapshotHash" as const, expected: "present", actual: "missing" }
         };
       }
 
@@ -188,14 +213,18 @@ function validatePolicySnapshot(raw: string, path: string): PolicySnapshot {
   return parsed as unknown as PolicySnapshot;
 }
 
-function validateConfirmedIntent(raw: string, path: string): ConfirmedIntent {
+/**
+ * Reads and parses intent.json. Applies legacy 1.0.0 upconversion.
+ * Returns parsed (unverified) intent — not authority. Only for diagnostics.
+ */
+function parsedConfirmedIntent(raw: string, path: string): ParsedConfirmedIntent {
   const parsed = parseJsonObject(raw, "intent.json", path);
   const intentInput = upconvertLegacyConfirmedIntent(parsed, path);
   const result = parseConfirmedIntent(intentInput);
   if (!result.ok) {
     throw new StageReaderError("intent.json", result.errors.join("; "), path);
   }
-  return result.data as ConfirmedIntent;
+  return result.data as ParsedConfirmedIntent;
 }
 
 function upconvertLegacyConfirmedIntent(parsed: Record<string, unknown>, path: string): Record<string, unknown> {
