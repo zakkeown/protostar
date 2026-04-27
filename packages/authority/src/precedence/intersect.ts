@@ -68,11 +68,11 @@ function statusForResolvedEnvelope(
 }
 
 function intersectRepoScopes(tiers: readonly TierConstraint[]): readonly RepoScopeGrant[] {
-  return intersectByKey(tiers.map((tier) => tier.envelope.repoScopes), repoScopeKey);
+  return intersectByKey(tiers.map(repoScopesForTier), repoScopeKey);
 }
 
 function intersectToolPermissions(tiers: readonly TierConstraint[]): readonly ToolPermissionGrant[] {
-  return intersectByKey(tiers.map((tier) => tier.envelope.toolPermissions), toolPermissionKey);
+  return intersectByKey(tiers.map((tier) => tier.envelope.toolPermissions ?? []), toolPermissionKey);
 }
 
 function intersectExecuteGrants(tiers: readonly TierConstraint[]): readonly ExecuteGrant[] | undefined {
@@ -92,7 +92,7 @@ function intersectBudgets(tiers: readonly TierConstraint[]): FactoryBudget {
 
   for (const field of BUDGET_FIELDS) {
     const values = tiers
-      .map((tier) => tier.envelope.budget[field])
+      .map((tier) => (tier.envelope.budgetCaps ?? tier.envelope.budget ?? {})[field])
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     if (values.length > 0) {
       budget[field] = Math.min(...values);
@@ -164,8 +164,11 @@ function axisValues(
   if (axis === "executeGrants") {
     return tier.envelope.executeGrants ?? [];
   }
+  if (axis === "repoScopes") {
+    return repoScopesForTier(tier);
+  }
 
-  return tier.envelope[axis];
+  return tier.envelope[axis] ?? [];
 }
 
 function intersectByKey<Item>(
@@ -180,10 +183,10 @@ function intersectByKey<Item>(
 
 function sameEnvelopeForPrecedence(left: TierConstraint["envelope"], right: CapabilityEnvelope): boolean {
   return (
-    sameKeys(left.repoScopes, right.repoScopes, repoScopeKey) &&
-    sameKeys(left.toolPermissions, right.toolPermissions, toolPermissionKey) &&
+    sameKeys(left.repoScopes ?? [], right.repoScopes, repoScopeKey) &&
+    sameKeys(left.toolPermissions ?? [], right.toolPermissions, toolPermissionKey) &&
     sameKeys(left.executeGrants ?? [], right.executeGrants ?? [], executeGrantKey) &&
-    BUDGET_FIELDS.every((field) => left.budget[field] === right.budget[field])
+    BUDGET_FIELDS.every((field) => (left.budgetCaps ?? left.budget ?? {})[field] === right.budget[field])
   );
 }
 
@@ -207,4 +210,19 @@ function toolPermissionKey(grant: ToolPermissionGrant): string {
 
 function executeGrantKey(grant: ExecuteGrant): string {
   return `${grant.command}\u0000${grant.scope}`;
+}
+
+function repoScopesForTier(tier: TierConstraint): readonly RepoScopeGrant[] {
+  if (tier.envelope.repoScopes !== undefined) {
+    return tier.envelope.repoScopes;
+  }
+  if (tier.envelope.allowedScopes === undefined) {
+    return [];
+  }
+
+  return tier.envelope.allowedScopes.map((scope) => ({
+    workspace: "*",
+    path: scope,
+    access: "read"
+  }));
 }

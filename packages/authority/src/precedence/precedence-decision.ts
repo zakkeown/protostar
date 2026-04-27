@@ -38,7 +38,14 @@ export function mintPrecedenceDecision(data: PrecedenceDecisionData): Precedence
 
 function copyTierEnvelope(envelope: TierConstraint["envelope"]): TierConstraint["envelope"] {
   return {
-    ...copyCapabilityEnvelope(envelope),
+    ...(envelope.repoScopes !== undefined ? { repoScopes: envelope.repoScopes.map((grant) => ({ ...grant })) } : {}),
+    ...(envelope.toolPermissions !== undefined
+      ? { toolPermissions: envelope.toolPermissions.map((grant) => ({ ...grant })) }
+      : {}),
+    ...(envelope.executeGrants !== undefined ? { executeGrants: envelope.executeGrants.map((grant) => ({ ...grant })) } : {}),
+    ...(envelope.budget !== undefined ? { budget: { ...envelope.budget } } : {}),
+    ...(envelope.allowedScopes !== undefined ? { allowedScopes: [...envelope.allowedScopes] } : {}),
+    ...(envelope.budgetCaps !== undefined ? { budgetCaps: { ...envelope.budgetCaps } } : {}),
     ...(envelope.deniedTools !== undefined ? { deniedTools: [...envelope.deniedTools] } : {}),
     ...(envelope.trustOverride !== undefined ? { trustOverride: envelope.trustOverride } : {})
   };

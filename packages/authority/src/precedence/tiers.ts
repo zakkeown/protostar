@@ -1,4 +1,4 @@
-import type { CapabilityEnvelope } from "@protostar/intent";
+import type { ExecuteGrant, FactoryBudget, RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
 
 export type TierName = "confirmed-intent" | "policy" | "repo-policy" | "operator-settings";
 
@@ -11,7 +11,13 @@ export const TIER_PRECEDENCE_ORDER: readonly TierName[] = [
 
 export type TrustOverride = "trusted" | "untrusted";
 
-export interface TierEnvelope extends CapabilityEnvelope {
+export interface TierEnvelope {
+  readonly repoScopes?: readonly RepoScopeGrant[];
+  readonly toolPermissions?: readonly ToolPermissionGrant[];
+  readonly executeGrants?: readonly ExecuteGrant[];
+  readonly budget?: FactoryBudget;
+  readonly allowedScopes?: readonly string[];
+  readonly budgetCaps?: FactoryBudget;
   readonly deniedTools?: readonly string[];
   readonly trustOverride?: TrustOverride;
 }
