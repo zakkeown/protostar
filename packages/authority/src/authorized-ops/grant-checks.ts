@@ -34,9 +34,11 @@ export function hasWorkspaceGrant(
       scope.workspace === workspace.root || scope.workspace === "main";
     if (!workspaceMatch) return false;
 
-    // Check path match
+    // Check path match — "." means all paths are covered
     const pathMatch =
-      path === scope.path || path.startsWith(scope.path + "/");
+      scope.path === "." ||
+      path === scope.path ||
+      path.startsWith(scope.path + "/");
     if (!pathMatch) return false;
 
     // Check access level (higher grant covers lower access)

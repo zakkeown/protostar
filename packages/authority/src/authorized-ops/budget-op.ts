@@ -1,4 +1,6 @@
-import type { CapabilityEnvelope } from "@protostar/intent";
+import type { BudgetLimitField, CapabilityEnvelope } from "@protostar/intent";
+
+import { hasBudgetGrant } from "./grant-checks.js";
 
 declare const AuthorizedBudgetOpBrand: unique symbol;
 
@@ -8,6 +10,7 @@ export type BudgetBoundaryName = "subprocess" | "network" | "judge-panel";
 
 export interface AuthorizedBudgetOpData {
   readonly boundary: BudgetBoundaryName;
+  readonly budgetKey: "maxUsd" | "maxTokens" | "timeoutMs" | "maxRepairLoops";
   readonly amount: BudgetUnit;
   readonly resolvedEnvelope: CapabilityEnvelope;
 }
@@ -29,6 +32,10 @@ export function authorizeBudgetOp(input: AuthorizedBudgetOpData): AuthorizeBudge
 
   if (!Number.isFinite(input.amount) || input.amount < 0) {
     errors.push(`budget amount ${input.amount} must be finite and non-negative`);
+  }
+
+  if (!hasBudgetGrant(input.resolvedEnvelope, { budgetKey: input.budgetKey as BudgetLimitField, amount: input.amount })) {
+    errors.push(`resolvedEnvelope.budget[${input.budgetKey}] does not grant amount ${input.amount}; check resolvedEnvelope.budget`);
   }
 
   if (errors.length > 0) return { ok: false, errors };

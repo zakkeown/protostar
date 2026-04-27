@@ -1,5 +1,7 @@
 import type { CapabilityEnvelope } from "@protostar/intent";
 
+import { hasExecuteGrant } from "./grant-checks.js";
+
 declare const AuthorizedSubprocessOpBrand: unique symbol;
 
 export interface AuthorizedSubprocessOpData {
@@ -29,6 +31,10 @@ export function authorizeSubprocessOp(input: AuthorizedSubprocessOpData): Author
 
   if (input.command.includes(" ") || /[;&|`$<>]/.test(input.command)) {
     errors.push(`subprocess command "${input.command}" must not contain shell metacharacters`);
+  }
+
+  if (!hasExecuteGrant(input.resolvedEnvelope, { command: input.command, cwd: input.cwd })) {
+    errors.push(`resolvedEnvelope.executeGrants does not grant command "${input.command}" in cwd "${input.cwd}"; check resolvedEnvelope.executeGrants`);
   }
 
   if (errors.length > 0) return { ok: false, errors };
