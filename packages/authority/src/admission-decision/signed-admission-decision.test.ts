@@ -53,7 +53,7 @@ describe("signed admission decision producer", () => {
       signature: {
         ...signed.signature,
         canonicalForm: "json-c14n@2.0"
-      } as SignatureEnvelope
+      } as unknown as SignatureEnvelope
     } as SignedAdmissionDecisionData<{ readonly foo: string }> as SignedAdmissionDecision<{ readonly foo: string }>;
 
     const result = verifySignedAdmissionDecision(unknownCanonicalForm);
@@ -69,7 +69,7 @@ describe("signed admission decision producer", () => {
       signature: {
         ...signed.signature,
         algorithm: "sha512"
-      } as SignatureEnvelope
+      } as unknown as SignatureEnvelope
     } as SignedAdmissionDecisionData<{ readonly foo: string }> as SignedAdmissionDecision<{ readonly foo: string }>;
 
     const result = verifySignedAdmissionDecision(wrongAlgorithm);
