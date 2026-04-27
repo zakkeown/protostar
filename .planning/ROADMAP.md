@@ -112,7 +112,7 @@ Plans:
 - [x] 03-09-subprocess-runner-PLAN.md — wave 2 — spawn array-form + pre-spawn validation + stream-to-file + rolling tail + flush-on-exit + timeout (Q-09, Q-04)
 - [x] 03-10-clone-and-dirty-and-policy-PLAN.md — wave 2 — TDD: cloneWorkspace (isomorphic-git + onAuth shim + retry-cancel) + dirtyWorktreeStatus (CONFLICT-02 filter) + repo-policy parser + admission-decision JSON schema (Q-04, Q-13, Q-02)
 - [x] 03-11-barrel-and-factory-cli-wiring-PLAN.md — wave 3 — barrel re-exports + INIT_CWD → resolveWorkspaceRoot + clone/audit/dirty/admission-decision-emit/cleanup-or-tombstone wiring into runFactory (Q-15, Q-11)
-- [ ] 03-12-admission-e2e-contract-suite-PLAN.md — wave 4 — five contract tests pinning per-gate evidence shapes: dirty-refusal, symlink-refusal, allowlist-refusal, hash-mismatch refusal, best-effort partial (REPO-05 lead)
+- [x] 03-12-admission-e2e-contract-suite-PLAN.md — wave 4 — five contract tests pinning per-gate evidence shapes: dirty-refusal, symlink-refusal, allowlist-refusal, hash-mismatch refusal, best-effort partial (REPO-05 lead)
 - [ ] 03-13-dogpile-sdk-pin-and-fresh-clone-checkpoint-PLAN.md — wave 5 — pin @dogpile/sdk@0.2.0 on dogpile-types (retain re-export shim) + REPO-08 fresh-clone install checkpoint + 03-VALIDATION.md fill-in (Q-16)
 
 
