@@ -1,6 +1,35 @@
 import type { IntentDraftRepoScopeGrant } from "./models.js";
 
-import { assertTrustedWorkspaceForGrant } from "@protostar/authority";
+// Inline workspace-trust predicate — avoid importing @protostar/authority here
+// because authority depends on intent, creating a circular TS project reference.
+// This mirrors the logic in packages/authority/src/workspace-trust/predicate.ts.
+interface InlineWorkspaceRef {
+  readonly root: string;
+  readonly trust: "trusted" | "untrusted";
+}
+type InlineAccessLevel = "read" | "write" | "execute";
+type InlineExecutionScope = "none" | "workspace-readonly" | "workspace";
+function assertTrustedWorkspaceForGrant(input: {
+  readonly workspace: InlineWorkspaceRef;
+  readonly requestedAccess: InlineAccessLevel;
+  readonly requestedScope?: InlineExecutionScope;
+}): { readonly ok: true } | { readonly ok: false; readonly evidence: { reason: string } } {
+  const { workspace, requestedAccess, requestedScope } = input;
+  if (requestedAccess === "read" && requestedScope !== "workspace") {
+    return { ok: true };
+  }
+  if (workspace.trust !== "trusted") {
+    return {
+      ok: false,
+      evidence: {
+        reason: requestedScope === "workspace"
+          ? `executionScope "workspace" requires trust="trusted"; got "${workspace.trust}"`
+          : `${requestedAccess} access requires trust="trusted"; got "${workspace.trust}"`
+      }
+    };
+  }
+  return { ok: true };
+}
 
 import type { IntentDraftFieldPath } from "./draft-validation.js";
 

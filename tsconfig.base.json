@@ -17,6 +17,8 @@
     "paths": {
       "@protostar/admission-e2e": ["packages/admission-e2e/src/index.ts"],
       "@protostar/artifacts": ["packages/artifacts/src/index.ts"],
+      "@protostar/authority": ["packages/authority/src/index.ts"],
+      "@protostar/authority/internal/test-builders": ["packages/authority/src/internal/test-builders.ts"],
       "@protostar/delivery": ["packages/delivery/src/index.ts"],
       "@protostar/dogpile-adapter": ["packages/dogpile-adapter/src/index.ts"],
       "@protostar/dogpile-types": ["packages/dogpile-types/src/index.ts"],
