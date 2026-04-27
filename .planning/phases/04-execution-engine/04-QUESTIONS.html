@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Phase 4 — Execution Engine — Discussion Questions</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #121a33;
+    --ink: #e8ecf6;
+    --muted: #8b94b1;
+    --accent: #6ea8ff;
+    --green: #22c55e;
+    --green-bg: #0f3a23;
+    --orange: #f97316;
+    --border: #1f2a4a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro", Segoe UI, sans-serif; background: var(--bg); color: var(--ink); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .stats { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .stat { font-size: 13px; }
+  .stat strong { font-size: 18px; display: block; color: var(--accent); }
+  .progress { flex: 1; min-width: 220px; height: 10px; background: #0a1230; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+  .progress > div { height: 100%; background: linear-gradient(90deg, #22c55e, #6ea8ff); width: 0%; transition: width .3s; }
+  .save { background: var(--accent); color: #001034; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .save:hover { filter: brightness(1.1); }
+  .help { color: var(--muted); font-size: 12px; margin: 8px 0 20px; }
+  .section { margin-bottom: 24px; }
+  .section-header { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  .section-header:hover { border-color: var(--accent); }
+  .section-title { font-weight: 600; font-size: 15px; }
+  .section-count { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: border-color .2s, background .2s; }
+  .card.answered { border: 2px solid var(--green); background: linear-gradient(180deg, #0f3a23 0%, var(--panel) 100%); }
+  .badge { display: inline-block; background: #0a1230; color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; margin-right: 6px; }
+  .qtitle { font-weight: 600; margin: 4px 0 6px; }
+  .qctx { color: var(--muted); font-style: italic; font-size: 12px; margin-bottom: 10px; }
+  .options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .opt { display: flex; gap: 8px; padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  .opt:hover { background: #0a1230; }
+  .opt input { margin-top: 3px; flex-shrink: 0; }
+  .opt-label { font-weight: 600; font-size: 13px; }
+  .opt-desc { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .opt input:checked ~ .opt-text .opt-label { color: var(--green); }
+  textarea { width: 100%; min-height: 50px; background: #0a1230; color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font: inherit; resize: vertical; }
+  textarea.has-content { border: 2px solid var(--orange); }
+  textarea::placeholder { color: #4a5478; }
+  .hidden { display: none; }
+  footer { margin-top: 30px; padding: 14px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<h1>Phase 4 — Execution Engine</h1>
+<div class="sub">Discussion questions — power mode. Answer at your own pace, save, then return to Claude and say "refresh" or "finalize".</div>
+
+<div class="stats">
+  <div class="stat">Total<strong id="stat-total">19</strong></div>
+  <div class="stat">Answered<strong id="stat-answered">0</strong></div>
+  <div class="stat">Remaining<strong id="stat-remaining">19</strong></div>
+  <div class="stat">Chat-more<strong id="stat-chatmore">0</strong></div>
+  <div class="progress"><div id="progress-bar"></div></div>
+  <button class="save" onclick="saveJson()">Save answers</button>
+</div>
+<div class="help">After answering, click <strong>Save answers</strong> to download the JSON. Replace <code>04-QUESTIONS.json</code> in the phase directory, then tell Claude "refresh".</div>
+
+<div id="root"></div>
+
+<footer>
+  <div class="help" style="margin:0">Phase: <code>04-execution-engine</code> · 5 sections · 19 questions</div>
+  <button class="save" onclick="saveJson()">Save answers</button>
+</footer>
+
+<script>
+const STATE = {
+  "phase": "04-execution-engine",
+  "generated_at": "2026-04-27T00:00:00Z",
+  "stats": {
+    "total": 19,
+    "answered": 0,
+    "chat_more": 0,
+    "remaining": 19
+  },
+  "sections": [
+    {
+      "id": "state-and-journal",
+      "title": "Task State Machine & Journal (EXEC-01, EXEC-08)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Terminal-state vocabulary",
+          "context": "Existing dry-run uses `pending → running → passed | failed | blocked` (packages/execution/src/index.ts:8). Roadmap EXEC-01 names `pending → running → succeeded | failed | timeout | cancelled`. ROADMAP success criterion: 'Lifecycle events are identical between dry-run and real-execution paths.'",
+          "options": [
+            { "id": "a", "label": "Adopt EXEC-01 vocabulary verbatim", "description": "Rename `passed`→`succeeded`, drop `blocked` (push to a separate plan-graph 'unreachable' status), add `timeout` and `cancelled`. Forces dry-run rename. Heaviest churn but matches the requirement literally." },
+            { "id": "b", "label": "Keep `passed` + extend with `timeout`/`cancelled`", "description": "States: `pending → running → passed | failed | timeout | cancelled | blocked`. Treat 'succeeded' in EXEC-01 as a synonym for the existing `passed`. Zero churn on existing tests; small wording delta from req." },
+            { "id": "c", "label": "Map all non-success terminals to `failed` with a `failureKind`", "description": "Three terminal states only: `passed | failed | blocked`. `failureKind: 'error' | 'timeout' | 'cancelled'` lives on the task record. Lifecycle events stay the existing 5; consumers branch on failureKind. Smallest event surface." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Journal storage format",
+          "context": "EXEC-08 wants 'a crashed run can be resumed from the last persisted task state'. Phase 2 already writes `admission-decisions.jsonl` (append-only) and `runs/{id}/...` per-stage JSON. Subprocess logs are streamed to disk (Phase 3 Q-09).",
+          "options": [
+            { "id": "a", "label": "Append-only JSONL event log", "description": "`runs/{id}/execution/journal.jsonl` — one line per state transition. Resume = replay from start, derive current state. Symmetric with `admission-decisions.jsonl`. Largest disk footprint; trivial atomicity (single append-then-fsync per event)." },
+            { "id": "b", "label": "Per-task JSON state file", "description": "`runs/{id}/execution/task-{planTaskId}/state.json` overwritten on each transition + a separate `runs/{id}/execution/events.jsonl` audit log. Resume = read each state.json. Cleaner per-task inspection; two write paths to keep consistent." },
+            { "id": "c", "label": "Append-only JSONL + periodic snapshot", "description": "Same as (a) plus `snapshot.json` written when N events accumulated. Resume reads snapshot then tails the JSONL. Pays complexity for faster resume on long runs — likely premature for v0.1 cosmetic-tweak loop." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Resume semantics for a task that was `running` when the process died",
+          "context": "If the journal's last record for task X is `task-running` and no terminal event followed, the adapter call may have succeeded, partially succeeded, or never started. Phase 3 makes the workspace a fresh-clone-per-run tombstone (03-CONTEXT.md Q-03) — the patch may or may not have been applied.",
+          "options": [
+            { "id": "a", "label": "Treat `running` as `failed-orphan`, retry from scratch", "description": "On resume, write `task-failed` with reason `orphaned-by-crash`, then re-execute the task fresh. Adapter calls must be idempotent w.r.t. the workspace (which they are — fresh clone, hash-checked patches). Simplest contract; may waste model tokens on a task that already produced a diff." },
+            { "id": "b", "label": "Treat `running` as `cancelled`, do not retry; operator decides", "description": "Resume marks orphans `cancelled`. Operator must explicitly re-run via `protostar-factory resume --retry-orphans` (Phase 9). Safer (no surprise re-execution); requires Phase 9 to expose the flag — for Phase 4 alone, exit with a 'orphan tasks present' refusal artifact." },
+            { "id": "c", "label": "Inspect workspace + journal evidence to decide", "description": "If `evidence.json` exists for the task → mark `passed` (or `failed` per evidence). If absent → retry. Best fidelity but adds non-trivial recovery logic, and 'evidence exists but task didn't finish' is ambiguous when adapter is mid-stream." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Lifecycle event identity vs new states",
+          "context": "Existing dry-run emits `task-pending | task-running | task-passed | task-failed | task-blocked` (packages/execution/src/index.ts:25-29). Phase 5 review loop will subscribe to these. ROADMAP: 'Lifecycle events are identical between dry-run and real-execution paths.'",
+          "options": [
+            { "id": "a", "label": "Add new event types: `task-timeout`, `task-cancelled`, `task-succeeded`", "description": "Pairs with Q-01a. Dry-run emits the new types. Pure but breaks every existing event consumer simultaneously." },
+            { "id": "b", "label": "Keep 5 event types; carry sub-state on the event", "description": "Pairs with Q-01c. `task-failed` carries `failureKind: 'error'|'timeout'|'cancelled'`. Phase 5 branches on the field. Smallest event-surface change; preserves the dry-run contract test." },
+            { "id": "c", "label": "Add only `task-succeeded` as a non-breaking alias", "description": "Pairs with Q-01b. Real executor emits both `task-passed` and `task-succeeded` (or one configurable alias). Avoids both rewordings of dry-run and additional event types — at the cost of a slightly weird duality." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "adapter-contract",
+      "title": "ExecutionAdapter Contract (EXEC-02, EXEC-04)",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "Adapter input/output shape",
+          "context": "EXEC-02 wants 'a typed ExecutionAdapter interface' that doesn't change when adding a second OpenAI-compatible provider (EXEC-04). Phase 3 Q-10 settled patches as `RepoChangeSet.patches: Array<{ path, op, diff, preImageSha256 }>`. Dogpile-adapter is the only existing 'pluggable' surface and is coordination-only.",
+          "options": [
+            { "id": "a", "label": "Single async method: `execute(task, ctx) → AdapterResult`", "description": "`AdapterResult = { kind: 'change-set', changeSet: RepoChangeSet, evidence: AdapterEvidence } | { kind: 'failed', reason, evidence }`. Adapter is a black box; ctx provides `signal: AbortSignal`, `confirmedIntent`, repo readers, budget. Smallest surface; streaming token logs handled inside adapter." },
+            { "id": "b", "label": "Streaming protocol: adapter yields events, returns final result", "description": "`async *execute(task, ctx): AsyncIterable<AdapterEvent>` ending with a `final` event. Lets executor surface live token output to Phase 9 `inspect` and Phase 5 review. Requires more contract surface; harder to mock; v0.1 may not need live streaming." },
+            { "id": "c", "label": "Two-method contract: `prepare()` then `apply()`", "description": "`prepare(task,ctx) → ProposedChangeSet` (model-only, no I/O), then executor calls `repo.applyChangeSet(proposed)` separately. Keeps repo authority crisp (adapter never sees fs). Two failure points to instrument; minor extra plumbing in the run loop." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Pre-image SHA-256 responsibility (Phase 3 Q-10 boundary)",
+          "context": "Phase 3 settled: `RepoChangeSet.patches` carries `preImageSha256` per file, and the repo runner re-hashes pre-image before applying. Question is who computes the hash inside the patch object — adapter or executor.",
+          "options": [
+            { "id": "a", "label": "Adapter computes pre-image SHA via repo-provided reader", "description": "Adapter receives a `repoReader: { readFile(path) → { bytes, sha256 } }` injected from `@protostar/repo`. Adapter outputs the full RepoChangeSet including hashes. Adapter is single source of truth for what it saw." },
+            { "id": "b", "label": "Adapter outputs `path + diff + op` only; executor hashes pre-image before calling repo.applyChangeSet", "description": "Executor reads each path's bytes, hashes, attaches to ChangeSet. Adapter never even reads the workspace — just writes diff text. Tightest authority boundary (matches Q-05c). Risk: drift between when adapter generates and executor hashes — same race that adapter-side hashing also has." },
+            { "id": "c", "label": "Repo runner computes and verifies in one step (no separate adapter hash)", "description": "Adapter hands raw diff to executor; executor passes to `repo.applyChangeSet(diff, expectations: 'best-effort-with-hash-check')`. Repo reads, hashes, applies, returns per-file outcomes. Eliminates one read; loses the 'adapter saw X' evidence." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Provider abstraction layer location",
+          "context": "EXEC-04: 'adding a second OpenAI-compatible endpoint requires no contract change in packages/execution'. Phase 1 lock: domain-first packages, no `utils`/`agents`/`factory` catch-alls (AGENTS.md). Authority lock: `dogpile-adapter` does no I/O — same posture suggests an adapter package per provider family.",
+          "options": [
+            { "id": "a", "label": "New package `@protostar/lmstudio-adapter` implementing ExecutionAdapter", "description": "Mirrors `@protostar/dogpile-adapter` structure. Owns the OpenAI-compatible HTTP client + Qwen-coder prompting. Second provider = sibling package (e.g. `@protostar/openai-adapter`). Cleanest domain split; one new workspace." },
+            { "id": "b", "label": "`@protostar/openai-compatible-adapter` package, configured per provider", "description": "Single adapter package with provider config (base URL, model id, headers). Adding LM Studio vs Ollama = config rows. Risk: collapses providers into one box too early — Qwen-Coder-specific prompting may bleed into a 'shared' adapter." },
+            { "id": "c", "label": "Adapter interface in `@protostar/execution`; LM Studio code in `apps/factory-cli`", "description": "Execution package exports the contract; concrete adapter lives in CLI app where the network capability is granted. Avoids new package; concentrates I/O in the same authority surface that already does fs. Risk: factory-cli (1190 lines today) gets larger; harder for second provider to opt-in without growing the CLI further." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Single-adapter-per-run vs per-task selection",
+          "context": "v0.1 lock: cosmetic-tweak only (`packages/policy/src/admission-paths.ts`). Phase 8 will introduce a multi-judge panel — but judges live on the review side (`packages/evaluation`), not execution. Plan tasks today have no `adapterRef` field.",
+          "options": [
+            { "id": "a", "label": "Single adapter per run, set at run start", "description": "`runFactory` resolves one ExecutionAdapter and passes it to every task. Plan task remains adapter-agnostic. Locks the v0.1 cosmetic-tweak path; second adapter (e.g. echo-mock) chosen by CLI flag for tests." },
+            { "id": "b", "label": "Adapter selected per task by archetype-or-explicit-ref", "description": "Plan task carries optional `adapterRef`; default resolved by archetype (cosmetic-tweak → coder). Adds plan-schema field and admission rule. Forward-compatible with feature-add/refactor archetypes (post-v0.1)." },
+            { "id": "c", "label": "Single adapter per run; per-task override allowed in plan", "description": "Hybrid. v0.1 default is one adapter; plan can specify per-task override and admission validates against allowed set. Most flexible; most surface to test." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "lmstudio-coder",
+      "title": "LM Studio Coder Adapter (EXEC-03)",
+      "questions": [
+        {
+          "id": "Q-09",
+          "title": "LM Studio connection config source",
+          "context": "Lock: 'LM Studio (Qwen3-Coder exec + Qwen3-80B judge)' (MEMORY 2026-04-24). LM Studio runs locally, default OpenAI-compatible at http://localhost:1234/v1. Phase 3 added `.env.example` (Q-17) and `.protostar/repo-policy.json` (Q-02).",
+          "options": [
+            { "id": "a", "label": "Env-only: `LMSTUDIO_BASE_URL`, `LMSTUDIO_MODEL`, `LMSTUDIO_API_KEY`", "description": "All config via env. `.env.example` documents defaults (`http://localhost:1234/v1`, `qwen3-coder-next-mlx-4bit`, `lm-studio` placeholder key). Simplest; matches the Octokit-PAT-via-env pattern coming in Phase 7. Hard to express per-target overrides." },
+            { "id": "b", "label": "`.protostar/factory-config.json` with env override", "description": "New repo-level config file: `{ adapters: { coder: { provider: 'lmstudio', baseUrl, model, apiKeyEnv: 'LMSTUDIO_API_KEY' } } }`. Env can override any field. Discoverable in repo, signs into ConfirmedIntent's policy snapshot. New file to maintain." },
+            { "id": "c", "label": "ConfirmedIntent capability-envelope field", "description": "Add `executionAdapters: { coder: { provider, baseUrl, model } }` to the capability envelope schema. Per-run-immutable, signed by Phase 2. Heaviest schema change (envelope is `1.1.0` → would need bump again); strongest guarantee that the model used is bound to the admission decision." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-10",
+          "title": "Request style — streaming vs single completion",
+          "context": "Qwen3-Coder-Next on LM Studio supports both `/v1/chat/completions` streamed and non-streamed. A cosmetic-tweak diff is small (≤1 file, dozens of lines per the cosmetic archetype). Phase 9 `inspect` will want some kind of progress evidence eventually.",
+          "options": [
+            { "id": "a", "label": "Single non-streaming chat completion", "description": "POST `/v1/chat/completions` with `stream: false`. Simplest parse; one HTTP request → one response object. No live token stream for `inspect` (Phase 9), but adapter evidence can record full response body. Acceptable for cosmetic v0.1." },
+            { "id": "b", "label": "Streaming SSE, persist token log, return final assembled message", "description": "`stream: true`; consume SSE chunks, append to `task-{id}/coder.stream.log`, return final assembled content as the adapter result. Slightly more code; better evidence for review/inspect; matches Phase 3 Q-09 'stream to file + tail in evidence' posture." },
+            { "id": "c", "label": "Structured-output / tool-call mode", "description": "Use OpenAI-compatible `tool_calls` or JSON-mode to force `{ patches: [{ path, op, diff }] }` directly. Eliminates Q-12's parsing problem. Risk: Qwen3-Coder-Next's tool-calling reliability on MLX needs verification — research task for the planner." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Repo context fed to the coder",
+          "context": "The cosmetic-tweak archetype is ≤1 file change. The model needs to know which file(s), the surrounding code, the intent, the AC. ConfirmedIntent already carries `acceptanceCriteria`. Plan task carries title + description.",
+          "options": [
+            { "id": "a", "label": "Plan-task-driven: each task lists target files; adapter reads only those", "description": "Plan tasks carry `targetFiles: string[]` (added to plan schema). Adapter reads listed files via repoReader, includes verbatim in the prompt. No discovery; planner must pre-resolve targets. Predictable token budget." },
+            { "id": "b", "label": "Adapter does a small file-discovery loop", "description": "Adapter receives intent + AC + plan task; calls `repoReader.glob(...)` / `readFile(...)` based on its own decisions, capped by N reads (envelope budget). More autonomous; harder to evidence what it considered; harder to bound tokens." },
+            { "id": "c", "label": "Hybrid: planner specifies anchor files; adapter may read N additional", "description": "Plan task lists primary target; adapter can pull up to N=3 additional files (e.g. nearest test file). Captures the 'I need to see the test too' case without unbounded discovery." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Output parsing strategy",
+          "context": "If Q-10 ≠ structured-output, the model returns free text mixing prose + diff. Real LLM coders historically wander, emit multiple diff blocks, or use ``` ` ``` patch fences. EXEC-03 success: 'produces a non-empty diff for the cosmetic-tweak fixture.'",
+          "options": [
+            { "id": "a", "label": "Strict: a single fenced ```diff block; anything else → adapter-failed", "description": "Regex `^```diff\\n(.+?)\\n```$/sm`. Multiple matches or zero matches → typed adapter failure with the raw response in evidence. Phase 5 repair loop sees a 'parse-failure' verdict and can retry. Forces the prompt to discipline the model — also forces good prompt engineering." },
+            { "id": "b", "label": "Lenient: extract all fenced diff/patch blocks, concatenate", "description": "Accept ```diff, ```patch, ``` (untagged that looks like a diff). Concatenate. Higher first-shot success rate; risk of partially-applied or invalid diffs reaching `applyChangeSet`. Phase 3's hash-check + best-effort policy partly mitigates." },
+            { "id": "c", "label": "Strict + one auto-retry with a 'reformat your previous answer as a single ```diff' message", "description": "Strict parse; on first parse failure, send the same conversation + a 'just emit the patch in one ```diff fence' nudge. Counts as one of the EXEC-06 retries. Costs one round-trip; high recovery rate in practice." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-13",
+          "title": "LM Studio preflight / health check",
+          "context": "First-real-network-call boundary. LM Studio may not be running, may be loaded with a different model, or may be on a different port. Lock: dark factory rings only on hard failures.",
+          "options": [
+            { "id": "a", "label": "GET /v1/models at run-start; refuse run if unreachable or model id missing", "description": "One preflight before any task. Refusal artifact carries `reason: 'lmstudio-unreachable'` or `'model-not-loaded'`. Surfaces the failure at the admission boundary (a hard-failure stop), not mid-run. Matches the dark-factory rule." },
+            { "id": "b", "label": "No preflight; first task call surfaces the error as a normal task failure", "description": "Treat connection error as a task failure caught by retry policy (EXEC-06). After max retries → task `failed`, run `block`. Less ceremony; conflates 'config wrong' with 'model had a bad day'." },
+            { "id": "c", "label": "Preflight as the first task in the plan, not a separate phase", "description": "Add a synthetic `preflight-coder` task to the execution run. Same retry/timeout machinery as real tasks. Uniformity at the cost of putting infra in the plan graph." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "reliability",
+      "title": "Reliability — Retries, Timeouts, Cancellation (EXEC-06, EXEC-07)",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "Retry policy — what's transient, where's the cap",
+          "context": "EXEC-06: 'Retries with exponential backoff for transient adapter failures; capped per task by capability envelope.' Capability envelope is signed (Phase 2). Lock: 5–10 retry-cycle hard cap is for the *review* loop (MEMORY 2026-04-24), not adapter retries.",
+          "options": [
+            { "id": "a", "label": "Retry on HTTP 408/429/5xx + network-error/timeout; never on 4xx other than 408/429", "description": "Standard 'transient' set. Base 1s, cap 16s, max 4 attempts. Cap source: `capabilityEnvelope.budget.adapterRetriesPerTask` (new field, defaults to 4). Skip retry on parse failure (Q-12) — that's a model-content problem." },
+            { "id": "b", "label": "Same as (a) PLUS one 'reformat' retry on parse failure", "description": "Pairs with Q-12c. Parse failure consumes one retry slot with a different prompt; transport errors consume retry slots with same prompt. Covers both classes under one budget." },
+            { "id": "c", "label": "Aggressive: retry any task failure up to N=4, regardless of cause", "description": "Including 5xx, parse, even unexpected adapter throws. Simplest budget logic; risk of burning budget on permanently-bad responses (e.g. model emitting prose-only every time)." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Timeout source and enforcement (EXEC-07)",
+          "context": "Per-task timeout. Possible sources: capability envelope, repo-policy, plan-task field. Cosmetic tweaks on Qwen3-Coder typically complete in 30–120s on M-series MLX.",
+          "options": [
+            { "id": "a", "label": "Capability-envelope `budget.taskWallClockMs` — single value for the whole run", "description": "Signed in ConfirmedIntent. Default 180_000 ms. AbortController fires; HTTP request aborted; task → terminal `timeout`. One knob, signed once." },
+            { "id": "b", "label": "Plan-task `timeoutMs` (with envelope upper-bound)", "description": "Each plan task can declare a timeout; admission caps it at `envelope.budget.taskWallClockMs`. Fine-grained; adds a plan-schema field; planner must reason about per-task time (not realistic for cosmetic v0.1)." },
+            { "id": "c", "label": "Adapter-declared default + envelope override", "description": "Adapter exports `defaultTaskTimeoutMs`; envelope can lower it but not raise. Centralizes per-adapter knowledge (LM Studio coder vs echo-mock have different floors). Slightly indirect." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Cancellation source and mid-task semantics",
+          "context": "Phase 9 will expose `protostar-factory cancel <runId>`. Phase 4 alone needs to define what 'cancelled' means. AbortController is the obvious in-process primitive.",
+          "options": [
+            { "id": "a", "label": "SIGINT only for v0.1; cross-process cancel deferred to Phase 9", "description": "AbortController bound to SIGINT. Operator hits Ctrl-C → in-flight task → `cancelled` + `task-cancelled` event + journal flush. Cross-process cancel = Phase 9 work; Phase 4 leaves a `runs/{id}/CANCEL` sentinel-file hook unused but ready." },
+            { "id": "b", "label": "SIGINT + cancel-sentinel file polled between tasks", "description": "In addition to (a), executor polls `runs/{id}/CANCEL` between tasks. Phase 9 just writes the file. v0.1 ships with the file-watcher infra unused but proven." },
+            { "id": "c", "label": "Full Phase 9 cancel surface in Phase 4", "description": "Implement `cancel` IPC in Phase 4. Scope creep — pushed into Phase 9 by ROADMAP; flag if anyone asks." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "evidence-and-authority",
+      "title": "Evidence Capture & Network Authority (EXEC-05)",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "`evidence.json` schema",
+          "context": "EXEC-05 wants `task-<id>/stdout.log`, `stderr.log`, `evidence.json`. Phase 3 Q-09 settled subprocess capture with `stdoutTail/stderrTail` + paths. Phase 5 review loop will read evidence; Phase 8 evaluation will read it too. Existing `StageArtifactRef` is the cross-stage reference type.",
+          "options": [
+            { "id": "a", "label": "Minimal: identifiers + outcome + StageArtifactRef[] to the logs/diff", "description": "`{ adapter, model, taskId, status, attempts, durationMs, diffArtifact: StageArtifactRef, stdoutArtifact, stderrArtifact, reason? }`. All bulky content (prompt, response, diff) lives in artifact files; evidence.json stays small. Symmetric with how admission-decisions reference signed-intent." },
+            { "id": "b", "label": "Inline prompt + response tails + outcome", "description": "Adds `promptTail`, `responseTail`, `tokensUsed`, `errorChain[]` inline. Easier human inspection; bigger files; harder to diff across runs." },
+            { "id": "c", "label": "Two files: `evidence.json` (meta only) + `transcript.json` (prompt+response+tokens)", "description": "Splits structural vs content evidence. Phase 5 mechanical review reads only evidence.json; Phase 8 semantic review pulls transcript.json. Cleaner; one extra file path per task." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-18",
+          "title": "LM Studio loopback as AuthorizedNetworkOp",
+          "context": "Phase 2 minted `AuthorizedNetworkOp` (packages/authority/src/authorized-ops/network-op.ts). It validates http/https URLs against the resolved envelope but has no policy on hosts. LM Studio is `http://localhost:1234`. Lock: heterogeneous-local judges; no cloud LLMs in v0.1.",
+          "options": [
+            { "id": "a", "label": "Envelope `network.allowedHosts: ['localhost', '127.0.0.1']` enforced at mint time", "description": "Default envelope for v0.1 only allows loopback. Authority package extends `authorizeNetworkOp` to check host against `resolvedEnvelope.network.allowedHosts`. Cloud judges (when added) require explicit envelope grant. Strongest default-deny." },
+            { "id": "b", "label": "Envelope `network.allow: 'loopback' | 'allowlist'` enum", "description": "Three modes: `'none'`, `'loopback'`, `'allowlist'`. Phase 4 v0.1 sets `'loopback'`. Phase 7 (Octokit) flips to `'allowlist'` with `api.github.com`. Cleaner step-up story for Phase 7." },
+            { "id": "c", "label": "Defer host policy to Phase 7 — Phase 4 trusts the URL coming from envelope", "description": "Phase 4 just authorizeNetworkOp(url) and proceeds. Phase 7 adds host allowlisting when GitHub enters the picture. Speeds Phase 4 by ~1 plan; leaves the loopback default-deny gap until Phase 7." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-19",
+          "title": "Diff application boundary inside the run loop",
+          "context": "Phase 3 owns `repo.applyChangeSet`. Phase 4's task loop must call it. Question is when — adapter returns ChangeSet → executor immediately applies; or adapter returns ChangeSet → executor stages all tasks then applies in one transaction.",
+          "options": [
+            { "id": "a", "label": "Apply per task immediately after adapter returns", "description": "Executor: adapter.execute → repo.applyChangeSet → mark task succeeded/failed. Subsequent tasks see prior tasks' changes (sequential cosmetic edits compose). Matches Phase 3 'fresh-clone tombstone is the rollback'." },
+            { "id": "b", "label": "Stage all change-sets, apply at end of run", "description": "Adapters all run first; one big applyChangeSet at the end. Aborted runs leave zero workspace mutation. Doesn't compose across tasks (Task 2 can't see Task 1's edit). Wrong for v0.1 cosmetic single-task; could matter later." },
+            { "id": "c", "label": "Apply per task; bail run on first apply failure", "description": "Variant of (a) where any `applyChangeSet` failure (hash mismatch, etc.) stops the run with `block`. Symmetric with Phase 3 best-effort policy at the file level — strict at the run level." }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    }
+  ]
+}
+;
+
+function render() {
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  for (const section of STATE.sections) {
+    const sec = document.createElement('div');
+    sec.className = 'section';
+    const answered = section.questions.filter(q => q.answer != null && q.answer !== '').length;
+    const head = document.createElement('div');
+    head.className = 'section-header';
+    head.innerHTML = `<div class="section-title">${escapeHtml(section.title)}</div><div class="section-count">${answered}/${section.questions.length} answered</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    head.onclick = () => grid.classList.toggle('hidden');
+    sec.appendChild(head);
+    sec.appendChild(grid);
+    for (const q of section.questions) {
+      grid.appendChild(renderQuestion(q));
+    }
+    root.appendChild(sec);
+  }
+  refreshStats();
+}
+
+function renderQuestion(q) {
+  const card = document.createElement('div');
+  card.className = 'card' + (q.answer ? ' answered' : '');
+  card.dataset.qid = q.id;
+  let html = `<div><span class="badge">${q.id}</span><span class="qtitle">${escapeHtml(q.title)}</span></div>`;
+  if (q.context) html += `<div class="qctx">${escapeHtml(q.context)}</div>`;
+  html += '<div class="options">';
+  for (const opt of q.options) {
+    const checked = q.answer === opt.id ? 'checked' : '';
+    html += `<label class="opt"><input type="radio" name="${q.id}" value="${opt.id}" ${checked} onchange="setAnswer('${q.id}', this.value)" /><div class="opt-text"><div class="opt-label">${escapeHtml(opt.label)}</div>${opt.description ? `<div class="opt-desc">${escapeHtml(opt.description)}</div>` : ''}</div></label>`;
+  }
+  html += '</div>';
+  html += `<textarea placeholder="Add context, nuance, or clarification for this question..." oninput="setChatMore('${q.id}', this.value)" class="${q.chat_more ? 'has-content' : ''}">${escapeHtml(q.chat_more || '')}</textarea>`;
+  card.innerHTML = html;
+  return card;
+}
+
+function setAnswer(qid, value) {
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      if (q.id === qid) {
+        q.answer = value;
+        q.status = (value != null && value !== '') ? 'answered' : (q.chat_more ? 'chat-more' : 'unanswered');
+      }
+    }
+  }
+  render();
+}
+
+function setChatMore(qid, value) {
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      if (q.id === qid) {
+        q.chat_more = value;
+        if (!q.answer) q.status = value ? 'chat-more' : 'unanswered';
+      }
+    }
+  }
+  // update card border without full re-render
+  const card = document.querySelector(`.card[data-qid="${qid}"] textarea`);
+  if (card) card.classList.toggle('has-content', !!value);
+  refreshStats();
+}
+
+function refreshStats() {
+  let total = 0, answered = 0, chatMore = 0;
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      total++;
+      if (q.answer != null && q.answer !== '') answered++;
+      if (q.chat_more) chatMore++;
+    }
+  }
+  STATE.stats = { total, answered, chat_more: chatMore, remaining: total - answered };
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-answered').textContent = answered;
+  document.getElementById('stat-remaining').textContent = total - answered;
+  document.getElementById('stat-chatmore').textContent = chatMore;
+  document.getElementById('progress-bar').style.width = (total ? (answered * 100 / total) : 0) + '%';
+}
+
+function saveJson() {
+  refreshStats();
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '03-QUESTIONS.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+render();
+</script>
+</body>
+</html>
