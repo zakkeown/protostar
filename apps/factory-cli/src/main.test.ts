@@ -78,6 +78,151 @@ const executionAndReviewArtifactFiles = [
 ] as const;
 
 describe("factory CLI draft admission hardening", () => {
+  it("refuses trusted launch without confirmed intent before runFactory gates", async () => {
+    await withTempDir(async (tempDir) => {
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_two_key_missing_confirmed_intent";
+
+      await writeJson(draftPath, clearCosmeticDraft());
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--run-id",
+        runId,
+        "--trust",
+        "trusted"
+      ]);
+
+      assert.equal(result.exitCode, 2);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /two-key launch/);
+      assert.equal(await pathExists(resolve(outDir, runId, "trust-refusal.json")), true);
+      assert.equal(await pathExists(resolve(outDir, runId, "intent-admission-decision.json")), false);
+      await assertRefusalTriple({
+        tempDir,
+        outDir,
+        runId,
+        expectedStage: "workspace-trust",
+        expectedRefusalArtifact: "trust-refusal.json"
+      });
+    });
+  });
+
+  it("propagates trusted workspace when both launch keys are provided", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_two_key_trusted_success";
+
+      await writeJson(draftPath, draft);
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+      const workspaceTrustDecision = await readJsonObject(resolve(outDir, runId, "workspace-trust-admission-decision.json"));
+      const evidence = readObjectProperty(workspaceTrustDecision, "evidence");
+      assert.equal(evidence["declaredTrust"], "trusted");
+    });
+  });
+
+  it("defaults workspace trust to untrusted when no trust flag is provided", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_default_untrusted";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+      const workspaceTrustDecision = await readJsonObject(resolve(outDir, runId, "workspace-trust-admission-decision.json"));
+      const evidence = readObjectProperty(workspaceTrustDecision, "evidence");
+      assert.equal(evidence["declaredTrust"], "untrusted");
+    });
+  });
+
+  it("does not contain the hardcoded trusted workspace literal in main.ts", async () => {
+    const source = await readFile(resolve(repoRoot, "apps/factory-cli/src/main.ts"), "utf8");
+
+    assert.equal(source.includes('trust: "trusted"'), false);
+    assert.match(source, /trust:\s*options\.trust/);
+  });
+
+  it("writes an escalation marker and exits 2 for escalate outcomes", async () => {
+    await withTempDir(async (tempDir) => {
+      const draftPath = resolve(tempDir, "policy-overage.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_escalation_marker";
+
+      await writeJson(draftPath, policyBlockedDraft());
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 2);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Draft intent refused by admission gate\./);
+      const marker = await readJsonObject(resolve(outDir, runId, "escalation-marker.json"));
+      assert.equal(marker["schemaVersion"], "1.0.0");
+      assert.equal(marker["runId"], runId);
+      assert.equal(marker["gate"], "intent");
+      assert.equal(marker["awaiting"], "operator-confirm");
+      assert.equal(await pathExists(resolve(outDir, runId, "terminal-status.json")), false);
+      assert.equal(await pathExists(resolve(outDir, "..", "refusals.jsonl")), false);
+    });
+  });
+
   it("writes all 5 gates admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
@@ -1590,7 +1735,7 @@ describe("factory CLI draft admission hardening", () => {
         label: "escalate",
         draft: policyBlockedDraft(),
         runId: "run_cli_admission_decision_escalate",
-        expectedExitCode: 1,
+        expectedExitCode: 2,
         expectedDecision: "escalate",
         expectedAdmitted: false,
         expectedGate: {
@@ -2873,7 +3018,7 @@ async function assertRefusalTriple(input: {
   readonly tempDir: string;
   readonly outDir: string;
   readonly runId: string;
-  readonly expectedStage: "intent" | "planning";
+  readonly expectedStage: "intent" | "planning" | "workspace-trust";
   readonly expectedRefusalArtifact: string;
 }): Promise<void> {
   const runDir = resolve(input.outDir, input.runId);
