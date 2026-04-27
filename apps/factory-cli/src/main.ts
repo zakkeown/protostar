@@ -66,6 +66,7 @@ import {
 } from "@protostar/review";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
+import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
 import { loadRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
 import {
@@ -1409,32 +1410,15 @@ function formatPromotionFailure(result: ReturnType<typeof promoteIntentDraft>): 
   ].join(" ");
 }
 
-function parseFlags(args: readonly string[]): Record<string, string | undefined> | string {
-  const flags: Record<string, string | undefined> = {};
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === undefined) {
-      continue;
+function parseFlags(args: readonly string[]): ParsedCliArgs | string {
+  try {
+    return parseCliArgs(args);
+  } catch (error: unknown) {
+    if (error instanceof ArgvError) {
+      return error.message;
     }
-    if (!arg.startsWith("--")) {
-      return `Unexpected positional argument: ${arg}`;
-    }
-
-    const name = flagName(arg);
-    const value = args[index + 1];
-    if (value === undefined || value.startsWith("--")) {
-      return `Missing value for ${arg}.`;
-    }
-    flags[name] = value;
-    index += 1;
+    throw error;
   }
-
-  return flags;
-}
-
-function flagName(flag: string): string {
-  return flag.slice(2).replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
 function parseFailTaskIds(value: string | undefined): readonly string[] {
