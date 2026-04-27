@@ -63,6 +63,21 @@ Plans:
 
 **Notes:** Builds directly on existing `packages/policy/src/admission.ts`, `capability-admission.ts`, `repo-scope-admission.ts`. GOV-06 (signed intent) is new and gates Phase 3.
 
+**Plans:** 10 plans across 5 waves (parallel within wave)
+
+Plans:
+- [ ] 02-01-authority-package-skeleton-PLAN.md — wave 0 — `@protostar/authority` workspace skeleton + 5 schema files (zero-fs from day one)
+- [ ] 02-02-authorized-op-brands-PLAN.md — wave 1 — 4 AuthorizedOp brands (workspace/subprocess/network/budget) + budget tracker/aggregator interfaces (Q-05, Q-06, Q-07)
+- [ ] 02-03-signature-envelope-extension-PLAN.md — wave 1 — extend SignatureEnvelope with canonicalForm; widen confirmed-intent.schema.json to enum [1.0.0, 1.1.0] (Q-18, A8)
+- [ ] 02-04-precedence-kernel-PLAN.md — wave 2 — intersectEnvelopes + PrecedenceDecision brand + parseRepoPolicy + DENY_ALL_REPO_POLICY (A3 default-DENY lock)
+- [ ] 02-05-canonicalize-and-signature-PLAN.md — wave 2 — json-c14n@1.0 canonicalizer + buildSignatureEnvelope + verifyConfirmedIntentSignature single helper (Q-15, Q-16, Q-17, Q-18)
+- [ ] 02-06-admission-decision-base-PLAN.md — wave 2 — AdmissionDecisionBase + SignedAdmissionDecision brand + 5 per-gate evidence schemas (Q-13, Q-14)
+- [ ] 02-07-factory-cli-per-gate-writer-PLAN.md — wave 3 — runFactory wires precedence + per-gate triple-write + signed intent + policy-snapshot + admission-decisions.jsonl (Q-04, Q-14)
+- [ ] 02-08-two-key-launch-and-escalate-PLAN.md — wave 3 — `--trust`/`--confirmed-intent` flags + remove hardcoded trust at main.ts:335 + escalation-marker.json (Q-11, Q-12, A4, A5, A6)
+- [ ] 02-09-stage-reader-and-repo-runtime-PLAN.md — wave 4 — createAuthorityStageReader (FsAdapter-injected, legacy fallback) + assertTrustedWorkspaceForGrant predicate + packages/repo runtime trust check (Q-09, Q-10)
+- [ ] 02-10-admission-e2e-contract-suite-PLAN.md — wave 4 — 6 per-brand contract tests + authority-no-fs regression + signed-intent e2e (Q-08)
+
+
 ## Phase 3 — Repo Runtime + Sandbox
 
 **Goal:** The repo boundary is real. `packages/repo` actually clones, branches, reads/writes within caps, applies patches atomically, and rolls back on failure. This is where the dark factory starts touching matter.
