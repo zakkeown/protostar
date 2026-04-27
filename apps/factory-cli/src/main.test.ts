@@ -1996,7 +1996,7 @@ describe("factory CLI draft admission hardening", () => {
         "brownfield"
       ]);
 
-      assert.equal(result.exitCode, 1);
+      assert.equal(result.exitCode, 2);
       assert.equal(result.stdout, "");
       assert.match(result.stderr, /Draft intent refused by admission gate\./);
       assert.match(result.stderr, /Policy findings:/);
@@ -2009,6 +2009,9 @@ describe("factory CLI draft admission hardening", () => {
       assert.equal(admissionGate["requiredChecklistPassed"], true);
       assert.equal(admissionGate["ambiguityPassed"], false);
       assert.equal(admissionGate["policyPassed"], false);
+      const marker = await readJsonObject(resolve(outDir, runId, "escalation-marker.json"));
+      assert.equal(marker["gate"], "intent");
+      assert.equal(marker["awaiting"], "operator-confirm");
       await assertIntentOutputFilesSuppressed(outDir, runId);
       assert.equal(await pathExists(confirmedIntentOutputPath), false);
     });

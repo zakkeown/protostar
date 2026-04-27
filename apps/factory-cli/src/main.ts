@@ -67,6 +67,7 @@ import {
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
+import { writeEscalationMarker } from "./escalation-marker.js";
 import { loadRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
 import {
@@ -82,15 +83,18 @@ import {
   writePolicySnapshot,
   writePrecedenceDecision
 } from "./write-admission-decision.js";
+import { validateTwoKeyLaunch, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
 
 export interface RunCommandOptions {
   readonly intentDraftPath: string;
   readonly confirmedIntentOutputPath?: string;
+  readonly confirmedIntent?: string;
   readonly outDir: string;
   readonly planningFixturePath: string;
   readonly failTaskIds: readonly string[];
   readonly intentMode: IntentAmbiguityMode;
   readonly runId?: string;
+  readonly trust?: "untrusted" | "trusted";
 }
 
 export interface RunCommandResult {
@@ -160,6 +164,26 @@ async function main(): Promise<void> {
     return;
   }
 
+  const twoKeyLaunch = validateTwoKeyLaunch({
+    trust: command.options.trust ?? "untrusted",
+    ...(command.options.confirmedIntent !== undefined ? { confirmedIntent: command.options.confirmedIntent } : {})
+  });
+  if (!twoKeyLaunch.ok) {
+    const workspaceRoot = process.env["INIT_CWD"] ?? process.cwd();
+    const outDir = resolve(workspaceRoot, command.options.outDir);
+    const runId = command.options.runId ?? createLaunchRefusalRunId();
+    const runDir = resolve(outDir, runId);
+    await writeTwoKeyLaunchRefusalArtifacts({
+      runDir,
+      outDir,
+      runId,
+      refusal: twoKeyLaunch.refusal
+    });
+    console.error(twoKeyLaunch.refusal.reason);
+    process.exitCode = 2;
+    return;
+  }
+
   const result = await runFactory(command.options);
   console.log(JSON.stringify(result.intent, null, 2));
 }
@@ -211,6 +235,20 @@ export async function runFactory(
       precedenceDecision: noConflictPrecedenceDecisionForDraft()
     });
     const reason = formatPromotionFailure(promotedIntent);
+    if (admissionDecision.decision === "escalate") {
+      await writeEscalationMarker({
+        runDir,
+        marker: {
+          schemaVersion: "1.0.0",
+          runId,
+          gate: "intent",
+          reason,
+          createdAt: new Date().toISOString(),
+          awaiting: "operator-confirm"
+        }
+      });
+      throw new CliExitError(reason, 2);
+    }
     await writeRefusalArtifacts({
       runDir,
       outDir,
@@ -402,7 +440,7 @@ export async function runFactory(
   });
   const workspace = defineWorkspace({
     root: workspaceRoot,
-    trust: "trusted",
+    trust: options.trust ?? "untrusted",
     defaultBranch: "main"
   });
   const execution = dependencies.prepareExecutionRun({
@@ -1343,9 +1381,51 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       ...(confirmedIntentOutputPathValidation.path !== undefined
         ? { confirmedIntentOutputPath: confirmedIntentOutputPathValidation.path }
         : {}),
-      ...(flags.runId !== undefined ? { runId: flags.runId } : {})
+      ...(flags.confirmedIntent !== undefined ? { confirmedIntent: flags.confirmedIntent } : {}),
+      ...(flags.runId !== undefined ? { runId: flags.runId } : {}),
+      trust: flags.trust
     }
   };
+}
+
+async function writeTwoKeyLaunchRefusalArtifacts(input: {
+  readonly runDir: string;
+  readonly outDir: string;
+  readonly runId: string;
+  readonly refusal: TwoKeyLaunchRefusal;
+}): Promise<void> {
+  await mkdir(input.runDir, { recursive: true });
+  await writeJson(resolve(input.runDir, "trust-refusal.json"), {
+    schemaVersion: "1.0.0",
+    artifact: "trust-refusal.json",
+    runId: input.runId,
+    stage: "workspace-trust",
+    reason: input.refusal.reason,
+    missingFlag: input.refusal.missingFlag,
+    provided: input.refusal.provided
+  });
+  await writeRefusalArtifacts({
+    runDir: input.runDir,
+    outDir: input.outDir,
+    runId: input.runId,
+    stage: "workspace-trust",
+    reason: input.refusal.reason,
+    refusalArtifact: "trust-refusal.json"
+  });
+}
+
+function createLaunchRefusalRunId(): string {
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  return `run_${timestamp}_workspace_trust`;
+}
+
+class CliExitError extends Error {
+  constructor(
+    message: string,
+    readonly exitCode: number
+  ) {
+    super(message);
+  }
 }
 
 function validateConfirmedIntentOutputPath(value: string | undefined):
@@ -1479,6 +1559,6 @@ function isCliEntrypoint(): boolean {
 if (isCliEntrypoint()) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
+    process.exitCode = error instanceof CliExitError ? error.exitCode : 1;
   });
 }
