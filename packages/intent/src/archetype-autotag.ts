@@ -1,10 +1,12 @@
-import type { IntentDraft, IntentDraftFieldPath } from "@protostar/intent";
+import type { IntentDraft } from "./models.js";
+
+import type { IntentDraftFieldPath } from "./draft-validation.js";
 
 import { SUPPORTED_GOAL_ARCHETYPES } from "./archetypes.js";
 
 import type { GoalArchetype, IntentArchetypeAutoTagScore, IntentArchetypeAutoTagSignal, IntentArchetypeAutoTagSignalSource, IntentArchetypeAutoTagSuggestion } from "./archetypes.js";
 
-import { isKnownGoalArchetype, normalizeText, roundScore, uniqueBy, uniqueOrdered } from "./shared.js";
+import { isKnownGoalArchetype, normalizeText, roundScore, uniqueBy, uniqueOrdered } from "./admission-shared.js";
 
 export function autoTagIntentDraftArchetype(draft: IntentDraft): IntentArchetypeAutoTagSuggestion {
   const signals = collectIntentArchetypeAutoTagSignals(draft);

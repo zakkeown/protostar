@@ -1,6 +1,12 @@
-import type { FactoryStage } from "@protostar/artifacts";
+import type { CapabilityEnvelope } from "./capability-envelope.js";
 
-import type { CapabilityEnvelope, IntentDraftFieldPath, RiskLevel, ToolPermissionLevel } from "@protostar/intent";
+import type { IntentDraftFieldPath } from "./draft-validation.js";
+
+import type { RiskLevel, ToolPermissionLevel } from "./models.js";
+
+// Local mirror of @protostar/artifacts.FactoryStage to avoid an intent ↔ artifacts dependency cycle
+// (artifacts already imports IntentId from intent). The string union must stay byte-equivalent.
+type FactoryStage = "intent" | "planning" | "execution" | "review" | "release";
 
 export interface FactoryAutonomyPolicy {
   readonly allowDarkRun: boolean;

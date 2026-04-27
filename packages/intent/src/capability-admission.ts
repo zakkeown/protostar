@@ -1,12 +1,12 @@
-import type { IntentDraft } from "@protostar/intent";
+import type { IntentDraft } from "./models.js";
 
-import type { AdmitBugfixCapabilityEnvelopeInput, AdmitBugfixCapabilityEnvelopeResult, AdmitCosmeticTweakCapabilityEnvelopeInput, AdmitCosmeticTweakCapabilityEnvelopeResult, AdmitFeatureAddCapabilityEnvelopeInput, AdmitFeatureAddCapabilityEnvelopeResult, AdmitRefactorCapabilityEnvelopeInput, AdmitRefactorCapabilityEnvelopeResult, CapabilityEnvelopeBudgetLimitViolation, CapabilityEnvelopeExecuteGrantViolation, CapabilityEnvelopeOverageDetection, CapabilityEnvelopeToolPermissionViolation, DetectCapabilityEnvelopeOveragesInput, IntentAdmissionPolicyFinding, ValidateIntentDraftCapabilityEnvelopeAdmissionInput, ValidateIntentDraftCapabilityEnvelopeAdmissionResult } from "./admission-contracts.js";
+import type { AdmitBugfixCapabilityEnvelopeInput, AdmitBugfixCapabilityEnvelopeResult, AdmitCosmeticTweakCapabilityEnvelopeInput, AdmitCosmeticTweakCapabilityEnvelopeResult, AdmitFeatureAddCapabilityEnvelopeInput, AdmitFeatureAddCapabilityEnvelopeResult, AdmitRefactorCapabilityEnvelopeInput, AdmitRefactorCapabilityEnvelopeResult, CapabilityEnvelopeBudgetLimitViolation, CapabilityEnvelopeExecuteGrantViolation, CapabilityEnvelopeOverageDetection, CapabilityEnvelopeToolPermissionViolation, DetectCapabilityEnvelopeOveragesInput, IntentAdmissionPolicyFinding, ValidateIntentDraftCapabilityEnvelopeAdmissionInput, ValidateIntentDraftCapabilityEnvelopeAdmissionResult } from "./promotion-contracts.js";
 
 import { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, REFACTOR_GOAL_ARCHETYPE } from "./archetypes.js";
 
 import type { GoalArchetypePolicyEntry } from "./archetypes.js";
 
-import { authorityJustificationField, isKnownGoalArchetype, normalizeAuthorityJustification, normalizeText, uniqueOrdered } from "./shared.js";
+import { authorityJustificationField, isKnownGoalArchetype, normalizeAuthorityJustification, normalizeText, uniqueOrdered } from "./admission-shared.js";
 
 import { bugfixAdmissionPathFindings, bugfixWrongPathFindings, cosmeticTweakAdmissionPathFindings, createBugfixUnsupportedDecision, createFeatureAddUnsupportedDecision, createRefactorUnsupportedDecision, evaluateGoalArchetypePolicySelection, featureAddAdmissionPathFindings, featureAddWrongPathFindings, refactorAdmissionPathFindings, refactorWrongPathFindings } from "./admission-paths.js";
 

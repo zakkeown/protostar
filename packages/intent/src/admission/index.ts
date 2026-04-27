@@ -1,8 +1,3 @@
-// Plan 06a: every promotion-side, archetype, and capability-admission name now sources
-// from @protostar/intent. This file preserves @protostar/policy's public surface
-// byte-equivalent (only `from` paths changed) so downstream consumers continue to
-// resolve every name they previously imported.
-
 export {
   ARCHETYPE_POLICY_TABLE,
   BUGFIX_GOAL_ARCHETYPE,
@@ -15,7 +10,7 @@ export {
   SUPPORTED_GOAL_ARCHETYPES,
   V0_0_1_INTENT_ARCHETYPE_IDS,
   V0_0_1_INTENT_ARCHETYPE_REGISTRY
-} from "@protostar/intent";
+} from "../archetypes.js";
 export type {
   FactoryAutonomyPolicy,
   GoalArchetype,
@@ -44,8 +39,32 @@ export type {
   IntentArchetypeSupportStatus,
   RepoAccessLevel,
   V001IntentArchetypeId
-} from "@protostar/intent";
-
+} from "../archetypes.js";
+export {
+  autoTagIntentDraftArchetype,
+  proposeIntentDraftArchetype
+} from "../archetype-autotag.js";
+export {
+  admitBugfixCapabilityEnvelope,
+  admitCosmeticTweakCapabilityEnvelope,
+  admitFeatureAddCapabilityEnvelope,
+  admitRefactorCapabilityEnvelope,
+  detectCapabilityEnvelopeOverages,
+  evaluateIntentDraftPolicy,
+  validateIntentDraftCapabilityEnvelopeAdmission
+} from "../capability-admission.js";
+export { normalizeDraftCapabilityEnvelope } from "../capability-normalization.js";
+export {
+  validateCapabilityEnvelopeBudgetLimits,
+  validateCapabilityEnvelopeExecuteGrants,
+  validateCapabilityEnvelopeToolPermissions
+} from "../capability-grant-admission.js";
+export {
+  evaluateRepoScopeAdmission,
+  validateCapabilityEnvelopeRepoScopes,
+  validateCapabilityEnvelopeWriteGrants
+} from "../repo-scope-admission.js";
+export { evaluateIntentAmbiguityAdmission, promoteIntentDraft } from "../promote-intent-draft.js";
 export {
   CAPABILITY_ENVELOPE_BUDGET_LIMIT_VIOLATION_CODES,
   CAPABILITY_ENVELOPE_EXECUTE_GRANT_VIOLATION_CODES,
@@ -56,7 +75,7 @@ export {
   LOW_CONFIDENCE_GOAL_ARCHETYPE_POLICY_CODE,
   MANUAL_UNJUSTIFIED_ACCEPTANCE_CRITERION_POLICY_CODE,
   REPO_SCOPE_ADMISSION_REASON_CODES
-} from "@protostar/intent";
+} from "../promotion-contracts.js";
 export type {
   AdmitBugfixCapabilityEnvelopeInput,
   AdmitBugfixCapabilityEnvelopeResult,
@@ -126,43 +145,4 @@ export type {
   ValidateCapabilityEnvelopeWriteGrantsResult,
   ValidateIntentDraftCapabilityEnvelopeAdmissionInput,
   ValidateIntentDraftCapabilityEnvelopeAdmissionResult
-} from "@protostar/intent";
-
-// Admission-decision artifact constants and types still source from the policy package.
-export {
-  ADMISSION_DECISION_ARTIFACT_NAME,
-  ADMISSION_DECISION_OUTCOMES,
-  ADMISSION_DECISION_SCHEMA_VERSION
-} from "./admission-contracts.js";
-export type {
-  AdmissionDecisionAmbiguityDetail,
-  AdmissionDecisionArtifactDetails,
-  AdmissionDecisionArtifactPayload,
-  AdmissionDecisionGateSummary,
-  AdmissionDecisionOutcome,
-  CreateAdmissionDecisionArtifactInput
-} from "./admission-contracts.js";
-
-export { authorizeFactoryStart, createAdmissionDecisionArtifact, evaluateIntentAmbiguityAdmission, promoteIntentDraft } from "./admission.js";
-export type { PolicyVerdict } from "./admission.js";
-
-export { autoTagIntentDraftArchetype, proposeIntentDraftArchetype } from "@protostar/intent";
-export {
-  admitBugfixCapabilityEnvelope,
-  admitCosmeticTweakCapabilityEnvelope,
-  admitFeatureAddCapabilityEnvelope,
-  admitRefactorCapabilityEnvelope,
-  detectCapabilityEnvelopeOverages,
-  evaluateIntentDraftPolicy,
-  validateIntentDraftCapabilityEnvelopeAdmission
-} from "@protostar/intent";
-export {
-  evaluateRepoScopeAdmission,
-  validateCapabilityEnvelopeRepoScopes,
-  validateCapabilityEnvelopeWriteGrants
-} from "@protostar/intent";
-export {
-  validateCapabilityEnvelopeBudgetLimits,
-  validateCapabilityEnvelopeExecuteGrants,
-  validateCapabilityEnvelopeToolPermissions
-} from "@protostar/intent";
+} from "../promotion-contracts.js";

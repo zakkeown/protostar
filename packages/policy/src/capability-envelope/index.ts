@@ -1,3 +1,7 @@
+// Plan 06a: capability-admission, capability-normalization, capability-grant-admission,
+// repo-scope-admission, and the overage/violation type families relocated to
+// @protostar/intent. This subbarrel preserves the @protostar/policy/capability-envelope
+// import surface byte-equivalent.
 export {
   CAPABILITY_ENVELOPE_BUDGET_LIMIT_FIELDS,
   CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_ADMISSION_FAILURE_CODES,
@@ -32,7 +36,7 @@ export {
   CAPABILITY_ENVELOPE_TOOL_PERMISSION_VIOLATION_CODES,
   CAPABILITY_ENVELOPE_WRITE_GRANT_VIOLATION_CODES,
   REPO_SCOPE_ADMISSION_REASON_CODES
-} from "../admission-contracts.js";
+} from "@protostar/intent";
 export type {
   AdmitBugfixCapabilityEnvelopeInput,
   AdmitBugfixCapabilityEnvelopeResult,
@@ -83,7 +87,7 @@ export type {
   ValidateCapabilityEnvelopeWriteGrantsResult,
   ValidateIntentDraftCapabilityEnvelopeAdmissionInput,
   ValidateIntentDraftCapabilityEnvelopeAdmissionResult
-} from "../admission-contracts.js";
+} from "@protostar/intent";
 export {
   admitBugfixCapabilityEnvelope,
   admitCosmeticTweakCapabilityEnvelope,
@@ -92,15 +96,15 @@ export {
   detectCapabilityEnvelopeOverages,
   evaluateIntentDraftPolicy,
   validateIntentDraftCapabilityEnvelopeAdmission
-} from "../capability-admission.js";
-export { normalizeDraftCapabilityEnvelope } from "../capability-normalization.js";
+} from "@protostar/intent";
+export { normalizeDraftCapabilityEnvelope } from "@protostar/intent";
 export {
   validateCapabilityEnvelopeBudgetLimits,
   validateCapabilityEnvelopeExecuteGrants,
   validateCapabilityEnvelopeToolPermissions
-} from "../capability-grant-admission.js";
+} from "@protostar/intent";
 export {
   evaluateRepoScopeAdmission,
   validateCapabilityEnvelopeRepoScopes,
   validateCapabilityEnvelopeWriteGrants
-} from "../repo-scope-admission.js";
+} from "@protostar/intent";

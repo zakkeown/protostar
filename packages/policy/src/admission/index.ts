@@ -1,3 +1,5 @@
+// Plan 06a: promotion-side names sourced from @protostar/intent; admission-decision-artifact concerns
+// continue to come from the policy admission module.
 export {
   authorizeFactoryStart,
   evaluateIntentAmbiguityAdmission,
@@ -9,7 +11,7 @@ export {
   INTENT_ARCHETYPE_PROPOSAL_LOW_CONFIDENCE_THRESHOLD,
   LOW_CONFIDENCE_GOAL_ARCHETYPE_POLICY_CODE,
   MANUAL_UNJUSTIFIED_ACCEPTANCE_CRITERION_POLICY_CODE
-} from "../admission-contracts.js";
+} from "@protostar/intent";
 export type {
   IntentAdmissionAcceptanceCriterionReference,
   IntentAdmissionHardZeroDimensionId,
@@ -31,4 +33,4 @@ export type {
   PromoteIntentDraftResult,
   RequiredIntentDraftDimensionCheck,
   RequiredIntentDraftFieldCheck
-} from "../admission-contracts.js";
+} from "@protostar/intent";

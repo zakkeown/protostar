@@ -1,14 +1,20 @@
-import { CAPABILITY_ENVELOPE_BUDGET_LIMIT_FIELDS, TOOL_PERMISSION_LEVELS, validateCapabilityEnvelopeRepairLoopCount } from "@protostar/intent";
+import { CAPABILITY_ENVELOPE_BUDGET_LIMIT_FIELDS, validateCapabilityEnvelopeRepairLoopCount } from "./capability-envelope.js";
 
-import type { CapabilityEnvelopeRepairLoopCountAdmissionFailure, IntentDraftExecuteGrant, IntentDraftFieldPath, IntentDraftToolPermissionGrant, RiskLevel, ToolPermissionLevel } from "@protostar/intent";
+import type { CapabilityEnvelopeRepairLoopCountAdmissionFailure } from "./capability-envelope.js";
 
-import type { CapabilityEnvelopeBudgetCapKey, CapabilityEnvelopeBudgetLimitViolation, CapabilityEnvelopeBudgetOverage, CapabilityEnvelopeExecuteGrantOverage, CapabilityEnvelopeExecuteGrantViolation, CapabilityEnvelopeExecuteGrantViolationCode, CapabilityEnvelopeToolPermissionOverage, CapabilityEnvelopeToolPermissionViolation, CapabilityEnvelopeToolPermissionViolationCode, ValidateCapabilityEnvelopeBudgetLimitsInput, ValidateCapabilityEnvelopeBudgetLimitsResult, ValidateCapabilityEnvelopeExecuteGrantsInput, ValidateCapabilityEnvelopeExecuteGrantsResult, ValidateCapabilityEnvelopeToolPermissionsInput, ValidateCapabilityEnvelopeToolPermissionsResult } from "./admission-contracts.js";
+import type { IntentDraftExecuteGrant, IntentDraftToolPermissionGrant, RiskLevel, ToolPermissionLevel } from "./models.js";
+
+import type { IntentDraftFieldPath } from "./draft-validation.js";
+
+import { TOOL_PERMISSION_LEVELS } from "./models.js";
+
+import type { CapabilityEnvelopeBudgetCapKey, CapabilityEnvelopeBudgetLimitViolation, CapabilityEnvelopeBudgetOverage, CapabilityEnvelopeExecuteGrantOverage, CapabilityEnvelopeExecuteGrantViolation, CapabilityEnvelopeExecuteGrantViolationCode, CapabilityEnvelopeToolPermissionOverage, CapabilityEnvelopeToolPermissionViolation, CapabilityEnvelopeToolPermissionViolationCode, ValidateCapabilityEnvelopeBudgetLimitsInput, ValidateCapabilityEnvelopeBudgetLimitsResult, ValidateCapabilityEnvelopeExecuteGrantsInput, ValidateCapabilityEnvelopeExecuteGrantsResult, ValidateCapabilityEnvelopeToolPermissionsInput, ValidateCapabilityEnvelopeToolPermissionsResult } from "./promotion-contracts.js";
 
 import { ARCHETYPE_POLICY_TABLE } from "./archetypes.js";
 
 import type { GoalArchetype, GoalArchetypeCompatibilityBudgetCaps, GoalArchetypeExecutionScope, GoalArchetypePolicyEntry, GoalArchetypeToolPermissionGrantPolicy, GoalArchetypeToolPermissionLimitsPolicy } from "./archetypes.js";
 
-import { authorityJustificationField, formatAllowedPolicyValues, isKnownGoalArchetype, isRiskLevel, isToolPermissionLevel, normalizeAuthorityJustification, normalizeText, riskRank } from "./shared.js";
+import { authorityJustificationField, explicitToolPermissionLevelValue, formatAllowedPolicyValues, isKnownGoalArchetype, isRiskLevel, isToolPermissionLevel, normalizeAuthorityJustification, normalizeText, normalizeToolPermissionLevel, riskRank, toolPermissionLevelFieldPath } from "./admission-shared.js";
 
 export function validateCapabilityEnvelopeExecuteGrants(
   input: ValidateCapabilityEnvelopeExecuteGrantsInput
@@ -743,32 +749,9 @@ function toolPermissionLevelValue(grant: IntentDraftToolPermissionGrant): unknow
   return explicitToolPermissionLevelValue(grant) ?? "use";
 }
 
-export function explicitToolPermissionLevelValue(grant: IntentDraftToolPermissionGrant): unknown {
-  return grant.permissionLevel ?? grant.permission ?? grant.level;
-}
-
-export function normalizeToolPermissionLevel(value: unknown): ToolPermissionLevel | undefined {
-  const text = normalizeText(value)?.toLowerCase().replace(/[_\s]+/g, "-");
-
-  return isToolPermissionLevel(text) ? text : undefined;
-}
-
-export function toolPermissionLevelFieldPath(
-  grant: IntentDraftToolPermissionGrant,
-  index: number
-): IntentDraftFieldPath {
-  if (grant.permissionLevel !== undefined) {
-    return `capabilityEnvelope.toolPermissions.${index}.permissionLevel` as IntentDraftFieldPath;
-  }
-  if (grant.permission !== undefined) {
-    return `capabilityEnvelope.toolPermissions.${index}.permission` as IntentDraftFieldPath;
-  }
-  if (grant.level !== undefined) {
-    return `capabilityEnvelope.toolPermissions.${index}.level` as IntentDraftFieldPath;
-  }
-
-  return `capabilityEnvelope.toolPermissions.${index}.permissionLevel` as IntentDraftFieldPath;
-}
+// Re-export helpers that previously lived in this module for backward-compat
+// callers (admission-control.test.ts, public split contract test).
+export { explicitToolPermissionLevelValue, normalizeToolPermissionLevel, toolPermissionLevelFieldPath } from "./admission-shared.js";
 
 function toolPermissionDisallowedToolMessage(input: {
   readonly index: number;

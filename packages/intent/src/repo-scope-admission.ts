@@ -1,8 +1,10 @@
-import type { IntentDraftFieldPath, IntentDraftRepoScopeGrant } from "@protostar/intent";
+import type { IntentDraftRepoScopeGrant } from "./models.js";
 
-import type { CapabilityEnvelopeRepoScopeOverage, CapabilityEnvelopeWriteGrantViolation, CapabilityEnvelopeWriteGrantViolationCode, EvaluateRepoScopeAdmissionInput, IntentAdmissionPolicyFinding, RepoScopeAdmissionDecision, RepoScopeAdmissionReasonCode, RepoScopeAdmissionResult, RepoScopeAdmissionVerdict, ValidateCapabilityEnvelopeRepoScopesInput, ValidateCapabilityEnvelopeWriteGrantsInput, ValidateCapabilityEnvelopeWriteGrantsResult } from "./admission-contracts.js";
+import type { IntentDraftFieldPath } from "./draft-validation.js";
 
-import { authorityJustificationField, isKnownGoalArchetype, isRepoAccess, normalizeAuthorityJustification, normalizeText, uniqueOrdered } from "./shared.js";
+import type { CapabilityEnvelopeRepoScopeOverage, CapabilityEnvelopeWriteGrantViolation, CapabilityEnvelopeWriteGrantViolationCode, EvaluateRepoScopeAdmissionInput, IntentAdmissionPolicyFinding, RepoScopeAdmissionDecision, RepoScopeAdmissionReasonCode, RepoScopeAdmissionResult, RepoScopeAdmissionVerdict, ValidateCapabilityEnvelopeRepoScopesInput, ValidateCapabilityEnvelopeWriteGrantsInput, ValidateCapabilityEnvelopeWriteGrantsResult } from "./promotion-contracts.js";
+
+import { authorityJustificationField, isKnownGoalArchetype, isRepoAccess, normalizeAuthorityJustification, normalizeText, uniqueOrdered } from "./admission-shared.js";
 
 import { ARCHETYPE_POLICY_TABLE } from "./archetypes.js";
 

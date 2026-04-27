@@ -1,3 +1,5 @@
+// Plan 06a: archetypes + archetype-autotag relocated to @protostar/intent. This subbarrel
+// preserves the @protostar/policy/archetypes import surface byte-equivalent.
 export {
   ARCHETYPE_POLICY_TABLE,
   BUGFIX_GOAL_ARCHETYPE,
@@ -10,7 +12,7 @@ export {
   SUPPORTED_GOAL_ARCHETYPES,
   V0_0_1_INTENT_ARCHETYPE_IDS,
   V0_0_1_INTENT_ARCHETYPE_REGISTRY
-} from "../archetypes.js";
+} from "@protostar/intent";
 export type {
   FactoryAutonomyPolicy,
   GoalArchetype,
@@ -39,8 +41,8 @@ export type {
   IntentArchetypeSupportStatus,
   RepoAccessLevel,
   V001IntentArchetypeId
-} from "../archetypes.js";
+} from "@protostar/intent";
 export {
   autoTagIntentDraftArchetype,
   proposeIntentDraftArchetype
-} from "../archetype-autotag.js";
+} from "@protostar/intent";

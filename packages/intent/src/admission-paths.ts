@@ -1,8 +1,8 @@
-import type { IntentDraft } from "@protostar/intent";
+import type { IntentDraft } from "./models.js";
 
-import type { BugfixCapabilityEnvelopeUnsupportedDecision, FeatureAddCapabilityEnvelopeUnsupportedDecision, IntentAdmissionPolicyFinding, RefactorCapabilityEnvelopeUnsupportedDecision } from "./admission-contracts.js";
+import type { BugfixCapabilityEnvelopeUnsupportedDecision, FeatureAddCapabilityEnvelopeUnsupportedDecision, IntentAdmissionPolicyFinding, RefactorCapabilityEnvelopeUnsupportedDecision } from "./promotion-contracts.js";
 
-import { hasText, isKnownGoalArchetype } from "./shared.js";
+import { hasText, isKnownGoalArchetype } from "./admission-shared.js";
 
 import { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, INTENT_ARCHETYPE_REGISTRY, REFACTOR_GOAL_ARCHETYPE } from "./archetypes.js";
 

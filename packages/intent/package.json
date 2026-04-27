@@ -30,6 +30,10 @@
       "types": "./dist/confirmed-intent/index.d.ts",
       "import": "./dist/confirmed-intent/index.js"
     },
+    "./admission": {
+      "types": "./dist/admission/index.d.ts",
+      "import": "./dist/admission/index.js"
+    },
     "./schema/clarification-report.schema.json": "./schema/clarification-report.schema.json",
     "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json"
   },

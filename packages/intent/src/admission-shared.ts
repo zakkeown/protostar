@@ -1,6 +1,12 @@
-import { TOOL_PERMISSION_LEVELS } from "@protostar/intent";
+import { TOOL_PERMISSION_LEVELS } from "./models.js";
 
-import type { CapabilityEnvelope, IntentDraftCapabilityEnvelope, RiskLevel, ToolPermissionLevel } from "@protostar/intent";
+import type { CapabilityEnvelope } from "./capability-envelope.js";
+
+import type { IntentDraftCapabilityEnvelope, IntentDraftToolPermissionGrant } from "./models.js";
+
+import type { RiskLevel, ToolPermissionLevel } from "./models.js";
+
+import type { IntentDraftFieldPath } from "./draft-validation.js";
 
 import { SUPPORTED_GOAL_ARCHETYPES } from "./archetypes.js";
 
@@ -40,10 +46,6 @@ export function normalizeText(value: unknown): string | undefined {
 
 export function hasText(value: unknown): value is string {
   return normalizeText(value) !== undefined;
-}
-
-function isRecordValue(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 export function isKnownGoalArchetype(value: unknown): value is GoalArchetype {
@@ -95,4 +97,31 @@ export function stableHash(value: string): string {
   }
 
   return hash.toString(36).padStart(7, "0");
+}
+
+export function explicitToolPermissionLevelValue(grant: IntentDraftToolPermissionGrant): unknown {
+  return grant.permissionLevel ?? grant.permission ?? grant.level;
+}
+
+export function normalizeToolPermissionLevel(value: unknown): ToolPermissionLevel | undefined {
+  const text = normalizeText(value)?.toLowerCase().replace(/[_\s]+/g, "-");
+
+  return isToolPermissionLevel(text) ? text : undefined;
+}
+
+export function toolPermissionLevelFieldPath(
+  grant: IntentDraftToolPermissionGrant,
+  index: number
+): IntentDraftFieldPath {
+  if (grant.permissionLevel !== undefined) {
+    return `capabilityEnvelope.toolPermissions.${index}.permissionLevel` as IntentDraftFieldPath;
+  }
+  if (grant.permission !== undefined) {
+    return `capabilityEnvelope.toolPermissions.${index}.permission` as IntentDraftFieldPath;
+  }
+  if (grant.level !== undefined) {
+    return `capabilityEnvelope.toolPermissions.${index}.level` as IntentDraftFieldPath;
+  }
+
+  return `capabilityEnvelope.toolPermissions.${index}.permissionLevel` as IntentDraftFieldPath;
 }

@@ -24,6 +24,7 @@
       "@protostar/execution": ["packages/execution/src/index.ts"],
       "@protostar/intent": ["packages/intent/src/index.ts"],
       "@protostar/intent/acceptance-criteria": ["packages/intent/src/acceptance-criteria/index.ts"],
+      "@protostar/intent/admission": ["packages/intent/src/admission/index.ts"],
       "@protostar/intent/ambiguity": ["packages/intent/src/ambiguity/index.ts"],
       "@protostar/intent/clarification-report": ["packages/intent/src/clarification-report/index.ts"],
       "@protostar/intent/confirmed-intent": ["packages/intent/src/confirmed-intent/index.ts"],

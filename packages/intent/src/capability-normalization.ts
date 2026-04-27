@@ -1,8 +1,8 @@
-import type { CapabilityEnvelope, IntentDraft, IntentDraftCapabilityEnvelope } from "@protostar/intent";
+import type { CapabilityEnvelope } from "./capability-envelope.js";
 
-import { isRepoAccess, isRiskLevel, normalizeText } from "./shared.js";
+import type { IntentDraft, IntentDraftCapabilityEnvelope } from "./models.js";
 
-import { explicitToolPermissionLevelValue, normalizeToolPermissionLevel, toolPermissionLevelFieldPath } from "./capability-grant-admission.js";
+import { explicitToolPermissionLevelValue, isRepoAccess, isRiskLevel, normalizeText, normalizeToolPermissionLevel, toolPermissionLevelFieldPath } from "./admission-shared.js";
 
 export function normalizeDraftCapabilityEnvelope(
   envelope: IntentDraft["capabilityEnvelope"]
