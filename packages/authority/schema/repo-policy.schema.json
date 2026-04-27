@@ -8,15 +8,38 @@
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
     "allowedScopes": { "type": "array", "items": { "type": "string" } },
+    "repoScopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["workspace", "path", "access"],
+        "properties": {
+          "workspace": { "type": "string" },
+          "path": { "type": "string" },
+          "access": { "enum": ["read", "write", "execute"] }
+        }
+      }
+    },
+    "toolPermissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tool"],
+        "properties": {
+          "tool": { "type": "string" },
+          "permissionLevel": { "type": "string" }
+        }
+      }
+    },
     "deniedTools": { "type": "array", "items": { "type": "string" } },
     "budgetCaps": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "maxUsd": { "type": "number" },
-        "maxTokens": { "type": "number" },
-        "timeoutMs": { "type": "number" },
-        "maxRepairLoops": { "type": "number" }
+        "maxUsd": { "type": "number", "minimum": 0 },
+        "maxTokens": { "type": "number", "minimum": 0 },
+        "timeoutMs": { "type": "number", "minimum": 0 },
+        "maxRepairLoops": { "type": "number", "minimum": 0 }
       }
     },
     "trustOverride": { "enum": ["trusted", "untrusted"] }

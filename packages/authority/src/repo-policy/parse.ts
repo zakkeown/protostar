@@ -1,8 +1,12 @@
+import type { RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
+
 import type { TierEnvelope, TrustOverride } from "../precedence/index.js";
 
 export interface RepoPolicy extends TierEnvelope {
   readonly schemaVersion: "1.0.0";
   readonly allowedScopes?: readonly string[];
+  readonly repoScopes?: readonly RepoScopeGrant[];
+  readonly toolPermissions?: readonly ToolPermissionGrant[];
   readonly deniedTools?: readonly string[];
   readonly budgetCaps?: {
     readonly maxUsd?: number;
@@ -33,7 +37,7 @@ export const DENY_ALL_REPO_POLICY: RepoPolicy = deepFreeze({
   trustOverride: "untrusted"
 });
 
-const TOP_LEVEL_KEYS = new Set(["schemaVersion", "allowedScopes", "deniedTools", "budgetCaps", "trustOverride"]);
+const TOP_LEVEL_KEYS = new Set(["schemaVersion", "allowedScopes", "repoScopes", "toolPermissions", "deniedTools", "budgetCaps", "trustOverride"]);
 const BUDGET_CAP_KEYS = new Set(["maxUsd", "maxTokens", "timeoutMs", "maxRepairLoops"]);
 
 export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
@@ -50,6 +54,8 @@ export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
   }
 
   const allowedScopes = readOptionalStringArray(input, "allowedScopes", errors);
+  const repoScopes = readOptionalRepoScopes(input["repoScopes"], errors);
+  const toolPermissions = readOptionalToolPermissions(input["toolPermissions"], errors);
   const deniedTools = readOptionalStringArray(input, "deniedTools", errors);
   const budgetCaps = readOptionalBudgetCaps(input["budgetCaps"], errors);
   const trustOverride = readOptionalTrustOverride(input["trustOverride"], errors);
@@ -63,12 +69,75 @@ export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
     policy: deepFreeze({
       schemaVersion: "1.0.0",
       ...(allowedScopes !== undefined ? { allowedScopes } : {}),
+      ...(repoScopes !== undefined ? { repoScopes } : {}),
+      ...(toolPermissions !== undefined ? { toolPermissions } : {}),
       ...(deniedTools !== undefined ? { deniedTools } : {}),
       ...(budgetCaps !== undefined ? { budgetCaps } : {}),
       ...(trustOverride !== undefined ? { trustOverride } : {})
     }),
     errors: []
   };
+}
+
+function readOptionalRepoScopes(value: unknown, errors: string[]): RepoScopeGrant[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("repoScopes must be an array of repo scope grant objects.");
+    return undefined;
+  }
+
+  const scopes: RepoScopeGrant[] = [];
+  value.forEach((entry, index) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      errors.push(`repoScopes[${index}] must be an object.`);
+      return;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record["workspace"] !== "string") {
+      errors.push(`repoScopes[${index}].workspace must be a string.`);
+      return;
+    }
+    if (typeof record["path"] !== "string") {
+      errors.push(`repoScopes[${index}].path must be a string.`);
+      return;
+    }
+    const access = record["access"];
+    if (access !== "read" && access !== "write" && access !== "execute") {
+      errors.push(`repoScopes[${index}].access must be read, write, or execute.`);
+      return;
+    }
+    scopes.push({ workspace: record["workspace"], path: record["path"], access } as RepoScopeGrant);
+  });
+
+  return scopes;
+}
+
+function readOptionalToolPermissions(value: unknown, errors: string[]): ToolPermissionGrant[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("toolPermissions must be an array of tool permission grant objects.");
+    return undefined;
+  }
+
+  const permissions: ToolPermissionGrant[] = [];
+  value.forEach((entry, index) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      errors.push(`toolPermissions[${index}] must be an object.`);
+      return;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record["tool"] !== "string") {
+      errors.push(`toolPermissions[${index}].tool must be a string.`);
+      return;
+    }
+    permissions.push({ tool: record["tool"], ...(typeof record["permissionLevel"] === "string" ? { permissionLevel: record["permissionLevel"] } : {}) } as ToolPermissionGrant);
+  });
+
+  return permissions;
 }
 
 function readOptionalStringArray(

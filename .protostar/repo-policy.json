@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "repoScopes": [
+    { "workspace": "protostar", "path": "apps/factory-cli", "access": "write" },
+    { "workspace": "protostar", "path": "packages/intent", "access": "write" },
+    { "workspace": "protostar", "path": "packages/policy", "access": "write" },
+    { "workspace": "protostar", "path": "examples/intents", "access": "write" },
+    { "workspace": "*", "path": "apps/factory-cli", "access": "write" },
+    { "workspace": "*", "path": "packages/intent", "access": "write" },
+    { "workspace": "*", "path": "packages/policy", "access": "write" },
+    { "workspace": "*", "path": "examples/intents", "access": "write" }
+  ],
+  "toolPermissions": [
+    { "tool": "node:test", "permissionLevel": "use" },
+    { "tool": "typescript", "permissionLevel": "use" },
+    { "tool": "shell", "permissionLevel": "use" }
+  ],
+  "trustOverride": "trusted"
+}
