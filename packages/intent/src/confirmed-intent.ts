@@ -10,7 +10,18 @@ import { isRecord, normalizeOptionalText, readOptionalString, readOptionalString
 
 import { parseAcceptanceCriteria } from "./acceptance-criteria.js";
 
-export interface ConfirmedIntentShape {
+// Module-private brand. NOT exported. Foreign callers cannot name this symbol,
+// so they cannot fabricate a ConfirmedIntent without going through
+// mintConfirmedIntent (sibling-internal) or buildConfirmedIntentForTest
+// (internal/test-builders subpath).
+declare const ConfirmedIntentBrand: unique symbol;
+
+export interface SignatureEnvelope {
+  readonly algorithm: string;
+  readonly value: string;
+}
+
+interface ConfirmedIntentBaseShape {
   readonly id: IntentId;
   readonly sourceDraftId?: IntentDraftId;
   readonly mode?: IntentAmbiguityMode;
@@ -24,11 +35,35 @@ export interface ConfirmedIntentShape {
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
   readonly stopConditions: readonly string[];
+  readonly schemaVersion: "1.0.0";
+  readonly signature: SignatureEnvelope | null;
 }
 
-export type ConfirmedIntent = DeepReadonly<ConfirmedIntentShape>;
+// Un-branded payload — the structural shape of a confirmed intent.
+// parseConfirmedIntent returns this on the success branch; consumers that
+// need the brand must re-promote via promoteIntentDraft.
+export type ConfirmedIntentData = DeepReadonly<ConfirmedIntentBaseShape>;
 
-export interface ConfirmedIntentInput {
+// Branded ConfirmedIntent. The brand is module-private; foreign object
+// literals fail type-check because they cannot supply the brand property.
+export type ConfirmedIntent = ConfirmedIntentData & {
+  readonly [ConfirmedIntentBrand]: true;
+};
+
+export interface ConfirmedIntentParseSuccess {
+  readonly ok: true;
+  readonly data: ConfirmedIntentData;
+  readonly errors: readonly string[];
+}
+
+export interface ConfirmedIntentParseFailure {
+  readonly ok: false;
+  readonly errors: readonly string[];
+}
+
+export type ConfirmedIntentParseResult = ConfirmedIntentParseSuccess | ConfirmedIntentParseFailure;
+
+interface ConfirmedIntentMintInput {
   readonly id: IntentId;
   readonly sourceDraftId?: IntentDraftId;
   readonly mode?: IntentAmbiguityMode;
@@ -42,20 +77,24 @@ export interface ConfirmedIntentInput {
   readonly constraints?: readonly string[];
   readonly stopConditions?: readonly string[];
   readonly confirmedAt?: string;
+  readonly schemaVersion?: "1.0.0";
+  readonly signature?: SignatureEnvelope | null;
 }
 
-export interface ConfirmedIntentParseResult {
-  readonly ok: boolean;
-  readonly intent?: ConfirmedIntent;
-  readonly errors: readonly string[];
-}
-
-export function defineConfirmedIntent(input: ConfirmedIntentInput): ConfirmedIntent {
+/**
+ * Module-internal mint. Exported so sibling files (promote-intent-draft.ts
+ * and internal/test-builders.ts) can produce ConfirmedIntent values, but
+ * NOT re-exported from any public/subpath barrel — see Plan 06b Task D for
+ * the contract test that pins this.
+ *
+ * Folds the freeze + normalization that the deleted public producer used to do.
+ */
+export function mintConfirmedIntent(input: ConfirmedIntentMintInput): ConfirmedIntent {
   if (input.acceptanceCriteria.length === 0) {
     throw new Error("Confirmed intent requires at least one acceptance criterion.");
   }
 
-  return freezeConfirmedIntent({
+  const data: ConfirmedIntentBaseShape = {
     id: input.id,
     ...(input.sourceDraftId !== undefined ? { sourceDraftId: input.sourceDraftId } : {}),
     ...(input.mode !== undefined ? { mode: input.mode } : {}),
@@ -68,12 +107,12 @@ export function defineConfirmedIntent(input: ConfirmedIntentInput): ConfirmedInt
     acceptanceCriteria: input.acceptanceCriteria.map(copyAcceptanceCriterion),
     capabilityEnvelope: copyCapabilityEnvelope(input.capabilityEnvelope),
     constraints: copyStringList(input.constraints),
-    stopConditions: copyStringList(input.stopConditions)
-  });
-}
+    stopConditions: copyStringList(input.stopConditions),
+    schemaVersion: "1.0.0",
+    signature: input.signature ?? null
+  };
 
-function freezeConfirmedIntent(intent: ConfirmedIntentShape): ConfirmedIntent {
-  return deepFreeze(intent);
+  return deepFreeze(data) as ConfirmedIntent;
 }
 
 function copyAcceptanceCriterion(criterion: AcceptanceCriterion): AcceptanceCriterion {
@@ -158,7 +197,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 }
 
 function isFreezable(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult {
@@ -184,6 +223,8 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
   const stopConditions = readOptionalStringArray(value, "stopConditions", errors);
   const acceptanceCriteria = parseAcceptanceCriteria(value["acceptanceCriteria"], errors);
   const capabilityEnvelope = parseCapabilityEnvelope(value["capabilityEnvelope"], errors);
+  const schemaVersion = readOptionalSchemaVersion(value, errors);
+  const signature = readOptionalSignature(value, errors);
 
   if (id !== undefined && !id.startsWith("intent_")) {
     errors.push("id must start with intent_.");
@@ -195,40 +236,78 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
     errors.push("acceptanceCriteria must contain at least one entry.");
   }
 
-  if (errors.length > 0 || id === undefined || title === undefined || problem === undefined || requester === undefined) {
+  if (
+    errors.length > 0 ||
+    id === undefined ||
+    title === undefined ||
+    problem === undefined ||
+    requester === undefined
+  ) {
     return {
       ok: false,
       errors
     };
   }
 
+  // Build the un-branded ConfirmedIntentData value. The brand is intentionally
+  // NOT applied here — parseConfirmedIntent reads external JSON; consumers
+  // that need a branded ConfirmedIntent must re-promote via promoteIntentDraft.
+  const data: ConfirmedIntentBaseShape = {
+    id: id as IntentId,
+    ...(sourceDraftId !== undefined ? { sourceDraftId: sourceDraftId as IntentDraftId } : {}),
+    ...(mode !== undefined ? { mode } : {}),
+    ...(goalArchetype !== undefined ? { goalArchetype } : {}),
+    title,
+    problem,
+    requester,
+    confirmedAt: confirmedAt ?? new Date(0).toISOString(),
+    ...(context !== undefined ? { context } : {}),
+    acceptanceCriteria: acceptanceCriteria.map(copyAcceptanceCriterion),
+    capabilityEnvelope: copyCapabilityEnvelope(capabilityEnvelope),
+    constraints: copyStringList(constraints),
+    stopConditions: copyStringList(stopConditions),
+    schemaVersion: schemaVersion ?? "1.0.0",
+    signature: signature ?? null
+  };
+
   return {
     ok: true,
     errors: [],
-    intent: defineConfirmedIntent({
-      id: id as IntentId,
-      ...(sourceDraftId !== undefined ? { sourceDraftId: sourceDraftId as IntentDraftId } : {}),
-      ...(mode !== undefined ? { mode } : {}),
-      ...(goalArchetype !== undefined ? { goalArchetype } : {}),
-      title,
-      problem,
-      requester,
-      acceptanceCriteria,
-      capabilityEnvelope,
-      ...(context !== undefined ? { context } : {}),
-      ...(constraints !== undefined ? { constraints } : {}),
-      ...(stopConditions !== undefined ? { stopConditions } : {}),
-      ...(confirmedAt !== undefined ? { confirmedAt } : {})
-    })
+    data: deepFreeze(data) as ConfirmedIntentData
   };
 }
 
-export function assertConfirmedIntent(value: unknown): ConfirmedIntent {
-  const result = parseConfirmedIntent(value);
-  if (!result.ok || !result.intent) {
-    throw new Error(`Invalid confirmed intent: ${result.errors.join("; ")}`);
+function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.0.0" | undefined {
+  const value = record["schemaVersion"];
+  if (value === undefined) {
+    return undefined;
   }
-  return result.intent;
+  if (value === "1.0.0") {
+    return value;
+  }
+  errors.push("schemaVersion must be \"1.0.0\" when provided.");
+  return undefined;
+}
+
+function readOptionalSignature(record: Record<string, unknown>, errors: string[]): SignatureEnvelope | null | undefined {
+  if (!Object.prototype.hasOwnProperty.call(record, "signature")) {
+    return undefined;
+  }
+  const value = record["signature"];
+  if (value === null) {
+    return null;
+  }
+  if (!isRecord(value)) {
+    errors.push("signature must be null or an object with algorithm and value strings.");
+    return undefined;
+  }
+  const algorithm = value["algorithm"];
+  const sigValue = value["value"];
+  if (typeof algorithm !== "string" || typeof sigValue !== "string") {
+    errors.push("signature must be null or an object with algorithm and value strings.");
+    return undefined;
+  }
+  return { algorithm, value: sigValue };
 }
 
 function readOptionalIntentAmbiguityMode(

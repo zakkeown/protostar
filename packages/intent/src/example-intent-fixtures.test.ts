@@ -169,8 +169,8 @@ describe("examples/intents shared admission fixture setup", () => {
       return;
     }
 
-    const intent = parsed.intent;
-    assert.ok(intent, "ConfirmedIntent parse result should include intent.");
+    const intent = parsed.data;
+    assert.ok(intent, "ConfirmedIntent parse result should include data.");
     assert.equal(Object.isFrozen(result.promotion.intent), true);
     assert.equal(intent.id, "intent_brownfield_clear_promoted");
     assert.equal(intent.sourceDraftId, "draft_brownfield_clear_promoted");
@@ -246,8 +246,8 @@ describe("examples/intents shared admission fixture setup", () => {
       return;
     }
 
-    const intent = parsed.intent;
-    assert.ok(intent, "ConfirmedIntent parse result should include intent.");
+    const intent = parsed.data;
+    assert.ok(intent, "ConfirmedIntent parse result should include data.");
     assert.equal(Object.isFrozen(result.promotion.intent), true);
     assert.equal(intent.id, "intent_greenfield_clear_promoted");
     assert.equal(intent.sourceDraftId, "draft_greenfield_clear_promoted");

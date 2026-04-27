@@ -14,7 +14,7 @@ import { generateClarificationQuestions } from "./clarification.js";
 
 import type { ClarificationQuestion, ClarificationRequiredEntry } from "./clarification.js";
 
-import { defineConfirmedIntent } from "./confirmed-intent.js";
+import { mintConfirmedIntent } from "./confirmed-intent.js";
 
 import { normalizeAcceptanceCriteria } from "./acceptance-criteria.js";
 
@@ -175,7 +175,7 @@ export function promoteIntentDraft(input: PromoteIntentDraftInput): PromoteInten
     draft,
     envelope: normalizedCapabilityEnvelope.envelope
   });
-  const intent = defineConfirmedIntent({
+  const intent = mintConfirmedIntent({
     id: createPromotedIntentId(draft),
     ...optionalSourceDraftIdProperty(draft),
     mode,
@@ -188,7 +188,9 @@ export function promoteIntentDraft(input: PromoteIntentDraftInput): PromoteInten
     capabilityEnvelope: admittedCapabilityEnvelope,
     constraints: normalizeStringList(draft.constraints),
     stopConditions: normalizeStringList(draft.stopConditions),
-    ...(confirmedAt !== undefined ? { confirmedAt } : {})
+    ...(confirmedAt !== undefined ? { confirmedAt } : {}),
+    schemaVersion: "1.0.0",
+    signature: null
   });
 
   return {

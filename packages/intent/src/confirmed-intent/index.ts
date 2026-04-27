@@ -1,13 +1,9 @@
-export {
-  assertConfirmedIntent,
-  defineConfirmedIntent,
-  parseConfirmedIntent
-} from "../confirmed-intent.js";
+export { parseConfirmedIntent } from "../confirmed-intent.js";
 export type {
   ConfirmedIntent,
-  ConfirmedIntentInput,
+  ConfirmedIntentData,
   ConfirmedIntentParseResult,
-  ConfirmedIntentShape
+  SignatureEnvelope
 } from "../confirmed-intent.js";
 export type {
   DeepReadonly,

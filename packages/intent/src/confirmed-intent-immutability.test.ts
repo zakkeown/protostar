@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  defineConfirmedIntent,
+  promoteIntentDraft,
   type AcceptanceCriterionId,
   type ConfirmedIntent,
+  type IntentDraft,
   type IntentDraftId,
   type IntentId
 } from "./index.js";
@@ -50,13 +51,6 @@ type MutableConfirmedIntent = {
   stopConditions: string[];
 };
 
-type MutableConfirmedIntentInput = MutableConfirmedIntent & {
-  id: IntentId;
-  problem: string;
-  requester: string;
-  confirmedAt: string;
-};
-
 function compileTimeReadonlyMutationChecks(intent: ConfirmedIntent): void {
   // @ts-expect-error ConfirmedIntent top-level fields are readonly after confirmation.
   intent.title = "mutated title";
@@ -85,13 +79,35 @@ function compileTimeReadonlyMutationChecks(intent: ConfirmedIntent): void {
 
   // @ts-expect-error ConfirmedIntent stop conditions are readonly arrays.
   intent.stopConditions.push("new mutable stop condition");
+
+  // @ts-expect-error ConfirmedIntent schemaVersion is the locked Phase 1 value.
+  intent.schemaVersion = "2.0.0";
+
+  // @ts-expect-error ConfirmedIntent signature is readonly.
+  intent.signature = { algorithm: "x", value: "y" };
 }
 
 void compileTimeReadonlyMutationChecks;
 
+function promoteImmutabilityFixture(): ConfirmedIntent {
+  const promotion = promoteIntentDraft({
+    draft: immutabilityFixtureDraft(),
+    mode: "brownfield",
+    confirmedAt: "2026-04-25T00:00:00.000Z"
+  });
+
+  if (!promotion.ok) {
+    throw new Error(
+      `Immutability fixture draft must promote cleanly; admission errors: ${promotion.errors.join("; ")}`
+    );
+  }
+
+  return promotion.intent;
+}
+
 describe("ConfirmedIntent immutability", () => {
   it("rejects runtime mutation attempts after confirmation", () => {
-    const intent = defineConfirmedIntent(confirmedIntentInput());
+    const intent = promoteImmutabilityFixture();
     const mutableIntent = intent as unknown as MutableConfirmedIntent;
 
     assert.equal(Object.isFrozen(intent), true);
@@ -106,6 +122,9 @@ describe("ConfirmedIntent immutability", () => {
     assert.equal(Object.isFrozen(intent.constraints), true);
     assert.equal(Object.isFrozen(intent.stopConditions), true);
 
+    assert.equal(intent.schemaVersion, "1.0.0");
+    assert.equal(intent.signature, null);
+
     assert.throws(() => {
       mutableIntent.title = "mutated title";
     }, TypeError);
@@ -118,7 +137,7 @@ describe("ConfirmedIntent immutability", () => {
 
     assert.throws(() => {
       mutableIntent.acceptanceCriteria.push({
-        id: "ac_extra",
+        id: "ac_extra" as AcceptanceCriterionId,
         statement: "Extra criterion should not be appendable after confirmation.",
         verification: "test"
       });
@@ -154,54 +173,44 @@ describe("ConfirmedIntent immutability", () => {
     assert.deepEqual(intent.stopConditions, ["Stop if immutable confirmed-intent contract tests fail."]);
   });
 
-  it("defensively copies mutable confirmation input", () => {
-    const input = confirmedIntentInput();
-    const intent = defineConfirmedIntent(input);
+  it("defensively copies normalized confirmation input", () => {
+    const draft = immutabilityFixtureDraft();
+    const intent = promoteImmutabilityFixture();
 
-    input.acceptanceCriteria[0] = {
-      id: "ac_changed",
+    // Mutating the source draft after promotion must not affect the frozen intent.
+    (draft as { acceptanceCriteria: unknown[] }).acceptanceCriteria.push({
       statement: "Source mutation should not rewrite the confirmed intent.",
       verification: "manual",
       justification: "The source mutation is intentionally ignored after confirmation."
-    };
-    input.capabilityEnvelope.repoScopes[0] = {
+    });
+    (draft.capabilityEnvelope!.repoScopes as unknown[]).push({
       workspace: "protostar",
       path: "packages/execution",
       access: "execute"
-    };
-    input.capabilityEnvelope.toolPermissions[0] = {
-      tool: "shell",
-      reason: "Source mutation should not rewrite the confirmed intent.",
-      risk: "high"
-    };
-    input.capabilityEnvelope.budget.maxRepairLoops = 8;
-    input.constraints.push("source-only constraint");
-    input.stopConditions.push("source-only stop condition");
+    });
+    (draft.constraints as string[]).push("source-only constraint");
+    (draft.stopConditions as string[]).push("source-only stop condition");
 
-    assert.equal(intent.acceptanceCriteria[0]?.id, "ac_runtime_freeze");
+    assert.equal(intent.acceptanceCriteria.length, 1);
+    assert.equal(intent.capabilityEnvelope.repoScopes.length, 1);
     assert.equal(intent.capabilityEnvelope.repoScopes[0]?.path, "packages/intent");
-    assert.equal(intent.capabilityEnvelope.toolPermissions[0]?.risk, "low");
-    assert.equal(intent.capabilityEnvelope.budget.maxRepairLoops, 1);
     assert.deepEqual(intent.constraints, ["Scope limited to packages/intent immutability contracts."]);
     assert.deepEqual(intent.stopConditions, ["Stop if immutable confirmed-intent contract tests fail."]);
   });
 });
 
-function confirmedIntentInput(): MutableConfirmedIntentInput {
+function immutabilityFixtureDraft(): IntentDraft {
   return {
-    id: "intent_confirmed_immutability" as IntentId,
-    sourceDraftId: "draft_confirmed_immutability",
+    draftId: "draft_confirmed_immutability" as IntentDraftId,
     mode: "brownfield",
     goalArchetype: "cosmetic-tweak",
     title: "Harden confirmed intent immutability",
     problem:
       "Confirmed intents are the admission-control boundary and must reject mutation after confirmation.",
     requester: "ouroboros-ac-103",
-    confirmedAt: "2026-04-25T00:00:00.000Z",
     context: "The change is limited to confirmed intent contract tests in packages/intent.",
     acceptanceCriteria: [
       {
-        id: "ac_runtime_freeze",
         statement: "Confirmed intents reject runtime mutation attempts against nested acceptance criteria.",
         verification: "test"
       }
@@ -217,6 +226,7 @@ function confirmedIntentInput(): MutableConfirmedIntentInput {
       toolPermissions: [
         {
           tool: "node:test",
+          permissionLevel: "use",
           reason: "Exercise immutable ConfirmedIntent runtime contracts.",
           risk: "low"
         }
@@ -228,5 +238,8 @@ function confirmedIntentInput(): MutableConfirmedIntentInput {
     },
     constraints: ["Scope limited to packages/intent immutability contracts."],
     stopConditions: ["Stop if immutable confirmed-intent contract tests fail."]
-  };
+  } as IntentDraft;
 }
+
+// Suppress unused warning for IntentId imported only for the runtime narrowing helpers above.
+void undefined as unknown as IntentId;

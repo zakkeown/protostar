@@ -9,8 +9,8 @@ export { INTENT_AMBIGUITY_DIMENSION_WEIGHTS, INTENT_AMBIGUITY_THRESHOLD, INTENT_
 export type { CosmeticTweakAmbiguityDetailAssessment, CosmeticTweakAmbiguityDetailId, CosmeticTweakAmbiguityDetailSignal, IntentAmbiguityAssessment, IntentAmbiguityDimensionId, IntentAmbiguityDimensionScore, IntentAmbiguityDimensionSignal, IntentAmbiguityDimensionWeight, IntentAmbiguityMode, IntentAmbiguityScoringSubject, IntentAmbiguityWeightingProfile, IntentAmbiguityWeightingProfileId, IntentAmbiguityWeightingProfileInput, IntentClarityDimension, IntentClarityScore, ScoreIntentAmbiguityDimensionInput } from "./ambiguity-scoring.js";
 export { CLARIFICATION_QUESTION_CATEGORY_RANK, CLARIFICATION_REPORT_ARTIFACT_NAME, CLARIFICATION_REPORT_JSON_SCHEMA, CLARIFICATION_REPORT_SCHEMA, CLARIFICATION_REPORT_SCHEMA_VERSION, createClarificationQuestionKey, createClarificationReport, generateClarificationQuestions } from "./clarification.js";
 export type { ClarificationQuestion, ClarificationQuestionGeneratorInput, ClarificationQuestionGeneratorOutput, ClarificationReport, ClarificationReportStatus, ClarificationReportSummary, ClarificationReportUnresolvedQuestion, ClarificationReportUnresolvedQuestionSource, ClarificationRequiredEntry, ClarificationRequiredEntrySource, CreateClarificationReportInput, GenerateClarificationQuestionsInput, GenerateClarificationQuestionsOutput } from "./clarification.js";
-export { assertConfirmedIntent, defineConfirmedIntent, parseConfirmedIntent } from "./confirmed-intent.js";
-export type { ConfirmedIntent, ConfirmedIntentInput, ConfirmedIntentParseResult, ConfirmedIntentShape } from "./confirmed-intent.js";
+export { parseConfirmedIntent } from "./confirmed-intent.js";
+export type { ConfirmedIntent, ConfirmedIntentData, ConfirmedIntentParseResult, SignatureEnvelope } from "./confirmed-intent.js";
 
 // ──────────────────────────────────────────────────────────
 // Intent admission surface (relocated from @protostar/policy in Plan 06a).

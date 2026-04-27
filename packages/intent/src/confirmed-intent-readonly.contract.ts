@@ -17,6 +17,9 @@ type IsReadonlyField<T, Key extends keyof T> = IfEquals<
 
 type IsMutableArray<T> = T extends unknown[] ? true : false;
 
+// The unique-symbol brand property is module-private and CANNOT appear in the
+// foreign-module key set; this contract asserts the structural shape only,
+// including the new schemaVersion + signature fields added by Plan 06b.
 export type ConfirmedIntentReadonlyContract = Assert<
   IsReadonlyField<ConfirmedIntent, "id"> extends true
     ? IsReadonlyField<ConfirmedIntent, "sourceDraftId"> extends true
@@ -31,7 +34,11 @@ export type ConfirmedIntentReadonlyContract = Assert<
                       ? IsReadonlyField<ConfirmedIntent, "capabilityEnvelope"> extends true
                         ? IsReadonlyField<ConfirmedIntent, "constraints"> extends true
                           ? IsReadonlyField<ConfirmedIntent, "stopConditions"> extends true
-                            ? true
+                            ? IsReadonlyField<ConfirmedIntent, "schemaVersion"> extends true
+                              ? IsReadonlyField<ConfirmedIntent, "signature"> extends true
+                                ? true
+                                : false
+                              : false
                             : false
                           : false
                         : false

@@ -1,4 +1,4 @@
-import type { ConfirmedIntent } from "./confirmed-intent.js";
+import type { ConfirmedIntent, ConfirmedIntentData } from "./confirmed-intent.js";
 
 import type { AcceptanceCriterion, AcceptanceCriterionVerificationMode, IntentDraft, IntentDraftAcceptanceCriterion, IntentDraftCapabilityEnvelope, IntentDraftRepoScopeGrant, IntentDraftToolPermissionGrant } from "./models.js";
 
@@ -106,7 +106,7 @@ export const INTENT_AMBIGUITY_WEIGHTING_PROFILE_IDS = {
   brownfield: INTENT_AMBIGUITY_WEIGHTING_PROFILES.brownfield.id
 } as const satisfies Readonly<Record<IntentAmbiguityMode, IntentAmbiguityWeightingProfileId>>;
 
-export type IntentAmbiguityScoringSubject = ConfirmedIntent | IntentDraft;
+export type IntentAmbiguityScoringSubject = ConfirmedIntent | ConfirmedIntentData | IntentDraft;
 
 export type IntentAmbiguityWeightingProfileInput = IntentAmbiguityMode | IntentAmbiguityWeightingProfile;
 
@@ -203,7 +203,7 @@ export function assessIntentAmbiguity(
 }
 
 export function assessConfirmedIntentAmbiguity(
-  intent: ConfirmedIntent,
+  intent: ConfirmedIntent | ConfirmedIntentData,
   input?: {
     readonly mode?: IntentAmbiguityMode;
     readonly threshold?: number;

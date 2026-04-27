@@ -162,13 +162,13 @@ export function admitExampleIntentFixture(
   if (fixture.kind === "confirmed-intent") {
     const parseResult = parseConfirmedIntent(fixture.value);
 
-    if (parseResult.ok && parseResult.intent !== undefined) {
+    if (parseResult.ok) {
       return {
         kind: "confirmed-intent",
         fixture,
         mode,
         parseResult,
-        ambiguityAssessment: assessConfirmedIntentAmbiguity(parseResult.intent, {
+        ambiguityAssessment: assessConfirmedIntentAmbiguity(parseResult.data, {
           mode
         })
       };
