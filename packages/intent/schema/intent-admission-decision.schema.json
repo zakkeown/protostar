@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "runId", "gate", "outcome", "timestamp", "precedenceResolution", "evidence"],
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
-    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9_-]+$" },
+    "runId": { "type": "string", "pattern": "^run[-_][A-Za-z0-9_-]+$" },
     "gate": { "const": "intent" },
     "outcome": { "enum": ["allow", "block", "escalate"] },
     "timestamp": { "type": "string", "format": "date-time" },
@@ -22,7 +22,6 @@
     },
     "evidence": {
       "type": "object",
-      "additionalProperties": false,
       "required": ["ambiguityScore", "admissionStage"],
       "properties": {
         "ambiguityScore": { "type": "number", "minimum": 0, "maximum": 1 },

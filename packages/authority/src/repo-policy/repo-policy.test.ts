@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { intersectEnvelopes } from "../precedence/index.js";
 import { DENY_ALL_REPO_POLICY, parseRepoPolicy } from "./parse.js";
 
-const schemaDir = resolve(fileURLToPath(import.meta.url), "../../../schema");
+const require = createRequire(fileURLToPath(import.meta.url));
 
 test("valid minimal repo policy parses", () => {
   const result = parseRepoPolicy({ schemaVersion: "1.0.0" });
@@ -79,10 +78,8 @@ test("unknown trustOverride is rejected", () => {
   assert.match(result.errors.join("\n"), /trustOverride/);
 });
 
-test("schema parity: budgetCaps properties have type number and minimum 0", async () => {
-  const schemaPath = resolve(schemaDir, "repo-policy.schema.json");
-  const raw = await readFile(schemaPath, "utf8");
-  const schema = JSON.parse(raw) as {
+test("schema parity: budgetCaps properties have type number and minimum 0", () => {
+  const schema = require("../../schema/repo-policy.schema.json") as {
     properties?: {
       budgetCaps?: {
         properties?: Record<string, { type?: string; minimum?: number }>
