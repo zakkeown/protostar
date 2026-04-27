@@ -26,9 +26,9 @@
 
 **Phase 3 — Repo Runtime + Sandbox** (in progress)
 
-Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, and the brand-consuming FS adapter are complete.
+Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, and strict symlink audit are complete.
 
-**Next action:** Continue Phase 3 Wave 1 with Plan 06 (symlink audit) and Plan 08 (subprocess allowlist/schemas).
+**Next action:** Continue Phase 3 Wave 1 with Plan 08 (subprocess allowlist/schemas).
 
 ## Phase Status
 
@@ -36,7 +36,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
-| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-05 complete; phase not verified |
+| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-06 complete; phase not verified |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
 | 6 | Live Dogpile Piles | Pending |
@@ -55,6 +55,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 3 Plan 06 (`03-06-symlink-audit-PLAN.md`): added `auditSymlinks(workspaceRoot)` with Node 22 recursive `readdir`, stable workspace-relative POSIX offending paths, parentPath/path compatibility fallback, and 6 TDD audit tests covering clean, root, nested, multiple, outside-target, and broken symlinks.
 - **2026-04-27:** Completed Phase 3 Plan 05 (`03-05-fs-adapter-PLAN.md`): added repo-owned `readFile`/`writeFile`/`deleteFile` adapter functions, `FsAdapterError` refusal reasons, lstat symlink refusal, workspace escape/canonicalization checks, and 8 TDD adapter tests.
 - **2026-04-27:** Completed Phase 3 Plan 04 (`03-04-sacrificial-repo-test-fixture-PLAN.md`): added `buildSacrificialRepo` under `@protostar/repo/internal/test-fixtures`, backed by real `isomorphic-git` repos in tmpdir, with deterministic commits, branch/dirty/symlink options, subpath export wiring, and fixture self-tests.
 - **2026-04-27:** Completed Phase 3 Plan 03 (`03-03-confirmed-intent-schema-bump-PLAN.md`): hard-bumped confirmed-intent to `schemaVersion: "1.2.0"`, added `capabilityEnvelope.workspace.allowDirty` defaulting and closed-key validation, cascaded signed-intent/authority/planning fixtures, and verified with `pnpm run verify:full`.
