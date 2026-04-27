@@ -3,7 +3,18 @@ import { describe, it } from "node:test";
 
 import type { StageArtifactRef } from "@protostar/artifacts";
 
-import type { ExecutionSnapshot, TaskJournalEvent, TaskJournalEventKind } from "./journal-types.js";
+import type {
+  ExecutionSnapshot,
+  TaskJournalEvent,
+  TaskJournalEventBase,
+  TaskJournalEventKind
+} from "./journal-types.js";
+
+type TaskJournalEventVariant = TaskJournalEvent extends infer Event
+  ? Event extends TaskJournalEvent
+    ? Omit<Event, keyof TaskJournalEventBase>
+    : never
+  : never;
 
 describe("TaskJournalEvent contract", () => {
   it("constructs every task journal event kind and matches exhaustively", () => {
@@ -55,6 +66,7 @@ describe("TaskJournalEvent contract", () => {
 
   it("rejects free-form task-cancelled causes at type-check time", () => {
     const event: TaskJournalEvent = baseEvent({ kind: "task-cancelled", cause: "sentinel" });
+    assert.equal(event.kind, "task-cancelled");
     assert.equal(event.cause, "sentinel");
   });
 
@@ -89,7 +101,7 @@ describe("TaskJournalEvent contract", () => {
 const _badCancelledCause: TaskJournalEvent = baseEvent({ kind: "task-cancelled", cause: "operator" });
 
 function baseEvent(
-  variant: Omit<TaskJournalEvent, "schemaVersion" | "runId" | "planTaskId" | "at" | "attempt" | "seq">
+  variant: TaskJournalEventVariant
 ): TaskJournalEvent {
   return {
     schemaVersion: "1.0.0",
