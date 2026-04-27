@@ -14,7 +14,13 @@ const resolvedEnvelope = {
   repoScopes: [{ workspace: "protostar", path: "packages/authority", access: "write" }],
   toolPermissions: [{ tool: "pnpm", reason: "test", risk: "low" }],
   workspace: { allowDirty: false },
-  budget: { maxTokens: 500 }
+  network: { allow: "loopback" },
+  budget: {
+    maxTokens: 500,
+    adapterRetriesPerTask: 4,
+    taskWallClockMs: 180_000,
+    maxRepairLoops: 0
+  }
 } as const satisfies CapabilityEnvelope;
 
 const policy = Object.freeze({ autonomy: "governed", repairLoops: 1 });

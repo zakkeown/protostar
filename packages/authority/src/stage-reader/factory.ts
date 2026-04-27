@@ -236,7 +236,27 @@ function upconvertLegacyConfirmedIntent(parsed: Record<string, unknown>, path: s
       path
     );
   }
-  return { ...parsed, schemaVersion: "1.2.0" };
+  const capabilityEnvelope = isRecord(parsed["capabilityEnvelope"])
+    ? {
+        ...parsed["capabilityEnvelope"],
+        workspace: isRecord(parsed["capabilityEnvelope"]["workspace"])
+          ? parsed["capabilityEnvelope"]["workspace"]
+          : { allowDirty: false },
+        network: isRecord(parsed["capabilityEnvelope"]["network"])
+          ? parsed["capabilityEnvelope"]["network"]
+          : { allow: "loopback" },
+        budget: {
+          ...(isRecord(parsed["capabilityEnvelope"]["budget"]) ? parsed["capabilityEnvelope"]["budget"] : {}),
+          adapterRetriesPerTask: 4,
+          taskWallClockMs: 180_000,
+          maxRepairLoops: isRecord(parsed["capabilityEnvelope"]["budget"]) &&
+            typeof parsed["capabilityEnvelope"]["budget"]["maxRepairLoops"] === "number"
+            ? parsed["capabilityEnvelope"]["budget"]["maxRepairLoops"]
+            : 0
+        }
+      }
+    : parsed["capabilityEnvelope"];
+  return { ...parsed, capabilityEnvelope, schemaVersion: "1.3.0" };
 }
 
 function validateAdmissionDecisionIndexEntry(raw: string, path: string, line: number): AdmissionDecisionIndexEntry {

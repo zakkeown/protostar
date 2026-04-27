@@ -134,8 +134,14 @@ function setupHappyRun() {
       workspace: {
         allowDirty: false
       },
+      network: {
+        allow: "loopback"
+      },
       budget: {
-        timeoutMs: 1000
+        adapterRetriesPerTask: 4,
+        timeoutMs: 1000,
+        taskWallClockMs: 180_000,
+        maxRepairLoops: 0
       }
     },
     constraints: ["no filesystem authority in @protostar/authority"],

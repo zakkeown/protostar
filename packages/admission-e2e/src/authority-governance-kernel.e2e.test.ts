@@ -58,7 +58,15 @@ const PERMISSIVE_ENVELOPE: CapabilityEnvelope = {
   ],
   executeGrants: [{ command: "pnpm", scope: "." }],
   workspace: { allowDirty: false },
-  budget: { maxUsd: 10, maxTokens: 1000, timeoutMs: 60000 }
+  network: { allow: "loopback" },
+  budget: {
+    maxUsd: 10,
+    maxTokens: 1000,
+    timeoutMs: 60000,
+    adapterRetriesPerTask: 4,
+    taskWallClockMs: 180_000,
+    maxRepairLoops: 0
+  }
 };
 
 const EMPTY_ENVELOPE: CapabilityEnvelope = Object.freeze({

@@ -36,7 +36,15 @@ const testEnvelope: CapabilityEnvelope = Object.freeze({
       risk: "low" as const
     }
   ],
-  budget: { maxUsd: 0, timeoutMs: 60000, maxRepairLoops: 1 }
+  workspace: { allowDirty: false },
+  network: { allow: "loopback" as const },
+  budget: {
+    maxUsd: 0,
+    timeoutMs: 60000,
+    adapterRetriesPerTask: 4,
+    taskWallClockMs: 180_000,
+    maxRepairLoops: 1
+  }
 });
 
 function buildTestUnsignedIntent() {

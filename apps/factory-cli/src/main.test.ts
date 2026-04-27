@@ -12,6 +12,7 @@ import {
   buildPolicySnapshot,
   buildSignatureEnvelope,
   hashPolicySnapshot,
+  intersectEnvelopes,
   verifyConfirmedIntentSignature
 } from "@protostar/authority";
 import { promoteAndSignIntent, promoteIntentDraft } from "@protostar/intent";
@@ -26,6 +27,8 @@ import {
 } from "@protostar/planning/schema";
 
 import { runFactory, type FactoryCompositionDependencies } from "./main.js";
+import { loadRepoPolicy } from "./load-repo-policy.js";
+import { buildTierConstraints } from "./precedence-tier-loader.js";
 
 interface CliResult {
   readonly exitCode: number | null;
@@ -2671,11 +2674,22 @@ async function buildSignedConfirmedIntentFile(draft: Record<string, unknown>): P
   const promoted = promoteIntentDraft({ draft, mode: "brownfield" });
   if (!promoted.ok) throw new Error(`Cannot promote draft for test signing: ${promoted.errors.join("; ")}`);
   const unsignedIntent = promoted.intent;
-  const resolvedEnvelope = unsignedIntent.capabilityEnvelope as unknown as CapabilityEnvelope;
+  const repoPolicy = await loadRepoPolicy(repoRoot);
+  const precedenceDecision = intersectEnvelopes(buildTierConstraints({
+    intent: unsignedIntent,
+    policy: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:policy" },
+    repoPolicy,
+    operatorSettings: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:operator-settings" }
+  }));
+  if (precedenceDecision.status === "blocked-by-tier") {
+    throw new Error("Cannot sign test intent for blocked precedence decision.");
+  }
+  const resolvedEnvelope = precedenceDecision.resolvedEnvelope as unknown as CapabilityEnvelope;
   const policySnapshot = buildPolicySnapshot({
     capturedAt: "2026-01-01T00:00:00.000Z",
     policy: { allowDarkRun: true, maxAutonomousRisk: "medium", requiredHumanCheckpoints: [] },
-    resolvedEnvelope
+    resolvedEnvelope,
+    repoPolicy
   });
   const policySnapshotHash = hashPolicySnapshot(policySnapshot);
   const { signature: _sig, ...intentBody } = unsignedIntent;

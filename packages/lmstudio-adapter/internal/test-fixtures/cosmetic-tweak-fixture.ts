@@ -100,7 +100,7 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
     }),
     constraints: Object.freeze(["Only change src/Button.tsx.", "Return one fenced unified diff."]),
     stopConditions: Object.freeze([]),
-    schemaVersion: "1.2.0",
+    schemaVersion: "1.3.0",
     signature: Object.freeze({
       algorithm: "sha256",
       canonicalForm: "json-c14n@1.0",
