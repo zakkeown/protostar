@@ -119,7 +119,7 @@ describe("review admitted artifact integration", () => {
         now: () => "2026-04-26T00:00:00.000Z"
       });
 
-      assert.equal(executionResult.status, "passed");
+      assert.equal(executionResult.status, "succeeded");
       assert.equal(reviewGate.verdict, "pass");
       assert.equal(loopResult.status, "approved");
       assert.equal(loopResult.finalReviewGate.verdict, "pass");

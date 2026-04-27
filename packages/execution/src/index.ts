@@ -5,7 +5,14 @@ import {
 } from "@protostar/planning";
 import type { WorkspaceRef } from "@protostar/repo";
 
-export type ExecutionTaskStatus = "pending" | "running" | "passed" | "failed" | "blocked";
+// EXEC-01 vocab - see Phase 4 Q-01/Q-04. blocked moved to plan-graph.
+export type ExecutionTaskStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "timeout"
+  | "cancelled";
 
 export interface ExecutionTask {
   readonly planTaskId: string;
@@ -25,9 +32,10 @@ export interface ExecutionRunPlan {
 export type ExecutionLifecycleEventType =
   | "task-pending"
   | "task-running"
-  | "task-passed"
+  | "task-succeeded"
   | "task-failed"
-  | "task-blocked";
+  | "task-timeout"
+  | "task-cancelled";
 
 export interface ExecutionLifecycleEvent {
   readonly type: ExecutionLifecycleEventType;
@@ -41,16 +49,15 @@ export interface ExecutionLifecycleEvent {
 }
 
 export interface ExecutionDryRunTaskResult extends ExecutionTask {
-  readonly status: "passed" | "failed" | "blocked";
+  readonly status: "succeeded" | "failed";
   readonly evidence: readonly StageArtifactRef[];
   readonly reason?: string;
-  readonly blockedBy?: readonly string[];
 }
 
 export interface ExecutionDryRunResult {
   readonly runId: string;
   readonly planId: string;
-  readonly status: "passed" | "failed";
+  readonly status: "succeeded" | "failed";
   readonly tasks: readonly ExecutionDryRunTaskResult[];
   readonly events: readonly ExecutionLifecycleEvent[];
   readonly evidence: readonly StageArtifactRef[];
@@ -614,24 +621,25 @@ export function runExecutionDryRun(options: ExecutionDryRunOptions): ExecutionDr
       status: "pending"
     });
 
-    const blockedBy = task.dependsOn.filter((dependencyId) => taskStatus.get(dependencyId)?.status !== "passed");
-    if (blockedBy.length > 0) {
-      const reason = `Blocked by unresolved or failed dependencies: ${blockedBy.join(", ")}.`;
+    const failedDependencies = task.dependsOn.filter(
+      (dependencyId) => taskStatus.get(dependencyId)?.status !== "succeeded"
+    );
+    if (failedDependencies.length > 0) {
+      const reason = "dependency-failed";
       const result: ExecutionDryRunTaskResult = {
         ...task,
-        status: "blocked",
+        status: "failed",
         evidence: [],
-        blockedBy,
         reason
       };
       taskStatus.set(task.planTaskId, result);
       events.push({
-        type: "task-blocked",
+        type: "task-failed",
         runId: options.execution.runId,
         planTaskId: task.planTaskId,
         at: now(),
-        status: "blocked",
-        blockedBy,
+        status: "failed",
+        blockedBy: failedDependencies,
         reason
       });
       continue;
@@ -668,20 +676,20 @@ export function runExecutionDryRun(options: ExecutionDryRunOptions): ExecutionDr
       continue;
     }
 
-    const taskEvidence = [taskEvidenceRef(task.planTaskId, "passed")];
+    const taskEvidence = [taskEvidenceRef(task.planTaskId, "succeeded")];
     evidence.push(...taskEvidence);
     const result: ExecutionDryRunTaskResult = {
       ...task,
-      status: "passed",
+      status: "succeeded",
       evidence: taskEvidence
     };
     taskStatus.set(task.planTaskId, result);
     events.push({
-      type: "task-passed",
+      type: "task-succeeded",
       runId: options.execution.runId,
       planTaskId: task.planTaskId,
       at: now(),
-      status: "passed",
+      status: "succeeded",
       evidence: taskEvidence
     });
   }
@@ -697,20 +705,20 @@ export function runExecutionDryRun(options: ExecutionDryRunOptions): ExecutionDr
   return {
     runId: options.execution.runId,
     planId: options.execution.planId,
-    status: tasks.every((task) => task.status === "passed") ? "passed" : "failed",
+    status: tasks.every((task) => task.status === "succeeded") ? "succeeded" : "failed",
     tasks,
     events,
     evidence
   };
 }
 
-function taskEvidenceRef(planTaskId: string, status: "passed" | "failed"): StageArtifactRef {
+function taskEvidenceRef(planTaskId: string, status: "succeeded" | "failed"): StageArtifactRef {
   return {
     stage: "execution",
-    kind: status === "passed" ? "dry-run-task-pass" : "dry-run-task-failure",
+    kind: status === "succeeded" ? "dry-run-task-pass" : "dry-run-task-failure",
     uri: `execution-evidence/${planTaskId}.json`,
     description:
-      status === "passed"
+      status === "succeeded"
         ? `Dry-run evidence for completed task ${planTaskId}.`
         : `Dry-run evidence for failed task ${planTaskId}.`
   };

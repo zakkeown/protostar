@@ -658,7 +658,7 @@ export async function runFactory(
     },
     {
       stage: "execution" as const,
-      status: executionResult.status === "passed" ? ("passed" as const) : ("failed" as const),
+      status: executionResult.status === "succeeded" ? ("passed" as const) : ("failed" as const),
       artifacts: [
         artifact("execution", "execution-plan", "execution-plan.json", "Execution task ordering derived from the plan graph."),
         artifact("execution", "execution-events", "execution-events.json", "Dry-run execution lifecycle events."),
@@ -1639,7 +1639,6 @@ async function writeExecutionEvidence(runDir: string, result: ExecutionDryRunRes
           planTaskId: task.planTaskId,
           status: task.status,
           reason: task.reason ?? null,
-          blockedBy: task.blockedBy ?? [],
           evidence: ref
         })
       )

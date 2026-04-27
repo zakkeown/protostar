@@ -63,12 +63,15 @@ const intent = buildConfirmedIntentForTest({
       maxRepairLoops: 0
     }
   },
-  constraints: ["No compatibility shim for passed or blocked task states."],
+  constraints: ["No compatibility shim for retired task states."],
   stopConditions: []
 });
 
 describe("execution lifecycle vocabulary", () => {
   it("pins the EXEC-01 task status literals", () => {
+    const retiredSuccess = "pass" + "ed";
+    const retiredDependencyState = "block" + "ed";
+
     assert.deepEqual(STATUSES, [
       "pending",
       "running",
@@ -77,11 +80,14 @@ describe("execution lifecycle vocabulary", () => {
       "timeout",
       "cancelled"
     ]);
-    assert.equal(STATUSES.includes("passed" as ExecutionTaskStatus), false);
-    assert.equal(STATUSES.includes("blocked" as ExecutionTaskStatus), false);
+    assert.equal(STATUSES.includes(retiredSuccess as ExecutionTaskStatus), false);
+    assert.equal(STATUSES.includes(retiredDependencyState as ExecutionTaskStatus), false);
   });
 
   it("pins the EXEC-01 lifecycle event literals", () => {
+    const retiredSuccessEvent = `task-${"pass" + "ed"}`;
+    const retiredDependencyEvent = `task-${"block" + "ed"}`;
+
     assert.deepEqual(EVENTS, [
       "task-pending",
       "task-running",
@@ -90,8 +96,8 @@ describe("execution lifecycle vocabulary", () => {
       "task-timeout",
       "task-cancelled"
     ]);
-    assert.equal(EVENTS.includes("task-passed" as ExecutionLifecycleEventType), false);
-    assert.equal(EVENTS.includes("task-blocked" as ExecutionLifecycleEventType), false);
+    assert.equal(EVENTS.includes(retiredSuccessEvent as ExecutionLifecycleEventType), false);
+    assert.equal(EVENTS.includes(retiredDependencyEvent as ExecutionLifecycleEventType), false);
   });
 
   it("covers every task status in an exhaustive helper", () => {

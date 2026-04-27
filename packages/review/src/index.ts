@@ -421,7 +421,7 @@ function reviewExecutionConsistency(input: MechanicalReviewGateInput): readonly 
 }
 
 function reviewExecutionCompletion(executionResult: ExecutionDryRunResult): readonly ReviewFinding[] {
-  if (executionResult.status === "passed") {
+  if (executionResult.status === "succeeded") {
     return [];
   }
 
@@ -449,24 +449,12 @@ function reviewTaskEvidence(executionResult: ExecutionDryRunResult): readonly Re
       ];
     }
 
-    if (task.status === "blocked") {
-      return [
-        finding({
-          ruleId: "execution-completed",
-          severity: "major",
-          summary: `Execution task ${task.planTaskId} was blocked by ${task.blockedBy?.join(", ") ?? "unknown dependencies"}.`,
-          evidence: [executionResultArtifact()],
-          repairTaskId: task.planTaskId
-        })
-      ];
-    }
-
     if (task.evidence.length === 0) {
       return [
         finding({
           ruleId: "task-evidence-present",
           severity: "major",
-          summary: `Passed execution task ${task.planTaskId} has no evidence artifact.`,
+          summary: `Succeeded execution task ${task.planTaskId} has no evidence artifact.`,
           evidence: [executionResultArtifact()],
           repairTaskId: task.planTaskId
         })
