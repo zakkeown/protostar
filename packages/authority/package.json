@@ -1,0 +1,34 @@
+{
+  "name": "@protostar/authority",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./internal/brand-witness": {
+      "types": "./dist/internal/brand-witness.d.ts",
+      "import": "./dist/internal/brand-witness.js"
+    },
+    "./internal/test-builders": {
+      "types": "./dist/internal/test-builders.d.ts",
+      "import": "./dist/internal/test-builders.js"
+    },
+    "./schema/repo-policy.schema.json": "./schema/repo-policy.schema.json",
+    "./schema/admission-decision-base.schema.json": "./schema/admission-decision-base.schema.json",
+    "./schema/precedence-decision.schema.json": "./schema/precedence-decision.schema.json",
+    "./schema/policy-snapshot.schema.json": "./schema/policy-snapshot.schema.json",
+    "./schema/escalation-marker.schema.json": "./schema/escalation-marker.schema.json"
+  },
+  "files": ["dist", "schema"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "pnpm run build && node --test dist/*.test.js",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "sideEffects": false
+}
