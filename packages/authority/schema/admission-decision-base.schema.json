@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/admission-decision-base.schema.json",
+  "title": "AdmissionDecisionBase",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "gate", "outcome", "timestamp", "precedenceResolution"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9_-]+$" },
+    "gate": { "enum": ["intent", "planning", "capability", "repo-scope", "workspace-trust"] },
+    "outcome": { "enum": ["allow", "block", "escalate"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "precedenceResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["no-conflict", "resolved", "blocked-by-tier"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

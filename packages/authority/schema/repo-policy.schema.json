@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/repo-policy.schema.json",
+  "title": "RepoPolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "allowedScopes": { "type": "array", "items": { "type": "string" } },
+    "deniedTools": { "type": "array", "items": { "type": "string" } },
+    "budgetCaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxUsd": { "type": "number" },
+        "maxTokens": { "type": "number" },
+        "timeoutMs": { "type": "number" },
+        "maxRepairLoops": { "type": "number" }
+      }
+    },
+    "trustOverride": { "enum": ["trusted", "untrusted"] }
+  }
+}

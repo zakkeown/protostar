@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/policy-snapshot.schema.json",
+  "title": "PolicySnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "capturedAt", "policy", "resolvedEnvelope"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "resolvedEnvelope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "repoPolicyHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

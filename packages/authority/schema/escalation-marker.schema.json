@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/escalation-marker.schema.json",
+  "title": "EscalationMarker",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "gate", "reason", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "runId": { "type": "string" },
+    "gate": { "enum": ["intent", "planning", "capability", "repo-scope", "workspace-trust"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "awaiting": { "enum": ["operator-confirm", "operator-resume"], "default": "operator-confirm" }
+  }
+}
