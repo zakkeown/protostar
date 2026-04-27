@@ -153,10 +153,10 @@ function setupHappyRun() {
     ...stripSignature(unsignedIntent),
     signature
   });
-  assert.equal(signed.ok, true);
   if (!signed.ok) {
     throw new Error(signed.errors.join("; "));
   }
+  assert.equal(signed.ok, true);
 
   return {
     runDir,
@@ -169,7 +169,7 @@ function setupHappyRun() {
   };
 }
 
-function stripSignature(intent: { readonly signature: unknown }): object {
+function stripSignature<T extends { readonly signature: unknown }>(intent: T): Omit<T, "signature"> {
   const { signature: _signature, ...body } = intent;
   return body;
 }
