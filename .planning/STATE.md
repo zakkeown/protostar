@@ -28,14 +28,14 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Continue Phase 2 Wave 2 with remaining downstream admission-decision/schema work after completed `02-04`, `02-05`, and `02-06a` outputs are available.
+**Next action:** Continue Phase 2 Wave 3 with `02-07-factory-cli-per-gate-writer-PLAN.md` now that `02-04`, `02-05`, `02-06a`, and `02-06b` are complete.
 
 ## Phase Status
 
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
-| 2 | Authority + Governance Kernel | In progress — Wave 1 complete; Wave 2 next |
+| 2 | Authority + Governance Kernel | In progress — Wave 2 complete; Wave 3 next |
 | 3 | Repo Runtime + Sandbox | Pending |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
@@ -55,6 +55,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 2 Plan 06b (`02-06b-per-gate-evidence-schemas-PLAN.md`): five owning-package per-gate admission-decision schemas now exist with strict inline base fields and package subpath exports.
 - **2026-04-27:** Completed Phase 2 Plan 05 (`02-05-canonicalize-and-signature-PLAN.md`): authority signature helpers now provide fail-closed `json-c14n@1.0`, policy snapshot hashing, signed-intent envelope builders, and the central `verifyConfirmedIntentSignature` verifier.
 - **2026-04-27:** Completed Phase 2 Plan 04 (`02-04-precedence-kernel-PLAN.md`): precedence intersection now emits branded `PrecedenceDecision` values with full blockedBy evidence, and repo-policy parsing ships with the A3 `DENY_ALL_REPO_POLICY` fallback.
 - **2026-04-27:** Completed Phase 2 Plan 03 (`02-03-signature-envelope-extension-PLAN.md`): confirmed-intent artifacts now hard-bump to `schemaVersion: "1.1.0"` and `SignatureEnvelope` carries `canonicalForm: "json-c14n@1.0"` plus deterministic sub-hashes.
