@@ -20,6 +20,7 @@
     { "path": "../../packages/review" },
     { "path": "../../packages/delivery" },
     { "path": "../../packages/evaluation" },
-    { "path": "../../packages/dogpile-adapter" }
+    { "path": "../../packages/dogpile-adapter" },
+    { "path": "../../packages/lmstudio-adapter" }
   ]
 }

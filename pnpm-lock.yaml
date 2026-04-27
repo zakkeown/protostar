@@ -38,6 +38,9 @@ importers:
       '@protostar/intent':
         specifier: workspace:*
         version: link:../../packages/intent
+      '@protostar/lmstudio-adapter':
+        specifier: workspace:*
+        version: link:../../packages/lmstudio-adapter
       '@protostar/paths':
         specifier: workspace:*
         version: link:../../packages/paths
