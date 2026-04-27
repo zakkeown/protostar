@@ -35,11 +35,9 @@ import {
 import {
   buildPolicySnapshot,
   buildSignatureEnvelope,
-  DENY_ALL_REPO_POLICY,
   intersectEnvelopes,
   type AdmissionDecisionBase,
-  type PrecedenceDecision,
-  type RepoPolicy
+  type PrecedenceDecision
 } from "@protostar/authority";
 import {
   admitCandidatePlan,
@@ -271,10 +269,41 @@ export async function runFactory(
   const precedenceDecision = intersectEnvelopes(buildTierConstraints({
     intent: unsignedIntent,
     policy: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:policy" },
-    repoPolicy: repoPolicyForCurrentCompatibility(repoPolicy, unsignedIntent),
+    repoPolicy,
     operatorSettings: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:operator-settings" }
   }));
+  await mkdir(runDir, { recursive: true });
   await writePrecedenceDecision({ runDir, decision: precedenceDecision });
+  if (precedenceDecision.status === "blocked-by-tier") {
+    const requestedScopes = unsignedIntent.capabilityEnvelope.repoScopes.map((scope) => scope.path);
+    const grantedScopes = precedenceDecision.resolvedEnvelope.repoScopes.map((scope) => scope.path);
+    await writeAdmissionDecision({
+      runDir,
+      gate: "repo-scope",
+      decision: baseAdmissionDecision({
+        runId,
+        gate: "repo-scope",
+        outcome: "block",
+        precedenceDecision,
+        evidence: {
+          admissionStage: "repo-scope",
+          requestedScopes,
+          grantedScopes,
+          blockedBy: precedenceDecision.blockedBy
+        }
+      })
+    });
+    const reason = "precedence blocked by tier: run halted before signing or planning";
+    await writeRefusalArtifacts({
+      runDir,
+      outDir,
+      runId,
+      stage: "precedence",
+      reason,
+      refusalArtifact: "repo-scope-admission-decision.json"
+    });
+    throw new CliExitError(reason, 1);
+  }
   const policySnapshot = buildPolicySnapshot({
     policy: {
       allowDarkRun: true,
@@ -914,23 +943,6 @@ function noConflictPrecedenceDecisionForDraft(): PrecedenceDecision {
     tiers: [],
     blockedBy: []
   } as unknown as PrecedenceDecision;
-}
-
-function repoPolicyForCurrentCompatibility(repoPolicy: RepoPolicy, intent: ConfirmedIntent): RepoPolicy {
-  if (repoPolicy !== DENY_ALL_REPO_POLICY) {
-    return repoPolicy;
-  }
-
-  return {
-    schemaVersion: "1.0.0",
-    repoScopes: intent.capabilityEnvelope.repoScopes,
-    toolPermissions: intent.capabilityEnvelope.toolPermissions,
-    ...(intent.capabilityEnvelope.executeGrants !== undefined
-      ? { executeGrants: intent.capabilityEnvelope.executeGrants }
-      : {}),
-    budget: intent.capabilityEnvelope.budget,
-    trustOverride: "trusted"
-  };
 }
 
 function stripSignature(intent: ConfirmedIntent): object {
