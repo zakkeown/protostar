@@ -109,7 +109,7 @@ Plans:
 - [x] 03-06-symlink-audit-PLAN.md — wave 1 — TDD: post-clone tree audit via Node 22 readdir({recursive,withFileTypes}) (Q-06)
 - [x] 03-08-subprocess-allowlist-and-schemas-PLAN.md — wave 1 — TDD: baseline allowlist + intersect helper + outer pattern guard + per-command schemas (git/pnpm/node/tsc) (Q-07, Q-08)
 - [x] 03-07-apply-change-set-PLAN.md — wave 2 — TDD: patch pipeline using diff@9.0.0 (CONFLICT-01 resolution) — sha256 gate → parsePatch → binary detect → applyPatch → write; best-effort partial result (Q-10, Q-12)
-- [ ] 03-09-subprocess-runner-PLAN.md — wave 2 — spawn array-form + pre-spawn validation + stream-to-file + rolling tail + flush-on-exit + timeout (Q-09, Q-04)
+- [x] 03-09-subprocess-runner-PLAN.md — wave 2 — spawn array-form + pre-spawn validation + stream-to-file + rolling tail + flush-on-exit + timeout (Q-09, Q-04)
 - [ ] 03-10-clone-and-dirty-and-policy-PLAN.md — wave 2 — TDD: cloneWorkspace (isomorphic-git + onAuth shim + retry-cancel) + dirtyWorktreeStatus (CONFLICT-02 filter) + repo-policy parser + admission-decision JSON schema (Q-04, Q-13, Q-02)
 - [ ] 03-11-barrel-and-factory-cli-wiring-PLAN.md — wave 3 — barrel re-exports + INIT_CWD → resolveWorkspaceRoot + clone/audit/dirty/admission-decision-emit/cleanup-or-tombstone wiring into runFactory (Q-15, Q-11)
 - [ ] 03-12-admission-e2e-contract-suite-PLAN.md — wave 4 — five contract tests pinning per-gate evidence shapes: dirty-refusal, symlink-refusal, allowlist-refusal, hash-mismatch refusal, best-effort partial (REPO-05 lead)
