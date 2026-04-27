@@ -1,146 +1,220 @@
 ---
 phase: 01-intent-planning-admission
 plan: 06b
-status: BLOCKED
+status: COMPLETE
 subsystem: intent
-tags: [brand, confirmed-intent, blocker, architectural-decision, contract-test]
+tags: [brand, confirmed-intent, admission, contract-test, internal-subpath]
 requires: [04, 05, 06a]
-provides: []
-affects: [intent, planning, factory-cli, dogpile-adapter, admission-e2e]
+provides: [INTENT-02]
+affects: [intent, planning, dogpile-adapter, admission-e2e, factory-cli, review, execution, policy]
 key-files:
-  created: []
-  modified: []
-decisions: []
+  created:
+    - packages/intent/src/internal/test-builders.ts
+    - packages/intent/src/internal/brand-witness.ts
+    - packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts
+  modified:
+    - packages/intent/src/confirmed-intent.ts
+    - packages/intent/src/confirmed-intent/index.ts
+    - packages/intent/src/index.ts
+    - packages/intent/src/promote-intent-draft.ts
+    - packages/intent/src/ambiguity-scoring.ts
+    - packages/intent/src/confirmed-intent-readonly.contract.ts
+    - packages/intent/src/confirmed-intent-immutability.test.ts
+    - packages/intent/src/example-intent-fixtures.test.ts
+    - packages/intent/src/example-intent-fixtures.test-support.ts
+    - packages/intent/src/acceptance-criteria-normalization.test.ts
+    - packages/intent/src/public-split-exports.contract.test.ts
+    - packages/intent/package.json
+    - packages/planning/src/(28 files)
+    - packages/dogpile-adapter/src/public-candidate-plan.contract.test.ts
+    - packages/review/src/admitted-artifact-integration.test.ts
+    - packages/review/src/admitted-plan-runtime-admission.test.ts
+    - packages/execution/src/admitted-artifact-integration.test.ts
+    - packages/execution/src/admitted-plan-runtime-admission.test.ts
+    - packages/execution/package.json
+    - packages/execution/tsconfig.json
+    - apps/factory-cli/src/main.ts
+    - apps/factory-cli/src/main.test.ts
+    - apps/factory-cli/src/confirmed-intent-handoff.ts
+  pruned:
+    - packages/policy/dist/example-intent-fixtures.test.{js,d.ts}+map (stale build artifacts; src moved to intent in earlier plan)
+decisions:
+  - "Q-13b Option A: assertConfirmedIntent dropped from every barrel; defineConfirmedIntent fully deleted (no rename, no internal alias)"
+  - "Q-13c Option α: --intent CLI flag, intentPath option, and confirmed-intent-input handoff source fully removed; only --intent-draft / --draft are accepted; CLI surfaces a deliberate error message if --intent is passed"
+  - "Q-13d: buildConfirmedIntentForTest helper lives at @protostar/intent/internal/test-builders subpath (separate from public barrel); ConfirmedIntentBrandWitness type alias lives at @protostar/intent/internal/brand-witness for the admission-e2e contract test only"
+  - "ConfirmedIntent brand: declare const ConfirmedIntentBrand: unique symbol — module-private; foreign callers cannot name it"
+  - "ConfirmedIntentData = un-branded payload (parseConfirmedIntent returns this on success — re-promote via promoteIntentDraft to obtain the brand)"
+  - "schemaVersion: '1.0.0' + signature: SignatureEnvelope | null added at the type level (Phase 1 emits null literal; Phase 2 GOV-06 reserves the nullable signature shape)"
+  - "Helper signature: buildConfirmedIntentForTest(input: ConfirmedIntentMintInput) — the loose mint shape — so 30+ migration sites do not need new fields per fixture"
+  - "Mint-surface contract test: type-level Equal<MintingKeys,'promoteIntentDraft'> + type-level negative-keyof + runtime leak grep (three-layer enforcement)"
 metrics:
-  duration: blocked-pre-execution
-  completed: never
+  duration: ~50 min
+  completed: 2026-04-26
 ---
 
-# Phase 1 Plan 06b: Branded ConfirmedIntent — BLOCKED
+# Phase 1 Plan 06b: Branded ConfirmedIntent Summary
 
-**One-liner:** Execution halted pre-Task-1. Plan contains an internal contradiction between Task 1 step 1f (`assertConfirmedIntent` "stays" returning branded `ConfirmedIntent`) and Task 2's contract test (asserts `MintingKeys === "promoteIntentDraft"`, which fails type-check whenever ANY public function returns `ConfirmedIntent`). Resolving the contradiction also surfaces an unscoped INTENT-02 violation in `apps/factory-cli/src/confirmed-intent-handoff.ts`'s `"confirmed-intent-input"` source path: it loads a pre-confirmed-intent JSON file and produces a branded `ConfirmedIntent` without going through `promoteIntentDraft` — exactly the CLI bypass the plan is meant to close. Both questions are Rule 4 (architectural) and exceed autonomous execution scope.
+**One-liner:** ConfirmedIntent is now a unique-symbol-branded type produced ONLY by `promoteIntentDraft` on the public surface (with a non-public `internal/test-builders` helper for 30+ test sites and a `internal/brand-witness` type-only export for the admission-e2e contract test); factory-cli's `--intent` / `confirmed-intent-input` CLI bypass is fully removed; a three-layer contract test (type-level positive + type-level negative-keyof + runtime barrel leak grep) pins the public mint surface so any future regression breaks `tsc -b` or `node --test`.
 
 ## Status
 
-**No tasks executed. No commits made. No source files modified.**
+**5 atomic commits, all green; pnpm run verify:full exit 0.**
 
-The plan was read end-to-end, the codebase was inspected (every `defineConfirmedIntent` / `parseConfirmedIntent` / `assertConfirmedIntent` call site enumerated across `packages/intent`, `packages/planning`, `packages/dogpile-adapter`, `apps/factory-cli`), and the contradiction surfaced before any code was written. This SUMMARY is the blocker artifact.
+| Task | Commit | Description |
+|------|--------|-------------|
+| A | `2cc6a97` | Brand ConfirmedIntent + module-private mint + drop assertConfirmedIntent + delete defineConfirmedIntent |
+| B | `e3a2ad6` | Add internal/test-builders subpath + migrate intent-package-internal test callsites |
+| C1 | `895d64d` | Migrate cross-package test callsites (planning + dogpile-adapter) to buildConfirmedIntentForTest |
+| C2 | `2a70efb` | Drop --intent CLI flag + confirmed-intent-input handoff source from factory-cli |
+| D | `1625a2f` | Pin public mint surface — admission-e2e contract test |
 
-## Blocker 1: Plan internal contradiction on `assertConfirmedIntent`
-
-### What Task 1 step 1f says
-
-> `assertConfirmedIntent` is a TYPE GUARD over an already-branded value — it stays. Keep its predicate signature `value is ConfirmedIntent` (TS narrows on the brand).
->
-> `parseConfirmedIntent` … NARROW its return type to a NON-branded shape (e.g. change the result type's success branch from `{ ok: true; intent: ConfirmedIntent }` to `{ ok: true; data: ConfirmedIntentData }` …). Callers that need a branded ConfirmedIntent must re-promote through `promoteIntentDraft`.
-
-### What Task 2 contract test does
+## Brand Mechanism
 
 ```ts
-type ReturnsConfirmed<K extends keyof IntentPublicSurface> =
-  IntentPublicSurface[K] extends (...args: any[]) => infer R
-    ? Extract<R, ConfirmedIntentBrandWitness> extends never
-      ? (R extends { readonly intent: ConfirmedIntentBrandWitness } ? true : false)
-      : true
-    : false;
-type MintingKeys = { [K in keyof IntentPublicSurface]: ReturnsConfirmed<K> extends true ? K : never }[keyof IntentPublicSurface];
-type _MintSurfacePinned = Assert<Equal<MintingKeys, "promoteIntentDraft">>;
+declare const ConfirmedIntentBrand: unique symbol; // module-private; not exported
+
+export type ConfirmedIntentData = DeepReadonly<ConfirmedIntentBaseShape>; // un-branded
+export type ConfirmedIntent = ConfirmedIntentData & {
+  readonly [ConfirmedIntentBrand]: true;
+};
 ```
 
-### The contradiction
+- **Sibling-export mint**: `mintConfirmedIntent(input: ConfirmedIntentMintInput): ConfirmedIntent` is exported from `confirmed-intent.ts` so sibling files (`promote-intent-draft.ts`, `internal/test-builders.ts`) can produce branded values, but the public barrel and the `./confirmed-intent` subpath barrel both scrub it.
+- **parseConfirmedIntent narrowing**: success branch returns `{ ok: true; data: ConfirmedIntentData }` (un-branded). Consumers that need the brand must re-promote.
+- **Module-private symbol**: foreign callers cannot name `ConfirmedIntentBrand` and therefore cannot fabricate a `ConfirmedIntent` literal — `tsc` rejects the missing symbol property.
 
-`assertConfirmedIntent`'s current signature is `(value: unknown) => ConfirmedIntent`. Under Task 2's `ReturnsConfirmed`, `R = ConfirmedIntent` → `Extract<R, ConfirmedIntentBrandWitness>` is not `never` → `MintingKeys` includes `"assertConfirmedIntent"` → `Equal<..., "promoteIntentDraft">` fails. Task 1 step 1f and Task 2's contract test cannot both be true as written.
+## Two Non-Public Mint Subpaths
 
-Even if step 1f's "type guard" wording is interpreted as `(value: unknown) => asserts value is ConfirmedIntent` (return type `void`, which would NOT trip the contract test), the implementation of that assertion at runtime must produce a brand for downstream narrowing to be sound — i.e. it would call `mintConfirmedIntent` internally, becoming a SECOND public path that mints `ConfirmedIntent`. That violates the must-have truth: *"promoteIntentDraft is the SOLE function in @protostar/intent's public surface that produces a ConfirmedIntent value"*.
+Both subpaths are tagged with a top-of-file PRIVATE SUBPATH banner stating they are test-/contract-only and may be relocated or removed without notice in Phase 2.
 
-The contradiction has three plausible resolutions; each requires a planner-level decision:
+| Subpath | Kind | Purpose |
+|---------|------|---------|
+| `@protostar/intent/internal/test-builders` | value | `buildConfirmedIntentForTest(input: ConfirmedIntentMintInput): ConfirmedIntent` — test-only producer for 30+ migrated test sites; calls `mintConfirmedIntent` directly |
+| `@protostar/intent/internal/brand-witness` | type-only | `export type { ConfirmedIntent as ConfirmedIntentBrandWitness }` — re-exposes the branded type under an obvious alias so admission-e2e's contract test can name the otherwise module-private brand |
 
-| Option | Effect on `assertConfirmedIntent` | Public surface impact |
-|--------|------------------------------------|------------------------|
-| A. Drop `assertConfirmedIntent` from the public barrel | Removed entirely | `apps/factory-cli/src/main.ts:192` (uses `.id` only) and `apps/factory-cli/src/confirmed-intent-handoff.ts:39` (uses the full brand) need migration. |
-| B. Narrow return to `ConfirmedIntentData` (mirror `parseConfirmedIntent`) | Stays public but unbranded | Same call-site surgery as A; still leaves the `confirmed-intent-input` path broken — see Blocker 2. |
-| C. Keep returning `ConfirmedIntent`, internally call `mintConfirmedIntent` | Stays public, second mint path | Defeats the plan's purpose; contract test would also need a hand-curated allow-list including `assertConfirmedIntent`, abandoning the type-pinned guarantee. |
+Neither subpath is re-exported from any consumer-facing `index.ts` under `packages/intent/src/`. The admission-e2e contract test enforces this with a runtime leak grep (Spike 3 below).
 
-## Blocker 2: `confirmed-intent-handoff.ts` is an unaddressed CLI bypass channel
+## parseConfirmedIntent Narrowing — Migrated Sites
 
-`apps/factory-cli/src/confirmed-intent-handoff.ts:24-49` defines two sources for a branded `ConfirmedIntent`:
+Every site that previously indexed `.intent` on the success arm of `parseConfirmedIntent` was migrated to `.data`:
 
-```ts
-"draft-admission-gate"      // input.promotedIntent.intent — already came from promoteIntentDraft, fine.
-"confirmed-intent-input"    // assertConfirmedIntent(input.parsedIntentInput) — produces a brand directly from JSON on disk.
-```
+- `packages/intent/src/example-intent-fixtures.test.ts:166,243`
+- `packages/intent/src/example-intent-fixtures.test-support.ts:165,171`
+- `packages/intent/src/acceptance-criteria-normalization.test.ts:455,458,459,460,461,463,466` (also gated under `parsed.ok` since the un-branded data isn't optional anymore)
+- `apps/factory-cli/src/main.test.ts:197,284,304,313,431` (perl sed sweep)
 
-The second branch loads a pre-confirmed-intent JSON file and feeds it to `assertConfirmedIntent`, which today returns a branded `ConfirmedIntent` without going through `promoteIntentDraft`. Phase 1's success criterion (INTENT-02): *"no test or CLI path can produce a ConfirmedIntent except by going through promoteIntentDraft"*. **This branch IS the CLI path that the plan is meant to close, and the plan does not address it.**
+## Q-13b/c/d Locked Decisions (cross-link to 01-CONTEXT.md)
 
-Three possible resolutions; all exceed Plan 06b's stated scope:
+The original Plan 06b execution surfaced two architectural blockers (recorded as the prior SUMMARY artifact, preserved at commit `5359300^`). The replan locked three user decisions in `01-CONTEXT.md`:
 
-| Option | What changes | Risk |
-|--------|--------------|------|
-| α. Drop `confirmed-intent-input` from factory-cli for Phase 1 (draft-only input) | `apps/factory-cli/src/main.ts` reads only drafts; existing `confirmed-intent-input` test fixtures retired or migrated to `.draft.json` form | Smallest surface, cleanest enforcement; breaks any user/CI flow that feeds confirmed-intent JSON directly |
-| β. Synthesize an `IntentDraft` from the loaded JSON and re-promote via `promoteIntentDraft` | New helper `confirmedIntentJsonToDraft` builds a draft from the confirmed shape; `createConfirmedIntentHandoff` always runs through promotion | Preserves backward compat; semantic risk if loaded JSON has fields a draft cannot represent identically (e.g. derived AC ids may diverge) |
-| γ. Defer to a follow-on plan; ship 06b with the `confirmed-intent-input` path temporarily broken | `assertConfirmedIntent` removed from public barrel; `confirmed-intent-handoff.ts` left non-compiling or with an `as any` cast | Worst — known-failing consumer, also fails `pnpm -r build` gate the plan requires. |
+1. **Q-13b (assertConfirmedIntent disposition)** → **Option A**: drop from every barrel; promoteIntentDraft is the only public producer. `defineConfirmedIntent` is fully deleted; `assertConfirmedIntent` is removed entirely from `confirmed-intent.ts` (no internal helper survived since no internal caller remains).
+2. **Q-13c (confirmed-intent-input CLI source)** → **Option α**: drop entirely. The `--intent` flag, the `intentPath` option, and the `"confirmed-intent-input"` handoff source are all gone. The CLI flag parser surfaces a deliberate error message if `--intent` is passed: *"The --intent flag is no longer supported. Provide an IntentDraft via --intent-draft or --draft; ConfirmedIntent values can only originate from the draft admission gate."*
+3. **Q-13d (test-helper containment)** → **in scope**: `@protostar/intent/internal/test-builders` subpath with the loose `ConfirmedIntentMintInput` signature. The 30+ migration sites moved mechanically without restructuring.
 
-The plan's `<threat_model>` row T-01-06b-03 acknowledges `parseConfirmedIntent` reads external JSON, but the corresponding mitigation ("Narrow parseConfirmedIntent's return type") does not address the analogous path through `assertConfirmedIntent` — exactly the path factory-cli uses.
+## 33+ Callsite Migration
 
-## Blast radius the plan undersells
+| Package | Files | Strategy |
+|---------|-------|----------|
+| `packages/intent/src/` | 3 (acceptance-criteria-normalization.test.ts, public-split-exports.contract.test.ts, confirmed-intent-immutability.test.ts) | Imported `buildConfirmedIntentForTest` from the internal subpath; `defineConfirmedIntent(` → `buildConfirmedIntentForTest(`. The immutability test was rewritten to mint via the helper directly because its prior cosmetic-tweak draft fixture would have flunked the ambiguity threshold under `promoteIntentDraft`. |
+| `packages/planning/src/` | 26 (24 test files + 2 contract files) | Mechanical sed sweep: import line replaced, call identifier renamed. Mixed imports kept their other named symbols and gained a separate import line for the helper. |
+| `packages/dogpile-adapter/src/` | 1 (public-candidate-plan.contract.test.ts) | Same mechanical sweep. |
+| `packages/review/src/` | 2 (admitted-artifact-integration.test.ts, admitted-plan-runtime-admission.test.ts) | **Out-of-scope discovery (Rule 3 unblocker, NOT in plan's file_modified list)**: these tests construct `PlanningIntent` literals via `as const satisfies PlanningIntent`. With the brand, literal objects can no longer satisfy `ConfirmedIntent`; both files were migrated to mint via `buildConfirmedIntentForTest`. |
+| `packages/execution/src/` | 2 (admitted-artifact-integration.test.ts, admitted-plan-runtime-admission.test.ts) | Same out-of-scope discovery; same fix. Plus added `@protostar/intent` workspace dep + project reference. |
+| `apps/factory-cli/src/` | 3 (main.ts, main.test.ts, confirmed-intent-handoff.ts) | Plan-scope surgery (Task C2). |
 
-The plan's `files_modified` lists only intent-package files plus `confirmed-intent-mint.contract.test.ts`. Reality, based on `grep -ln "defineConfirmedIntent" packages/**/src/**`:
+**Total: 37 files migrated.** Zero callsites required restructuring beyond the helper signature; the `ConfirmedIntentMintInput` (loose) shape covered every site mechanically. `schemaVersion: "1.0.0"` and `signature: null` are defaulted inside `mintConfirmedIntent`, so fixtures did not need to add the new fields.
 
-| Package | Files using `defineConfirmedIntent` | Estimated migration |
-|---------|--------------------------------------|----------------------|
-| `packages/planning/src/` | 28 test files + `candidate-admitted-plan-boundary.contract.ts` + `confirmed-intent-boundary.contract.ts` | Each constructs a raw branded intent for plan-admission tests; under Plan 06b's brand they cannot construct a `ConfirmedIntent` directly — must build a draft and run `promoteIntentDraft` |
-| `packages/dogpile-adapter/src/public-candidate-plan.contract.test.ts` | 1 file | Same migration |
-| `packages/intent/src/acceptance-criteria-normalization.test.ts` | 1 file | Same migration |
-| `packages/intent/src/public-split-exports.contract.test.ts` | 1 file | Plan Task 2 step 5 acknowledges; needs `defineConfirmedIntent` removed and replaced with `promoteIntentDraft` |
-| `packages/intent/src/example-intent-fixtures.test.ts` | 1 file (calls `parseConfirmedIntent(result.promotion.intent)`) | After narrowing, `result.promotion.intent` is branded but `parseConfirmedIntent` returns un-branded data — assertions `parsed.intent` need to become `parsed.data` |
-| `apps/factory-cli/src/main.ts` + `main.test.ts` | 2 files (assertConfirmedIntent + parseConfirmedIntent) | Hits both blockers above |
+## factory-cli Surgery (Task C2)
 
-Conservatively, **30+ files** require non-mechanical migration to land 06b cleanly. The plan's "fix the consumer in this task — do not paper over with `as ConfirmedIntent` casts" instruction implicitly authorizes this work but the file-modification list and the two-task atomic-commit structure don't reflect it. Without a shared `buildConfirmedIntentForTest` helper that takes sparse overrides, builds a passing draft, and runs `promoteIntentDraft`, each test site becomes 30+ lines of draft scaffolding — well past the plan's stated scope and the auto-fix attempt limit.
+**Removed:**
+- `--intent <path>` CLI flag (replaced with explicit error message)
+- `RunCommandOptions.intentPath?` field (`intentDraftPath` is now non-optional)
+- `"confirmed-intent-input"` literal in `ConfirmedIntentHandoffSource` union (now a single literal `"draft-admission-gate"`)
+- `parsedIntentInput` parameter from `CreateConfirmedIntentHandoffInput`
+- `assertConfirmedIntent` import (was used at lines 26 + 192 of main.ts and at line 7 of confirmed-intent-handoff.ts)
+- The `assertConfirmedIntent(parsedIntentInput).id` runId fallback path
 
-## What was inspected (no edits)
+**Tests retired:** None. `main.test.ts` line 2776 already asserted `args.includes("--intent") === false` (regression check post-Q-13c); that assertion remains as a runtime tripwire if future code re-introduces the flag. The legacy fixture path constants (`legacySampleConfirmedIntentFixtureRelativePath`) survive as guards in `assertSampleFactoryArgsAvoidLegacyBypass`.
 
-- `packages/intent/src/confirmed-intent.ts` — current `defineConfirmedIntent`/`parseConfirmedIntent`/`assertConfirmedIntent`; no brand, no `schemaVersion`, no `signature` yet.
-- `packages/intent/src/confirmed-intent/index.ts` — re-exports the three functions above.
-- `packages/intent/src/confirmed-intent-readonly.contract.ts` — 13-key readonly chain; needs `schemaVersion` + `signature` added.
-- `packages/intent/src/confirmed-intent-immutability.test.ts` — runtime mutation tests via `defineConfirmedIntent`; need switch to `promoteIntentDraft`.
-- `packages/intent/src/promote-intent-draft.ts` — calls `defineConfirmedIntent` on the success branch (lines 178-192). Easy switch to `mintConfirmedIntent`.
-- `packages/intent/src/index.ts` — exports `defineConfirmedIntent` + `assertConfirmedIntent` + `parseConfirmedIntent` + `promoteIntentDraft`. Removal of `defineConfirmedIntent` is straightforward; `assertConfirmedIntent` is the contradiction (Blocker 1).
-- `packages/intent/package.json` — `exports` map already wires `./confirmed-intent`; `./internal` subpath needs adding for Task 2.
-- `packages/intent/schema/confirmed-intent.schema.json` — already includes `schemaVersion: "1.0.0"` and `signature: SignatureEnvelope | null` (added by Plan 04). The TS type needs to catch up.
-- `packages/intent/src/example-intent-fixtures.test-support.ts` — fixture loader exposes `parseConfirmedIntent` via `parseResult: ReturnType<typeof parseConfirmedIntent>`; downstream consumers index `.intent` on the success arm.
-- `packages/intent/src/example-intent-fixtures.test.ts:166,243` — calls `parseConfirmedIntent(result.promotion.intent).intent` (Blocker — narrowing changes `.intent` → `.data`).
-- `packages/intent/src/public-split-exports.contract.test.ts` — calls `defineConfirmedIntent` directly via the `./confirmed-intent` subpath and `parseConfirmedIntent` via the same subpath; needs migration.
-- `packages/intent/src/acceptance-criteria-normalization.test.ts` — calls `defineConfirmedIntent`.
-- `packages/planning/src/*.test.ts` (28 sites) + `packages/planning/src/candidate-admitted-plan-boundary.contract.ts` + `packages/planning/src/confirmed-intent-boundary.contract.ts` — all construct raw branded intents.
-- `packages/dogpile-adapter/src/public-candidate-plan.contract.test.ts` — same.
-- `apps/factory-cli/src/main.ts:26,192` — `assertConfirmedIntent(parsedIntentInput).id` (Blocker 1 + Blocker 2).
-- `apps/factory-cli/src/main.test.ts:10,197,284,304,431` — `parseConfirmedIntent(payload)` and `.intent` indexing (Blocker via narrowing).
-- `apps/factory-cli/src/confirmed-intent-handoff.ts:24-49` — the load-bearing `"confirmed-intent-input"` bypass (Blocker 2).
-- `packages/admission-e2e/{package.json,tsconfig.json,src/index.ts}` — Plan 05's scaffold; `tsconfig.json` already references `intent`/`policy`/`planning`/`execution`. Ready to host `confirmed-intent-mint.contract.test.ts` once Blocker 1 is resolved.
-- `.planning/phases/01-intent-planning-admission/01-06-branded-confirmed-intent-SUMMARY.md` — original Plan 06's BLOCKED summary establishing the precedent of stopping pre-write when a Rule 4 architectural decision is needed.
+**Tests amended:** the stdout payload key list at `main.test.ts:111-128` gained `"schemaVersion"` + `"signature"` to match the new ConfirmedIntent shape.
 
-## Why this is Rule 4, not Rule 1-3
+## ConfirmedIntent Readonly Contract — New Keys
 
-- **Rule 1-3** = fix bugs / add missing critical functionality / unblock the current task, when the fix is mechanical and stays inside the plan's scope. Resolving Blocker 1 requires choosing an option that materially changes `assertConfirmedIntent`'s public contract and rewires factory-cli — outside the plan's two-task atomic structure.
-- **Rule 4** = fix requires significant structural modification (new approach, breaking API change, switching libraries). Both blockers fall here:
-  - Blocker 1 is a public-API change and a planner contradiction.
-  - Blocker 2 is a Phase-1 input-contract decision (drop confirmed-intent.json input vs. synthesize draft vs. defer) that affects what the factory-cli accepts as input.
+`packages/intent/src/confirmed-intent-readonly.contract.ts` extended to assert `IsReadonlyField<ConfirmedIntent, "schemaVersion">` and `IsReadonlyField<ConfirmedIntent, "signature">` on top of the existing 13-key chain. A comment notes: *"The unique-symbol brand property is module-private and CANNOT appear in the foreign-module key set; this contract asserts the structural shape only, including the new schemaVersion + signature fields added by Plan 06b."*
 
-The plan's threat register says (T-01-06b-04): *"even if mintConfirmedIntent leaked at runtime, this test would fail"* — but it does not say *"and assertConfirmedIntent's brand-returning shape is intentional"*. The simplest reading is: the planner forgot to update step 1f when they wrote Task 2.
+## Public Mint-Surface Contract Test (Task D)
 
-## Recommended next step
+The admission-e2e contract test pins three layers:
 
-Re-plan 06b. The decisions the planner owes the executor:
+1. **Type-level positive** — `Equal<MintingKeys, "promoteIntentDraft">`. Walks every key of `typeof IntentPublicApi`, infers the function return type, and uses `Extract<R, ConfirmedIntentBrandWitness>` + `Extract<R, { intent: ConfirmedIntentBrandWitness }>` to find the brand. The discriminated-union return shape of `PromoteIntentDraftResult` (`{ ok: true; intent: ConfirmedIntent } | { ok: false; ... }`) is handled with the second `Extract` — without it, `R extends { intent: ... }` collapses to false because the failure arm lacks the property.
+2. **Type-level negative-keyof** — `defineConfirmedIntent` / `assertConfirmedIntent` / `mintConfirmedIntent` / `buildConfirmedIntentForTest` must NOT appear in `keyof typeof IntentPublicApi`.
+3. **Runtime leak grep** — walks every `index.ts` under `packages/intent/src/` (skipping the `internal/` subtree itself) and asserts none of them import `from "...internal/..."`. Strips line + block comments before the grep so banner text doesn't false-positive.
 
-1. **`assertConfirmedIntent` disposition (Blocker 1):** A (drop from public barrel), B (narrow return to `ConfirmedIntentData`), or C (keep, accept second mint).
-2. **`confirmed-intent-input` factory-cli source (Blocker 2):** α (drop), β (synthesize draft + re-promote), or γ (defer + ship broken).
-3. **Test-migration helper:** is a shared `buildConfirmedIntentForTest({ overrides })` helper (in `packages/intent/src/test-support` or similar — accessed via a private subpath) the right containment strategy for the 30+ planning-test sites, given that direct `defineConfirmedIntent` access is being removed?
+## Sanity Spike Outcomes (REQUIRED — each applied + reverted; all confirmed)
 
-Once those three are answered, Plan 06b becomes executable as 3-4 atomic commits (brand + private mint, helper for tests, mass migration, contract test) instead of two.
+| Spike | Mutation | Expected failure | Observed failure | Result |
+|-------|----------|------------------|------------------|--------|
+| 1 (positive-key leak) | Added `export function createConfirmedIntent(...): ConfirmedIntent { return promoteIntentDraft(input).intent as ConfirmedIntent; }` to `packages/intent/src/index.ts` | `_MintSurfacePinned` Assert fails because `MintingKeys` now includes `"createConfirmedIntent"` | `TS2344` at `packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts(44,34): Type 'false' does not satisfy the constraint 'true'.` Build also broke inside intent on the spike's own `.intent` access — extra confirmation. | ✅ |
+| 2 (test-helper leak) | Added `export { buildConfirmedIntentForTest } from "./internal/test-builders.js";` to `packages/intent/src/index.ts` | `_NoBuildConfirmedIntentForTest` and `_MintSurfacePinned` Asserts both fail | `TS2344` at three sites: `packages/intent/src/public-split-exports.contract.test.ts(27,3)` (in-package tripwire), `packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts(44,34)` (`_MintSurfacePinned`), `(49,3)` (`_NoBuildConfirmedIntentForTest`). | ✅ |
+| 3 (runtime export-* leak) | Added `export * from "../internal/test-builders.js";` to `packages/intent/src/confirmed-intent/index.ts` | Runtime "no consumer-facing barrel re-exports from ./internal/*" test fails listing the offending barrel | `pnpm --filter @protostar/admission-e2e test`: `not ok 2 - no consumer-facing barrel re-exports from ./internal/*` with message `Public/subpath barrels must not re-export from internal/. Offenders: /Users/zakkeown/Code/protostar/packages/intent/src/confirmed-intent/index.ts`. | ✅ |
+
+All three spikes confirmed the contract test catches the corresponding regression. The brand + the contract test together close INTENT-02 at three layers.
+
+## Deviations from Plan
+
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Restored array recursion in deepFreeze**
+- **Found during:** Task B test run (immutability test failures).
+- **Issue:** During the Task A rewrite I narrowed `isFreezable` to `typeof === "object" && !== null && !Array.isArray(value)`, which accidentally excluded arrays from deepFreeze recursion. The original code intentionally included arrays so `acceptanceCriteria`, `repoScopes`, etc. would be frozen.
+- **Fix:** Reverted `isFreezable` to `typeof === "object" && !== null` (with `value is object` type guard). Confirmed via `Object.isFrozen(intent.acceptanceCriteria) === true` and `Object.isFrozen(intent.acceptanceCriteria[0]) === true`.
+- **Files modified:** `packages/intent/src/confirmed-intent.ts`
+- **Commit:** `e3a2ad6` (folded into Task B).
+
+**2. [Rule 3 - Unblocker] Migrated review + execution test fixtures (out of plan's file_modified list)**
+- **Found during:** Task C2 build (`pnpm --filter @protostar/factory-cli build` chained to review + execution).
+- **Issue:** `packages/review/src/admitted-{artifact-integration,plan-runtime-admission}.test.ts` and `packages/execution/src/admitted-{artifact-integration,plan-runtime-admission}.test.ts` constructed `PlanningIntent` fixtures via `as const satisfies PlanningIntent`. With the new brand, literal objects no longer satisfy `ConfirmedIntent` — they're missing the brand property and now also `schemaVersion` + `signature`.
+- **Fix:** Imported `buildConfirmedIntentForTest` from the internal subpath; replaced each literal with a `buildConfirmedIntentForTest({...})` call. Added `@protostar/intent` workspace dep + tsconfig project reference to `packages/execution` (review already had it).
+- **Files modified:** 4 test files + `packages/execution/{package.json,tsconfig.json}` + `pnpm-lock.yaml`
+- **Commit:** `2a70efb` (folded into Task C2).
+
+**3. [Rule 1 - Bug] Pruned stale packages/policy/dist/example-intent-fixtures.test.* artifacts**
+- **Found during:** `pnpm run verify:full` after Task C1.
+- **Issue:** `packages/policy/dist/` contained compiled `.test.js` for source files that had been relocated to `packages/intent/` in an earlier plan. The stale dist tests started failing under the new ConfirmedIntent shape ("ConfirmedIntent parse result should include intent" — they expected `.intent`, not `.data`).
+- **Fix:** Deleted `packages/policy/dist/`; `pnpm --filter @protostar/policy build` regenerated only the actual source files. Test count for policy went from 57 (with the orphans) to 1.
+- **Files modified:** none in source tree; pruned dist directory.
+- **Commit:** `2a70efb` (folded into Task C2).
+
+**4. [Rule 1 - Bug] Discriminated-union return shape in MintingKeys**
+- **Found during:** Task D first build of admission-e2e.
+- **Issue:** `R extends { readonly intent: ConfirmedIntentBrandWitness }` returned `false` for `PromoteIntentDraftResult` because the failure arm of the union has no `intent` property; the conditional was not distributing.
+- **Fix:** Replaced with `Extract<R, { readonly intent: ConfirmedIntentBrandWitness }> extends never ? false : true`. Now correctly identifies the success arm even when one or more arms of the discriminated union lack `intent`.
+- **Files modified:** `packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts`
+- **Commit:** `1625a2f` (folded into Task D).
+
+### Plan steps NOT executed exactly as written
+
+- **Task A step 6 — immutability test migration target:** Plan said "Replace defineConfirmedIntent calls with promoteIntentDraft calls (using a passing draft fixture from intent/src/example-intent-fixtures.test-support.ts)". I attempted this first; the fixture I built failed admission with `Intent ambiguity 0.51 exceeds admission ceiling 0.20`, and the existing example fixtures load at runtime which makes them unsuitable for synchronous test setup. I switched to `buildConfirmedIntentForTest` (the helper Task B introduces) — same outcome (any frozen ConfirmedIntent), and the test stays focused on immutability rather than admission policy. Recorded both approaches were tried.
+
+- **Task A step 1h — assertConfirmedIntent disposition (option i vs ii):** Plan offered "delete entirely if no internal caller remains, else keep file-local". I deleted entirely; no internal caller in `packages/intent/src/` remained after step 4.
+
+## Authentication Gates
+
+None.
+
+## Threat Flags
+
+None — the plan's `<threat_model>` already enumerated every relevant trust boundary.
 
 ## Self-Check: PASSED
 
-- No commits attempted; `git log --oneline -1` shows `088c14a docs(01-08): summary — refusal artifact triple on every refusal branch` (HEAD unchanged from before Plan 06b execution started).
-- No source files modified; `git status --short packages/intent packages/planning packages/admission-e2e packages/dogpile-adapter apps/factory-cli` shows no `M` entries.
-- Untracked `packages/artifacts/src/index.{d.ts,js,d.ts.map,js.map}` files are pre-existing build artifacts (not introduced by this execution).
-- This SUMMARY is the only file written by Plan 06b execution.
+- All 5 expected commits in `git log --oneline`: `2cc6a97`, `e3a2ad6`, `895d64d`, `2a70efb`, `1625a2f`. Verified.
+- `packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts` exists. Verified.
+- `packages/intent/src/internal/test-builders.ts` + `packages/intent/src/internal/brand-witness.ts` exist. Verified.
+- `pnpm run verify:full` exit 0. Verified at the close of Task D.
+- `grep -rln defineConfirmedIntent packages/ apps/` (excluding `dist/`, comments, and string-literal negative asserts in contract tests) == 0. Verified.
+- All three sanity spikes break the build / test as expected. Verified.
+- ConfirmedIntent brand mechanism: module-private unique symbol → foreign object literal cannot fabricate the brand → `tsc` rejects.
+- Single public mint path: `promoteIntentDraft`. Two non-public mint subpaths (test-builders + brand-witness) both off every consumer-facing barrel.
+
+INTENT-02 closed.
