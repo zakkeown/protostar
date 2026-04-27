@@ -29,7 +29,7 @@ Settle precedence before any real mutation.
 - [ ] **GOV-03**: Steward/owner boundary: each artifact has a single owning package; cross-stage reads go through admission helpers (no private-state reach-back)
 - [ ] **GOV-04**: `WorkspaceRef.trust` is consumed (not just declared) — `executionScope: "workspace"` grants are refused when trust ≠ `"trusted"`
 - [ ] **GOV-05**: Admission decisions ("allow" / "block" / "escalate") are persisted as `admission-decision.json` for every gate, not only the intent gate
-- [ ] **GOV-06**: Signed/admitted intent posture: `ConfirmedIntent` carries an admission signature (hash of intent + policy snapshot at admission time) that downstream stages verify before acting
+- [x] **GOV-06**: Signed/admitted intent posture: `ConfirmedIntent` carries an admission signature (hash of intent + policy snapshot at admission time) that downstream stages verify before acting
 
 ### Phase 3 — Repo Runtime + Sandbox
 
@@ -184,7 +184,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | GOV-03 | Phase 2 | Pending |
 | GOV-04 | Phase 2 | Pending |
 | GOV-05 | Phase 2 | Pending |
-| GOV-06 | Phase 2 | In Progress — Plan 03 signature envelope/schema bump complete; signer/verifier remains |
+| GOV-06 | Phase 2 | Complete |
 | REPO-01 | Phase 3 | Pending |
 | REPO-02 | Phase 3 | Pending |
 | REPO-03 | Phase 3 | Pending |
