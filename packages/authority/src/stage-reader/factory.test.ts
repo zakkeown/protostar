@@ -159,16 +159,40 @@ describe("AuthorityStageReader", () => {
     if (!result.ok) assert.equal(result.mismatch.field, "intentBody");
   });
 
-  it("supports Phase 1 unsigned schemaVersion 1.0.0 fixtures without crashing verification", async () => {
+  it("readParsedConfirmedIntent reads and parses unsigned legacy 1.0.0 fixtures for diagnostics", async () => {
     const reader = createAuthorityStageReader(runDir, new InMemoryFs(new Map([
       [`${runDir}/intent.json`, JSON.stringify({ ...unsignedIntentBody(), schemaVersion: "1.0.0", signature: null })],
       [`${runDir}/policy-snapshot.json`, JSON.stringify(buildPolicySnapshot({ capturedAt: "2026-04-27T00:00:00.000Z", policy, resolvedEnvelope }))]
     ])));
 
-    assert.equal((await reader.confirmedIntent()).schemaVersion, "1.1.0");
-    const result = await reader.verifyConfirmedIntent();
-    assert.equal(result.ok, false);
-    if (!result.ok) assert.match(result.errors[0] ?? "", /no signature|unsigned/i);
+    const parsed = await reader.readParsedConfirmedIntent();
+    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.1.0");
+  });
+
+  it("confirmedIntent() rejects when policy-snapshot.json is missing", async () => {
+    const { intent } = signedIntentArtifacts();
+    const reader = createAuthorityStageReader(runDir, new InMemoryFs(new Map([
+      [`${runDir}/intent.json`, JSON.stringify(intent)]
+      // no policy-snapshot.json
+    ])));
+
+    await assert.rejects(
+      () => reader.confirmedIntent(),
+      (error) => error instanceof StageReaderError && error.reason.includes("confirmed intent signature verification failed")
+    );
+  });
+
+  it("confirmedIntent() rejects when intent signature is tampered", async () => {
+    const { intent, policySnapshot } = signedIntentArtifacts();
+    const reader = createAuthorityStageReader(runDir, new InMemoryFs(new Map([
+      [`${runDir}/intent.json`, JSON.stringify({ ...intent, title: "tampered" })],
+      [`${runDir}/policy-snapshot.json`, JSON.stringify(policySnapshot)]
+    ])));
+
+    await assert.rejects(
+      () => reader.confirmedIntent(),
+      (error) => error instanceof StageReaderError && error.reason.includes("confirmed intent signature verification failed")
+    );
   });
 
   it("legacy 1.0.0 with non-null signature is unsupported", async () => {
