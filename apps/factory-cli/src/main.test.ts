@@ -8,8 +8,14 @@ import { fileURLToPath } from "node:url";
 
 import { createAcceptanceCriterionId } from "@protostar/intent/acceptance-criteria";
 import { parseConfirmedIntent } from "@protostar/intent/confirmed-intent";
-import { verifyConfirmedIntentSignature } from "@protostar/authority";
-import type { ConfirmedIntent } from "@protostar/intent";
+import {
+  buildPolicySnapshot,
+  buildSignatureEnvelope,
+  hashPolicySnapshot,
+  verifyConfirmedIntentSignature
+} from "@protostar/authority";
+import { promoteAndSignIntent, promoteIntentDraft } from "@protostar/intent";
+import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
 import {
   hashPlanGraph,
   PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS,
@@ -2471,6 +2477,200 @@ describe("fail-closed precedence and gate evidence", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Task 2 RED: verified trusted-launch second-key — tests must FAIL before wiring
+// ---------------------------------------------------------------------------
+
+describe("trusted launch verified second-key (GOV-04/GOV-06)", () => {
+  it("rejects a fake JSON object as confirmed intent (not a real ConfirmedIntent)", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_verified_two_key_fake_json";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      // Fake object — not a real ConfirmedIntent at all
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
+      ]);
+
+      assert.equal(result.exitCode, 2, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /trusted launch confirmed intent verification failed/);
+    });
+  });
+
+  it("rejects an unsigned ConfirmedIntent as confirmed intent", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_verified_two_key_unsigned";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      // A valid ConfirmedIntent shape but with null signature
+      const promoted = promoteIntentDraft({ draft, mode: "brownfield" });
+      if (!promoted.ok) throw new Error(`Promotion failed: ${promoted.errors.join("; ")}`);
+      const unsignedIntent = promoted.intent;
+      await writeJson(confirmedIntentPath, { ...unsignedIntent, signature: null });
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
+      ]);
+
+      assert.equal(result.exitCode, 2, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /trusted launch confirmed intent verification failed/);
+    });
+  });
+
+  it("rejects a signed ConfirmedIntent that does not match the current run's promoted intent", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_verified_two_key_mismatched";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      // Build a signed intent for a DIFFERENT draft — it will not match the current run's promoted intent
+      const differentDraft = { ...clearCosmeticDraft(), draftId: "draft_different_intent", title: "Completely different intent" };
+      const differentIntentFile = await buildSignedConfirmedIntentFile(differentDraft);
+      await writeJson(confirmedIntentPath, differentIntentFile);
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
+      ]);
+
+      assert.equal(result.exitCode, 2, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /trusted launch confirmed intent verification failed/);
+    });
+  });
+
+  it("accepts a matching signed ConfirmedIntent from a prior dry run", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_verified_two_key_matching";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      // Build a signed intent that matches the current run's promoted intent
+      const matchingIntentFile = await buildSignedConfirmedIntentFile(draft);
+      await writeJson(confirmedIntentPath, matchingIntentFile);
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.equal(result.stderr, "");
+    });
+  });
+});
+
+/**
+ * Build a signed ConfirmedIntent JSON object from a draft.
+ * Uses the draft's own capabilityEnvelope as the resolvedEnvelope (assumes no
+ * policy reduction for test drafts). The result can be written to disk and
+ * passed as --confirmed-intent for trusted launch verification.
+ */
+async function buildSignedConfirmedIntentFile(draft: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const promoted = promoteIntentDraft({ draft, mode: "brownfield" });
+  if (!promoted.ok) throw new Error(`Cannot promote draft for test signing: ${promoted.errors.join("; ")}`);
+  const unsignedIntent = promoted.intent;
+  const resolvedEnvelope = unsignedIntent.capabilityEnvelope as unknown as CapabilityEnvelope;
+  const policySnapshot = buildPolicySnapshot({
+    capturedAt: "2026-01-01T00:00:00.000Z",
+    policy: { allowDarkRun: true, maxAutonomousRisk: "medium", requiredHumanCheckpoints: [] },
+    resolvedEnvelope
+  });
+  const policySnapshotHash = hashPolicySnapshot(policySnapshot);
+  const { signature: _sig, ...intentBody } = unsignedIntent;
+  const signature = buildSignatureEnvelope({
+    intent: intentBody,
+    resolvedEnvelope,
+    policySnapshotHash
+  });
+  const signedResult = promoteAndSignIntent({ ...intentBody, signature });
+  if (!signedResult.ok) throw new Error(`Cannot sign test intent: ${signedResult.errors.join("; ")}`);
+  return signedResult.intent as unknown as Record<string, unknown>;
+}
+
 function clarificationBlockedDraft(): Record<string, unknown> {
   const draft = clearCosmeticDraft();
   delete draft["context"];
@@ -2674,6 +2874,7 @@ function bugfixDraft(): Record<string, unknown> {
 function clearCosmeticDraft(): Record<string, unknown> {
   return {
     draftId: "draft_cli_clear_cosmetic",
+    createdAt: "2026-01-01T00:00:00.000Z",
     title: "Polish operator admission copy",
     problem:
       "Make the operator-facing intent admission copy easier to scan while keeping the CLI behavior and factory run contracts unchanged.",
