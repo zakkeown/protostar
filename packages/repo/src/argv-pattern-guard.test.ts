@@ -55,6 +55,19 @@ describe("argv pattern guard", () => {
     );
   });
 
+  it("requires -- before positionals when the schema demands a separator", () => {
+    const schemaRequiringSeparator: OuterGuardSchema = Object.freeze({
+      ...SCHEMA,
+      requireSeparatorBeforePositionals: true
+    });
+
+    assertArgvViolation(
+      () => applyOuterPatternGuard(["main"], schemaRequiringSeparator),
+      "flag-not-allowed"
+    );
+    assert.doesNotThrow(() => applyOuterPatternGuard(["--", "main"], schemaRequiringSeparator));
+  });
+
   it("rejects whitespace in argv tokens", () => {
     assertArgvViolation(
       () => applyOuterPatternGuard(["a b"], SCHEMA),
