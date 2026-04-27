@@ -7,11 +7,11 @@ import { verifyConfirmedIntentSignature } from "./verify.js";
 
 import type { CapabilityEnvelope, ConfirmedIntent, SignatureEnvelope } from "@protostar/intent";
 
-const resolvedEnvelope: CapabilityEnvelope = Object.freeze({
+const resolvedEnvelope = {
   repoScopes: [{ workspace: "main", path: "src", access: "write" }],
   toolPermissions: [{ tool: "pnpm", reason: "run verification", risk: "low" }],
   budget: { maxTokens: 1000 }
-});
+} as const satisfies CapabilityEnvelope;
 
 interface IntentBody {
   readonly id: "intent_signature_test";
@@ -20,7 +20,7 @@ interface IntentBody {
   readonly requester: string;
   readonly confirmedAt: string;
   readonly acceptanceCriteria: readonly [
-    { readonly id: "ac_signature"; readonly statement: "signature verifies"; readonly verification: "automated" }
+    { readonly id: "ac_signature"; readonly statement: "signature verifies"; readonly verification: "test" }
   ];
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
@@ -28,20 +28,20 @@ interface IntentBody {
   readonly schemaVersion: "1.1.0";
 }
 
-const intentBody: IntentBody = Object.freeze({
+const intentBody = {
   id: "intent_signature_test",
   title: "Ship signed intent verification",
   problem: "Downstream stages need tamper evidence.",
   requester: "qa",
   confirmedAt: "2026-04-27T00:00:00.000Z",
   acceptanceCriteria: [
-    { id: "ac_signature", statement: "signature verifies", verification: "automated" as const }
+    { id: "ac_signature", statement: "signature verifies", verification: "test" }
   ],
   capabilityEnvelope: resolvedEnvelope,
   constraints: ["pure helpers"],
   stopConditions: ["signature mismatch"],
   schemaVersion: "1.1.0" as const
-});
+} as const satisfies IntentBody;
 
 const policy = Object.freeze({
   autonomy: "governed",
@@ -191,19 +191,19 @@ function buildSignedIntent(): {
 }
 
 function buildIntent(
-  overrides: Partial<typeof intentBody>,
+  overrides: Partial<IntentBody>,
   signature: SignatureEnvelope
 ): ConfirmedIntent {
   return Object.freeze({
     ...intentBody,
     ...overrides,
     signature
-  }) as ConfirmedIntent;
+  }) as unknown as ConfirmedIntent;
 }
 
 function replaceSignature(intent: ConfirmedIntent, signature: SignatureEnvelope): ConfirmedIntent {
   return Object.freeze({
     ...intent,
     signature
-  }) as ConfirmedIntent;
+  }) as unknown as ConfirmedIntent;
 }
