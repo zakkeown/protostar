@@ -30,5 +30,12 @@ export type { ApplyError, ApplyResult, ApplyStatus, PatchRequest } from "./apply
 export { applyOuterPatternGuard, ArgvViolation } from "./argv-pattern-guard.js";
 export type { ArgvViolationReason, OuterGuardSchema } from "./argv-pattern-guard.js";
 export { intersectAllowlist, SUBPROCESS_BASELINE_ALLOWLIST } from "./subprocess-allowlist.js";
+export { runCommand, SubprocessRefusedError } from "./subprocess-runner.js";
+export type {
+  AuthorizedSubprocessOp,
+  RunCommandOptions,
+  SubprocessRefusedReason,
+  SubprocessResult
+} from "./subprocess-runner.js";
 export { assertWorkspaceTrust, WorkspaceTrustError } from "./workspace-trust-runtime.js";
 export type { RuntimeWorkspaceOp } from "./workspace-trust-runtime.js";
