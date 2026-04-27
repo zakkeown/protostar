@@ -18,7 +18,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.1.0" },
+    "schemaVersion": { "const": "1.2.0" },
     "id": { "type": "string", "pattern": "^intent_.+" },
     "sourceDraftId": { "type": "string", "pattern": "^draft_.+" },
     "mode": { "enum": ["greenfield", "brownfield"] },

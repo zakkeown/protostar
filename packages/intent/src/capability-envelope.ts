@@ -28,6 +28,10 @@ export interface FactoryBudget {
   readonly maxRepairLoops?: number;
 }
 
+export interface CapabilityEnvelopeWorkspace {
+  readonly allowDirty: boolean;
+}
+
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD = "repair_loop_count";
 
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_ADMISSION_FAILURE_CODES = [
@@ -83,6 +87,7 @@ export interface CapabilityEnvelope {
   readonly repoScopes: readonly RepoScopeGrant[];
   readonly toolPermissions: readonly ToolPermissionGrant[];
   readonly executeGrants?: readonly ExecuteGrant[];
+  readonly workspace?: CapabilityEnvelopeWorkspace;
   readonly budget: FactoryBudget;
 }
 
@@ -190,8 +195,43 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
     repoScopes: parseRepoScopes(value["repoScopes"], errors),
     toolPermissions: parseToolPermissions(value["toolPermissions"], errors),
     ...optionalExecuteGrants(value["executeGrants"], errors),
+    workspace: parseWorkspace(value["workspace"], errors),
     budget: parseBudget(value["budget"], errors)
   };
+}
+
+function parseWorkspace(value: unknown, errors: string[]): CapabilityEnvelopeWorkspace {
+  if (value === undefined) {
+    return { allowDirty: false };
+  }
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.workspace must be an object.");
+    return { allowDirty: false };
+  }
+
+  rejectUnknownKeys(value, ["allowDirty"], "capabilityEnvelope.workspace", errors);
+
+  const allowDirty = value["allowDirty"];
+  if (typeof allowDirty !== "boolean") {
+    errors.push("capabilityEnvelope.workspace.allowDirty must be a boolean.");
+    return { allowDirty: false };
+  }
+
+  return { allowDirty };
+}
+
+function rejectUnknownKeys(
+  record: Record<string, unknown>,
+  allowedKeys: readonly string[],
+  path: string,
+  errors: string[]
+): void {
+  const allowed = new Set(allowedKeys);
+  for (const key of Object.keys(record)) {
+    if (!allowed.has(key)) {
+      errors.push(`${path}.${key} is not allowed.`);
+    }
+  }
 }
 
 function parseRepoScopes(value: unknown, errors: string[]): readonly RepoScopeGrant[] {
