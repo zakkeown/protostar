@@ -1,4 +1,6 @@
 import * as fs from "node:fs";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import git, { type AuthCallback, type GitAuth } from "isomorphic-git";
 import httpNode from "isomorphic-git/http/node";
@@ -78,16 +80,20 @@ export async function cloneWorkspace(req: CloneRequest): Promise<CloneResult> {
   const onAuth = instrumentAuth(buildOnAuth(req.credentialRef), authState);
 
   try {
-    await dependencies.clone({
-      fs,
-      http: httpNode,
-      dir: req.dir,
-      url: req.url,
-      singleBranch: true,
-      depth: req.depth ?? 1,
-      ...(req.ref !== undefined ? { ref: req.ref } : {}),
-      onAuth
-    });
+    if (isLocalFileUrl(req.url)) {
+      await cloneLocalFileUrl(req);
+    } else {
+      await dependencies.clone({
+        fs,
+        http: httpNode,
+        dir: req.dir,
+        url: req.url,
+        singleBranch: true,
+        depth: req.depth ?? 1,
+        ...(req.ref !== undefined ? { ref: req.ref } : {}),
+        onAuth
+      });
+    }
   } catch (error: unknown) {
     if (req.credentialRef !== undefined && authState.cancelled) {
       throw new CredentialRefusedError(req.credentialRef, error);
@@ -105,6 +111,45 @@ export async function cloneWorkspace(req: CloneRequest): Promise<CloneResult> {
     auth,
     symlinkAudit
   };
+}
+
+function isLocalFileUrl(url: string): boolean {
+  return url.startsWith("file://");
+}
+
+async function cloneLocalFileUrl(req: CloneRequest): Promise<void> {
+  const sourcePath = fileURLToPath(req.url);
+  const args = [
+    "clone",
+    "--single-branch",
+    "--depth",
+    String(req.depth ?? 1),
+    ...(req.ref !== undefined ? ["--branch", req.ref] : []),
+    sourcePath,
+    req.dir
+  ];
+  await runGit(args);
+}
+
+function runGit(args: readonly string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", [...args], {
+      shell: false,
+      stdio: ["ignore", "ignore", "pipe"]
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      stderr += String(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`git ${args[0] ?? "command"} failed with exit code ${code ?? "unknown"}: ${stderr.trim()}`));
+    });
+  });
 }
 
 export function __setCloneWorkspaceDependenciesForTests(

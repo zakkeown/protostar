@@ -235,7 +235,7 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
-  it("writes all 5 gates admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
+  it("writes all 6 gates admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
@@ -269,7 +269,7 @@ describe("factory CLI draft admission hardening", () => {
 
       assert.equal(result.exitCode, 0, result.stderr);
 
-      const gates = ["intent", "planning", "capability", "repo-scope", "workspace-trust"] as const;
+      const gates = ["intent", "planning", "capability", "repo-scope", "workspace-trust", "repo-runtime"] as const;
       for (const gate of gates) {
         const decision = await readJsonObject(resolve(runDir, `${gate}-admission-decision.json`));
         assert.equal(decision["schemaVersion"], "1.0.0");
@@ -289,7 +289,7 @@ describe("factory CLI draft admission hardening", () => {
       }
 
       const indexLines = (await readFile(resolve(runDir, "admission-decisions.jsonl"), "utf8")).trimEnd().split("\n");
-      assert.equal(indexLines.length, 5);
+      assert.equal(indexLines.length, 6);
       assert.deepEqual(indexLines.map((line) => JSON.parse(line).gate), [...gates]);
       assert.equal(await pathExists(resolve(runDir, "admission-decision.json")), false);
       // precedence-decision.json may or may not exist depending on whether the

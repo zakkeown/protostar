@@ -50,6 +50,22 @@
             }
           }
         },
+        "dirtyWorktree": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["isDirty", "dirtyFiles"],
+          "properties": {
+            "isDirty": { "type": "boolean" },
+            "dirtyFiles": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "patchResults": { "type": "array" },
         "subprocessRecords": { "type": "array" }
       }

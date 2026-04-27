@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
 import { createGitHubPrDeliveryPlan } from "@protostar/delivery";
@@ -58,7 +58,17 @@ import {
   parsePlanningPileResult,
   type CandidatePlanGraph
 } from "@protostar/planning/schema";
-import { defineWorkspace } from "@protostar/repo";
+import {
+  cleanupWorkspace,
+  cloneWorkspace,
+  CredentialRefusedError,
+  defineWorkspace,
+  dirtyWorktreeStatus,
+  intersectAllowlist,
+  DEFAULT_REPO_POLICY,
+  loadRepoPolicy as loadRepoRuntimePolicy
+} from "@protostar/repo";
+import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
 import {
   runMechanicalReviewExecutionLoop as defaultRunMechanicalReviewExecutionLoop,
   type ReviewVerdict
@@ -68,7 +78,7 @@ import { resolveWorkspaceRoot } from "@protostar/paths";
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
 import { writeEscalationMarker } from "./escalation-marker.js";
-import { loadRepoPolicy } from "./load-repo-policy.js";
+import { loadRepoPolicy as loadAuthorityRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
 import {
   appendRefusalIndexEntry,
@@ -267,7 +277,7 @@ export async function runFactory(
   const unsignedIntent = confirmedIntentHandoff.intent;
   const ambiguityAssessment = confirmedIntentHandoff.ambiguityAssessment;
   const planningFixturePath = resolve(workspaceRoot, options.planningFixturePath);
-  const repoPolicy = await loadRepoPolicy(workspaceRoot);
+  const repoPolicy = await loadAuthorityRepoPolicy(workspaceRoot);
   const precedenceDecision = intersectEnvelopes(buildTierConstraints({
     intent: unsignedIntent,
     policy: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:policy" },
@@ -499,6 +509,46 @@ export async function runFactory(
     planningAdmissionArtifact: admittedPlanningOutput.planningAdmissionArtifact,
     planGraphUri: "plan.json"
   });
+  const gateAdmissionResult = await writeGateAdmissionDecisionsOrBlock({
+    runDir,
+    outDir,
+    runId,
+    admissionDecision,
+    planningAdmission: admittedPlanningOutput.planningAdmission,
+    precedenceDecision,
+    workspaceTrust: options.trust ?? "untrusted",
+    workspacePath: workspaceRoot,
+    requestedEnvelope: unsignedIntent.capabilityEnvelope
+  });
+  if (!gateAdmissionResult.ok) {
+    throw gateAdmissionResult.error;
+  }
+  const repoRuntime = await admitRepoRuntime({
+    projectRoot: workspaceRoot,
+    runDir,
+    outDir,
+    runId,
+    intent,
+    precedenceDecision
+  });
+  let repoRuntimeCleanupDone = false;
+  const cleanupRepoRuntime = async (input: { readonly failed: boolean; readonly errorMessage?: string }) => {
+    if (repoRuntimeCleanupDone) {
+      return;
+    }
+    repoRuntimeCleanupDone = true;
+    if (input.failed) {
+      await cleanupWorkspace(repoRuntime.cloneDir, runId, {
+        reason: "failure",
+        tombstoneRetentionHours: repoRuntime.policy.tombstoneRetentionHours,
+        ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {})
+      });
+      return;
+    }
+    await cleanupWorkspace(repoRuntime.cloneDir, runId, { reason: "success" });
+  };
+
+  try {
   const workspace = defineWorkspace({
     root: workspaceRoot,
     trust: options.trust ?? "untrusted",
@@ -655,20 +705,6 @@ export async function runFactory(
       archetypeSuggestion
     });
   }
-  const gateAdmissionResult = await writeGateAdmissionDecisionsOrBlock({
-    runDir,
-    outDir,
-    runId,
-    admissionDecision,
-    planningAdmission: admittedPlanningOutput.planningAdmission,
-    precedenceDecision,
-    workspaceTrust: workspace.trust,
-    workspacePath: workspaceRoot,
-    requestedEnvelope: unsignedIntent.capabilityEnvelope
-  });
-  if (!gateAdmissionResult.ok) {
-    throw gateAdmissionResult.error;
-  }
   await mkdir(resolve(runDir, "delivery"), { recursive: true });
   await writeJson(resolve(runDir, "intent.json"), intent);
   if (confirmedIntentOutputPath !== undefined) {
@@ -692,7 +728,7 @@ export async function runFactory(
   await writeJson(resolve(runDir, "delivery-plan.json"), deliveryPlan);
   await writeFile(resolve(runDir, "delivery/pr-body.md"), `${deliveryPlan.body}\n`, "utf8");
 
-  return {
+  const finalResult = {
     runId,
     runDir,
     intent,
@@ -700,6 +736,7 @@ export async function runFactory(
       ...(capturedIntentDraftBeforeAdmission === undefined ? [] : ["intent-draft.json"]),
       ...(clarificationReport === undefined ? [] : [CLARIFICATION_REPORT_ARTIFACT_NAME]),
       ...(admissionDecision === undefined ? [] : ["intent-admission-decision.json"]),
+      "repo-runtime-admission-decision.json",
       "planning-admission-decision.json",
       "capability-admission-decision.json",
       "repo-scope-admission-decision.json",
@@ -727,6 +764,20 @@ export async function runFactory(
       "delivery/pr-body.md"
     ]
   };
+
+  const failedReview = review.verdict !== "pass";
+  await cleanupRepoRuntime({
+    failed: failedReview,
+    ...(failedReview ? { errorMessage: `review verdict: ${review.verdict}` } : {})
+  });
+  return finalResult;
+  } catch (error: unknown) {
+    await cleanupRepoRuntime({
+      failed: true,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
 }
 
 function createIntentOntologySnapshot(intent: ConfirmedIntent): OntologySnapshot {
@@ -959,6 +1010,248 @@ async function writeIntentAdmissionDecision(input: {
       evidence: intentAdmissionEvidence(input.admissionDecision)
     })
   });
+}
+
+interface RepoRuntimeAdmission {
+  readonly cloneDir: string;
+  readonly policy: RepoRuntimePolicy;
+}
+
+interface RepoRuntimeDecisionEvidence {
+  readonly workspaceRoot: string;
+  readonly auth: CloneResult["auth"];
+  readonly effectiveAllowlist: readonly string[];
+  readonly symlinkRefusal?: {
+    readonly offendingPaths: readonly string[];
+  };
+  readonly dirtyWorktree?: {
+    readonly isDirty: boolean;
+    readonly dirtyFiles: readonly string[];
+  };
+  readonly errors?: readonly string[];
+  readonly patchResults: readonly [];
+  readonly subprocessRecords: readonly [];
+}
+
+async function admitRepoRuntime(input: {
+  readonly projectRoot: string;
+  readonly runDir: string;
+  readonly outDir: string;
+  readonly runId: string;
+  readonly intent: ConfirmedIntent;
+  readonly precedenceDecision: PrecedenceDecision;
+}): Promise<RepoRuntimeAdmission> {
+  const policyResult = await loadRepoRuntimePolicy(input.projectRoot);
+  const runtimePolicyResult = repoRuntimePolicyCompatibility(policyResult);
+  if (!runtimePolicyResult.ok) {
+    const reason = `repo-policy-load-failed: ${runtimePolicyResult.errors.join("; ")}`;
+    await writeRepoRuntimeAdmissionDecision({
+      runDir: input.runDir,
+      runId: input.runId,
+      outcome: "block",
+      precedenceDecision: input.precedenceDecision,
+      evidence: repoRuntimeEvidence({
+        workspaceRoot: input.projectRoot,
+        policy: undefined,
+        auth: { mode: "anonymous" },
+        errors: runtimePolicyResult.errors
+      })
+    });
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "repo-runtime",
+      reason,
+      refusalArtifact: "repo-runtime-admission-decision.json"
+    });
+    throw new CliExitError(reason, 1);
+  }
+
+  const policy = runtimePolicyResult.policy;
+  const cloneDir = resolve(policy.workspaceRoot ?? join(input.projectRoot, ".protostar", "workspaces"), input.runId);
+  let cloneResult: CloneResult;
+  try {
+    await cleanupWorkspace(cloneDir, input.runId, { reason: "success" });
+    cloneResult = await cloneWorkspace({
+      url: pathToFileURL(input.projectRoot).href,
+      dir: cloneDir,
+      depth: 1
+    });
+  } catch (error: unknown) {
+    const reason = repoRuntimeErrorReason("clone-failed", error);
+    await writeRepoRuntimeAdmissionDecision({
+      runDir: input.runDir,
+      runId: input.runId,
+      outcome: "block",
+      precedenceDecision: input.precedenceDecision,
+      evidence: repoRuntimeEvidence({
+        workspaceRoot: cloneDir,
+        policy,
+        auth: authEvidenceForCloneFailure(error),
+        errors: [reason]
+      })
+    });
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "repo-runtime",
+      reason,
+      refusalArtifact: "repo-runtime-admission-decision.json"
+    });
+    await cleanupWorkspace(cloneDir, input.runId, {
+      reason: "failure",
+      tombstoneRetentionHours: policy.tombstoneRetentionHours,
+      errorMessage: reason
+    });
+    throw new CliExitError(reason, 1);
+  }
+
+  if (!cloneResult.symlinkAudit.ok) {
+    const reason = `symlinks-refused: ${cloneResult.symlinkAudit.offendingPaths.join(", ")}`;
+    await writeRepoRuntimeAdmissionDecision({
+      runDir: input.runDir,
+      runId: input.runId,
+      outcome: "block",
+      precedenceDecision: input.precedenceDecision,
+      evidence: repoRuntimeEvidence({
+        workspaceRoot: cloneResult.dir,
+        policy,
+        auth: cloneResult.auth,
+        symlinkRefusal: { offendingPaths: cloneResult.symlinkAudit.offendingPaths }
+      })
+    });
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "repo-runtime",
+      reason,
+      refusalArtifact: "repo-runtime-admission-decision.json"
+    });
+    await cleanupWorkspace(cloneDir, input.runId, {
+      reason: "failure",
+      tombstoneRetentionHours: policy.tombstoneRetentionHours,
+      errorMessage: reason
+    });
+    throw new CliExitError(reason, 1);
+  }
+
+  const dirtyStatus = await dirtyWorktreeStatus(cloneResult.dir);
+  const allowDirty = input.intent.capabilityEnvelope.workspace?.allowDirty === true;
+  if (dirtyStatus.isDirty && !allowDirty) {
+    const reason = `dirty-worktree-refused: ${dirtyStatus.dirtyFiles.join(", ")}`;
+    await writeRepoRuntimeAdmissionDecision({
+      runDir: input.runDir,
+      runId: input.runId,
+      outcome: "block",
+      precedenceDecision: input.precedenceDecision,
+      evidence: repoRuntimeEvidence({
+        workspaceRoot: cloneResult.dir,
+        policy,
+        auth: cloneResult.auth,
+        dirtyWorktree: dirtyStatus
+      })
+    });
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "repo-runtime",
+      reason,
+      refusalArtifact: "repo-runtime-admission-decision.json"
+    });
+    await cleanupWorkspace(cloneDir, input.runId, {
+      reason: "failure",
+      tombstoneRetentionHours: policy.tombstoneRetentionHours,
+      errorMessage: reason
+    });
+    throw new CliExitError(reason, 1);
+  }
+
+  await writeRepoRuntimeAdmissionDecision({
+    runDir: input.runDir,
+    runId: input.runId,
+    outcome: "allow",
+    precedenceDecision: input.precedenceDecision,
+    evidence: repoRuntimeEvidence({
+      workspaceRoot: cloneResult.dir,
+      policy,
+      auth: cloneResult.auth,
+      symlinkRefusal: { offendingPaths: [] },
+      dirtyWorktree: dirtyStatus
+    })
+  });
+
+  return { cloneDir, policy };
+}
+
+function repoRuntimeEvidence(input: {
+  readonly workspaceRoot: string;
+  readonly policy: RepoRuntimePolicy | undefined;
+  readonly auth: CloneResult["auth"];
+  readonly symlinkRefusal?: RepoRuntimeDecisionEvidence["symlinkRefusal"];
+  readonly dirtyWorktree?: RepoRuntimeDecisionEvidence["dirtyWorktree"];
+  readonly errors?: readonly string[];
+}): RepoRuntimeDecisionEvidence {
+  return {
+    workspaceRoot: input.workspaceRoot,
+    auth: input.auth,
+    effectiveAllowlist: intersectAllowlist(input.policy?.commandAllowlist),
+    ...(input.symlinkRefusal !== undefined ? { symlinkRefusal: input.symlinkRefusal } : {}),
+    ...(input.dirtyWorktree !== undefined ? { dirtyWorktree: input.dirtyWorktree } : {}),
+    ...(input.errors !== undefined ? { errors: input.errors } : {}),
+    patchResults: [],
+    subprocessRecords: []
+  };
+}
+
+function repoRuntimePolicyCompatibility(
+  result: Awaited<ReturnType<typeof loadRepoRuntimePolicy>>
+): Awaited<ReturnType<typeof loadRepoRuntimePolicy>> {
+  if (result.ok || !result.errors.every(isAuthorityRepoPolicyKeyError)) {
+    return result;
+  }
+  return { ok: true, policy: DEFAULT_REPO_POLICY };
+}
+
+function isAuthorityRepoPolicyKeyError(error: string): boolean {
+  return error === "repoScopes is not allowed." ||
+    error === "toolPermissions is not allowed." ||
+    error === "trustOverride is not allowed.";
+}
+
+async function writeRepoRuntimeAdmissionDecision(input: {
+  readonly runDir: string;
+  readonly runId: string;
+  readonly outcome: AdmissionDecisionBase<RepoRuntimeDecisionEvidence>["outcome"];
+  readonly precedenceDecision: PrecedenceDecision;
+  readonly evidence: RepoRuntimeDecisionEvidence;
+}): Promise<void> {
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "repo-runtime",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "repo-runtime",
+      outcome: input.outcome,
+      precedenceDecision: input.precedenceDecision,
+      evidence: input.evidence
+    })
+  });
+}
+
+function authEvidenceForCloneFailure(error: unknown): CloneResult["auth"] {
+  if (error instanceof CredentialRefusedError) {
+    return { mode: "credentialRef", credentialRef: error.credentialRef };
+  }
+  return { mode: "anonymous" };
+}
+
+function repoRuntimeErrorReason(prefix: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${prefix}: ${message}`;
 }
 
 function baseAdmissionDecision<E extends object>(input: {

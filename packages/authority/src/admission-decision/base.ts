@@ -5,14 +5,16 @@ export type GateName =
   | "planning"
   | "capability"
   | "repo-scope"
-  | "workspace-trust";
+  | "workspace-trust"
+  | "repo-runtime";
 
 export const GATE_NAMES: readonly GateName[] = Object.freeze([
   "intent",
   "planning",
   "capability",
   "repo-scope",
-  "workspace-trust"
+  "workspace-trust",
+  "repo-runtime"
 ]);
 
 export interface PrecedenceResolutionSummary {

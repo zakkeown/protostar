@@ -33,9 +33,9 @@ type _EvidenceShape = Assert<Equal<typeof sampleDecision.evidence, { readonly fo
 void missingBaseFields;
 
 describe("admission decision base contract", () => {
-  it("defines the five shared gate names", () => {
-    assert.equal(GATE_NAMES.length, 5);
-    assert.deepEqual(GATE_NAMES, ["intent", "planning", "capability", "repo-scope", "workspace-trust"]);
+  it("defines the six shared gate names", () => {
+    assert.equal(GATE_NAMES.length, 6);
+    assert.deepEqual(GATE_NAMES, ["intent", "planning", "capability", "repo-scope", "workspace-trust", "repo-runtime"]);
     assert.equal(Object.isFrozen(GATE_NAMES), true);
   });
 
