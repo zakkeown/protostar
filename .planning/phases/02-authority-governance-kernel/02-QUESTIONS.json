@@ -3,9 +3,9 @@
   "generated_at": "2026-04-26T00:00:00Z",
   "stats": {
     "total": 18,
-    "answered": 0,
+    "answered": 18,
     "chat_more": 0,
-    "remaining": 18
+    "remaining": 0
   },
   "sections": [
     {
@@ -17,56 +17,120 @@
           "title": "Where does precedence resolution live?",
           "context": "Phase 1 ended with admission logic split between packages/intent (ambiguity) and packages/policy (capability + repo-scope + archetype). GOV-01 adds a 4-tier precedence stack (confirmed intent ⟶ policy ⟶ repo instructions ⟶ operator settings). Today nothing in the codebase merges these tiers — admission only checks intent-vs-policy. STRUCTURE.md treats packages/policy as 'authority and admission'.",
           "options": [
-            { "id": "a", "label": "New packages/governance workspace", "description": "Create a sibling to packages/policy that owns precedence merge + conflict evidence. Policy keeps doing pure capability checks; governance composes. Cleanest layering, one new package to wire." },
-            { "id": "b", "label": "Extend packages/policy", "description": "Add a precedence-resolution.ts module inside policy. No new package; reuses existing public-split-exports contract. Risk: policy becomes a god-package — already has ambiguity, capability, repo-scope, archetype." },
-            { "id": "c", "label": "New packages/authority workspace", "description": "Same as (a) but named to match the GOV requirement language ('authority boundary'). Aligns with the AGENTS.md vocabulary already used elsewhere." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "New packages/governance workspace",
+              "description": "Create a sibling to packages/policy that owns precedence merge + conflict evidence. Policy keeps doing pure capability checks; governance composes. Cleanest layering, one new package to wire."
+            },
+            {
+              "id": "b",
+              "label": "Extend packages/policy",
+              "description": "Add a precedence-resolution.ts module inside policy. No new package; reuses existing public-split-exports contract. Risk: policy becomes a god-package — already has ambiguity, capability, repo-scope, archetype."
+            },
+            {
+              "id": "c",
+              "label": "New packages/authority workspace",
+              "description": "Same as (a) but named to match the GOV requirement language ('authority boundary'). Aligns with the AGENTS.md vocabulary already used elsewhere."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-02",
           "title": "Conflict resolution algorithm",
           "context": "GOV-01 says 'conflicts produce explicit deny/allow with evidence'. Today there is no merge function — the four sources don't even all exist (operator settings has no schema yet). Need to decide the resolution shape now to lock evidence format.",
           "options": [
-            { "id": "a", "label": "Ordered first-match (highest tier wins)", "description": "Confirmed intent > policy > repo instructions > operator settings. First tier to deny blocks; first tier to allow allows; lower tiers can only narrow, never widen. Simple, explainable. Forces every tier to be denial-only or fully-defined." },
-            { "id": "b", "label": "Intersection / strictest-wins", "description": "Every tier is a constraint set; final envelope = intersection of all tiers. Cannot widen by definition. Matches capability-envelope mental model. Harder to explain conflicts since 'who denied' may not be unique." },
-            { "id": "c", "label": "Per-rule precedence with scored evidence", "description": "Each rule (e.g. 'network egress to host X') resolves independently with a per-rule precedence rule. Most flexible. Evidence is per-rule. Requires a rule registry — new infrastructure." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Ordered first-match (highest tier wins)",
+              "description": "Confirmed intent > policy > repo instructions > operator settings. First tier to deny blocks; first tier to allow allows; lower tiers can only narrow, never widen. Simple, explainable. Forces every tier to be denial-only or fully-defined."
+            },
+            {
+              "id": "b",
+              "label": "Intersection / strictest-wins",
+              "description": "Every tier is a constraint set; final envelope = intersection of all tiers. Cannot widen by definition. Matches capability-envelope mental model. Harder to explain conflicts since 'who denied' may not be unique."
+            },
+            {
+              "id": "c",
+              "label": "Per-rule precedence with scored evidence",
+              "description": "Each rule (e.g. 'network egress to host X') resolves independently with a per-rule precedence rule. Most flexible. Evidence is per-rule. Requires a rule registry — new infrastructure."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-03",
           "title": "Repo instructions — source file(s)",
           "context": "REQUIREMENTS.md mentions 'repo instructions' as a precedence tier but never specifies the file. AGENTS.md exists at repo root. Phase 3 will own actual repo I/O; Phase 2 only needs the contract for what to read.",
           "options": [
-            { "id": "a", "label": "AGENTS.md (parsed for declarative blocks)", "description": "Reuse the file the dev community already understands. Parse a YAML frontmatter or fenced code block (e.g. ```protostar-policy```). Risk: AGENTS.md is prose; parsing structured policy out of it is ambiguous." },
-            { "id": "b", "label": "New .protostar/repo-policy.json", "description": "Dedicated, schema-versioned, machine-readable. Separate from AGENTS.md (prose for humans, JSON for the kernel). Adds a new file convention to document." },
-            { "id": "c", "label": "Phase 2 stub — empty constant + Phase 3 fills it", "description": "Define the precedence slot but return an empty/no-op repo-instruction set. Real loading lands in Phase 3 where repo I/O is real. Phase 2 evidence shows 'repo instructions: not configured'." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "AGENTS.md (parsed for declarative blocks)",
+              "description": "Reuse the file the dev community already understands. Parse a YAML frontmatter or fenced code block (e.g. ```protostar-policy```). Risk: AGENTS.md is prose; parsing structured policy out of it is ambiguous."
+            },
+            {
+              "id": "b",
+              "label": "New .protostar/repo-policy.json",
+              "description": "Dedicated, schema-versioned, machine-readable. Separate from AGENTS.md (prose for humans, JSON for the kernel). Adds a new file convention to document."
+            },
+            {
+              "id": "c",
+              "label": "Phase 2 stub — empty constant + Phase 3 fills it",
+              "description": "Define the precedence slot but return an empty/no-op repo-instruction set. Real loading lands in Phase 3 where repo I/O is real. Phase 2 evidence shows 'repo instructions: not configured'."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-04",
           "title": "Where conflict evidence is persisted",
           "context": "GOV-05 already requires admission-decision.json per gate. GOV-01 evidence could nest inside that, or be its own artifact. Phase 1 schemaVersion infrastructure is already in place.",
           "options": [
-            { "id": "a", "label": "Nested field on admission-decision.json", "description": "Add a precedenceResolution: { tiers: [...], conflicts: [...], winner: ... } field on every admission-decision.json. One artifact per gate. Inflates the schema if most gates have no conflicts." },
-            { "id": "b", "label": "Separate precedence-decision.json artifact", "description": "Standalone artifact emitted only when precedence is consulted. Keeps gate decisions clean. Two artifacts to read for a full picture." },
-            { "id": "c", "label": "Both — nested summary + separate detail", "description": "Brief summary nested in admission-decision.json (one of: 'no-conflict' | 'resolved' | 'blocked-by-tier'); full detail in precedence-decision.json when applicable." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Nested field on admission-decision.json",
+              "description": "Add a precedenceResolution: { tiers: [...], conflicts: [...], winner: ... } field on every admission-decision.json. One artifact per gate. Inflates the schema if most gates have no conflicts."
+            },
+            {
+              "id": "b",
+              "label": "Separate precedence-decision.json artifact",
+              "description": "Standalone artifact emitted only when precedence is consulted. Keeps gate decisions clean. Two artifacts to read for a full picture."
+            },
+            {
+              "id": "c",
+              "label": "Both — nested summary + separate detail",
+              "description": "Brief summary nested in admission-decision.json (one of: 'no-conflict' | 'resolved' | 'blocked-by-tier'); full detail in precedence-decision.json when applicable."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     },
@@ -79,42 +143,90 @@
           "title": "Per-boundary enforcement shape",
           "context": "GOV-02 says envelope is enforced at every authority boundary (workspace ops, network, subprocess, budget) — 'not just stored'. Today, capability-admission.ts validates the envelope at admission time but no boundary in execution actually reads it. CONCERNS.md flags trust as 'currently a documentation field'.",
           "options": [
-            { "id": "a", "label": "Single shared guard helper", "description": "One function `assertCapabilityAllowed(envelope, op)` that every boundary calls. Easy to audit (one entrypoint). Risk: silent miss if a boundary forgets to call it — relies on test coverage." },
-            { "id": "b", "label": "Per-boundary middleware/wrapper functions", "description": "`withWorkspaceCapability`, `withNetworkCapability`, `withSubprocessCapability`, `withBudgetCapability` — each wraps the underlying op so calling it without the wrapper is a type error. Stronger compile-time guarantee." },
-            { "id": "c", "label": "Branded operation types (compile-fail without proof)", "description": "Each boundary accepts only branded inputs (e.g. `AuthorizedWorkspaceOp`); the only way to get the brand is through the capability check. Mirrors Phase 1's `ConfirmedIntent` / `AdmittedPlan` strategy. Highest ceremony, strongest guarantee." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Single shared guard helper",
+              "description": "One function `assertCapabilityAllowed(envelope, op)` that every boundary calls. Easy to audit (one entrypoint). Risk: silent miss if a boundary forgets to call it — relies on test coverage."
+            },
+            {
+              "id": "b",
+              "label": "Per-boundary middleware/wrapper functions",
+              "description": "`withWorkspaceCapability`, `withNetworkCapability`, `withSubprocessCapability`, `withBudgetCapability` — each wraps the underlying op so calling it without the wrapper is a type error. Stronger compile-time guarantee."
+            },
+            {
+              "id": "c",
+              "label": "Branded operation types (compile-fail without proof)",
+              "description": "Each boundary accepts only branded inputs (e.g. `AuthorizedWorkspaceOp`); the only way to get the brand is through the capability check. Mirrors Phase 1's `ConfirmedIntent` / `AdmittedPlan` strategy. Highest ceremony, strongest guarantee."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-06",
           "title": "Subprocess + network — Phase 2 scope",
           "context": "Phase 2's 'Blast Radius' in ROADMAP.md is 'Contracts only'. Phase 3 owns first real I/O. The question: does GOV-02 require runtime hooks (e.g. spawn allowlist on Node child_process) in Phase 2, or just the contract that Phase 3+ adapters must call?",
           "options": [
-            { "id": "a", "label": "Contracts + helpers only — Phase 3 wires real I/O", "description": "Phase 2 ships the guard helpers and types; the only 'real boundary' enforcement test in Phase 2 is the workspace-trust block (GOV-04). Phase 3 calls the helpers when implementing real clone/branch/write." },
-            { "id": "b", "label": "Contracts + a runtime sentinel that fails-closed", "description": "Ship a process-level sentinel that throws if a workspace/network/subprocess call escapes the guard helper (e.g. monkey-patch child_process.spawn in test mode to require a guard token). Catches drift. Adds dev infra." },
-            { "id": "c", "label": "Full runtime enforcement now (subprocess allowlist + network egress filter)", "description": "Wire actual Node hooks now. Probably out of scope vs ROADMAP 'Contracts only' framing — pulls Phase 3 work forward." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Contracts + helpers only — Phase 3 wires real I/O",
+              "description": "Phase 2 ships the guard helpers and types; the only 'real boundary' enforcement test in Phase 2 is the workspace-trust block (GOV-04). Phase 3 calls the helpers when implementing real clone/branch/write."
+            },
+            {
+              "id": "b",
+              "label": "Contracts + a runtime sentinel that fails-closed",
+              "description": "Ship a process-level sentinel that throws if a workspace/network/subprocess call escapes the guard helper (e.g. monkey-patch child_process.spawn in test mode to require a guard token). Catches drift. Adds dev infra."
+            },
+            {
+              "id": "c",
+              "label": "Full runtime enforcement now (subprocess allowlist + network egress filter)",
+              "description": "Wire actual Node hooks now. Probably out of scope vs ROADMAP 'Contracts only' framing — pulls Phase 3 work forward."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "a",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-07",
           "title": "Budget enforcement model",
           "context": "Capability envelope has budget caps (tokens, time, cost). Phase 4 owns execution; Phase 5 owns the loop budget. Phase 2 needs to lock the budget-tracker contract so 4 + 5 + 6 share it.",
           "options": [
-            { "id": "a", "label": "Single shared budget tracker (one ledger per run)", "description": "One `BudgetLedger` instance per run, threaded through every adapter. Aggregates all consumption. Simple. Tight coupling: every adapter signature gains a ledger arg." },
-            { "id": "b", "label": "Per-boundary trackers that report to a central aggregator", "description": "Each boundary (network, subprocess, judge-panel) has its own counter; aggregator polls/sums for envelope check. Boundaries stay decoupled. More moving parts." },
-            { "id": "c", "label": "Phase 2 ships the contract; Phase 4 picks the impl", "description": "Define `BudgetTrackerPort` interface here, pick implementation in Phase 4 once execution is concrete. Defers lock-in. Risk: Phase 2 cannot fully test budget denial in isolation." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Single shared budget tracker (one ledger per run)",
+              "description": "One `BudgetLedger` instance per run, threaded through every adapter. Aggregates all consumption. Simple. Tight coupling: every adapter signature gains a ledger arg."
+            },
+            {
+              "id": "b",
+              "label": "Per-boundary trackers that report to a central aggregator",
+              "description": "Each boundary (network, subprocess, judge-panel) has its own counter; aggregator polls/sums for envelope check. Boundaries stay decoupled. More moving parts."
+            },
+            {
+              "id": "c",
+              "label": "Phase 2 ships the contract; Phase 4 picks the impl",
+              "description": "Define `BudgetTrackerPort` interface here, pick implementation in Phase 4 once execution is concrete. Defers lock-in. Risk: Phase 2 cannot fully test budget denial in isolation."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     },
@@ -127,28 +239,60 @@
           "title": "Single-owner enforcement mechanism",
           "context": "GOV-03: 'each artifact has a single owning package; cross-stage reads go through admission helpers'. Phase 1 already used `public-split-exports.contract.test.ts` to lock the public surface for ConfirmedIntent / AdmittedPlan. Same hammer or different?",
           "options": [
-            { "id": "a", "label": "Extend public-split-exports contract test to all artifacts", "description": "Each artifact type (admission-decision, refusal, evaluation-report, etc.) gets a contract assertion: only owning package may export the constructor / mint function. Reuses Phase 1 pattern. Single test file or per-package?" },
-            { "id": "b", "label": "Module structure + package.json `exports` field strict", "description": "Each package's package.json declares only the public surface; private types live behind subpath conditions. TypeScript + bundler enforce it. Less custom test code; relies on toolchain." },
-            { "id": "c", "label": "Both — exports strictness + contract test", "description": "Belt-and-suspenders: exports field locks the runtime surface; contract test asserts the export shape and forbids constructor leak. Mirrors Phase 1 Q-03 strategy." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Extend public-split-exports contract test to all artifacts",
+              "description": "Each artifact type (admission-decision, refusal, evaluation-report, etc.) gets a contract assertion: only owning package may export the constructor / mint function. Reuses Phase 1 pattern. Single test file or per-package?"
+            },
+            {
+              "id": "b",
+              "label": "Module structure + package.json `exports` field strict",
+              "description": "Each package's package.json declares only the public surface; private types live behind subpath conditions. TypeScript + bundler enforce it. Less custom test code; relies on toolchain."
+            },
+            {
+              "id": "c",
+              "label": "Both — exports strictness + contract test",
+              "description": "Belt-and-suspenders: exports field locks the runtime surface; contract test asserts the export shape and forbids constructor leak. Mirrors Phase 1 Q-03 strategy."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-09",
           "title": "Cross-stage read API shape",
           "context": "Today consumers reach into `parsePlanningPileResult`, `assertAdmittedPlanHandoff`, etc. directly. GOV-03 wants 'admission helpers' to be the only path. Need a naming convention so Phase 4/5/6 know what to build against.",
           "options": [
-            { "id": "a", "label": "Per-pair helpers: `read{Artifact}From{Stage}`", "description": "e.g. `readAdmittedPlanFromPlanning(planningRunDir): Result<AdmittedPlan, AdmissionError>`. Explicit pairs. Many functions. Each helper validates schemaVersion + brand." },
-            { "id": "b", "label": "Generic registry: `accessArtifact(stage, type)`", "description": "Single typed registry; downstream calls a single function with discriminated args. Less code to maintain. Type-level gymnastics required for safe inference." },
-            { "id": "c", "label": "Stage-scoped client objects", "description": "`createPlanningStageReader()` returns a client with `.admittedPlan()`, `.refusal()`, etc. methods. Familiar OO pattern. Slightly more ceremony to construct." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Per-pair helpers: `read{Artifact}From{Stage}`",
+              "description": "e.g. `readAdmittedPlanFromPlanning(planningRunDir): Result<AdmittedPlan, AdmissionError>`. Explicit pairs. Many functions. Each helper validates schemaVersion + brand."
+            },
+            {
+              "id": "b",
+              "label": "Generic registry: `accessArtifact(stage, type)`",
+              "description": "Single typed registry; downstream calls a single function with discriminated args. Less code to maintain. Type-level gymnastics required for safe inference."
+            },
+            {
+              "id": "c",
+              "label": "Stage-scoped client objects",
+              "description": "`createPlanningStageReader()` returns a client with `.admittedPlan()`, `.refusal()`, etc. methods. Familiar OO pattern. Slightly more ceremony to construct."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     },
@@ -161,42 +305,90 @@
           "title": "Where does the trust check live?",
           "context": "Today `WorkspaceRef.trust` is declared in `packages/repo/src/index.ts:1-5` but only consumed by tests. `apps/factory-cli/src/main.ts:307` hardcodes `trust: \"trusted\"`. CONCERNS.md recommends a check 'in `packages/execution`'. GOV-04 specifically calls out `executionScope: \"workspace\"` with `trust ≠ \"trusted\"` as the canonical denial.",
           "options": [
-            { "id": "a", "label": "packages/policy admits/denies at envelope-validation time", "description": "Capability admission rejects before any execute grant is minted. Catches early; no code path to reach execution with bad trust. Requires the trust value at admission time (today it's set later in CLI)." },
-            { "id": "b", "label": "packages/execution refuses at dispatch", "description": "Match CONCERNS.md recommendation. Trust is checked when the executor is asked to run a workspace op. Closer to the boundary; redundant with (a) if both exist." },
-            { "id": "c", "label": "Both — envelope-time admission + execution-time runtime check", "description": "Admission catches misconfigured envelopes; execution-time catches mid-run mutation/tampering. Defense in depth. The required success-criterion test (denied capability produces evidence-bearing block at the *authority boundary*) decides which is the 'authority boundary' for the test." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "packages/policy admits/denies at envelope-validation time",
+              "description": "Capability admission rejects before any execute grant is minted. Catches early; no code path to reach execution with bad trust. Requires the trust value at admission time (today it's set later in CLI)."
+            },
+            {
+              "id": "b",
+              "label": "packages/execution refuses at dispatch",
+              "description": "Match CONCERNS.md recommendation. Trust is checked when the executor is asked to run a workspace op. Closer to the boundary; redundant with (a) if both exist."
+            },
+            {
+              "id": "c",
+              "label": "Both — envelope-time admission + execution-time runtime check",
+              "description": "Admission catches misconfigured envelopes; execution-time catches mid-run mutation/tampering. Defense in depth. The required success-criterion test (denied capability produces evidence-bearing block at the *authority boundary*) decides which is the 'authority boundary' for the test."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-11",
           "title": "CLI trust posture",
           "context": "Currently `apps/factory-cli/src/main.ts:307` hardcodes `trust: \"trusted\"`. With GOV-04 enforced, this needs a real source. v0.0.1 lock says cosmetic-tweak loop on a Tauri sibling repo (toy / sacrificial).",
           "options": [
-            { "id": "a", "label": "Default `untrusted`; explicit `--trust trusted` flag", "description": "Safe default. Requires opt-in. Operator must type the flag every run for the dogfood loop. Discoverable." },
-            { "id": "b", "label": "Default from `.protostar/operator.json`; CLI flag overrides", "description": "Operator config file holds the default trust posture per repo path; CLI flag escalates per invocation. Matches the 'operator settings' precedence tier in GOV-01." },
-            { "id": "c", "label": "Default `untrusted`; `--trust trusted` requires a confirmed-intent flag too", "description": "Two-key launch: trust ∧ explicit confirmation. Highest friction. Right for a dark-factory posture." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Default `untrusted`; explicit `--trust trusted` flag",
+              "description": "Safe default. Requires opt-in. Operator must type the flag every run for the dogfood loop. Discoverable."
+            },
+            {
+              "id": "b",
+              "label": "Default from `.protostar/operator.json`; CLI flag overrides",
+              "description": "Operator config file holds the default trust posture per repo path; CLI flag escalates per invocation. Matches the 'operator settings' precedence tier in GOV-01."
+            },
+            {
+              "id": "c",
+              "label": "Default `untrusted`; `--trust trusted` requires a confirmed-intent flag too",
+              "description": "Two-key launch: trust ∧ explicit confirmation. Highest friction. Right for a dark-factory posture."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-12",
           "title": "Trust failure shape",
           "context": "GOV-04 success criterion: 'evidence-bearing block at the authority boundary, not the execution stage.' Block ≠ throw. Phase 1 PolicyVerdict already has `allow | needs-human | block`. Phase 2 may need an `escalate` route distinct from `needs-human`.",
           "options": [
-            { "id": "a", "label": "Block verdict only — operator must change envelope and re-run", "description": "Hard refusal; admission-decision.json captures evidence. No retry path inside the run. Simplest. Matches Phase 1 verdict shape." },
-            { "id": "b", "label": "Escalate verdict — pauses run; operator can confirm + resume", "description": "Adds an `escalate` outcome distinct from `block`. Useful if Phase 9 (operator surface) wants resumable approvals. Adds state machine complexity now." },
-            { "id": "c", "label": "Block now; reserve `escalate` shape for Phase 9", "description": "Phase 2 emits `block`; Phase 9 introduces resumable escalation. Schema-stable: `escalate` reserved as a discriminator value not yet emitted." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Block verdict only — operator must change envelope and re-run",
+              "description": "Hard refusal; admission-decision.json captures evidence. No retry path inside the run. Simplest. Matches Phase 1 verdict shape."
+            },
+            {
+              "id": "b",
+              "label": "Escalate verdict — pauses run; operator can confirm + resume",
+              "description": "Adds an `escalate` outcome distinct from `block`. Useful if Phase 9 (operator surface) wants resumable approvals. Adds state machine complexity now."
+            },
+            {
+              "id": "c",
+              "label": "Block now; reserve `escalate` shape for Phase 9",
+              "description": "Phase 2 emits `block`; Phase 9 introduces resumable escalation. Schema-stable: `escalate` reserved as a discriminator value not yet emitted."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     },
@@ -209,28 +401,60 @@
           "title": "Schema unification across gates",
           "context": "Phase 1 already established `admission-decision.json` for the intent gate (`ADMISSION_DECISION_ARTIFACT_NAME`, `ADMISSION_DECISION_SCHEMA_VERSION` in `packages/policy/src/admission-contracts.ts`). GOV-05 expands this to capability + repo-scope + planning gates.",
           "options": [
-            { "id": "a", "label": "One shared schema with `gate` discriminator", "description": "Single `admission-decision.json` shape; field `gate: \"intent\" | \"planning\" | \"capability\" | \"repo-scope\"` selects which payload. Single schemaVersion. Easier diffing across gates. Wider schema surface area." },
-            { "id": "b", "label": "Per-gate schemas (intent-decision, capability-decision, ...)", "description": "Each gate gets its own filename and schemaVersion lifecycle. Independent evolution. More files. Tooling that wants 'all admission decisions for run X' must enumerate." },
-            { "id": "c", "label": "Per-gate filenames, shared base schema", "description": "File: `{gate}-admission-decision.json`. Schema: shared base interface + gate-specific extension. Hybrid. Matches the 'admission helper' shape from Q-09." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "One shared schema with `gate` discriminator",
+              "description": "Single `admission-decision.json` shape; field `gate: \"intent\" | \"planning\" | \"capability\" | \"repo-scope\"` selects which payload. Single schemaVersion. Easier diffing across gates. Wider schema surface area."
+            },
+            {
+              "id": "b",
+              "label": "Per-gate schemas (intent-decision, capability-decision, ...)",
+              "description": "Each gate gets its own filename and schemaVersion lifecycle. Independent evolution. More files. Tooling that wants 'all admission decisions for run X' must enumerate."
+            },
+            {
+              "id": "c",
+              "label": "Per-gate filenames, shared base schema",
+              "description": "File: `{gate}-admission-decision.json`. Schema: shared base interface + gate-specific extension. Hybrid. Matches the 'admission helper' shape from Q-09."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-14",
           "title": "Run-directory layout for gate decisions",
           "context": "Phase 1 Q-08 locked `.protostar/runs/{id}/...` + `.protostar/refusals.jsonl` index. Multiple gates per run need a layout convention. The intent gate already writes to a known path inside a run dir.",
           "options": [
-            { "id": "a", "label": "Per-gate subdirectory: `runs/{id}/{gate}/admission-decision.json`", "description": "Clear layout; matches schema choice (b)/(c). Each gate is a directory. Plays well with Phase 9 inspect. Operator sees 4-6 directories per run." },
-            { "id": "b", "label": "Flat with discriminator filename: `runs/{id}/intent-admission.json`, `planning-admission.json`, ...", "description": "Flat directory. Matches schema choice (b)/(c). Easier to enumerate. Crowds the run dir as gates multiply." },
-            { "id": "c", "label": "Append-only `runs/{id}/admission-decisions.jsonl` + per-gate file", "description": "JSONL index of all gate decisions for the run + per-gate file with full payload. Mirrors `.protostar/refusals.jsonl` pattern from Phase 1 Q-08." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Per-gate subdirectory: `runs/{id}/{gate}/admission-decision.json`",
+              "description": "Clear layout; matches schema choice (b)/(c). Each gate is a directory. Plays well with Phase 9 inspect. Operator sees 4-6 directories per run."
+            },
+            {
+              "id": "b",
+              "label": "Flat with discriminator filename: `runs/{id}/intent-admission.json`, `planning-admission.json`, ...",
+              "description": "Flat directory. Matches schema choice (b)/(c). Easier to enumerate. Crowds the run dir as gates multiply."
+            },
+            {
+              "id": "c",
+              "label": "Append-only `runs/{id}/admission-decisions.jsonl` + per-gate file",
+              "description": "JSONL index of all gate decisions for the run + per-gate file with full payload. Mirrors `.protostar/refusals.jsonl` pattern from Phase 1 Q-08."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "c",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     },
@@ -243,56 +467,120 @@
           "title": "Hash / signature primitive",
           "context": "Phase 1 Q-13 reserved `signature: SignatureEnvelope | null`. Phase 1 Q-10 explicitly says 'Phase 2 will layer a content-hash on top for signing.' GOV-06: 'hash of intent + policy snapshot at admission time'. Note: 'admission signature' here means content-binding hash, not asymmetric signing — the threat model is detection of tampering between admission and execution, not authentication of an external signer.",
           "options": [
-            { "id": "a", "label": "SHA-256 via node:crypto (no extra deps)", "description": "Built-in. Zero deps. `crypto.createHash(\"sha256\")`. Sufficient for tamper detection (collision-resistant). The pragmatic default." },
-            { "id": "b", "label": "BLAKE3 via @noble/hashes (one dep)", "description": "Faster, modern. Adds an audited dep. Marginal benefit at this throughput." },
-            { "id": "c", "label": "HMAC-SHA-256 with operator-provided secret", "description": "Authentication, not just integrity. Requires a secret in operator config. Closer to 'real signing'. Pulls in key management — probably more than GOV-06 calls for." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "SHA-256 via node:crypto (no extra deps)",
+              "description": "Built-in. Zero deps. `crypto.createHash(\"sha256\")`. Sufficient for tamper detection (collision-resistant). The pragmatic default."
+            },
+            {
+              "id": "b",
+              "label": "BLAKE3 via @noble/hashes (one dep)",
+              "description": "Faster, modern. Adds an audited dep. Marginal benefit at this throughput."
+            },
+            {
+              "id": "c",
+              "label": "HMAC-SHA-256 with operator-provided secret",
+              "description": "Authentication, not just integrity. Requires a secret in operator config. Closer to 'real signing'. Pulls in key management — probably more than GOV-06 calls for."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "a",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-16",
           "title": "What gets hashed (signed payload scope)",
           "context": "GOV-06 says 'hash of intent + policy snapshot at admission time'. 'Policy snapshot' is fuzzy — could be the resolved capability envelope, the full policy table, or the precedence-resolution outcome.",
           "options": [
-            { "id": "a", "label": "Canonicalized intent + resolved capability envelope only", "description": "Minimal: the two things that determine what execution may do. Smallest stable surface. Misses policy-table changes (e.g. archetype policy update mid-run)." },
-            { "id": "b", "label": "Intent + resolved envelope + policySnapshotHash", "description": "Hash references a separate policySnapshot file (the full ARCHETYPE_POLICY_TABLE state at admission time). Two-level hash chain. Detects policy drift between admission and execution." },
-            { "id": "c", "label": "Intent + envelope + precedence-resolution outcome (Q-04)", "description": "Includes the resolved 4-tier precedence result. Most complete: any input that produced the admission verdict is bound. Larger payload to canonicalize." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Canonicalized intent + resolved capability envelope only",
+              "description": "Minimal: the two things that determine what execution may do. Smallest stable surface. Misses policy-table changes (e.g. archetype policy update mid-run)."
+            },
+            {
+              "id": "b",
+              "label": "Intent + resolved envelope + policySnapshotHash",
+              "description": "Hash references a separate policySnapshot file (the full ARCHETYPE_POLICY_TABLE state at admission time). Two-level hash chain. Detects policy drift between admission and execution."
+            },
+            {
+              "id": "c",
+              "label": "Intent + envelope + precedence-resolution outcome (Q-04)",
+              "description": "Includes the resolved 4-tier precedence result. Most complete: any input that produced the admission verdict is bound. Larger payload to canonicalize."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-17",
           "title": "Where verification happens",
           "context": "GOV-06: 'downstream stages verify before acting'. Stages are planning admission (Phase 1, exists), execution (Phase 4), repo (Phase 3), delivery (Phase 7). Phase 2 needs to specify the verification point now.",
           "options": [
-            { "id": "a", "label": "Every downstream consumer recomputes + compares", "description": "Each stage that accepts ConfirmedIntent recomputes the hash from the canonicalized form and matches. Belt-and-suspenders. Multiple recompute sites; canonicalization must be perfectly identical everywhere." },
-            { "id": "b", "label": "Single central verifier helper", "description": "`verifyConfirmedIntentSignature(intent, policySnapshot)` — every stage calls it. One canonicalization site. Matches the GOV-03 'admission helper' pattern from Q-09." },
-            { "id": "c", "label": "Verified once at the execution-admission boundary", "description": "Only execution (the first stage that touches matter) verifies. Earlier stages trust the brand. Smaller blast radius if canonicalization changes. Risk: a non-execution stage that accepts ConfirmedIntent (e.g. Phase 6 dogpile review) might run on a tampered intent." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Every downstream consumer recomputes + compares",
+              "description": "Each stage that accepts ConfirmedIntent recomputes the hash from the canonicalized form and matches. Belt-and-suspenders. Multiple recompute sites; canonicalization must be perfectly identical everywhere."
+            },
+            {
+              "id": "b",
+              "label": "Single central verifier helper",
+              "description": "`verifyConfirmedIntentSignature(intent, policySnapshot)` — every stage calls it. One canonicalization site. Matches the GOV-03 'admission helper' pattern from Q-09."
+            },
+            {
+              "id": "c",
+              "label": "Verified once at the execution-admission boundary",
+              "description": "Only execution (the first stage that touches matter) verifies. Earlier stages trust the brand. Smaller blast radius if canonicalization changes. Risk: a non-execution stage that accepts ConfirmedIntent (e.g. Phase 6 dogpile review) might run on a tampered intent."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         },
         {
           "id": "Q-18",
           "title": "SignatureEnvelope shape",
           "context": "Phase 1 reserved `signature: SignatureEnvelope | null` but did not define the shape. Locking it now avoids a breaking schema change in Phase 2's first emission. JOSE/JWS is the standards-track shape; a custom shape is leaner.",
           "options": [
-            { "id": "a", "label": "Lean custom: `{ algorithm, payloadHash, signedAt }`", "description": "Three fields. `algorithm: \"sha256\"` for now; `payloadHash: hex string`; `signedAt: ISO-8601`. Smallest forward-compatible shape. No external standards binding." },
-            { "id": "b", "label": "Custom + canonicalization metadata", "description": "Adds `canonicalForm: \"json-c14n@1.0\"` (or similar) so future canonicalization changes are detectable. Slight forward-compat headroom. One more field to maintain." },
-            { "id": "c", "label": "JOSE/JWS-compatible: `{ protected, payload, signature }`", "description": "Standards-track. Future asymmetric signing is a drop-in. Heavier shape; current SHA-256-only use looks awkward inside a JWS. Probably premature for v1." },
-            { "id": "d", "label": "Custom", "description": "" }
+            {
+              "id": "a",
+              "label": "Lean custom: `{ algorithm, payloadHash, signedAt }`",
+              "description": "Three fields. `algorithm: \"sha256\"` for now; `payloadHash: hex string`; `signedAt: ISO-8601`. Smallest forward-compatible shape. No external standards binding."
+            },
+            {
+              "id": "b",
+              "label": "Custom + canonicalization metadata",
+              "description": "Adds `canonicalForm: \"json-c14n@1.0\"` (or similar) so future canonicalization changes are detectable. Slight forward-compat headroom. One more field to maintain."
+            },
+            {
+              "id": "c",
+              "label": "JOSE/JWS-compatible: `{ protected, payload, signature }`",
+              "description": "Standards-track. Future asymmetric signing is a drop-in. Heavier shape; current SHA-256-only use looks awkward inside a JWS. Probably premature for v1."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
           ],
-          "answer": null,
+          "answer": "b",
           "chat_more": "",
-          "status": "unanswered"
+          "status": "answered"
         }
       ]
     }
