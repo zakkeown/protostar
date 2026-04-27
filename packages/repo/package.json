@@ -9,10 +9,13 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./schema/workspace-trust-admission-decision.schema.json": "./schema/workspace-trust-admission-decision.schema.json"
   },
+  "files": ["dist", "schema"],
   "scripts": {
     "build": "tsc -b",
+    "test": "pnpm run build",
     "typecheck": "tsc -b --pretty false"
   },
   "sideEffects": false

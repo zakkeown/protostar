@@ -22,7 +22,8 @@
       "types": "./dist/internal/brand-witness.d.ts",
       "import": "./dist/internal/brand-witness.js"
     },
-    "./schema/no-plan-admitted.schema.json": "./schema/no-plan-admitted.schema.json"
+    "./schema/no-plan-admitted.schema.json": "./schema/no-plan-admitted.schema.json",
+    "./schema/planning-admission-decision.schema.json": "./schema/planning-admission-decision.schema.json"
   },
   "files": ["dist", "schema"],
   "scripts": {

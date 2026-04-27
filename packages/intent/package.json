@@ -43,7 +43,10 @@
       "import": "./dist/internal/brand-witness.js"
     },
     "./schema/clarification-report.schema.json": "./schema/clarification-report.schema.json",
-    "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json"
+    "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json",
+    "./schema/intent-admission-decision.schema.json": "./schema/intent-admission-decision.schema.json",
+    "./schema/capability-admission-decision.schema.json": "./schema/capability-admission-decision.schema.json",
+    "./schema/repo-scope-admission-decision.schema.json": "./schema/repo-scope-admission-decision.schema.json"
   },
   "files": ["dist", "schema"],
   "scripts": {

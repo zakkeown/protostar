@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/repo-scope-admission-decision.schema.json",
+  "title": "RepoScopeAdmissionDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "gate", "outcome", "timestamp", "precedenceResolution", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9_-]+$" },
+    "gate": { "const": "repo-scope" },
+    "outcome": { "enum": ["allow", "block", "escalate"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "precedenceResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["no-conflict", "resolved", "blocked-by-tier"] },
+        "precedenceDecisionPath": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestedScopes", "grantedScopes"],
+      "properties": {
+        "requestedScopes": { "type": "array", "items": { "type": "string" } },
+        "grantedScopes": { "type": "array", "items": { "type": "string" } },
+        "deniedScopes": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

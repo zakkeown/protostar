@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/intent-admission-decision.schema.json",
+  "title": "IntentAdmissionDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "gate", "outcome", "timestamp", "precedenceResolution", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9_-]+$" },
+    "gate": { "const": "intent" },
+    "outcome": { "enum": ["allow", "block", "escalate"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "precedenceResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["no-conflict", "resolved", "blocked-by-tier"] },
+        "precedenceDecisionPath": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ambiguityScore", "admissionStage"],
+      "properties": {
+        "ambiguityScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "admissionStage": { "const": "intent" },
+        "clarificationReportPath": { "type": "string" },
+        "refusedReasons": { "type": "array", "items": { "type": "string" } },
+        "artifact": { "const": "admission-decision.json" },
+        "admitted": { "type": "boolean" },
+        "draftId": { "type": "string" },
+        "mode": { "enum": ["greenfield", "brownfield"] },
+        "goalArchetype": { "type": "string" },
+        "confirmedIntentId": { "type": "string" },
+        "details": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gate",
+            "ambiguity",
+            "requiredDimensionChecklist",
+            "requiredFieldChecklist",
+            "missingFieldDetections",
+            "requiredClarifications",
+            "hardZeroReasons",
+            "clarificationQuestions",
+            "policyFindings",
+            "archetypeSuggestion"
+          ],
+          "properties": {
+            "gate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ambiguityPassed",
+                "requiredChecklistPassed",
+                "policyPassed",
+                "structurallyMissingAutoFail",
+                "confirmedIntentCreated"
+              ],
+              "properties": {
+                "ambiguityPassed": { "type": "boolean" },
+                "requiredChecklistPassed": { "type": "boolean" },
+                "policyPassed": { "type": "boolean" },
+                "structurallyMissingAutoFail": { "type": "boolean" },
+                "confirmedIntentCreated": { "type": "boolean" }
+              }
+            },
+            "ambiguity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "ambiguity",
+                "threshold",
+                "accepted",
+                "finite",
+                "weightingProfile",
+                "dimensionScores",
+                "missingFields",
+                "requiredClarifications",
+                "structurallyMissingDimensions"
+              ],
+              "properties": {
+                "mode": { "enum": ["greenfield", "brownfield"] },
+                "ambiguity": { "type": "number", "minimum": 0, "maximum": 1 },
+                "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+                "accepted": { "type": "boolean" },
+                "finite": { "type": "boolean" },
+                "weightingProfile": { "type": "object" },
+                "dimensionScores": { "type": "array", "items": { "type": "object" } },
+                "missingFields": { "type": "array", "items": { "type": "string" } },
+                "requiredClarifications": { "type": "array", "items": { "type": "string" } },
+                "structurallyMissingDimensions": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "requiredDimensionChecklist": { "type": "array", "items": { "type": "object" } },
+            "requiredFieldChecklist": { "type": "array", "items": { "type": "object" } },
+            "missingFieldDetections": { "type": "array", "items": { "type": "object" } },
+            "requiredClarifications": { "type": "array", "items": { "type": "object" } },
+            "hardZeroReasons": { "type": "array", "items": { "type": "object" } },
+            "clarificationQuestions": { "type": "array", "items": { "type": "object" } },
+            "policyFindings": { "type": "array", "items": { "type": "object" } },
+            "archetypeSuggestion": { "type": "object" },
+            "failure": { "type": "object" }
+          }
+        },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
