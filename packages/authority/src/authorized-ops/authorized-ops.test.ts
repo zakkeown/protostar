@@ -26,6 +26,7 @@ const populatedEnvelope: CapabilityEnvelope = {
   toolPermissions: [
     { tool: "network", permissionLevel: "use" as const, reason: "http calls", risk: "low" as const }
   ],
+  network: { allow: "loopback" },
   executeGrants: [
     { command: "pnpm", scope: "." }
   ],
@@ -313,10 +314,10 @@ describe("authorized operation producers", () => {
     assert.equal("authorized" in result, false);
   });
 
-  it("authorizes http and https network operations", () => {
+  it("authorizes loopback http network operations", () => {
     const result = authorizeNetworkOp({
       method: "POST",
-      url: "https://example.com/api",
+      url: "http://localhost:1234/v1/models",
       resolvedEnvelope: populatedEnvelope
     });
 
