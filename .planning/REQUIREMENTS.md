@@ -37,7 +37,7 @@ Make the repo boundary real. This is where the dark factory starts touching matt
 
 - [ ] **REPO-01**: Target repo registration — `defineWorkspace` accepts a `RepoTarget` (URL + credential ref) and produces a verified `WorkspaceRef`
 - [x] **REPO-02**: Workspace snapshot / branch creation is implemented in `packages/repo` (clone, checkout, branch from base SHA)
-- [ ] **REPO-03**: File read/write caps enforced per `capabilityEnvelope` — paths outside the workspace are refused at the `repo` layer
+- [x] **REPO-03**: File read/write caps enforced per `capabilityEnvelope` — paths outside the workspace are refused at the `repo` layer
 - [ ] **REPO-04**: Command caps — subprocess invocations go through a `repo`-owned runner with allowlist + arg validation (no shell strings)
 - [ ] **REPO-05**: Patch application + rollback — `applyChangeSet` is atomic; failure restores prior worktree state
 - [x] **REPO-06**: Dirty-worktree handling — refuses to operate on uncommitted changes unless explicitly allowed by capability envelope
