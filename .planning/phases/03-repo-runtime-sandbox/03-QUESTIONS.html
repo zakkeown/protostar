@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Phase 3 — Repo Runtime + Sandbox — Discussion Questions</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #121a33;
+    --ink: #e8ecf6;
+    --muted: #8b94b1;
+    --accent: #6ea8ff;
+    --green: #22c55e;
+    --green-bg: #0f3a23;
+    --orange: #f97316;
+    --border: #1f2a4a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro", Segoe UI, sans-serif; background: var(--bg); color: var(--ink); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .stats { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .stat { font-size: 13px; }
+  .stat strong { font-size: 18px; display: block; color: var(--accent); }
+  .progress { flex: 1; min-width: 220px; height: 10px; background: #0a1230; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+  .progress > div { height: 100%; background: linear-gradient(90deg, #22c55e, #6ea8ff); width: 0%; transition: width .3s; }
+  .save { background: var(--accent); color: #001034; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .save:hover { filter: brightness(1.1); }
+  .help { color: var(--muted); font-size: 12px; margin: 8px 0 20px; }
+  .section { margin-bottom: 24px; }
+  .section-header { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  .section-header:hover { border-color: var(--accent); }
+  .section-title { font-weight: 600; font-size: 15px; }
+  .section-count { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: border-color .2s, background .2s; }
+  .card.answered { border: 2px solid var(--green); background: linear-gradient(180deg, #0f3a23 0%, var(--panel) 100%); }
+  .badge { display: inline-block; background: #0a1230; color: var(--accent); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; margin-right: 6px; }
+  .qtitle { font-weight: 600; margin: 4px 0 6px; }
+  .qctx { color: var(--muted); font-style: italic; font-size: 12px; margin-bottom: 10px; }
+  .options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .opt { display: flex; gap: 8px; padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  .opt:hover { background: #0a1230; }
+  .opt input { margin-top: 3px; flex-shrink: 0; }
+  .opt-label { font-weight: 600; font-size: 13px; }
+  .opt-desc { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .opt input:checked ~ .opt-text .opt-label { color: var(--green); }
+  textarea { width: 100%; min-height: 50px; background: #0a1230; color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font: inherit; resize: vertical; }
+  textarea.has-content { border: 2px solid var(--orange); }
+  textarea::placeholder { color: #4a5478; }
+  .hidden { display: none; }
+  footer { margin-top: 30px; padding: 14px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<h1>Phase 3 — Repo Runtime + Sandbox</h1>
+<div class="sub">Discussion questions — power mode. Answer at your own pace, save, then return to Claude and say "refresh" or "finalize".</div>
+
+<div class="stats">
+  <div class="stat">Total<strong id="stat-total">18</strong></div>
+  <div class="stat">Answered<strong id="stat-answered">0</strong></div>
+  <div class="stat">Remaining<strong id="stat-remaining">18</strong></div>
+  <div class="stat">Chat-more<strong id="stat-chatmore">0</strong></div>
+  <div class="progress"><div id="progress-bar"></div></div>
+  <button class="save" onclick="saveJson()">Save answers</button>
+</div>
+<div class="help">After answering, click <strong>Save answers</strong> to download the JSON. Replace <code>03-QUESTIONS.json</code> in the phase directory, then tell Claude "refresh".</div>
+
+<div id="root"></div>
+
+<footer>
+  <div class="help" style="margin:0">Phase: <code>03-repo-runtime-sandbox</code> · 6 sections · 18 questions</div>
+  <button class="save" onclick="saveJson()">Save answers</button>
+</footer>
+
+<script>
+const STATE = {
+  "phase": "03-repo-runtime-sandbox",
+  "generated_at": "2026-04-27T00:00:00Z",
+  "stats": {
+    "total": 18,
+    "answered": 0,
+    "chat_more": 0,
+    "remaining": 18
+  },
+  "sections": [
+    {
+      "id": "git-mechanics",
+      "title": "Git Mechanics (REPO-01, REPO-02)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Git library choice",
+          "context": "PROJECT.md locks 'zero external runtime deps'. Repo currently has no runtime deps at all. Phase 3 needs clone, branch, checkout, status, apply, reset. apps/factory-cli/src/main.test.ts:2 already uses node:child_process spawn for tests — so subprocess-to-git is already in use somewhere.",
+          "options": [
+            {"id": "a", "label": "Shell out to git via node:child_process", "description": "Zero deps. Direct, predictable, matches dark-factory minimalism. Argv-only invocation lines up with REPO-04's no-shell-strings requirement. We own arg-array discipline. Tradeoff: we re-implement small bits of git ergonomics (porcelain parsing, ref formatting) ourselves."},
+          {"id": "b", "label": "isomorphic-git (pure JS)", "description": "Single npm dep, no native bindings, runs anywhere Node runs. Programmatic API for clone/branch/apply. Tradeoff: breaks the zero-deps lock; patch-apply / merge corner cases historically lag git proper; bundle weight."},
+          {"id": "c", "label": "simple-git (wrapper around git CLI)", "description": "Thin wrapper around the system git binary — same trust boundary as option (a) but with ergonomics. Tradeoff: still a runtime dep; still requires system git installed; we lose direct control of the argv that gets executed (matters for REPO-04)."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Workspace storage location on disk",
+          "context": "Each run gets a runId; Phase 1 already writes to `.protostar/runs/{id}/`. Workspace clones could live alongside, in a sibling tree, or in the OS temp dir.",
+          "options": [
+            {"id": "a", "label": ".protostar/workspaces/{runId}/", "description": "Symmetric with .protostar/runs/. Easy to inspect post-mortem. Tradeoff: pollutes the project dir with full-repo clones; CI/dev disk usage grows fast; `.gitignore` must cover it."},
+            {"id": "b", "label": "OS temp dir (os.tmpdir()/protostar/{runId})", "description": "Clean. OS handles cleanup. No project-dir pollution. Tradeoff: harder to inspect after a failed run unless we copy artifacts back; tmp paths are platform-variable."},
+            {"id": "c", "label": "Configurable — `workspaceRoot` in repo-policy.json with `.protostar/workspaces/` default", "description": "Operator picks per-machine. Default keeps it discoverable. Tradeoff: one more knob; need to validate the path is outside the source repo to avoid recursive clones."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Workspace lifecycle — fresh clone per run vs. cached",
+          "context": "Phase 10 will run ≥10 consecutive runs against the same sibling toy repo. Cloning every time is slow but safe; reusing is fast but invites cross-run contamination.",
+          "options": [
+            {"id": "a", "label": "Fresh clone per run (no reuse)", "description": "Bulletproof isolation — Phase 5/6 review loops can't be poisoned by prior runs. Tradeoff: every run pays the clone cost; for dogfood loop with a small toy repo this is cheap, for larger targets it isn't."},
+            {"id": "b", "label": "Reusable workspace pool keyed by repo URL + base SHA", "description": "Reset-and-reuse: `git clean -fdx && git checkout {baseSHA}` between runs. Faster after warm-up. Tradeoff: contamination risk if reset is incomplete; complexity in pool management; harder to reason about Phase 5/6 outcomes."},
+            {"id": "c", "label": "Fresh clone per run for v1, leave pool door open via config", "description": "Default to (a). `repo-policy.json` reserves a `workspacePool: { enabled: false }` field that Phase 10+ can flip. Locks safe v1 behavior; defers optimization."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Clone authentication mechanism",
+          "context": "Phase 7 will need GitHub PAT for delivery; Phase 3 needs clone auth. .env.example (REPO-09) gates this. Options range from least-invasive (system credential helper) to most-explicit (env var + repo-policy reference).",
+          "options": [
+            {"id": "a", "label": "Defer to system git credential helper / SSH agent", "description": "Zero new surface. Operator already has git auth working on their machine. Tradeoff: invisible to admission decisions — we can't show evidence that 'we used credential X' in the run artifact."},
+            {"id": "b", "label": "Env-var token referenced by `RepoTarget.credentialRef`", "description": "REPO-01 explicitly says 'URL + credential ref'. credentialRef is a name (e.g. `GITHUB_PAT`); .env.example documents it; we read process.env at clone time. Captured in admission decision as 'credentialRef used: GITHUB_PAT' (never the value). Tradeoff: env-var sprawl as we add more remotes."},
+            {"id": "c", "label": "Both — credentialRef preferred; fall back to system helper for unset refs", "description": "Tries explicit first, system second. Tradeoff: two code paths; harder to reason about which actually authenticated."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "caps-enforcement",
+      "title": "File & Subprocess Caps (REPO-03, REPO-04)",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "File-path cap enforcement shape",
+          "context": "Phase 2 Q-05 locked AuthorizedWorkspaceOp brand (capability envelope produces a brand; only branded ops can mutate). Phase 3 wires the actual fs calls. Question is: where does path-resolution + cap-check happen?",
+          "options": [
+            {"id": "a", "label": "Single repo-owned FS adapter; all reads/writes go through it; check at entry", "description": "`packages/repo` exports a FsAdapter type with `readFile(op: AuthorizedWorkspaceOp, path)` etc. Single funnel; canonicalize + verify path is within workspace root + envelope allows it. Tradeoff: every package that touches files imports the adapter — invasive."},
+            {"id": "b", "label": "Mint-time cap-check; fs calls trust the brand", "description": "AuthorizedWorkspaceOp is minted only after path is canonicalized + envelope-checked. Once you have the brand, you can use plain fs. Mirrors Phase 2 ConfirmedIntent posture. Tradeoff: relies on brand discipline — a leaked brand is a leaked cap."},
+            {"id": "c", "label": "Both — adapter takes the brand and double-checks at entry", "description": "Belt-and-suspenders. Mint-time check in authority kernel; second canonicalize+verify inside the adapter. Catches stale brands and time-of-check/time-of-use races on resolved paths. Tradeoff: most ceremony."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Symlink handling inside workspace",
+          "context": "An attacker-controlled repo could ship a symlink that points outside the workspace. Phase 3 has to decide before any read/write lands.",
+          "options": [
+            {"id": "a", "label": "Refuse all symlinks inside workspace", "description": "Strictest. `lstat` every path; if symlink, refuse and emit a refusal artifact. Tradeoff: breaks legitimate symlinks (pnpm node_modules, etc.) — though node_modules lives outside the change-set in our model."},
+            {"id": "b", "label": "Resolve symlinks and re-verify target is inside workspace", "description": "Symlinks allowed iff target resolves inside the workspace root. Tradeoff: TOCTOU risk between resolve and use; complex when targets are themselves symlinks."},
+            {"id": "c", "label": "Refuse symlinks in change-set paths, allow in workspace tree at large", "description": "We refuse to *write* through a symlink; reads of pre-existing symlinks (node_modules) are fine. Tradeoff: split-brain rule; needs clear per-op semantics."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Subprocess allowlist source of truth",
+          "context": "REPO-04 says 'allowlist + arg validation, never shell strings'. The allowlist could live in code, in repo-policy.json, or be derived from capability envelope.",
+          "options": [
+            {"id": "a", "label": "Hardcoded baseline in `@protostar/repo` (git, pnpm, node, tsc)", "description": "Fixed, explicit, code-reviewable. Tradeoff: every new tool needs a code change; repos with custom build tools (cargo, make) need allowlist edits."},
+            {"id": "b", "label": "`.protostar/repo-policy.json` carries `commandAllowlist: [...]`", "description": "Per-target-repo configurable. Keeps the dark factory honest about what each target needs. Tradeoff: one more thing the operator has to maintain; risk of overly-broad allowlists."},
+            {"id": "c", "label": "Hardcoded baseline + repo-policy can extend (not override)", "description": "Baseline is always allowed (git, pnpm, node, tsc); repo-policy can add (cargo, make) but cannot remove. Tradeoff: 'cannot remove' may not always be correct (some repos may want to forbid pnpm)."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Subprocess argv validation rules",
+          "context": "Even with an allowlist, `git checkout $branch` lets attacker-controlled branch names inject flags (`--upload-pack=...`). REPO-04 must validate args, not just the binary.",
+          "options": [
+            {"id": "a", "label": "Per-command argv schema (git: subset of subcommands + flag whitelist; pnpm: same)", "description": "Each allowlisted command has a schema in `@protostar/repo`: allowed subcommands, allowed flags, value pattern (e.g. branch names match `[a-zA-Z0-9._/-]+`). Tradeoff: maintenance — every new git operation needs schema updates."},
+            {"id": "b", "label": "Pattern-based — refuse args starting with `-` unless whitelisted; quote refs", "description": "Lighter rule: any arg starting with `-` is a flag and must be whitelisted; ref-like args validated against a regex; `--` separator forced before user-controlled values. Tradeoff: less precise; surprising failures."},
+            {"id": "c", "label": "Both — pattern guard at outer layer, per-command schema at inner layer", "description": "Defense in depth. Pattern guard catches obvious flag injection; per-command schema validates the rest. Tradeoff: most ceremony for v1."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Subprocess stdout/stderr capture policy",
+          "context": "Phase 4 will spawn the LM Studio coder; Phase 3 sets the capture contract. Buffers can blow memory; streaming must be journalled; size caps must be admission-decision-evidenced.",
+          "options": [
+            {"id": "a", "label": "Buffer with hard size cap (e.g. 5 MB stdout, 1 MB stderr); refuse beyond", "description": "Predictable, simple, capture-once. Beyond cap → AuthorizedSubprocessOp budget violation → refusal artifact. Tradeoff: legitimate large outputs (verify:full test logs) might bump the cap."},
+            {"id": "b", "label": "Stream to file in run dir; no in-memory buffer", "description": "`runs/{id}/subprocess/{n}-stdout.log`. Unlimited size, but bounded by disk. Phase 5 review reads from disk. Tradeoff: more I/O; harder to inline-evidence in the admission decision."},
+            {"id": "c", "label": "Stream to file + tail the last N KB into the admission decision evidence", "description": "Best of both. Full log on disk; admission-decision carries the tail. Tradeoff: most code; tail may not contain the relevant failure cause."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "patch-apply",
+      "title": "Patch Apply + Rollback (REPO-05)",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Patch format / change-set representation",
+          "context": "Phase 4 will produce diffs from the LM Studio coder. `RepoChangeSet` currently has `patches: PatchArtifact[]` with `add|modify|delete` semantics — abstract, no payload. Phase 3 has to decide what the payload actually looks like.",
+          "options": [
+            {"id": "a", "label": "Unified diff text; apply via `git apply --index --3way`", "description": "Standard format; matches what LLM coders emit naturally; git handles conflict resolution. Tradeoff: text-diff fragility (line numbers drift if base changes mid-run); 3way-merge surprises."},
+            {"id": "b", "label": "Filewise full-content payloads (`{path, op, contents}`)", "description": "Each patch carries the full new file contents; we write directly. Trivially reversible (we keep the original). Tradeoff: bloated payloads for large files; loses any notion of 'this is a 3-line change'."},
+            {"id": "c", "label": "Unified diff + per-file pre-image hash; apply via `git apply` with hash check", "description": "Diff is the payload but we capture a SHA-256 of each pre-image file; refuse to apply if pre-image doesn't match (catches concurrent-mutation, drift). Tradeoff: more ceremony; needs hash capture before patch generation in Phase 4."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Atomicity / rollback mechanism",
+          "context": "REPO-05 says 'applyChangeSet is atomic; failure restores prior worktree state'. Mechanisms range from git-native (stash/reset) to OS-level (filesystem snapshot) to in-process (in-memory pre-image).",
+          "options": [
+            {"id": "a", "label": "Pre-snapshot via `git stash --include-untracked` + apply + on-failure stash-pop", "description": "Git-native. Survives crashes (stash is durable). Reverts deletions and additions. Tradeoff: stash is shared global state; concurrent runs in the same workspace would conflict (mitigated by Q-03 fresh-clone-per-run)."},
+            {"id": "b", "label": "Pre-snapshot tree to a tag/commit on a throwaway branch; reset on failure", "description": "Create `protostar/snapshot-{runId}` tag at clone-time; on failure `git reset --hard` to it. Tradeoff: pollutes refs in the workspace; meaningless if Q-03 is fresh-clone-per-run (we'd just re-clone)."},
+            {"id": "c", "label": "Trust Q-03 fresh-clone-per-run as the rollback; just delete the workspace on failure", "description": "If every run is a fresh clone (Q-03 = a or c), 'rollback' is `rm -rf .protostar/workspaces/{runId}`. Atomic by definition. Tradeoff: only works if Q-03 lands on fresh-clone; doesn't generalize to pooled workspaces."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Rollback granularity — per-file or whole change-set",
+          "context": "When patch 3 of 5 fails, do we roll back patches 1-2 too, or commit them and report partial?",
+          "options": [
+            {"id": "a", "label": "All-or-nothing — any patch failure rolls back the entire change-set", "description": "Predictable. Phase 5/6 always sees a clean 'applied' or 'unchanged' worktree. Tradeoff: a 4-of-5 successful change can't be salvaged."},
+            {"id": "b", "label": "Best-effort — apply what works, report failures as evidence", "description": "Faster forward progress for the repair loop. Tradeoff: harder to reason about state; review pile sees partial diffs."},
+            {"id": "c", "label": "All-or-nothing in v1; reserve `mode: 'best-effort'` flag in RepoChangeSet for future", "description": "Default safe, leave the door open. Tradeoff: minor schema bloat for an unused field."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "workspace-hygiene",
+      "title": "Workspace Hygiene (REPO-06, REPO-07)",
+      "questions": [
+        {
+          "id": "Q-13",
+          "title": "Dirty-worktree detection method",
+          "context": "REPO-06 says 'refuses to operate on uncommitted changes unless explicitly allowed by capability envelope'. Question is what counts as 'dirty'.",
+          "options": [
+            {"id": "a", "label": "`git status --porcelain` non-empty = dirty", "description": "Standard, covers staged, unstaged, untracked. Tradeoff: untracked files (e.g. .DS_Store) would block runs; needs a sensible default ignore."},
+            {"id": "b", "label": "`git status --porcelain --untracked-files=no` (ignore untracked)", "description": "Only fails on tracked-file modifications. More forgiving for fresh clones with stray files. Tradeoff: untracked malicious files survive — but Q-03 fresh-clone makes this moot."},
+            {"id": "c", "label": "Strict tracked + selective untracked allowlist (.protostar/, node_modules)", "description": "Tracked-dirty = block; untracked-dirty = block unless inside allowlisted paths. Tradeoff: most code; debatable allowlist contents."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Capability envelope flag for dirty-worktree override",
+          "context": "REPO-06 reserves a 'capability envelope explicitly allows it' escape hatch. Where does that flag live in the capability envelope schema and what is it called?",
+          "options": [
+            {"id": "a", "label": "`capabilityEnvelope.workspace.allowDirty: boolean` (default false)", "description": "New field on the workspace cap. Plain. Tradeoff: requires an additive bump to confirmedIntent schema (already at 1.1.0 from Phase 2 Q-18); could be a 1.2.0."},
+            {"id": "b", "label": "Reuse the existing `workspaceMode` enum: add `'dirty-allowed'`", "description": "Existing field gets a new variant. Tradeoff: enum widening — still a schema bump; couples 'dirty' to whatever `workspaceMode` already means."},
+            {"id": "c", "label": "No envelope flag — block always, log refusal; operator uses `--force-dirty` CLI", "description": "Keeps the schema clean. CLI flag is operator-facing only and never threads into ConfirmedIntent. Tradeoff: violates REPO-06's literal 'capability envelope explicitly allows' wording."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-15",
+          "title": "workspaceRoot resolution helper home",
+          "context": "REPO-07: walk up to nearest `pnpm-workspace.yaml`. Helper has to live somewhere — and CONCERNS.md flagged the current `INIT_CWD ?? cwd()` as broken at apps/factory-cli/src/main.ts:150.",
+          "options": [
+            {"id": "a", "label": "`@protostar/repo` exports `resolveWorkspaceRoot()`; CLI imports it", "description": "Domain-correct (repo owns repo-related path resolution). Tradeoff: factory-cli now depends on @protostar/repo for a previously-no-dep path resolution."},
+            {"id": "b", "label": "`apps/factory-cli/src/workspace-root.ts` keeps it; @protostar/repo doesn't expose it", "description": "Closest to current code. Tradeoff: AGENTS.md says 'side effects belong behind repo' — this is filesystem traversal, technically belongs in repo."},
+            {"id": "c", "label": "New tiny `@protostar/paths` package", "description": "Pure utility; no FS owner. Tradeoff: contradicts AGENTS.md 'avoid generic utils packages'."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "dependency-hygiene",
+      "title": "Dependency Hygiene (REPO-08, REPO-09)",
+      "questions": [
+        {
+          "id": "Q-16",
+          "title": "@dogpile/sdk resolution strategy",
+          "context": "Phase 1 already shipped `packages/dogpile-types` shim covering the contract surface (AgentSpec, DogpileOptions, budget, convergence, firstOf). REPO-08 asks for a fresh-clone-installable answer.",
+          "options": [
+            {"id": "a", "label": "Expand `packages/dogpile-types` shim to cover the runtime surface; remove `link:` entirely", "description": "We already own the contract; vendor the runtime too. Tradeoff: we maintain the dogpile runtime in this repo until the public package exists; keeps zero external runtime deps."},
+            {"id": "b", "label": "Publish `@dogpile/sdk` to npm + pin a version", "description": "Cleanest long-term. Tradeoff: requires the dogpile sibling repo to ship a release; cross-repo coordination; introduces a runtime dep."},
+            {"id": "c", "label": "Pinned tarball under `vendor/` + `file:` link", "description": "No npm publish needed; reproducible installs. Tradeoff: tarball updates are manual; binary blob in git."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-17",
+          "title": ".env.example scope — Phase 3 only or full Phase 4–7 forward-look",
+          "context": "REPO-09: '.env.example documents every env var the factory will read in Phases 4–7'. Question is whether to enumerate now or only the vars Phase 3 itself reads.",
+          "options": [
+            {"id": "a", "label": "Phase 3 only (clone auth: e.g. GITHUB_PAT)", "description": "Conservative. We only document what we use. Tradeoff: violates REPO-09's literal 'Phases 4–7' wording; defers .env churn to those phases."},
+            {"id": "b", "label": "Forward-look: GITHUB_PAT, LM_STUDIO_ENDPOINT, LM_STUDIO_CODER_MODEL, LM_STUDIO_JUDGE_MODEL, RESEND_API_KEY (where known)", "description": "Matches REPO-09 literally. We commit to the env-var names now and downstream phases just read them. Tradeoff: names may drift; we may add some we don't end up using."},
+            {"id": "c", "label": "Forward-look + a 'reserved-not-yet-used' section commented out", "description": "Active section for what Phase 3 reads; commented-out `# Reserved for Phase N` block for forward-look. Tradeoff: most maintenance; commented-out env vars rot."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "sandbox-testing",
+      "title": "Sandbox Target & Testing",
+      "questions": [
+        {
+          "id": "Q-18",
+          "title": "In-process sacrificial repo for Phase 3 tests",
+          "context": "Success criterion: 'Tests against an in-process sacrificial git repo prove: clone, branch, file-write within caps, patch apply, rollback, dirty-worktree refusal'. Question is what 'sacrificial' means in practice.",
+          "options": [
+            {"id": "a", "label": "Per-test ephemeral `git init` in os.tmpdir() with seeded commit", "description": "Each test sets up its own bare/working repo via subprocess git. Fully isolated. Tradeoff: every test pays the init cost; needs careful cleanup."},
+            {"id": "b", "label": "Fixture tarball checked into `__fixtures__/sacrificial-repo.tar.gz`; extracted per test", "description": "Predictable starting state; reproducible across machines. Tradeoff: binary in git; extract step still needs cleanup."},
+            {"id": "c", "label": "Test helper in `packages/repo/internal/test-fixtures` that builds the repo programmatically", "description": "Code-defined fixture: `buildSacrificialRepo({ commits, branches, dirtyFiles })` returns a path. Mirrors the brand-witness internal-subpath pattern from Phase 1/2. Tradeoff: test helper code to maintain; but most flexible for the per-criterion variations."},
+            {"id": "d", "label": "Custom", "description": ""}
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    }
+  ]
+}
+;
+
+function render() {
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  for (const section of STATE.sections) {
+    const sec = document.createElement('div');
+    sec.className = 'section';
+    const answered = section.questions.filter(q => q.answer != null && q.answer !== '').length;
+    const head = document.createElement('div');
+    head.className = 'section-header';
+    head.innerHTML = `<div class="section-title">${escapeHtml(section.title)}</div><div class="section-count">${answered}/${section.questions.length} answered</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    head.onclick = () => grid.classList.toggle('hidden');
+    sec.appendChild(head);
+    sec.appendChild(grid);
+    for (const q of section.questions) {
+      grid.appendChild(renderQuestion(q));
+    }
+    root.appendChild(sec);
+  }
+  refreshStats();
+}
+
+function renderQuestion(q) {
+  const card = document.createElement('div');
+  card.className = 'card' + (q.answer ? ' answered' : '');
+  card.dataset.qid = q.id;
+  let html = `<div><span class="badge">${q.id}</span><span class="qtitle">${escapeHtml(q.title)}</span></div>`;
+  if (q.context) html += `<div class="qctx">${escapeHtml(q.context)}</div>`;
+  html += '<div class="options">';
+  for (const opt of q.options) {
+    const checked = q.answer === opt.id ? 'checked' : '';
+    html += `<label class="opt"><input type="radio" name="${q.id}" value="${opt.id}" ${checked} onchange="setAnswer('${q.id}', this.value)" /><div class="opt-text"><div class="opt-label">${escapeHtml(opt.label)}</div>${opt.description ? `<div class="opt-desc">${escapeHtml(opt.description)}</div>` : ''}</div></label>`;
+  }
+  html += '</div>';
+  html += `<textarea placeholder="Add context, nuance, or clarification for this question..." oninput="setChatMore('${q.id}', this.value)" class="${q.chat_more ? 'has-content' : ''}">${escapeHtml(q.chat_more || '')}</textarea>`;
+  card.innerHTML = html;
+  return card;
+}
+
+function setAnswer(qid, value) {
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      if (q.id === qid) {
+        q.answer = value;
+        q.status = (value != null && value !== '') ? 'answered' : (q.chat_more ? 'chat-more' : 'unanswered');
+      }
+    }
+  }
+  render();
+}
+
+function setChatMore(qid, value) {
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      if (q.id === qid) {
+        q.chat_more = value;
+        if (!q.answer) q.status = value ? 'chat-more' : 'unanswered';
+      }
+    }
+  }
+  // update card border without full re-render
+  const card = document.querySelector(`.card[data-qid="${qid}"] textarea`);
+  if (card) card.classList.toggle('has-content', !!value);
+  refreshStats();
+}
+
+function refreshStats() {
+  let total = 0, answered = 0, chatMore = 0;
+  for (const s of STATE.sections) {
+    for (const q of s.questions) {
+      total++;
+      if (q.answer != null && q.answer !== '') answered++;
+      if (q.chat_more) chatMore++;
+    }
+  }
+  STATE.stats = { total, answered, chat_more: chatMore, remaining: total - answered };
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-answered').textContent = answered;
+  document.getElementById('stat-remaining').textContent = total - answered;
+  document.getElementById('stat-chatmore').textContent = chatMore;
+  document.getElementById('progress-bar').style.width = (total ? (answered * 100 / total) : 0) + '%';
+}
+
+function saveJson() {
+  refreshStats();
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '03-QUESTIONS.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+render();
+</script>
+</body>
+</html>

@@ -63,7 +63,7 @@ Plans:
 
 **Notes:** Builds directly on existing `packages/policy/src/admission.ts`, `capability-admission.ts`, `repo-scope-admission.ts`. GOV-06 (signed intent) is new and gates Phase 3.
 
-**Plans:** 11 plans across 5 waves (parallel within wave) — Plan 06 split into 06a + 06b in revision iteration 2
+**Plans:** 16 plans across 8 waves (parallel within wave) — Plan 06 split into 06a + 06b in revision iteration 2; Plans 11-15 added by gap-closure planning after 2026-04-27 verification found authority-governance blockers.
 
 Plans:
 - [x] 02-01-authority-package-skeleton-PLAN.md — wave 0 — `@protostar/authority` workspace skeleton + 5 schema files (zero-fs from day one)
@@ -77,6 +77,11 @@ Plans:
 - [x] 02-08-two-key-launch-and-escalate-PLAN.md — wave 3 — `--trust`/`--confirmed-intent` flags + remove hardcoded trust at main.ts:335 + escalation-marker.json (Q-11, Q-12, A4, A5, A6)
 - [x] 02-09-stage-reader-and-repo-runtime-PLAN.md — wave 4 — createAuthorityStageReader (FsAdapter-injected, legacy fallback) + assertTrustedWorkspaceForGrant predicate + packages/repo runtime trust check (Q-09, Q-10)
 - [x] 02-10-admission-e2e-contract-suite-PLAN.md — wave 4 — 6 per-brand contract tests + authority-no-fs regression + signed-intent e2e (Q-08)
+- [ ] 02-11-fail-closed-precedence-and-gate-evidence-PLAN.md — wave 5 — remove repo-policy compatibility widening, stop on blocked precedence, make workspace-trust gate outcomes real, and align gate evidence with schemas
+- [ ] 02-12-authorized-op-envelope-enforcement-PLAN.md — wave 5 — enforce resolved-envelope grants in AuthorizedWorkspace/Subprocess/Network/Budget producers
+- [ ] 02-13-verified-two-key-launch-PLAN.md — wave 6 — verify supplied `--confirmed-intent` before trusted workspace launch
+- [ ] 02-14-stage-reader-branded-verification-and-index-PLAN.md — wave 6 — standardize `admission-decisions.jsonl` reader/writer fields and split parsed vs verified ConfirmedIntent reads
+- [ ] 02-15-schema-parity-and-phase2-regression-suite-PLAN.md — wave 7 — close repo-policy schema parity warning and add cross-package Phase 2 regression coverage
 
 
 ## Phase 3 — Repo Runtime + Sandbox
@@ -92,6 +97,24 @@ Plans:
 - `.env.example` documents every var the factory will read in Phases 4–7
 
 **Notes:** Resolves the "`packages/repo` is essentially empty" debt from `.planning/codebase/CONCERNS.md`. Resolves the `@dogpile/sdk` link risk before second contributors.
+
+**Plans:** 13 plans across 6 waves (Wave 0 sequential foundations; Waves 1-5 implementation/integration).
+
+Plans:
+- [ ] 03-01-conflict-errata-deps-and-env-PLAN.md — wave 0 — CONFLICT-01 erratum + isomorphic-git@1.37.6 + diff@9.0.0 deps + PROJECT.md rephrase + .gitignore + .env.example + CONCERNS.md addendum (Q-17, Q-01, Q-02)
+- [ ] 03-02-paths-package-and-agents-carveout-PLAN.md — wave 0 — `@protostar/paths` skeleton + sync `resolveWorkspaceRoot()` + AGENTS.md scope-ceiling carve-out (Q-15)
+- [ ] 03-03-confirmed-intent-schema-bump-PLAN.md — wave 0 — confirmed-intent 1.1.0 → 1.2.0 + `capabilityEnvelope.workspace.allowDirty: false` default + cascade audit of every "1.1.0" literal (Q-14)
+- [ ] 03-04-sacrificial-repo-test-fixture-PLAN.md — wave 0 — `buildSacrificialRepo` programmatic helper + subpath export `./internal/test-fixtures` (Q-18)
+- [ ] 03-05-fs-adapter-PLAN.md — wave 1 — TDD: brand-consuming FS adapter w/ re-canonicalize + lstat-symlink-refusal + escape detection (Q-05, Q-06)
+- [ ] 03-06-symlink-audit-PLAN.md — wave 1 — TDD: post-clone tree audit via Node 22 readdir({recursive,withFileTypes}) (Q-06)
+- [ ] 03-08-subprocess-allowlist-and-schemas-PLAN.md — wave 1 — TDD: baseline allowlist + intersect helper + outer pattern guard + per-command schemas (git/pnpm/node/tsc) (Q-07, Q-08)
+- [ ] 03-07-apply-change-set-PLAN.md — wave 2 — TDD: patch pipeline using diff@9.0.0 (CONFLICT-01 resolution) — sha256 gate → parsePatch → binary detect → applyPatch → write; best-effort partial result (Q-10, Q-12)
+- [ ] 03-09-subprocess-runner-PLAN.md — wave 2 — spawn array-form + pre-spawn validation + stream-to-file + rolling tail + flush-on-exit + timeout (Q-09, Q-04)
+- [ ] 03-10-clone-and-dirty-and-policy-PLAN.md — wave 2 — TDD: cloneWorkspace (isomorphic-git + onAuth shim + retry-cancel) + dirtyWorktreeStatus (CONFLICT-02 filter) + repo-policy parser + admission-decision JSON schema (Q-04, Q-13, Q-02)
+- [ ] 03-11-barrel-and-factory-cli-wiring-PLAN.md — wave 3 — barrel re-exports + INIT_CWD → resolveWorkspaceRoot + clone/audit/dirty/admission-decision-emit/cleanup-or-tombstone wiring into runFactory (Q-15, Q-11)
+- [ ] 03-12-admission-e2e-contract-suite-PLAN.md — wave 4 — five contract tests pinning per-gate evidence shapes: dirty-refusal, symlink-refusal, allowlist-refusal, hash-mismatch refusal, best-effort partial (REPO-05 lead)
+- [ ] 03-13-dogpile-sdk-pin-and-fresh-clone-checkpoint-PLAN.md — wave 5 — pin @dogpile/sdk@0.2.0 on dogpile-types (retain re-export shim) + REPO-08 fresh-clone install checkpoint + 03-VALIDATION.md fill-in (Q-16)
+
 
 ## Phase 4 — Execution Engine
 
