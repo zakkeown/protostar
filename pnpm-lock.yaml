@@ -131,7 +131,11 @@ importers:
         specifier: workspace:*
         version: link:../repo
 
-  packages/intent: {}
+  packages/intent:
+    dependencies:
+      '@protostar/authority':
+        specifier: workspace:*
+        version: link:../authority
 
   packages/planning:
     dependencies:
@@ -151,7 +155,11 @@ importers:
         specifier: workspace:*
         version: link:../intent
 
-  packages/repo: {}
+  packages/repo:
+    dependencies:
+      '@protostar/authority':
+        specifier: workspace:*
+        version: link:../authority
 
   packages/review:
     dependencies:
