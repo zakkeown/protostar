@@ -66,7 +66,7 @@ Plans:
 **Plans:** 11 plans across 5 waves (parallel within wave) — Plan 06 split into 06a + 06b in revision iteration 2
 
 Plans:
-- [ ] 02-01-authority-package-skeleton-PLAN.md — wave 0 — `@protostar/authority` workspace skeleton + 5 schema files (zero-fs from day one)
+- [x] 02-01-authority-package-skeleton-PLAN.md — wave 0 — `@protostar/authority` workspace skeleton + 5 schema files (zero-fs from day one)
 - [ ] 02-02-authorized-op-brands-PLAN.md — wave 1 — 4 AuthorizedOp brands (workspace/subprocess/network/budget) + budget tracker/aggregator interfaces (Q-05, Q-06, Q-07)
 - [ ] 02-03-signature-envelope-extension-PLAN.md — wave 1 — extend SignatureEnvelope with canonicalForm; HARD-BUMP confirmed-intent.schema.json to const 1.1.0 (Q-18 user lock — A8 widening overridden in iteration 2)
 - [ ] 02-04-precedence-kernel-PLAN.md — wave 2 — intersectEnvelopes + PrecedenceDecision brand + parseRepoPolicy + DENY_ALL_REPO_POLICY (A3 default-DENY lock)

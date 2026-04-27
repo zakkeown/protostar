@@ -24,11 +24,11 @@
 
 ## Current Phase
 
-**Phase 2 — Authority + Governance Kernel** (pending)
+**Phase 2 — Authority + Governance Kernel** (in progress)
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** `/gsd-discuss-phase 2 --power`
+**Next action:** Execute Phase 2 Plan 02 (`02-02-authorized-op-brands-PLAN.md`)
 
 ## Phase Status
 
