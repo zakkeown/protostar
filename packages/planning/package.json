@@ -18,6 +18,10 @@
       "types": "./dist/artifacts/index.d.ts",
       "import": "./dist/artifacts/index.js"
     },
+    "./internal": {
+      "types": "./dist/internal/brand-witness.d.ts",
+      "import": "./dist/internal/brand-witness.js"
+    },
     "./schema/no-plan-admitted.schema.json": "./schema/no-plan-admitted.schema.json"
   },
   "files": ["dist", "schema"],
