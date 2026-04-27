@@ -15,6 +15,7 @@ import {
   prepareExecutionRun as defaultPrepareExecutionRun,
   type ExecutionDryRunResult
 } from "@protostar/execution";
+import { createLmstudioCoderAdapter } from "@protostar/lmstudio-adapter";
 import {
   type IntentAmbiguityAssessment,
   type IntentAmbiguityMode
@@ -68,6 +69,7 @@ import {
   DEFAULT_REPO_POLICY,
   loadRepoPolicy as loadRepoRuntimePolicy
 } from "@protostar/repo";
+import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
 import {
   runMechanicalReviewExecutionLoop as defaultRunMechanicalReviewExecutionLoop,
@@ -77,9 +79,18 @@ import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
+import { installCancelWiring } from "./cancel.js";
+import { coderAdapterReadyAdmission } from "./coder-adapter-admission.js";
 import { writeEscalationMarker } from "./escalation-marker.js";
+import { createJournalWriter } from "./journal-writer.js";
+import { loadFactoryConfig } from "./load-factory-config.js";
 import { loadRepoPolicy as loadAuthorityRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
+import { createFsRepoReader } from "./repo-reader-adapter.js";
+import {
+  runRealExecution as defaultRunRealExecution,
+  type RunRealExecutionResult
+} from "./run-real-execution.js";
 import {
   appendRefusalIndexEntry,
   buildTerminalStatusArtifact,
@@ -105,6 +116,8 @@ export interface RunCommandOptions {
   readonly intentMode: IntentAmbiguityMode;
   readonly runId?: string;
   readonly trust?: "untrusted" | "trusted";
+  readonly executor?: "dry-run" | "real";
+  readonly allowedAdapters?: readonly string[];
 }
 
 export interface RunCommandResult {
@@ -117,6 +130,10 @@ export interface RunCommandResult {
 export interface FactoryCompositionDependencies {
   readonly prepareExecutionRun: typeof defaultPrepareExecutionRun;
   readonly runMechanicalReviewExecutionLoop: typeof defaultRunMechanicalReviewExecutionLoop;
+  readonly runRealExecution: typeof defaultRunRealExecution;
+  readonly applyChangeSet: typeof defaultApplyChangeSet;
+  readonly createLmstudioCoderAdapter: typeof createLmstudioCoderAdapter;
+  readonly coderAdapterReadyAdmission: typeof coderAdapterReadyAdmission;
 }
 
 interface AdmittedPlanningOutput {
@@ -153,7 +170,11 @@ interface IntentAmbiguityArtifact {
 
 const defaultFactoryCompositionDependencies = {
   prepareExecutionRun: defaultPrepareExecutionRun,
-  runMechanicalReviewExecutionLoop: defaultRunMechanicalReviewExecutionLoop
+  runMechanicalReviewExecutionLoop: defaultRunMechanicalReviewExecutionLoop,
+  runRealExecution: defaultRunRealExecution,
+  applyChangeSet: defaultApplyChangeSet,
+  createLmstudioCoderAdapter,
+  coderAdapterReadyAdmission
 } as const satisfies FactoryCompositionDependencies;
 
 const CONFIRMED_INTENT_OUTPUT_FILE_NAMES = ["confirmed-intent.json", "intent.json"] as const;
@@ -316,11 +337,13 @@ export async function runFactory(
     });
     throw new CliExitError(reason, 1);
   }
+  const factoryConfig = await loadFactoryConfig(workspaceRoot);
   const policySnapshot = buildPolicySnapshot({
     policy: {
       allowDarkRun: true,
       maxAutonomousRisk: "medium",
-      requiredHumanCheckpoints: []
+      requiredHumanCheckpoints: [],
+      factoryConfigHash: factoryConfig.configHash
     },
     resolvedEnvelope: precedenceDecision.resolvedEnvelope,
     repoPolicy
@@ -465,16 +488,20 @@ export async function runFactory(
       planningPileResult: planningPileResultInput
     });
   }
+  const admissionAllowedAdapters = options.allowedAdapters ??
+    ((options.executor ?? "dry-run") === "real" ? ["lmstudio-coder"] : undefined);
   const candidateAdmission = candidatePlans.length === 1
     ? admitCandidatePlan({
         graph: firstCandidatePlan,
         intent,
-        planGraphUri: "plan.json"
+        planGraphUri: "plan.json",
+        ...(admissionAllowedAdapters !== undefined ? { allowedAdapters: admissionAllowedAdapters } : {})
       })
     : admitCandidatePlans({
         candidatePlans,
         intent,
-        planGraphUri: "plan.json"
+        planGraphUri: "plan.json",
+        ...(admissionAllowedAdapters !== undefined ? { allowedAdapters: admissionAllowedAdapters } : {})
       });
   const planningAdmission = candidateAdmission.planningAdmission;
   const planningAdmissionArtifact = await writePlanningAdmissionArtifacts({
@@ -559,14 +586,72 @@ export async function runFactory(
     admittedPlan: admittedPlanHandoff.executionArtifact,
     workspace
   });
-  const loop = dependencies.runMechanicalReviewExecutionLoop({
-    admittedPlan: admittedPlanHandoff.executionArtifact,
-    execution,
-    initialFailTaskIds: options.failTaskIds,
-    maxRepairLoops: intent.capabilityEnvelope.budget.maxRepairLoops ?? 0
-  });
-  const executionResult = loop.finalExecutionResult;
-  const review = loop.finalReviewGate;
+  // Source-order contract anchor for the dry-run branch:
+  // const loop = dependencies.runMechanicalReviewExecutionLoop({
+  const cancel = installCancelWiring({ runDir });
+  let executionResult: ExecutionDryRunResult;
+  let loop: ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>;
+  let review: ReviewVerdict extends never ? never : ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>["finalReviewGate"];
+  try {
+    await cancel.unlinkSentinelOnResume();
+    if ((options.executor ?? "dry-run") === "real") {
+      const admission = await dependencies.coderAdapterReadyAdmission({
+        runId,
+        runDir,
+        outDir,
+        resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+        factoryConfig,
+        precedenceDecision,
+        signal: cancel.rootController.signal
+      });
+      if (!admission.ok) {
+        throw admission.error;
+      }
+      const journalWriter = await createJournalWriter({ runDir });
+      try {
+        const adapter = dependencies.createLmstudioCoderAdapter({
+          baseUrl: factoryConfig.config.adapters.coder.baseUrl,
+          model: factoryConfig.config.adapters.coder.model,
+          apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+          ...(factoryConfig.config.adapters.coder.temperature !== undefined
+            ? { temperature: factoryConfig.config.adapters.coder.temperature }
+            : {}),
+          ...(factoryConfig.config.adapters.coder.topP !== undefined
+            ? { topP: factoryConfig.config.adapters.coder.topP }
+            : {})
+        });
+        const realResult = await dependencies.runRealExecution({
+          runPlan: execution,
+          adapter,
+          repoReader: createFsRepoReader({ workspaceRoot: repoRuntime.cloneDir }),
+          resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+          confirmedIntent: intent,
+          journalWriter,
+          runDir,
+          workspaceRoot: repoRuntime.cloneDir,
+          rootSignal: cancel.rootController.signal,
+          applyChangeSet: dependencies.applyChangeSet,
+          checkSentinelBetweenTasks: cancel.checkSentinelBetweenTasks
+        });
+        executionResult = realExecutionAsDryRunResult(execution, realResult);
+        loop = dryLoopFromExecutionResult({ executionResult });
+        review = loop.finalReviewGate;
+      } finally {
+        await journalWriter.close();
+      }
+    } else {
+      loop = dependencies.runMechanicalReviewExecutionLoop({
+        admittedPlan: admittedPlanHandoff.executionArtifact,
+        execution,
+        initialFailTaskIds: options.failTaskIds,
+        maxRepairLoops: intent.capabilityEnvelope.budget.maxRepairLoops ?? 0
+      });
+      executionResult = loop.finalExecutionResult;
+      review = loop.finalReviewGate;
+    }
+  } finally {
+    cancel.dispose();
+  }
   const evaluationReport = createEvaluationReport({
     runId,
     reviewGate: review
@@ -826,6 +911,52 @@ function statusForReviewVerdict(verdict: ReviewVerdict) {
     return "repairing";
   }
   return "blocked";
+}
+
+function realExecutionAsDryRunResult(
+  execution: ReturnType<typeof defaultPrepareExecutionRun>,
+  result: RunRealExecutionResult
+): ExecutionDryRunResult {
+  const evidence = result.events.flatMap((event) => event.evidence ?? []);
+  const terminalByTask = new Map(result.events.map((event) => [event.planTaskId, event]));
+  const tasks = execution.tasks.map((task) => {
+    const terminal = terminalByTask.get(task.planTaskId);
+    const status: "succeeded" | "failed" = terminal?.status === "succeeded" ? "succeeded" : "failed";
+    return {
+      ...task,
+      status,
+      evidence: terminal?.evidence ?? [],
+      ...(terminal?.reason !== undefined ? { reason: terminal.reason } : {})
+    };
+  });
+  return {
+    runId: execution.runId,
+    planId: execution.planId,
+    status: result.outcome === "complete" && tasks.every((task) => task.status === "succeeded")
+      ? "succeeded"
+      : "failed",
+    tasks,
+    events: result.events,
+    evidence
+  };
+}
+
+function dryLoopFromExecutionResult(input: {
+  readonly executionResult: ExecutionDryRunResult;
+}): ReturnType<typeof defaultRunMechanicalReviewExecutionLoop> {
+  const review = {
+    planId: input.executionResult.planId,
+    runId: input.executionResult.runId,
+    verdict: input.executionResult.status === "succeeded" ? "pass" : "block",
+    findings: []
+  } satisfies ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>["finalReviewGate"];
+  return {
+    status: review.verdict === "pass" ? "approved" : "blocked",
+    maxRepairLoops: 0,
+    finalExecutionResult: input.executionResult,
+    finalReviewGate: review,
+    iterations: []
+  };
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
@@ -1730,6 +1861,14 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       message: confirmedIntentOutputPathValidation.error
     };
   }
+  const executor = parseExecutor(flags.executor);
+  if (!executor.ok) {
+    return {
+      type: "error",
+      message: executor.error
+    };
+  }
+  const allowedAdapters = parseAllowedAdapters(flags.allowedAdapters);
 
   return {
     type: "run",
@@ -1744,7 +1883,9 @@ function parseArgs(args: readonly string[]): ParsedArgs {
         : {}),
       ...(flags.confirmedIntent !== undefined ? { confirmedIntent: flags.confirmedIntent } : {}),
       ...(flags.runId !== undefined ? { runId: flags.runId } : {}),
-      trust: flags.trust
+      trust: flags.trust,
+      executor: executor.value,
+      ...(allowedAdapters !== undefined ? { allowedAdapters } : {})
     }
   };
 }
@@ -1865,6 +2006,28 @@ function parseFlags(args: readonly string[]): ParsedCliArgs | string {
 function parseFailTaskIds(value: string | undefined): readonly string[] {
   if (value === undefined || value.trim().length === 0) {
     return [];
+  }
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function parseExecutor(value: string | undefined):
+  | { readonly ok: true; readonly value: "dry-run" | "real" }
+  | { readonly ok: false; readonly error: string } {
+  if (value === undefined || value === "dry-run") {
+    return { ok: true, value: "dry-run" };
+  }
+  if (value === "real") {
+    return { ok: true, value: "real" };
+  }
+  return { ok: false, error: "--executor must be dry-run or real." };
+}
+
+function parseAllowedAdapters(value: string | undefined): readonly string[] | undefined {
+  if (value === undefined || value.trim().length === 0) {
+    return undefined;
   }
   return value
     .split(",")

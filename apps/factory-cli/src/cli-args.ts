@@ -15,12 +15,16 @@ export interface ParsedCliArgs {
   readonly failTaskIds?: string;
   readonly intentMode?: string;
   readonly runId?: string;
+  readonly executor?: string;
+  readonly allowedAdapters?: string;
 }
 
 const FLAG_NAMES = new Set([
   "--confirmed-intent",
   "--confirmed-intent-output",
   "--draft",
+  "--allowed-adapters",
+  "--executor",
   "--fail-task-ids",
   "--intent",
   "--intent-draft",
