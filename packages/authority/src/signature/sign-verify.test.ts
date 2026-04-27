@@ -26,7 +26,7 @@ interface IntentBody {
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
   readonly stopConditions: readonly string[];
-  readonly schemaVersion: "1.2.0";
+  readonly schemaVersion: "1.3.0";
 }
 
 const intentBody = {
@@ -41,7 +41,7 @@ const intentBody = {
   capabilityEnvelope: resolvedEnvelope,
   constraints: ["pure helpers"],
   stopConditions: ["signature mismatch"],
-  schemaVersion: "1.2.0" as const
+  schemaVersion: "1.3.0" as const
 } as const satisfies IntentBody;
 
 const policy = Object.freeze({

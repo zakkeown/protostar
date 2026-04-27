@@ -167,7 +167,7 @@ describe("AuthorityStageReader", () => {
     ])));
 
     const parsed = await reader.readParsedConfirmedIntent();
-    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.2.0");
+    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.3.0");
   });
 
   it("confirmedIntent() rejects when policy-snapshot.json is missing", async () => {
@@ -255,7 +255,7 @@ function unsignedIntentBody(): Omit<ConfirmedIntent, typeof Symbol.toStringTag> 
     capabilityEnvelope: resolvedEnvelope,
     constraints: [],
     stopConditions: [],
-    schemaVersion: "1.2.0",
+    schemaVersion: "1.3.0",
     signature: null
   } as unknown as Omit<ConfirmedIntent, typeof Symbol.toStringTag>;
 }

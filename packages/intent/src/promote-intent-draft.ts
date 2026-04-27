@@ -189,7 +189,7 @@ export function promoteIntentDraft(input: PromoteIntentDraftInput): PromoteInten
     constraints: normalizeStringList(draft.constraints),
     stopConditions: normalizeStringList(draft.stopConditions),
     ...(confirmedAt !== undefined ? { confirmedAt } : {}),
-    schemaVersion: "1.2.0",
+    schemaVersion: "1.3.0",
     signature: null
   });
 

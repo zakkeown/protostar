@@ -1,4 +1,4 @@
-import type { CapabilityEnvelope } from "./capability-envelope.js";
+import type { CapabilityEnvelope, CapabilityEnvelopeNetwork } from "./capability-envelope.js";
 
 import type { IntentDraft, IntentDraftCapabilityEnvelope } from "./models.js";
 
@@ -103,7 +103,8 @@ export function normalizeDraftCapabilityEnvelope(
       repoScopes,
       toolPermissions,
       ...(executeGrants !== undefined ? { executeGrants } : {}),
-      workspace: { allowDirty: false },
+      workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
+      network: normalizeNetwork(envelope.network),
       budget
     },
     errors: []
@@ -151,14 +152,41 @@ type DraftBudget = NonNullable<IntentDraft["capabilityEnvelope"]>["budget"];
 
 function normalizeBudget(budget: DraftBudget | undefined): CapabilityEnvelope["budget"] {
   if (budget === undefined) {
-    return {};
+    return defaultBudget();
   }
 
   return {
     ...numberField("maxUsd", budget.maxUsd),
     ...numberField("maxTokens", budget.maxTokens),
     ...numberField("timeoutMs", budget.timeoutMs),
-    ...numberField("maxRepairLoops", budget.maxRepairLoops)
+    adapterRetriesPerTask: integerField(budget.adapterRetriesPerTask, 4),
+    taskWallClockMs: integerField(budget.taskWallClockMs, 180_000),
+    maxRepairLoops: integerField(budget.maxRepairLoops, 0)
+  } satisfies CapabilityEnvelope["budget"];
+}
+
+function normalizeNetwork(
+  network: NonNullable<IntentDraftCapabilityEnvelope["network"]> | undefined
+): CapabilityEnvelopeNetwork {
+  if (network?.allow === "allowlist") {
+    return {
+      allow: "allowlist",
+      ...(network.allowedHosts !== undefined ? { allowedHosts: network.allowedHosts } : {})
+    };
+  }
+
+  if (network?.allow === "none" || network?.allow === "loopback") {
+    return { allow: network.allow };
+  }
+
+  return { allow: "loopback" };
+}
+
+function defaultBudget(): CapabilityEnvelope["budget"] {
+  return {
+    adapterRetriesPerTask: 4,
+    taskWallClockMs: 180_000,
+    maxRepairLoops: 0
   };
 }
 
@@ -169,6 +197,10 @@ function numberField<Key extends keyof CapabilityEnvelope["budget"]>(
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? { [key]: value }
     : {};
+}
+
+function integerField(value: unknown, defaultValue: number): number {
+  return typeof value === "number" && Number.isInteger(value) ? value : defaultValue;
 }
 
 function hasBudgetLimit(budget: DraftBudget | CapabilityEnvelope["budget"] | undefined): boolean {

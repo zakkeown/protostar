@@ -18,7 +18,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.2.0" },
+    "schemaVersion": { "const": "1.3.0" },
     "id": { "type": "string", "pattern": "^intent_.+" },
     "sourceDraftId": { "type": "string", "pattern": "^draft_.+" },
     "mode": { "enum": ["greenfield", "brownfield"] },
@@ -29,7 +29,89 @@
     "confirmedAt": { "type": "string" },
     "context": { "type": "string" },
     "acceptanceCriteria": { "type": "array" },
-    "capabilityEnvelope": { "type": "object" },
+    "capabilityEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repoScopes", "workspace", "network", "budget", "toolPermissions"],
+      "properties": {
+        "repoScopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["workspace", "path", "access"],
+            "properties": {
+              "workspace": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "access": { "enum": ["read", "write", "execute"] }
+            }
+          }
+        },
+        "workspace": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowDirty"],
+          "properties": {
+            "allowDirty": { "type": "boolean" }
+          }
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allow"],
+          "properties": {
+            "allow": { "enum": ["none", "loopback", "allowlist"] },
+            "allowedHosts": {
+              "type": "array",
+              "items": { "type": "string", "format": "hostname" },
+              "minItems": 1
+            }
+          },
+          "if": { "properties": { "allow": { "const": "allowlist" } } },
+          "then": { "required": ["allowedHosts"] }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["adapterRetriesPerTask", "taskWallClockMs", "maxRepairLoops"],
+          "properties": {
+            "maxUsd": { "type": "number", "minimum": 0 },
+            "maxTokens": { "type": "number", "minimum": 0 },
+            "timeoutMs": { "type": "number", "minimum": 0 },
+            "adapterRetriesPerTask": { "type": "integer", "minimum": 1, "maximum": 10, "default": 4 },
+            "taskWallClockMs": { "type": "integer", "minimum": 1000, "maximum": 1800000, "default": 180000 },
+            "maxRepairLoops": { "type": "integer", "minimum": 0, "maximum": 10, "default": 0 }
+          }
+        },
+        "toolPermissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "reason", "risk"],
+            "properties": {
+              "tool": { "type": "string", "minLength": 1 },
+              "permissionLevel": { "enum": ["read", "use", "write", "execute", "admin"] },
+              "reason": { "type": "string", "minLength": 1 },
+              "risk": { "enum": ["low", "medium", "high"] }
+            }
+          }
+        },
+        "executeGrants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "scope"],
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "scope": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
     "constraints": { "type": "array", "items": { "type": "string" } },
     "stopConditions": { "type": "array", "items": { "type": "string" } },
     "signature": {

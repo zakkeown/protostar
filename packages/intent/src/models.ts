@@ -116,10 +116,19 @@ export type IntentDraftCapabilityEnvelope = {
   repoScopes?: readonly IntentDraftRepoScopeGrant[];
   toolPermissions?: readonly IntentDraftToolPermissionGrant[];
   executeGrants?: readonly IntentDraftExecuteGrant[];
+  workspace?: {
+    allowDirty?: boolean;
+  };
+  network?: {
+    allow?: "none" | "loopback" | "allowlist";
+    allowedHosts?: readonly string[];
+  };
   budget?: {
     maxUsd?: number;
     maxTokens?: number;
     timeoutMs?: number;
+    adapterRetriesPerTask?: number;
+    taskWallClockMs?: number;
     maxRepairLoops?: number;
   };
   authorityJustification?: string;

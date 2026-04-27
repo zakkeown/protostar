@@ -25,11 +25,20 @@ export interface FactoryBudget {
   readonly maxUsd?: number;
   readonly maxTokens?: number;
   readonly timeoutMs?: number;
+  readonly adapterRetriesPerTask?: number;
+  readonly taskWallClockMs?: number;
   readonly maxRepairLoops?: number;
 }
 
 export interface CapabilityEnvelopeWorkspace {
   readonly allowDirty: boolean;
+}
+
+export type CapabilityEnvelopeNetworkAllow = "none" | "loopback" | "allowlist";
+
+export interface CapabilityEnvelopeNetwork {
+  readonly allow: CapabilityEnvelopeNetworkAllow;
+  readonly allowedHosts?: readonly string[];
 }
 
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD = "repair_loop_count";
@@ -72,22 +81,23 @@ export interface ValidateCapabilityEnvelopeRepairLoopCountResult {
   readonly failures: readonly CapabilityEnvelopeRepairLoopCountAdmissionFailure[];
 }
 
-export type BudgetLimitField = keyof FactoryBudget;
-
-export type BudgetLimitFieldPath = `capabilityEnvelope.budget.${BudgetLimitField}`;
-
 export const CAPABILITY_ENVELOPE_BUDGET_LIMIT_FIELDS = [
   "maxUsd",
   "maxTokens",
   "timeoutMs",
   "maxRepairLoops"
-] as const satisfies readonly BudgetLimitField[];
+] as const;
+
+export type BudgetLimitField = (typeof CAPABILITY_ENVELOPE_BUDGET_LIMIT_FIELDS)[number];
+
+export type BudgetLimitFieldPath = `capabilityEnvelope.budget.${BudgetLimitField}`;
 
 export interface CapabilityEnvelope {
   readonly repoScopes: readonly RepoScopeGrant[];
   readonly toolPermissions: readonly ToolPermissionGrant[];
   readonly executeGrants?: readonly ExecuteGrant[];
   readonly workspace?: CapabilityEnvelopeWorkspace;
+  readonly network?: CapabilityEnvelopeNetwork;
   readonly budget: FactoryBudget;
 }
 
@@ -187,21 +197,32 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
     return {
       repoScopes: [],
       toolPermissions: [],
-      budget: {}
+      workspace: { allowDirty: false },
+      network: { allow: "loopback" },
+      budget: defaultExecutionBudget()
     };
   }
+
+  rejectUnknownKeys(
+    value,
+    ["repoScopes", "toolPermissions", "executeGrants", "workspace", "network", "budget"],
+    "capabilityEnvelope",
+    errors
+  );
 
   return {
     repoScopes: parseRepoScopes(value["repoScopes"], errors),
     toolPermissions: parseToolPermissions(value["toolPermissions"], errors),
     ...optionalExecuteGrants(value["executeGrants"], errors),
     workspace: parseWorkspace(value["workspace"], errors),
+    network: parseNetwork(value["network"], errors),
     budget: parseBudget(value["budget"], errors)
   };
 }
 
 function parseWorkspace(value: unknown, errors: string[]): CapabilityEnvelopeWorkspace {
   if (value === undefined) {
+    errors.push("capabilityEnvelope.workspace must be an object.");
     return { allowDirty: false };
   }
   if (!isRecord(value)) {
@@ -218,6 +239,61 @@ function parseWorkspace(value: unknown, errors: string[]): CapabilityEnvelopeWor
   }
 
   return { allowDirty };
+}
+
+function parseNetwork(value: unknown, errors: string[]): CapabilityEnvelopeNetwork {
+  if (value === undefined) {
+    errors.push("capabilityEnvelope.network must be an object.");
+    return { allow: "loopback" };
+  }
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.network must be an object.");
+    return { allow: "loopback" };
+  }
+
+  rejectUnknownKeys(value, ["allow", "allowedHosts"], "capabilityEnvelope.network", errors);
+
+  const allow = value["allow"];
+  if (!isNetworkAllow(allow)) {
+    errors.push("capabilityEnvelope.network.allow must be none, loopback, or allowlist.");
+    return { allow: "loopback" };
+  }
+
+  const allowedHosts = readAllowedHosts(value["allowedHosts"], errors);
+  if (allow === "allowlist" && allowedHosts === undefined) {
+    errors.push("capabilityEnvelope.network.allowedHosts is required when network.allow is allowlist.");
+  }
+  if (allow !== "allowlist" && allowedHosts !== undefined) {
+    return { allow, allowedHosts };
+  }
+  return allowedHosts === undefined ? { allow } : { allow, allowedHosts };
+}
+
+function isNetworkAllow(value: unknown): value is CapabilityEnvelopeNetworkAllow {
+  return value === "none" || value === "loopback" || value === "allowlist";
+}
+
+function readAllowedHosts(value: unknown, errors: string[]): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("capabilityEnvelope.network.allowedHosts must be a non-empty string array.");
+    return undefined;
+  }
+  if (value.length === 0) {
+    errors.push("capabilityEnvelope.network.allowedHosts must contain at least one host.");
+    return undefined;
+  }
+  const hosts: string[] = [];
+  for (const [index, host] of value.entries()) {
+    if (typeof host !== "string" || host.trim().length === 0) {
+      errors.push(`capabilityEnvelope.network.allowedHosts[${index}] must be a non-empty string.`);
+      continue;
+    }
+    hosts.push(host);
+  }
+  return hosts.length === value.length ? hosts : undefined;
 }
 
 function rejectUnknownKeys(
@@ -382,18 +458,49 @@ function readExecuteGrantScope(
 
 function parseBudget(value: unknown, errors: string[]): FactoryBudget {
   if (value === undefined) {
-    return {};
+    errors.push("capabilityEnvelope.budget must be an object.");
+    return defaultExecutionBudget();
   }
   if (!isRecord(value)) {
     errors.push("capabilityEnvelope.budget must be an object.");
-    return {};
+    return defaultExecutionBudget();
   }
+
+  rejectUnknownKeys(
+    value,
+    ["maxUsd", "maxTokens", "timeoutMs", "adapterRetriesPerTask", "taskWallClockMs", "maxRepairLoops"],
+    "capabilityEnvelope.budget",
+    errors
+  );
 
   return {
     ...readOptionalNumberObject(value, "maxUsd", "capabilityEnvelope.budget.maxUsd", errors),
     ...readOptionalNumberObject(value, "maxTokens", "capabilityEnvelope.budget.maxTokens", errors),
     ...readOptionalNumberObject(value, "timeoutMs", "capabilityEnvelope.budget.timeoutMs", errors),
-    ...readOptionalNumberObject(value, "maxRepairLoops", "capabilityEnvelope.budget.maxRepairLoops", errors)
+    adapterRetriesPerTask: readRequiredInteger(
+      value,
+      "adapterRetriesPerTask",
+      "capabilityEnvelope.budget.adapterRetriesPerTask",
+      1,
+      10,
+      errors
+    ),
+    taskWallClockMs: readRequiredInteger(
+      value,
+      "taskWallClockMs",
+      "capabilityEnvelope.budget.taskWallClockMs",
+      1_000,
+      1_800_000,
+      errors
+    ),
+    maxRepairLoops: readRequiredInteger(
+      value,
+      "maxRepairLoops",
+      "capabilityEnvelope.budget.maxRepairLoops",
+      0,
+      10,
+      errors
+    )
   };
 }
 
@@ -412,4 +519,28 @@ function readOptionalNumberObject(
     return {};
   }
   return { [key]: value };
+}
+
+function readRequiredInteger(
+  record: Record<string, unknown>,
+  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "maxRepairLoops">,
+  path: string,
+  minimum: number,
+  maximum: number,
+  errors: string[]
+): number {
+  const value = record[key];
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) {
+    errors.push(`${path} must be an integer from ${minimum} to ${maximum}.`);
+    return minimum;
+  }
+  return value;
+}
+
+function defaultExecutionBudget(): FactoryBudget {
+  return {
+    adapterRetriesPerTask: 4,
+    taskWallClockMs: 180_000,
+    maxRepairLoops: 0
+  };
 }

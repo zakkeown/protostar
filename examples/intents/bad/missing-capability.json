@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "id": "intent_bad_missing_capability",
   "title": "Clarify factory intake routing",
   "problem": "Exercise a confirmed intent shape whose capability envelope is structurally present but missing the authority and budget details required for admission.",
@@ -18,7 +18,14 @@
     "workspace": {
       "allowDirty": false
     },
-    "budget": {}
+    "network": {
+      "allow": "loopback"
+    },
+    "budget": {
+      "adapterRetriesPerTask": 4,
+      "taskWallClockMs": 180000,
+      "maxRepairLoops": 0
+    }
   },
   "constraints": [],
   "metadata": {
@@ -29,9 +36,8 @@
         "mode": "brownfield",
         "threshold": 0.2,
         "expectedAccepted": false,
-        "expectedScore": 0.4,
+        "expectedScore": 0.253,
         "structurallyMissingDimensions": [
-          "constraints",
           "context"
         ]
       },
@@ -40,7 +46,11 @@
         "evaluation": "confirmed-intent ambiguity fixture",
         "repoScopes": 0,
         "toolPermissions": 0,
-        "budgetKeys": []
+        "budgetKeys": [
+          "adapterRetriesPerTask",
+          "taskWallClockMs",
+          "maxRepairLoops"
+        ]
       }
     }
   }

@@ -1211,7 +1211,12 @@ describe("intent admission policy", () => {
       workspace: {
         allowDirty: false
       },
+      network: {
+        allow: "loopback"
+      },
       budget: {
+        adapterRetriesPerTask: 4,
+        taskWallClockMs: 180_000,
         timeoutMs: 120_000,
         maxRepairLoops: 1
       }

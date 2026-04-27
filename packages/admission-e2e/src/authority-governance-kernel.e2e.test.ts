@@ -223,7 +223,7 @@ describe("Phase 2 - verified two-key launch: confirmedIntent()", () => {
     const intent = await reader.confirmedIntent();
 
     assert.equal(intent.id, signedIntent.id);
-    assert.equal(intent.schemaVersion, "1.2.0");
+    assert.equal(intent.schemaVersion, "1.3.0");
   });
 
   it("confirmedIntent() fails when the persisted intent body is mutated", async () => {

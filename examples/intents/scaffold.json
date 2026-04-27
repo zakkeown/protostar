@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "id": "intent_dark_factory_scaffold",
   "sourceDraftId": "draft_dark_factory_scaffold",
   "mode": "brownfield",
@@ -46,8 +46,13 @@
     "workspace": {
       "allowDirty": false
     },
+    "network": {
+      "allow": "loopback"
+    },
     "budget": {
+      "adapterRetriesPerTask": 4,
       "timeoutMs": 300000,
+      "taskWallClockMs": 180000,
       "maxRepairLoops": 1
     }
   },
@@ -77,6 +82,8 @@
         "toolPermissions": 2,
         "budgetKeys": [
           "timeoutMs",
+          "adapterRetriesPerTask",
+          "taskWallClockMs",
           "maxRepairLoops"
         ]
       }
