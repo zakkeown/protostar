@@ -15,7 +15,7 @@ import {
   PLANNING_ADMISSION_ARTIFACT_NAME,
   PLANNING_ADMISSION_SCHEMA_VERSION,
   validateAdmittedPlanHandoff,
-  type AdmittedPlan,
+  type AdmittedPlanRecord,
   type PlanGraph,
   type PlanTaskRequiredCapabilities
 } from "./index.js";
@@ -90,7 +90,7 @@ describe("candidate-plan admission validator", () => {
       assert.fail("Expected valid candidate plan to be admitted.");
     }
 
-    const admittedPlan: AdmittedPlan = result.admittedPlan;
+    const admittedPlan: AdmittedPlanRecord = result.admittedPlan;
     // admittedPlan is a new object (not the candidate graph), so compare identity fields.
     assert.equal(admittedPlan.planId, graph.planId);
     assert.equal(admittedPlan.intentId, graph.intentId);

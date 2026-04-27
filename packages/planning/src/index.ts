@@ -130,6 +130,13 @@ export interface PlanGraph {
 
 declare const admittedPlanExecutionArtifactContract: unique symbol;
 
+// Module-private brand — NOT exported. Only `mintAdmittedPlan` (private,
+// invoked solely by `assertAdmittedPlanHandoff`) can produce a value carrying
+// this property, because foreign modules cannot name the symbol. This closes
+// PLAN-A-01: every admitted plan that reaches execution traversed the public
+// admission boundary.
+declare const AdmittedPlanBrand: unique symbol;
+
 export interface CandidatePlan extends PlanGraph {
   readonly __protostarPlanAdmissionState: "candidate-plan";
 }
@@ -147,10 +154,27 @@ export interface AdmittedPlanCapabilityEnvelope {
   readonly allowedCapabilities: readonly string[];
 }
 
-export interface AdmittedPlan extends PlanGraph {
+/**
+ * Structural shape of an admitted plan WITHOUT the private brand.
+ *
+ * `admitCandidatePlan` / `admitCandidatePlans` return this shape so callers
+ * can persist the plan, attach evidence, etc., but cannot satisfy
+ * `AdmittedPlan` directly — they MUST re-mint via `assertAdmittedPlanHandoff`
+ * before handing off to execution.
+ */
+export interface AdmittedPlanRecord extends PlanGraph {
   readonly __protostarPlanAdmissionState: "admitted-plan";
   readonly capabilityEnvelope: AdmittedPlanCapabilityEnvelope;
 }
+
+/**
+ * Branded admitted plan. The `[AdmittedPlanBrand]` property is keyed by a
+ * module-private `unique symbol` — foreign modules cannot construct it.
+ * `assertAdmittedPlanHandoff` is the SOLE function that produces this brand.
+ */
+export type AdmittedPlan = AdmittedPlanRecord & {
+  readonly [AdmittedPlanBrand]: true;
+};
 
 export type CandidatePlanGraph = CandidatePlan;
 
@@ -673,7 +697,7 @@ export interface AdmitCandidatePlanInput extends CreatePlanningAdmissionArtifact
 
 export interface AdmitCandidatePlanAcceptedResult {
   readonly ok: true;
-  readonly admittedPlan: AdmittedPlan;
+  readonly admittedPlan: AdmittedPlanRecord;
   readonly planningAdmission: PlanningAdmissionAcceptedArtifactRuntimeView;
   readonly validation: PlanGraphValidation;
   readonly rejectionReasons: readonly [];
@@ -742,7 +766,7 @@ export interface AdmitCandidatePlansInput
 
 export interface AdmitCandidatePlansAcceptedResult {
   readonly ok: true;
-  readonly admittedPlan: AdmittedPlan;
+  readonly admittedPlan: AdmittedPlanRecord;
   readonly candidatePlan: CandidatePlan;
   readonly admittedCandidateIndex: number;
   readonly planningAdmission: PlanningAdmissionAcceptedArtifactRuntimeView &
@@ -834,7 +858,7 @@ export interface AdmittedPlanHandoff {
 }
 
 export interface CreateAdmittedPlanHandoffInput {
-  readonly plan: CandidatePlan | AdmittedPlan;
+  readonly plan: CandidatePlan | AdmittedPlanRecord;
   readonly planningAdmission: PlanningAdmissionArtifactPayload;
   readonly planningAdmissionArtifact: PersistedPlanningAdmissionArtifactRef;
   readonly planGraphUri?: string;
@@ -2641,7 +2665,9 @@ export function assertAdmittedPlanHandoff(input: CreateAdmittedPlanHandoffInput)
     throw new Error(`Invalid admitted plan handoff: ${validation.errors.join("; ")}`);
   }
   const capabilityEnvelope = extractCapabilityEnvelopeFromAdmission(input.planningAdmission);
-  const admittedPlan = markAdmittedPlan(input.plan, capabilityEnvelope);
+  const admittedPlanRecord = markAdmittedPlan(input.plan, capabilityEnvelope);
+  // SOLE public mint of the AdmittedPlan brand (PLAN-A-01).
+  const admittedPlan = mintAdmittedPlan(admittedPlanRecord);
   const evidence = createAdmittedPlanHandoffEvidence(input);
   const planningAdmission = input.planningAdmission as PlanningAdmissionAcceptedArtifactPayload;
   const admittedPlanReference = hasRuntimeAdmittedPlanReference(input.planningAdmission)
@@ -2728,12 +2754,14 @@ function topoSortPlanTasks(tasks: readonly PlanTask[]): readonly PlanTask[] {
 }
 
 function markAdmittedPlan(
-  plan: CandidatePlan | AdmittedPlan,
+  plan: CandidatePlan | AdmittedPlanRecord,
   capabilityEnvelope: AdmittedPlanCapabilityEnvelope
-): AdmittedPlan {
-  // If the plan is already an AdmittedPlan (it has a capabilityEnvelope from a
-  // previous admission step), return it unchanged to preserve object identity.
-  if (isAdmittedPlanAtRuntime(plan)) {
+): AdmittedPlanRecord {
+  // If the plan is already an AdmittedPlanRecord (it has a capabilityEnvelope
+  // from a previous admission step), return it unchanged to preserve object
+  // identity. NOTE: this returns the unbranded record — only
+  // `assertAdmittedPlanHandoff` -> `mintAdmittedPlan` produces the brand.
+  if (isAdmittedPlanRecordAtRuntime(plan)) {
     return plan;
   }
   return {
@@ -2749,10 +2777,21 @@ function markAdmittedPlan(
 }
 
 /**
- * Runtime check: a plan object that already has a `capabilityEnvelope` field
- * has already crossed the admission boundary and is an AdmittedPlan.
+ * Mint the branded AdmittedPlan from a validated AdmittedPlanRecord. SOLE
+ * caller is `assertAdmittedPlanHandoff`. Module-private — foreign modules
+ * cannot name `AdmittedPlanBrand` and therefore cannot fabricate this value.
  */
-function isAdmittedPlanAtRuntime(plan: CandidatePlan | AdmittedPlan): plan is AdmittedPlan {
+function mintAdmittedPlan(record: AdmittedPlanRecord): AdmittedPlan {
+  return record as AdmittedPlan;
+}
+
+/**
+ * Runtime check: a plan object that already has a `capabilityEnvelope` field
+ * has already crossed the admission boundary and is an AdmittedPlanRecord.
+ */
+function isAdmittedPlanRecordAtRuntime(
+  plan: CandidatePlan | AdmittedPlanRecord
+): plan is AdmittedPlanRecord {
   return "capabilityEnvelope" in plan;
 }
 

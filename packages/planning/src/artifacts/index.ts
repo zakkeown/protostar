@@ -22,6 +22,7 @@ export type {
   AdmitCandidatePlansRejectedResult,
   AdmitCandidatePlansResult,
   AdmittedPlan,
+  AdmittedPlanRecord,
   AdmittedPlanExecutionArtifact,
   AdmittedPlanExecutionTask,
   AdmittedPlanHandoff,

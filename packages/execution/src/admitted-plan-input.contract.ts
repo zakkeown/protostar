@@ -5,6 +5,7 @@ import type {
   AdmittedPlan,
   AdmittedPlanExecutionArtifact,
   AdmittedPlanHandoff,
+  AdmittedPlanRecord,
   CandidatePlan,
   PlanGraph,
   PlanningAdmissionArtifactPayload,
@@ -55,3 +56,23 @@ type _AcceptedCandidateAdmissionResultCannotReachExecution = AssertFalse<
 type _BatchCandidateAdmissionResultCannotReachExecution = AssertFalse<
   IsAssignable<AdmitCandidatePlansResult, ExecutionAdmittedPlanInput>
 >;
+// AdmittedPlanRecord (the unbranded shape produced by admitCandidatePlan)
+// must NOT satisfy the branded AdmittedPlan — only assertAdmittedPlanHandoff
+// mints the brand (PLAN-A-01).
+type _AdmittedPlanRecordIsNotAdmittedPlan = AssertFalse<IsAssignable<AdmittedPlanRecord, AdmittedPlan>>;
+// Negative pin: a hand-rolled artifact-shaped object literal cannot reach
+// execution because the brand symbol on AdmittedPlanExecutionArtifact is
+// module-private to @protostar/planning.
+// @ts-expect-error AdmittedPlanExecutionArtifact carries a private brand symbol.
+const _forgedExecutionArtifact: AdmittedPlanExecutionArtifact = {
+  planId: "plan_forged",
+  intentId: "intent_forged",
+  admittedPlan: {
+    planId: "plan_forged",
+    uri: "plan.json",
+    pointer: "#",
+    sourceOfTruth: "PlanGraph"
+  },
+  evidence: {} as never,
+  tasks: []
+};

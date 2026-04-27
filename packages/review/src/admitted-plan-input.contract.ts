@@ -5,6 +5,7 @@ import type {
   AdmittedPlan,
   AdmittedPlanExecutionArtifact,
   AdmittedPlanHandoff,
+  AdmittedPlanRecord,
   CandidatePlan,
   PlanGraph,
   PlanningAdmissionArtifactPayload,
@@ -76,3 +77,7 @@ type _BatchCandidateAdmissionResultCannotReachReview = AssertFalse<
 type _MechanicalReviewNoLongerExposesConfirmedIntentInput = AssertFalse<
   IsAssignable<"intent", keyof MechanicalReviewGateInput>
 >;
+// AdmittedPlanRecord (the unbranded shape produced by admitCandidatePlan)
+// must NOT satisfy the branded AdmittedPlan — only assertAdmittedPlanHandoff
+// mints the brand (PLAN-A-01).
+type _AdmittedPlanRecordIsNotAdmittedPlan = AssertFalse<IsAssignable<AdmittedPlanRecord, AdmittedPlan>>;

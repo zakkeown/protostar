@@ -6,6 +6,7 @@ import {
   createPlanGraph,
   PLANNING_ADMISSION_ARTIFACT_NAME,
   type AdmittedPlan,
+  type AdmittedPlanRecord,
   type CandidatePlan,
   type PlanGraph,
   type PlanTaskRequiredCapabilities
@@ -15,6 +16,12 @@ type Assert<Condition extends true> = Condition;
 
 type _CandidatePlanIsNotAdmittedPlan = Assert<CandidatePlan extends AdmittedPlan ? false : true>;
 type _AdmittedPlanIsNotCandidatePlan = Assert<AdmittedPlan extends CandidatePlan ? false : true>;
+// AdmittedPlanRecord — the unbranded structural shape returned by
+// `admitCandidatePlan` — must NOT satisfy the branded AdmittedPlan. The brand
+// flows only through `assertAdmittedPlanHandoff`.
+type _AdmittedPlanRecordIsNotAdmittedPlan = Assert<
+  AdmittedPlanRecord extends AdmittedPlan ? false : true
+>;
 
 const intent = defineConfirmedIntent({
   id: "intent_candidate_admitted_plan_boundary",

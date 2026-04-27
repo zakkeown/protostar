@@ -40,6 +40,7 @@ import {
   PLANNING_ADMISSION_ARTIFACT_NAME,
   PLANNING_ADMISSION_SCHEMA_VERSION,
   type AdmittedPlan,
+  type AdmittedPlanRecord,
   type PlanningAdmissionAcceptedArtifactPayload,
   type PlanningAdmissionArtifactPayload,
   type PersistedPlanningAdmissionArtifactRef
@@ -81,7 +82,9 @@ export interface FactoryCompositionDependencies {
 }
 
 interface AdmittedPlanningOutput {
-  readonly admittedPlan: AdmittedPlan;
+  // Unbranded — this is the upstream record from admitCandidatePlan; the
+  // brand is only minted when this flows through assertAdmittedPlanHandoff.
+  readonly admittedPlan: AdmittedPlanRecord;
   readonly planningAdmission: PlanningAdmissionAcceptedArtifactPayload;
   readonly planningAdmissionArtifact: PersistedPlanningAdmissionArtifactRef;
 }
@@ -522,7 +525,7 @@ function createIntentOntologySnapshot(intent: ConfirmedIntent): OntologySnapshot
   };
 }
 
-function createPlanOntologySnapshot(plan: AdmittedPlan): OntologySnapshot {
+function createPlanOntologySnapshot(plan: AdmittedPlan | AdmittedPlanRecord): OntologySnapshot {
   return {
     generation: 1,
     fields: plan.tasks.flatMap((task) =>
@@ -606,7 +609,7 @@ async function writeAdmissionDecisionArtifact(
 
 async function writePlanningAdmissionArtifacts(input: {
   readonly runDir: string;
-  readonly plan?: AdmittedPlan;
+  readonly plan?: AdmittedPlanRecord;
   readonly planningAdmission: PlanningAdmissionArtifactPayload;
   readonly planningPileResult?: unknown;
 }): Promise<PersistedPlanningAdmissionArtifactRef> {
