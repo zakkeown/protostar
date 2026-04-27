@@ -23,6 +23,14 @@ export function defineWorkspace(input: WorkspaceRef): WorkspaceRef {
   return input;
 }
 
+export {
+  __resetCloneWorkspaceDependenciesForTests,
+  __setCloneWorkspaceDependenciesForTests,
+  buildOnAuth,
+  cloneWorkspace,
+  CredentialRefusedError
+} from "./clone-workspace.js";
+export type { CloneAuthMode, CloneRequest, CloneResult } from "./clone-workspace.js";
 export { deleteFile, FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
 export type { AuthorizedWorkspaceOp, FsAdapterErrorReason } from "./fs-adapter.js";
 export { applyChangeSet } from "./apply-change-set.js";

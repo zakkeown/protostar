@@ -15,10 +15,10 @@ import {
 interface CloneOptions {
   readonly dir: string;
   readonly url: string;
-  readonly ref?: string;
-  readonly depth?: number;
-  readonly singleBranch?: boolean;
-  readonly onAuth?: AuthCallback;
+  readonly ref?: string | undefined;
+  readonly depth?: number | undefined;
+  readonly singleBranch?: boolean | undefined;
+  readonly onAuth?: AuthCallback | undefined;
 }
 
 describe("buildOnAuth", () => {
@@ -145,7 +145,7 @@ function installCloneMocks(
   t: { after(fn: () => void | Promise<void>): void },
   overrides: Partial<{
     readonly clone: (options: CloneOptions) => Promise<void>;
-    readonly resolveRef: (options: { readonly dir: string; readonly ref: string }) => Promise<string>;
+    readonly resolveRef: (options: { readonly dir?: string | undefined; readonly ref: string }) => Promise<string>;
     readonly auditSymlinks: (dir: string) => Promise<{ readonly ok: boolean; readonly offendingPaths: readonly string[] }>;
   }>
 ): void {

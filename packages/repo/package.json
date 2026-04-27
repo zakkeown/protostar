@@ -15,7 +15,8 @@
       "import": "./dist/internal/test-fixtures/index.js"
     },
     "./schema/workspace-trust-admission-decision.schema.json": "./schema/workspace-trust-admission-decision.schema.json",
-    "./schema/repo-policy.schema.json": "./schema/repo-policy.schema.json"
+    "./schema/repo-policy.schema.json": "./schema/repo-policy.schema.json",
+    "./schema/repo-runtime-admission-decision.schema.json": "./schema/repo-runtime-admission-decision.schema.json"
   },
   "files": [
     "dist",
