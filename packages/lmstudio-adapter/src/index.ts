@@ -8,4 +8,12 @@ export {
   type PreflightInput,
   type PreflightResult
 } from "./preflight.js";
+export { DIFF_FENCE_RE, parseDiffBlock, type DiffParseResult } from "./diff-parser.js";
+export {
+  buildCoderMessages,
+  buildReformatNudgeMessages,
+  type CoderMessage,
+  type CoderMessages,
+  type PromptBuilderInput
+} from "./prompt-builder.js";
 export { parseSseStream } from "./sse-parser.js";
