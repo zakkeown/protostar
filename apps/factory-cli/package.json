@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@protostar/artifacts": "workspace:*",
+    "@protostar/authority": "workspace:*",
     "@protostar/delivery": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
     "@protostar/evaluation": "workspace:*",

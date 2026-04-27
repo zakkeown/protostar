@@ -42,8 +42,8 @@ describe("per-gate admission decision writer", () => {
       const payload = await readJson(result.artifactPath);
       const verified = verifySignedAdmissionDecision(payload);
 
-      assert.equal(verified.ok, true, verified.ok ? undefined : verified.error);
-      assert.equal(payload.body.gate, "planning");
+      assert.equal(verified.ok, true, verified.ok ? undefined : verified.errors.join("; "));
+      assert.equal(payload.gate, "planning");
     });
   });
 
@@ -98,7 +98,7 @@ function buildPrecedence(status: PrecedenceDecision["status"]): PrecedenceDecisi
     resolvedEnvelope: { repoScopes: [], toolPermissions: [], budget: {} },
     tiers: [],
     blockedBy: []
-  } as PrecedenceDecision;
+  } as unknown as PrecedenceDecision;
 }
 
 async function readJson(path: string): Promise<any> {

@@ -20,6 +20,9 @@ importers:
       '@protostar/artifacts':
         specifier: workspace:*
         version: link:../../packages/artifacts
+      '@protostar/authority':
+        specifier: workspace:*
+        version: link:../../packages/authority
       '@protostar/delivery':
         specifier: workspace:*
         version: link:../../packages/delivery
@@ -69,7 +72,14 @@ importers:
         specifier: workspace:*
         version: link:../intent
 
-  packages/authority: {}
+  packages/authority:
+    dependencies:
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
+      '@protostar/repo':
+        specifier: workspace:*
+        version: link:../repo
 
   packages/delivery:
     dependencies:
