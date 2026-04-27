@@ -28,7 +28,7 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Run Phase 2 verification (`/gsd-verify-work`); Wave 4 is complete with Plan 10 admission-e2e contracts covering brand surfaces, authority no-fs, and signed-intent tamper checks.
+**Next action:** Execute Phase 2 gap-closure Plans 11-15, then rerun Phase 2 verification (`/gsd-verify-work`). Initial verification on 2026-04-27 found authority-governance blockers despite green tests; gap-closure planning now targets fail-closed precedence, runtime envelope checks, verified two-key launch, stage-reader safety, schema parity, and regression coverage.
 
 ## Phase Status
 
@@ -56,6 +56,7 @@ Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 build
 ## Recent Sessions
 
 - **2026-04-27:** Completed Phase 2 Plan 10 (`02-10-admission-e2e-contract-suite-PLAN.md`): admission-e2e now pins all six Phase 2 authority brand public surfaces, enforces the authority no-fs regression, and verifies signed confirmed-intent artifacts through the stage reader with tamper coverage.
+- **2026-04-27:** Planned Phase 2 gap closure after verification found 1/9 must-haves verified. Added Plans 11-15 for fail-closed precedence/gate evidence, AuthorizedOp resolved-envelope enforcement, verified two-key launch, stage-reader verified reads + JSONL compatibility, and schema parity/regression coverage.
 - **2026-04-27:** Completed Phase 2 Plan 09 (`02-09-stage-reader-and-repo-runtime-PLAN.md`): added FsAdapter-injected `AuthorityStageReader`, legacy run fallback/upconversion, shared `assertTrustedWorkspaceForGrant`, intent admission trust enforcement, and repo runtime `WorkspaceTrustError` checks.
 - **2026-04-27:** Completed Phase 2 Plan 08 (`02-08-two-key-launch-and-escalate-PLAN.md`): factory-cli now defaults workspace trust to untrusted, requires `--confirmed-intent` for trusted launch, removes the hardcoded trusted workspace, and writes `escalation-marker.json` with exit code 2 for escalate outcomes.
 - **2026-04-27:** Completed Phase 2 Plan 07 (`02-07-factory-cli-per-gate-writer-PLAN.md`): factory-cli now writes five per-gate admission decisions, `admission-decisions.jsonl`, `policy-snapshot.json`, and signed `intent.json` for new runs.
