@@ -15,8 +15,11 @@
   "files": ["dist", "schema"],
   "scripts": {
     "build": "tsc -b",
-    "test": "pnpm run build",
+    "test": "pnpm run build && node --test \"dist/**/*.test.js\"",
     "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@protostar/authority": "workspace:*"
   },
   "sideEffects": false
 }

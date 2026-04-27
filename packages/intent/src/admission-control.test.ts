@@ -2851,7 +2851,8 @@ describe("intent admission policy", () => {
       "repo_scope_unknown_archetype",
       "repo_scope_unknown_access",
       "repo_scope_disallowed_access",
-      "repo_scope_disallowed_path_boundary"
+      "repo_scope_disallowed_path_boundary",
+      "repo_scope_workspace_trust_refused"
     ]);
 
     const allowedInput = {
@@ -3021,6 +3022,21 @@ describe("intent admission policy", () => {
   });
 
   it("blocks workspace repo scope admission when workspace trust is untrusted", () => {
+    const cosmeticPolicy = GOAL_ARCHETYPE_POLICY_TABLE["cosmetic-tweak"];
+    const workspacePolicy: GoalArchetypePolicyTable = {
+      ...GOAL_ARCHETYPE_POLICY_TABLE,
+      "cosmetic-tweak": {
+        ...cosmeticPolicy,
+        repo_scope: {
+          ...cosmeticPolicy.repo_scope,
+          pathBoundary: "workspace"
+        },
+        writeGrant: {
+          ...cosmeticPolicy.writeGrant,
+          pathBoundary: "workspace"
+        }
+      }
+    };
     const trusted = evaluateRepoScopeAdmission({
       goalArchetype: "cosmetic-tweak",
       capabilityEnvelope: {
@@ -3032,6 +3048,7 @@ describe("intent admission policy", () => {
           }
         ]
       },
+      policyTable: workspacePolicy,
       workspaceTrust: { protostar: "trusted" }
     });
     assert.equal(trusted.decision, "allow");
@@ -3047,6 +3064,7 @@ describe("intent admission policy", () => {
           }
         ]
       },
+      policyTable: workspacePolicy,
       workspaceTrust: { protostar: "untrusted" }
     });
 

@@ -1,5 +1,7 @@
 import type { IntentDraftRepoScopeGrant } from "./models.js";
 
+import { assertTrustedWorkspaceForGrant } from "@protostar/authority";
+
 import type { IntentDraftFieldPath } from "./draft-validation.js";
 
 import type { CapabilityEnvelopeRepoScopeOverage, CapabilityEnvelopeWriteGrantViolation, CapabilityEnvelopeWriteGrantViolationCode, EvaluateRepoScopeAdmissionInput, IntentAdmissionPolicyFinding, RepoScopeAdmissionDecision, RepoScopeAdmissionReasonCode, RepoScopeAdmissionResult, RepoScopeAdmissionVerdict, ValidateCapabilityEnvelopeRepoScopesInput, ValidateCapabilityEnvelopeWriteGrantsInput, ValidateCapabilityEnvelopeWriteGrantsResult } from "./promotion-contracts.js";
@@ -144,7 +146,8 @@ export function evaluateRepoScopeAdmission(input: EvaluateRepoScopeAdmissionInpu
       goalArchetype,
       policy,
       overridden,
-      authorityJustification
+      authorityJustification,
+      workspaceTrust: input.workspaceTrust
     })
   );
 
@@ -158,8 +161,9 @@ function evaluateSingleRepoScopeAdmission(input: {
   readonly policy: GoalArchetypePolicyEntry;
   readonly overridden: boolean;
   readonly authorityJustification: string | undefined;
+  readonly workspaceTrust: Readonly<Record<string, "trusted" | "untrusted">> | undefined;
 }): readonly RepoScopeAdmissionResult[] {
-  const { scope, index, goalArchetype, policy, overridden, authorityJustification } = input;
+  const { scope, index, goalArchetype, policy, overridden, authorityJustification, workspaceTrust } = input;
   const scopePath = `capabilityEnvelope.repoScopes.${index}` as IntentDraftFieldPath;
   const workspace = normalizeText(scope.workspace);
   const path = normalizeText(scope.path);
@@ -238,6 +242,32 @@ function evaluateSingleRepoScopeAdmission(input: {
       }).map(repoScopeAdmissionResultFromWriteGrantViolation)
     );
   } else {
+    if (workspace !== undefined && workspaceTrust !== undefined) {
+      const declaredTrust = workspaceTrust[workspace];
+      if (declaredTrust !== undefined) {
+        const trustResult = assertTrustedWorkspaceForGrant({
+          workspace: { root: workspace, trust: declaredTrust },
+          requestedAccess: access,
+          ...(path === "." ? { requestedScope: "workspace" } : {})
+        });
+        if (!trustResult.ok) {
+          results.push(
+            createRepoScopeAdmissionResult({
+              decision: "deny",
+              kind: "disallowed",
+              reasonCode: "repo_scope_workspace_trust_refused",
+              fieldPath: scopePath,
+              severity: "block",
+              message: trustResult.evidence.reason,
+              overridable: false,
+              overridden: false,
+              scopeIndex: index
+            })
+          );
+        }
+      }
+    }
+
     if (!repoScopeAccessAllowedByPolicy(policy, access)) {
       const fieldPath = `${scopePath}.access` as IntentDraftFieldPath;
       results.push(

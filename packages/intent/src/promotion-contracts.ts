@@ -219,6 +219,7 @@ export interface ValidateCapabilityEnvelopeRepoScopesInput {
   readonly goalArchetype: string;
   readonly capabilityEnvelope?: IntentDraftCapabilityEnvelope;
   readonly policyTable?: GoalArchetypePolicyTable;
+  readonly workspaceTrust?: Readonly<Record<string, "trusted" | "untrusted">>;
 }
 
 export interface DetectCapabilityEnvelopeOveragesInput extends ValidateCapabilityEnvelopeRepoScopesInput {}
@@ -357,7 +358,8 @@ export const REPO_SCOPE_ADMISSION_REASON_CODES = [
   "repo_scope_unknown_archetype",
   "repo_scope_unknown_access",
   "repo_scope_disallowed_access",
-  "repo_scope_disallowed_path_boundary"
+  "repo_scope_disallowed_path_boundary",
+  "repo_scope_workspace_trust_refused"
 ] as const;
 
 export type RepoScopeAdmissionReasonCode = (typeof REPO_SCOPE_ADMISSION_REASON_CODES)[number];
@@ -596,4 +598,3 @@ export type PromoteIntentDraftResult =
       readonly archetypeSuggestion: IntentArchetypeAutoTagSuggestion;
       readonly errors: readonly string[];
     };
-

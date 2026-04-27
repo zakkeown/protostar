@@ -22,3 +22,6 @@ export function defineWorkspace(input: WorkspaceRef): WorkspaceRef {
   }
   return input;
 }
+
+export { assertWorkspaceTrust, WorkspaceTrustError } from "./workspace-trust-runtime.js";
+export type { RuntimeWorkspaceOp } from "./workspace-trust-runtime.js";

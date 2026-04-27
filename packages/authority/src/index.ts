@@ -6,5 +6,6 @@ export * from "./repo-policy/index.js";
 export * from "./signature/index.js";
 export * from "./stage-reader/factory.js";
 export * from "./stage-reader/fs-adapter.js";
+export * from "./workspace-trust/predicate.js";
 
 export const __authorityPackageReady = true;

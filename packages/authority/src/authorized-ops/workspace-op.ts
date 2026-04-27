@@ -1,6 +1,8 @@
 import type { CapabilityEnvelope } from "@protostar/intent";
 import type { WorkspaceRef } from "@protostar/repo";
 
+import { assertTrustedWorkspaceForGrant } from "../workspace-trust/predicate.js";
+
 declare const AuthorizedWorkspaceOpBrand: unique symbol;
 
 export interface AuthorizedWorkspaceOpData {
@@ -24,13 +26,11 @@ export type AuthorizeWorkspaceOpResult =
 
 export function authorizeWorkspaceOp(input: AuthorizedWorkspaceOpData): AuthorizeWorkspaceOpResult {
   const errors: string[] = [];
-
-  if (input.access !== "read" && input.workspace.trust !== "trusted") {
-    errors.push(
-      `workspace ${input.workspace.root} has trust="${input.workspace.trust}"; ` +
-      `${input.access} requires trust="trusted"`
-    );
-  }
+  const trust = assertTrustedWorkspaceForGrant({
+    workspace: input.workspace,
+    requestedAccess: input.access
+  });
+  if (!trust.ok) errors.push(`workspace ${input.workspace.root} has trust="${input.workspace.trust}"; ${trust.evidence.reason}`);
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, authorized: mintAuthorizedWorkspaceOp(input), errors: [] };
