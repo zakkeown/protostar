@@ -12,9 +12,6 @@ files_modified:
   - packages/authority/src/precedence/precedence.test.ts
   - packages/authority/src/repo-policy/parse.ts
   - packages/authority/src/repo-policy/repo-policy.test.ts
-  - packages/authority/src/internal/brand-witness.ts
-  - packages/authority/src/internal/test-builders.ts
-  - packages/authority/src/index.ts
 autonomous: true
 requirements:
   - GOV-01
@@ -67,6 +64,8 @@ Output: pure functions returning branded data; consumed by Wave 3 factory-cli wi
 </execution_context>
 
 <context>
+
+Read first: @.planning/phases/02-authority-governance-kernel/02-CORRECTIONS.md (root-barrel + internal/* are pre-populated by Plan 01 — do NOT add them to files_modified; see Correction 1)
 @.planning/PROJECT.md
 @.planning/phases/02-authority-governance-kernel/02-CONTEXT.md
 @.planning/phases/02-authority-governance-kernel/02-RESEARCH.md

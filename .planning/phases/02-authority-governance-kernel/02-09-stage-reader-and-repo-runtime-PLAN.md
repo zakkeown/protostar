@@ -3,7 +3,7 @@ phase: 02-authority-governance-kernel
 plan: 09
 type: execute
 wave: 4
-depends_on: [05, 06, 07, 08]
+depends_on: [05, 06a, 06b, 07, 08]
 files_modified:
   - packages/authority/src/stage-reader/fs-adapter.ts
   - packages/authority/src/stage-reader/factory.ts
@@ -24,6 +24,7 @@ must_haves:
   truths:
     - "`createAuthorityStageReader(runDir, fsAdapter)` returns a typed reader with methods for each gate's per-gate file + precedence + policy snapshot + admission-decisions index"
     - "Reader does try-new-then-legacy on filenames: `intent-admission-decision.json` first, falls back to `admission-decision.json` (Phase 1 emission) on ENOENT"
+    - "Reader handles ConfirmedIntent schemaVersion legacy fallback: when reading a `1.0.0` ConfirmedIntent (pre-Phase 2 hard bump per Plan 03 Q-18 lock), the reader UP-CONVERTS in-memory by rewriting `schemaVersion: \"1.0.0\" → \"1.1.0\"` before calling `parseConfirmedIntent` and `verifyConfirmedIntentSignature`. Pre-Phase-2 fixtures had `signature: null` and never carried `canonicalForm`, so up-conversion is a pure schemaVersion-field rewrite with no semantic change. The 208 historical run dirs flagged in CONCERNS.md are read this way."
     - "Missing `admission-decisions.jsonl` returns `[]` (legacy run dirs predate the index — no error)"
     - "Reader validates `schemaVersion` and `gate` literal at every read; rejects mismatch"
     - "Reader calls `verifyConfirmedIntentSignature` when reading a `ConfirmedIntent` artifact (Q-17 single helper)"
@@ -146,6 +147,7 @@ From the per-gate writers (Plan 07):
     - On schema mismatch: throw a structured `StageReaderError` with `{ artifact, reason, path }`
     - Reader does NOT rename-on-read — legacy filenames remain bit-identical (Pitfall 2)
     - Authority boundary: this file uses ONLY the injected `FsAdapter`; ZERO `node:fs` imports
+    - **Up-converter defensive guard (Plan 03 hard-bump compatibility):** when `confirmedIntent()` reads an `intent.json` whose `raw.schemaVersion === "1.0.0"`, the reader up-converts in-memory by rewriting `schemaVersion` to `"1.1.0"` before calling `parseConfirmedIntent`. Pre-Phase-2 fixtures had `signature: null` and never carried `canonicalForm`, so this is a pure field rewrite. **Precondition:** if `raw.schemaVersion === "1.0.0"` AND `raw.signature !== null`, throw `StageReaderError("intent.json", "legacy 1.0.0 with non-null signature is unsupported — pre-Phase-2 fixtures must have signature: null", path)`. This guard prevents silently up-converting a malformed/forged 1.0.0-with-signature artifact (1.0.0 fixtures could not have been signed because Phase 2 introduced the signer; a 1.0.0 file with a populated signature is either corruption or tampering and must fail closed).
   </behavior>
   <action>
 **`packages/authority/src/stage-reader/fs-adapter.ts`:**
@@ -299,6 +301,7 @@ Test cases (each from VALIDATION.md GOV-05 rows):
     - **Authority boundary regression:** `grep -RIn "from ['\"]node:fs['\"]\\|from ['\"]fs['\"]" packages/authority/src/ | grep -v '^#' | wc -l` outputs `0`
     - All 9 reader tests pass
     - **`return [];` for missing JSONL** (Pitfall 2): `grep -A2 'admission-decisions.jsonl' packages/authority/src/stage-reader/factory.ts | grep -c 'return \\[\\]'` >= 1
+    - **Up-converter defensive guard test exists:** `grep -c 'legacy 1.0.0 with non-null signature unsupported\\|legacy 1.0.0 with non-null signature is unsupported' packages/authority/src/stage-reader/factory.test.ts` >= 1
   </acceptance_criteria>
   <done>Stage reader ships with FsAdapter injection (zero fs in authority), legacy fallback (Pitfall 2), Q-17 verifier hook, schema validation at read site.</done>
 </task>

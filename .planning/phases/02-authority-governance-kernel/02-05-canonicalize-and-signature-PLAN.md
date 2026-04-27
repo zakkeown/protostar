@@ -12,7 +12,6 @@ files_modified:
   - packages/authority/src/signature/policy-snapshot.ts
   - packages/authority/src/signature/canonicalize.test.ts
   - packages/authority/src/signature/sign-verify.test.ts
-  - packages/authority/src/index.ts
 autonomous: true
 requirements:
   - GOV-06
@@ -77,6 +76,8 @@ Output: pure helpers; consumed by factory-cli (Plan 07) for sign-on-mint, by sta
 </execution_context>
 
 <context>
+
+Read first: @.planning/phases/02-authority-governance-kernel/02-CORRECTIONS.md (root-barrel + internal/* are pre-populated by Plan 01 — do NOT add them to files_modified; see Correction 1)
 @.planning/PROJECT.md
 @.planning/phases/02-authority-governance-kernel/02-CONTEXT.md
 @.planning/phases/02-authority-governance-kernel/02-RESEARCH.md

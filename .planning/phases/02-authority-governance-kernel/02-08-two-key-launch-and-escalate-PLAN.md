@@ -3,7 +3,7 @@ phase: 02-authority-governance-kernel
 plan: 08
 type: execute
 wave: 3
-depends_on: [04, 06]
+depends_on: [04, 06a, 06b, 07]
 files_modified:
   - apps/factory-cli/src/cli-args.ts
   - apps/factory-cli/src/cli-args.test.ts

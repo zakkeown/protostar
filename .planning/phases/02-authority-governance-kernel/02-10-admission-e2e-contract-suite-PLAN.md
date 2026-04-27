@@ -3,7 +3,7 @@ phase: 02-authority-governance-kernel
 plan: 10
 type: execute
 wave: 4
-depends_on: [02, 04, 05, 06, 07, 08, 09]
+depends_on: [02, 04, 05, 06a, 06b, 07, 08, 09]
 files_modified:
   - packages/admission-e2e/src/authorized-workspace-op-mint.contract.test.ts
   - packages/admission-e2e/src/authorized-subprocess-op-mint.contract.test.ts

@@ -3,7 +3,7 @@ phase: 02-authority-governance-kernel
 plan: 07
 type: execute
 wave: 3
-depends_on: [04, 05, 06]
+depends_on: [04, 05, 06a, 06b]
 files_modified:
   - apps/factory-cli/src/admission-decisions-index.ts
   - apps/factory-cli/src/write-admission-decision.ts

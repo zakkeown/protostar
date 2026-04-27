@@ -5,7 +5,6 @@ type: execute
 wave: 1
 depends_on: [01]
 files_modified:
-  - packages/authority/src/index.ts
   - packages/authority/src/authorized-ops/workspace-op.ts
   - packages/authority/src/authorized-ops/subprocess-op.ts
   - packages/authority/src/authorized-ops/network-op.ts
@@ -13,8 +12,6 @@ files_modified:
   - packages/authority/src/authorized-ops/index.ts
   - packages/authority/src/budget/tracker.ts
   - packages/authority/src/budget/aggregator.ts
-  - packages/authority/src/internal/brand-witness.ts
-  - packages/authority/src/internal/test-builders.ts
   - packages/authority/src/authorized-ops/authorized-ops.test.ts
   - packages/authority/package.json
   - packages/authority/tsconfig.json
@@ -85,6 +82,8 @@ Output: Four branded types ready to be consumed by Wave 3 (factory-cli wiring) a
 </execution_context>
 
 <context>
+
+Read first: @.planning/phases/02-authority-governance-kernel/02-CORRECTIONS.md (root-barrel + internal/* are pre-populated by Plan 01 — do NOT add them to files_modified; see Correction 1)
 @.planning/PROJECT.md
 @.planning/phases/02-authority-governance-kernel/02-CONTEXT.md
 @.planning/phases/02-authority-governance-kernel/02-RESEARCH.md
