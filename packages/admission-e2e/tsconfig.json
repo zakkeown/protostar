@@ -9,6 +9,8 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
+    { "path": "../authority" },
+    { "path": "../repo" },
     { "path": "../intent" },
     { "path": "../policy" },
     { "path": "../planning" },

@@ -53,6 +53,9 @@ importers:
 
   packages/admission-e2e:
     dependencies:
+      '@protostar/authority':
+        specifier: workspace:*
+        version: link:../authority
       '@protostar/execution':
         specifier: workspace:*
         version: link:../execution
@@ -65,6 +68,9 @@ importers:
       '@protostar/policy':
         specifier: workspace:*
         version: link:../policy
+      '@protostar/repo':
+        specifier: workspace:*
+        version: link:../repo
 
   packages/artifacts:
     dependencies:

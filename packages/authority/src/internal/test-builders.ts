@@ -19,6 +19,15 @@ import {
   type AuthorizedWorkspaceOpData
 } from "../authorized-ops/workspace-op.js";
 import {
+  signAdmissionDecision,
+  type AdmissionDecisionBase,
+} from "../admission-decision/index.js";
+import {
+  mintSignedAdmissionDecision,
+  type SignedAdmissionDecision,
+  type SignedAdmissionDecisionData
+} from "../admission-decision/signed-admission-decision.js";
+import {
   mintPrecedenceDecision,
   type PrecedenceDecision,
   type PrecedenceDecisionData
@@ -94,4 +103,21 @@ export function buildPrecedenceDecisionForTest(
   };
 
   return mintPrecedenceDecision({ ...defaults, ...overrides });
+}
+
+export function buildSignedAdmissionDecisionForTest<E extends object = object>(
+  overrides: Partial<SignedAdmissionDecisionData<E>> = {}
+): SignedAdmissionDecision<E> {
+  const defaults: AdmissionDecisionBase<E> = {
+    schemaVersion: "1.0.0",
+    runId: "run-test-1",
+    gate: "intent",
+    outcome: "allow",
+    timestamp: "2026-04-27T00:00:00.000Z",
+    precedenceResolution: { status: "no-conflict" },
+    evidence: {} as E
+  };
+  const signed = signAdmissionDecision({ ...defaults, ...overrides });
+
+  return mintSignedAdmissionDecision({ ...signed, ...overrides });
 }
