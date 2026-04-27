@@ -30,7 +30,7 @@ describe("AuthorityStageReader", () => {
       [`${runDir}/precedence-decision.json`, JSON.stringify(precedenceDecision)],
       [`${runDir}/policy-snapshot.json`, JSON.stringify(policySnapshot)],
       [`${runDir}/intent.json`, JSON.stringify(intent)],
-      [`${runDir}/admission-decisions.jsonl`, `${JSON.stringify({ gate: "intent", path: "intent-admission-decision.json" })}\n`]
+      [`${runDir}/admission-decisions.jsonl`, `${JSON.stringify({ gate: "intent", artifactPath: "intent-admission-decision.json" })}\n`]
     ]);
     const reader = createAuthorityStageReader(runDir, new InMemoryFs(files));
 
@@ -41,8 +41,56 @@ describe("AuthorityStageReader", () => {
     assert.equal((await reader.workspaceTrustAdmissionDecision())?.gate, "workspace-trust");
     assert.equal((await reader.precedenceDecision())?.status, "resolved");
     assert.equal((await reader.policySnapshot())?.schemaVersion, "1.0.0");
-    assert.deepEqual(await reader.admissionDecisionsIndex(), [{ gate: "intent", path: "intent-admission-decision.json" }]);
+    const index = await reader.admissionDecisionsIndex();
+    assert.equal(index.length, 1);
+    assert.equal(index[0]?.gate, "intent");
+    assert.equal(index[0]?.artifactPath, "intent-admission-decision.json");
     assert.equal((await reader.confirmedIntent()).id, intent.id);
+  });
+
+  it("reads admission-decisions.jsonl with canonical artifactPath field", async () => {
+    const files = new Map<string, string>([
+      [`${runDir}/admission-decisions.jsonl`,
+        `${JSON.stringify({ gate: "intent", artifactPath: "runs/run_09/intent-admission-decision.json" })}\n` +
+        `${JSON.stringify({ gate: "planning", artifactPath: "runs/run_09/planning-admission-decision.json" })}\n`
+      ]
+    ]);
+    const reader = createAuthorityStageReader(runDir, new InMemoryFs(files));
+    const index = await reader.admissionDecisionsIndex();
+
+    assert.equal(index.length, 2);
+    assert.equal(index[0]?.gate, "intent");
+    assert.equal(index[0]?.artifactPath, "runs/run_09/intent-admission-decision.json");
+    assert.equal(index[1]?.gate, "planning");
+    assert.equal(index[1]?.artifactPath, "runs/run_09/planning-admission-decision.json");
+  });
+
+  it("falls back to legacy path field in admission-decisions.jsonl", async () => {
+    const files = new Map<string, string>([
+      [`${runDir}/admission-decisions.jsonl`,
+        `${JSON.stringify({ gate: "intent", path: "runs/run_09/intent-admission-decision.json" })}\n`
+      ]
+    ]);
+    const reader = createAuthorityStageReader(runDir, new InMemoryFs(files));
+    const index = await reader.admissionDecisionsIndex();
+
+    assert.equal(index.length, 1);
+    assert.equal(index[0]?.gate, "intent");
+    assert.equal(index[0]?.artifactPath, "runs/run_09/intent-admission-decision.json");
+  });
+
+  it("rejects admission-decisions.jsonl entries with neither artifactPath nor path", async () => {
+    const files = new Map<string, string>([
+      [`${runDir}/admission-decisions.jsonl`,
+        `${JSON.stringify({ gate: "intent" })}\n`
+      ]
+    ]);
+    const reader = createAuthorityStageReader(runDir, new InMemoryFs(files));
+
+    await assert.rejects(
+      () => reader.admissionDecisionsIndex(),
+      (error) => error instanceof StageReaderError && error.reason.includes("artifactPath must be a string")
+    );
   });
 
   it("falls back to legacy admission-decision.json and missing admission-decisions.jsonl returns []", async () => {
