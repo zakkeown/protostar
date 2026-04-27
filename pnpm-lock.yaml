@@ -48,6 +48,21 @@ importers:
         specifier: workspace:*
         version: link:../../packages/review
 
+  packages/admission-e2e:
+    dependencies:
+      '@protostar/execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
+      '@protostar/planning':
+        specifier: workspace:*
+        version: link:../planning
+      '@protostar/policy':
+        specifier: workspace:*
+        version: link:../policy
+
   packages/artifacts:
     dependencies:
       '@protostar/intent':
