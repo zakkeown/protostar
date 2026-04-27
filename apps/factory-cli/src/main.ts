@@ -23,6 +23,7 @@ import {
   CLARIFICATION_REPORT_ARTIFACT_NAME,
   createClarificationReport
 } from "@protostar/intent/clarification-report";
+import type { CapabilityEnvelope } from "@protostar/intent";
 import type { ConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import type { IntentDraft } from "@protostar/intent/draft";
 import { authorizeFactoryStart } from "@protostar/policy/admission";
@@ -623,14 +624,20 @@ export async function runFactory(
       archetypeSuggestion
     });
   }
-  await writeSuccessfulGateAdmissionDecisions({
+  const gateAdmissionResult = await writeGateAdmissionDecisionsOrBlock({
     runDir,
+    outDir,
     runId,
     admissionDecision,
     planningAdmission: admittedPlanningOutput.planningAdmission,
     precedenceDecision,
-    workspaceTrust: workspace.trust
+    workspaceTrust: workspace.trust,
+    workspacePath: workspaceRoot,
+    requestedEnvelope: unsignedIntent.capabilityEnvelope
   });
+  if (!gateAdmissionResult.ok) {
+    throw gateAdmissionResult.error;
+  }
   await mkdir(resolve(runDir, "delivery"), { recursive: true });
   await writeJson(resolve(runDir, "intent.json"), intent);
   if (confirmedIntentOutputPath !== undefined) {
@@ -810,14 +817,17 @@ async function writeDraftAdmissionArtifacts(input: {
   }
 }
 
-async function writeSuccessfulGateAdmissionDecisions(input: {
+async function writeGateAdmissionDecisionsOrBlock(input: {
   readonly runDir: string;
+  readonly outDir: string;
   readonly runId: string;
   readonly admissionDecision: AdmissionDecisionArtifactPayload;
   readonly planningAdmission: PlanningAdmissionAcceptedArtifactPayload;
   readonly precedenceDecision: PrecedenceDecision;
   readonly workspaceTrust: "trusted" | "untrusted";
-}): Promise<void> {
+  readonly workspacePath: string;
+  readonly requestedEnvelope: CapabilityEnvelope;
+}): Promise<{ readonly ok: true } | { readonly ok: false; readonly error: Error }> {
   await writeAdmissionDecision({
     runDir: input.runDir,
     gate: "planning",
@@ -827,11 +837,7 @@ async function writeSuccessfulGateAdmissionDecisions(input: {
       outcome: "allow",
       precedenceDecision: input.precedenceDecision,
       evidence: {
-        admissionStage: "planning",
-        planId: input.planningAdmission.planId,
-        admitted: input.planningAdmission.admitted,
-        admissionStatus: input.planningAdmission.admissionStatus,
-        candidateCount: readCandidateCount(input.planningAdmission)
+        candidatesConsidered: readCandidateCount(input.planningAdmission)
       }
     })
   });
@@ -844,10 +850,8 @@ async function writeSuccessfulGateAdmissionDecisions(input: {
       outcome: "allow",
       precedenceDecision: input.precedenceDecision,
       evidence: {
-        admissionStage: "capability",
-        planId: input.planningAdmission.planId,
-        violationCount: 0,
-        admitted: true
+        requestedEnvelope: input.requestedEnvelope,
+        resolvedEnvelope: input.precedenceDecision.resolvedEnvelope
       }
     })
   });
@@ -860,29 +864,51 @@ async function writeSuccessfulGateAdmissionDecisions(input: {
       outcome: "allow",
       precedenceDecision: input.precedenceDecision,
       evidence: {
-        admissionStage: "repo-scope",
-        planId: input.planningAdmission.planId,
-        deniedScopes: [],
-        admitted: true
+        requestedScopes: input.requestedEnvelope.repoScopes.map((scope) => scope.path),
+        grantedScopes: input.precedenceDecision.resolvedEnvelope.repoScopes.map((scope) => scope.path)
       }
     })
   });
+  const workspaceTrustOutcome = input.workspaceTrust === "trusted" ? "allow" : "escalate";
   await writeAdmissionDecision({
     runDir: input.runDir,
     gate: "workspace-trust",
     decision: baseAdmissionDecision({
       runId: input.runId,
       gate: "workspace-trust",
-      outcome: "allow",
+      outcome: workspaceTrustOutcome,
       precedenceDecision: input.precedenceDecision,
       evidence: {
-        admissionStage: "workspace-trust",
+        workspacePath: input.workspacePath,
         declaredTrust: input.workspaceTrust,
-        requiredTrust: "trusted",
-        admitted: input.workspaceTrust === "trusted"
+        grantedAccess: input.workspaceTrust === "trusted" ? "write" : "none"
       }
     })
   });
+  if (input.workspaceTrust !== "trusted") {
+    const reason = "workspace-trust gate blocked: workspace is not trusted; escalation required before factory can proceed";
+    await writeEscalationMarker({
+      runDir: input.runDir,
+      marker: {
+        schemaVersion: "1.0.0",
+        runId: input.runId,
+        gate: "workspace-trust",
+        reason,
+        createdAt: new Date().toISOString(),
+        awaiting: "operator-confirm"
+      }
+    });
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "workspace-trust",
+      reason,
+      refusalArtifact: "workspace-trust-admission-decision.json"
+    });
+    return { ok: false, error: new CliExitError(reason, 2) };
+  }
+  return { ok: true };
 }
 
 async function writeIntentAdmissionDecision(input: {

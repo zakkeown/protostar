@@ -176,10 +176,16 @@ describe("factory CLI draft admission hardening", () => {
         "brownfield"
       ]);
 
-      assert.equal(result.exitCode, 0, result.stderr);
+      // Untrusted workspace now escalates (non-zero exit) as a real gate outcome.
+      assert.notEqual(result.exitCode, 0, "untrusted workspace must exit non-zero");
       const workspaceTrustDecision = await readJsonObject(resolve(outDir, runId, "workspace-trust-admission-decision.json"));
       const evidence = readObjectProperty(workspaceTrustDecision, "evidence");
       assert.equal(evidence["declaredTrust"], "untrusted");
+      const outcome = workspaceTrustDecision["outcome"];
+      assert.ok(
+        outcome === "block" || outcome === "escalate",
+        `workspace-trust outcome must be block or escalate for untrusted workspace, got: ${String(outcome)}`
+      );
     });
   });
 
@@ -228,12 +234,14 @@ describe("factory CLI draft admission hardening", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_all_5_gates_admission_decisions";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -246,7 +254,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -257,7 +269,12 @@ describe("factory CLI draft admission hardening", () => {
         assert.equal(decision["schemaVersion"], "1.0.0");
         assert.equal(decision["runId"], runId);
         assert.equal(decision["gate"], gate);
-        assert.equal(decision["outcome"], "allow");
+        // workspace-trust may differ depending on --trust flag; other gates should allow
+        if (gate !== "workspace-trust") {
+          assert.equal(decision["outcome"], "allow");
+        } else {
+          assert.equal(decision["outcome"], "allow"); // trusted workspace → allow
+        }
         const precStatus = readObjectProperty(decision, "precedenceResolution")["status"];
         assert.ok(
           precStatus === "no-conflict" || precStatus === "resolved",
@@ -304,10 +321,12 @@ describe("factory CLI draft admission hardening", () => {
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
       const outDir = resolve(tempDir, "out");
       const confirmedIntentOutputPath = resolve(tempDir, "confirmed-intent.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const runId = "run_cli_confirmed_intent_payload";
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -322,7 +341,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -393,9 +416,11 @@ describe("factory CLI draft admission hardening", () => {
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
       const outDir = resolve(tempDir, "out");
       const confirmedIntentOutputPath = resolve(tempDir, "confirmed-intent.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const runId = "run_cli_cosmetic_tweak_fixture_e2e";
 
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -410,7 +435,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -467,8 +496,11 @@ describe("factory CLI draft admission hardening", () => {
       const draftPath = resolve(repoRoot, sampleFactoryDraftFixtureRelativePath);
       const legacyConfirmedIntentFixturePath = resolve(repoRoot, legacySampleConfirmedIntentFixtureRelativePath);
       const draft = await readJsonObject(draftPath);
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_sample_factory_draft_admission";
+
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const sampleFactoryArgs = [
         "run",
@@ -479,7 +511,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ] as const;
 
       assertSampleFactoryArgsAvoidLegacyBypass(sampleFactoryArgs, {
@@ -627,11 +663,13 @@ describe("factory CLI draft admission hardening", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_composition_after_confirmation";
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -644,7 +682,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -714,12 +756,14 @@ describe("factory CLI draft admission hardening", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_planning_admission_durable_before_downstream";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
       await mkdir(runDir, { recursive: true });
       await writeFile(resolve(runDir, "delivery"), "force downstream delivery artifact mkdir failure\n", "utf8");
 
@@ -734,7 +778,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 1);
@@ -754,12 +802,14 @@ describe("factory CLI draft admission hardening", () => {
       const acceptanceCriterionIds = acceptanceCriterionIdsForDraft(draft);
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "planning-candidates.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_multi_candidate_planning_admission";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, multiCandidatePlanningFixture(acceptanceCriterionIds));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -772,7 +822,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -856,12 +910,14 @@ describe("factory CLI draft admission hardening", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
       const planningFixturePath = resolve(tempDir, "dogpile-planning-result.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_dogpile_candidate_admitted_before_execution";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, dogpilePlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -874,7 +930,11 @@ describe("factory CLI draft admission hardening", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -1760,10 +1820,12 @@ describe("factory CLI draft admission hardening", () => {
       await withTempDir(async (tempDir) => {
         const draftPath = resolve(tempDir, `${testCase.label}.json`);
         const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+        const confirmedIntentPath = resolve(tempDir, "intent.json");
         const outDir = resolve(tempDir, "out");
 
         await writeJson(draftPath, testCase.draft);
         await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(testCase.draft)));
+        await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
         const result = await runCli([
           "run",
@@ -1776,7 +1838,11 @@ describe("factory CLI draft admission hardening", () => {
           "--run-id",
           testCase.runId,
           "--intent-mode",
-          "brownfield"
+          "brownfield",
+          "--trust",
+          "trusted",
+          "--confirmed-intent",
+          confirmedIntentPath
         ]);
 
         assert.equal(result.exitCode, testCase.expectedExitCode, `${testCase.label}: ${result.stderr}`);
@@ -2180,12 +2246,14 @@ describe("fail-closed precedence and gate evidence", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "intent-draft.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_gate_evidence_schema_valid";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -2198,7 +2266,11 @@ describe("fail-closed precedence and gate evidence", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -2236,12 +2308,14 @@ describe("fail-closed precedence and gate evidence", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "intent-draft.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_planning_evidence_shape";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -2254,7 +2328,11 @@ describe("fail-closed precedence and gate evidence", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
@@ -2271,12 +2349,14 @@ describe("fail-closed precedence and gate evidence", () => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "intent-draft.json");
       const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const runId = "run_cli_capability_repo_evidence_shape";
       const runDir = resolve(outDir, runId);
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, { fixture: "operator-confirmed-intent" });
 
       const result = await runCli([
         "run",
@@ -2289,7 +2369,11 @@ describe("fail-closed precedence and gate evidence", () => {
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
       assert.equal(result.exitCode, 0, result.stderr);
