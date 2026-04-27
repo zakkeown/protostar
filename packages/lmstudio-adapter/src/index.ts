@@ -17,3 +17,4 @@ export {
   type PromptBuilderInput
 } from "./prompt-builder.js";
 export { parseSseStream } from "./sse-parser.js";
+export { createLmstudioCoderAdapter, type LmstudioAdapterConfig } from "./coder-adapter.js";

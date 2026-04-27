@@ -136,7 +136,7 @@ describe("createLmstudioCoderAdapter", () => {
     assert.equal(entriesOf(final.result.changeSet)[0]?.preImageSha256, expectedButtonSha());
     assert.match(
       await import("node:fs/promises").then((fs) =>
-        fs.readFile(new URL("./coder-adapter.ts", import.meta.url), "utf8")
+        fs.readFile(new URL("src/coder-adapter.ts", `file://${process.cwd()}/`), "utf8")
       ),
       /Hash 1 of 2/
     );

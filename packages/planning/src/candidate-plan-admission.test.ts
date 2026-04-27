@@ -6,7 +6,9 @@ import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-bui
 import {
   admitCandidatePlan,
   admitCandidatePlans,
+  admitTaskAdapterRef,
   assertAdmittedPlanHandoff,
+  assertTargetFiles,
   createPlanGraph,
   defineCandidatePlan,
   hashPlanGraph,
@@ -58,6 +60,230 @@ const noRequiredCapabilities = {
 } as const satisfies PlanTaskRequiredCapabilities;
 
 describe("candidate-plan admission validator", () => {
+  it("rejects tasks missing targetFiles", () => {
+    const graph = defineCandidatePlan({
+      planId: "plan_candidate_plan_missing_target_files",
+      intentId: admittedIntent.id,
+      createdAt: "2026-04-26T00:00:00.000Z",
+      strategy: "Reject tasks without target file anchors.",
+      acceptanceCriteria: admittedIntent.acceptanceCriteria.map(({ id, statement, verification }) => ({
+        id,
+        statement,
+        verification
+      })),
+      tasks: [
+        {
+          id: "task-missing-target-files",
+          title: "Omit target files",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ]
+    } as const satisfies PlanGraph);
+
+    const result = admitCandidatePlan({ graph, intent: admittedIntent });
+
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("Expected missing targetFiles to reject the candidate plan.");
+    assert.equal(result.rejectionReasons.some((reason) => reason.code === "target-files-missing"), true);
+  });
+
+  it("rejects tasks with empty targetFiles", () => {
+    const graph = defineCandidatePlan({
+      planId: "plan_candidate_plan_empty_target_files",
+      intentId: admittedIntent.id,
+      createdAt: "2026-04-26T00:00:00.000Z",
+      strategy: "Reject tasks with empty target file anchors.",
+      acceptanceCriteria: admittedIntent.acceptanceCriteria.map(({ id, statement, verification }) => ({
+        id,
+        statement,
+        verification
+      })),
+      tasks: [
+        {
+          id: "task-empty-target-files",
+          title: "Provide empty target files",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: [],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ]
+    } as const satisfies PlanGraph);
+
+    const result = admitCandidatePlan({ graph, intent: admittedIntent });
+
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("Expected empty targetFiles to reject the candidate plan.");
+    assert.equal(result.rejectionReasons.some((reason) => reason.code === "target-files-empty"), true);
+  });
+
+  it("admits tasks with non-empty targetFiles", () => {
+    const graph = createPlanGraph({
+      planId: "plan_candidate_plan_target_files_admitted",
+      intent: admittedIntent,
+      strategy: "Admit a plan task with target file anchors.",
+      tasks: [
+        {
+          id: "task-target-files-admitted",
+          title: "Carry target files",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: ["src/Button.tsx"],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ],
+      createdAt: "2026-04-26T00:00:00.000Z"
+    });
+
+    const result = admitCandidatePlan({ graph, intent: admittedIntent });
+
+    assert.equal(result.ok, true);
+  });
+
+  it("admits allowed task adapterRef overrides", () => {
+    const graph = createPlanGraph({
+      planId: "plan_candidate_plan_allowed_adapter_ref",
+      intent: admittedIntent,
+      strategy: "Admit a task selecting an allowed adapter.",
+      tasks: [
+        {
+          id: "task-allowed-adapter-ref",
+          title: "Use the allowed LM Studio coder adapter",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: ["src/Button.tsx"],
+          adapterRef: "lmstudio-coder",
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ],
+      createdAt: "2026-04-26T00:00:00.000Z"
+    });
+
+    const result = admitCandidatePlan({
+      graph,
+      intent: admittedIntent,
+      allowedAdapters: ["lmstudio-coder"]
+    });
+
+    assert.equal(result.ok, true);
+  });
+
+  it("rejects task adapterRef values outside allowedAdapters", () => {
+    const graph = createPlanGraph({
+      planId: "plan_candidate_plan_disallowed_adapter_ref",
+      intent: admittedIntent,
+      strategy: "Reject a task selecting a disallowed adapter.",
+      tasks: [
+        {
+          id: "task-disallowed-adapter-ref",
+          title: "Use a disallowed adapter",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: ["src/Button.tsx"],
+          adapterRef: "evil-adapter",
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ],
+      createdAt: "2026-04-26T00:00:00.000Z"
+    });
+
+    const result = admitCandidatePlan({
+      graph,
+      intent: admittedIntent,
+      allowedAdapters: ["lmstudio-coder"]
+    });
+
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("Expected disallowed adapterRef to reject the candidate plan.");
+    assert.deepEqual(
+      result.rejectionReasons.map(({ code, taskId }) => ({ code, taskId })),
+      [{ code: "adapter-ref-not-allowed", taskId: "task-disallowed-adapter-ref" }]
+    );
+    assert.match(result.errors.join("\n"), /evil-adapter/);
+    assert.match(result.errors.join("\n"), /lmstudio-coder/);
+  });
+
+  it("admits tasks without adapterRef by using the run default", () => {
+    const graph = createPlanGraph({
+      planId: "plan_candidate_plan_default_adapter_ref",
+      intent: admittedIntent,
+      strategy: "Admit a task that relies on the run default adapter.",
+      tasks: [
+        {
+          id: "task-default-adapter-ref",
+          title: "Use the default run adapter",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: ["src/Button.tsx"],
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ],
+      createdAt: "2026-04-26T00:00:00.000Z"
+    });
+
+    const result = admitCandidatePlan({
+      graph,
+      intent: admittedIntent,
+      allowedAdapters: []
+    });
+
+    assert.equal(result.ok, true);
+  });
+
+  it("rejects malformed task adapterRef values", () => {
+    const graph = createPlanGraph({
+      planId: "plan_candidate_plan_malformed_adapter_ref",
+      intent: admittedIntent,
+      strategy: "Reject an adapter ref that does not match the lowercase adapter id grammar.",
+      tasks: [
+        {
+          id: "task-malformed-adapter-ref",
+          title: "Use a malformed adapter ref",
+          kind: "verification",
+          dependsOn: [],
+          covers: ["ac_candidate_plan_admission"],
+          targetFiles: ["src/Button.tsx"],
+          adapterRef: "Has-Caps",
+          requiredCapabilities: noRequiredCapabilities,
+          risk: "low"
+        }
+      ],
+      createdAt: "2026-04-26T00:00:00.000Z"
+    });
+
+    const result = admitCandidatePlan({ graph, intent: admittedIntent });
+
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("Expected malformed adapterRef to reject the candidate plan.");
+    assert.equal(result.rejectionReasons.some((reason) => reason.code === "malformed-task-adapter-ref"), true);
+  });
+
+  it("exports targetFiles and adapterRef contract helpers", () => {
+    assert.doesNotThrow(() => assertTargetFiles(["src/Button.tsx"]));
+    assert.deepEqual(
+      admitTaskAdapterRef({
+        taskId: "task-allowed-adapter-ref",
+        adapterRef: "lmstudio-coder",
+        allowedAdapters: ["lmstudio-coder"]
+      }),
+      { ok: true }
+    );
+  });
+
   it("converts a valid CandidatePlan into an AdmittedPlan with thin planning-admission evidence", () => {
     const graph = createPlanGraph({
       planId: "plan_candidate_plan_admission_accepted",
