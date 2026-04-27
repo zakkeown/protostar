@@ -41,7 +41,9 @@ type MintingKeys = {
   [K in keyof IntentPublicSurface]: ReturnsConfirmed<K> extends true ? K : never;
 }[keyof IntentPublicSurface];
 
-type _MintSurfacePinned = Assert<Equal<MintingKeys, "promoteIntentDraft">>;
+// Phase 2 Plan 07 deliberately widens the public producer surface so factory-cli
+// can re-mint the confirmed intent with its policy-snapshot signature.
+type _MintSurfacePinned = Assert<Equal<MintingKeys, "promoteIntentDraft" | "promoteAndSignIntent">>;
 
 // ---- Type-level negative: test/internal helpers must NOT be on public surface ----
 type IntentPublicKeys = keyof typeof IntentPublicApi;

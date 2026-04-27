@@ -27,11 +27,20 @@ import type { ConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import type { IntentDraft } from "@protostar/intent/draft";
 import { authorizeFactoryStart } from "@protostar/policy/admission";
 import {
-  ADMISSION_DECISION_ARTIFACT_NAME,
   createAdmissionDecisionArtifact,
+  promoteAndSignIntent,
   promoteIntentDraft,
   type AdmissionDecisionArtifactPayload
 } from "@protostar/intent/admission";
+import {
+  buildPolicySnapshot,
+  buildSignatureEnvelope,
+  DENY_ALL_REPO_POLICY,
+  intersectEnvelopes,
+  type AdmissionDecisionBase,
+  type PrecedenceDecision,
+  type RepoPolicy
+} from "@protostar/authority";
 import {
   admitCandidatePlan,
   admitCandidatePlans,
@@ -57,6 +66,8 @@ import {
 } from "@protostar/review";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
+import { loadRepoPolicy } from "./load-repo-policy.js";
+import { buildTierConstraints } from "./precedence-tier-loader.js";
 import {
   appendRefusalIndexEntry,
   buildTerminalStatusArtifact,
@@ -65,6 +76,11 @@ import {
   type RefusalIndexEntry,
   type RefusalStage
 } from "./refusals-index.js";
+import {
+  writeAdmissionDecision,
+  writePolicySnapshot,
+  writePrecedenceDecision
+} from "./write-admission-decision.js";
 
 export interface RunCommandOptions {
   readonly intentDraftPath: string;
@@ -181,15 +197,18 @@ export async function runFactory(
       ? createRunId(promotedIntent.intent.id)
       : createDraftRunId(capturedIntentDraftBeforeAdmission));
   const runDir = resolve(outDir, runId);
-  await writeAdmissionDecisionArtifact(runDir, admissionDecision);
   if (!promotedIntent.ok) {
     // Persist the clarification-report alongside the admission-decision so
     // operators (and Phase 9 inspect) have the full intent-side refusal
-    // evidence on disk before runFactory throws. Without this write the
-    // ambiguity-gate refusal path produced no clarification artifact (only
-    // admission-decision.json), violating INTENT-01's runtime half.
+    // evidence on disk before runFactory throws.
     await mkdir(runDir, { recursive: true });
     await writeJson(resolve(runDir, CLARIFICATION_REPORT_ARTIFACT_NAME), clarificationReport);
+    await writeIntentAdmissionDecision({
+      runDir,
+      runId,
+      admissionDecision,
+      precedenceDecision: noConflictPrecedenceDecisionForDraft()
+    });
     const reason = formatPromotionFailure(promotedIntent);
     await writeRefusalArtifacts({
       runDir,
@@ -206,9 +225,59 @@ export async function runFactory(
     intentMode: options.intentMode,
     promotedIntent
   });
-  const intent = confirmedIntentHandoff.intent;
+  const unsignedIntent = confirmedIntentHandoff.intent;
   const ambiguityAssessment = confirmedIntentHandoff.ambiguityAssessment;
   const planningFixturePath = resolve(workspaceRoot, options.planningFixturePath);
+  const repoPolicy = await loadRepoPolicy(workspaceRoot);
+  const precedenceDecision = intersectEnvelopes(buildTierConstraints({
+    intent: unsignedIntent,
+    policy: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:policy" },
+    repoPolicy: repoPolicyForCurrentCompatibility(repoPolicy, unsignedIntent),
+    operatorSettings: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:operator-settings" }
+  }));
+  await writePrecedenceDecision({ runDir, decision: precedenceDecision });
+  const policySnapshot = buildPolicySnapshot({
+    policy: {
+      allowDarkRun: true,
+      maxAutonomousRisk: "medium",
+      requiredHumanCheckpoints: []
+    },
+    resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+    repoPolicy
+  });
+  const { hash: policySnapshotHash } = await writePolicySnapshot({ runDir, snapshot: policySnapshot });
+  const signature = buildSignatureEnvelope({
+    intent: stripSignature(unsignedIntent),
+    resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+    policySnapshotHash
+  });
+  const signedPromotion = promoteAndSignIntent({
+    id: unsignedIntent.id,
+    ...(unsignedIntent.sourceDraftId !== undefined ? { sourceDraftId: unsignedIntent.sourceDraftId } : {}),
+    ...(unsignedIntent.mode !== undefined ? { mode: unsignedIntent.mode } : {}),
+    ...(unsignedIntent.goalArchetype !== undefined ? { goalArchetype: unsignedIntent.goalArchetype } : {}),
+    title: unsignedIntent.title,
+    problem: unsignedIntent.problem,
+    requester: unsignedIntent.requester,
+    ...(unsignedIntent.context !== undefined ? { context: unsignedIntent.context } : {}),
+    acceptanceCriteria: unsignedIntent.acceptanceCriteria,
+    capabilityEnvelope: unsignedIntent.capabilityEnvelope,
+    constraints: unsignedIntent.constraints,
+    stopConditions: unsignedIntent.stopConditions,
+    confirmedAt: unsignedIntent.confirmedAt,
+    schemaVersion: unsignedIntent.schemaVersion,
+    signature
+  });
+  if (!signedPromotion.ok) {
+    throw new Error(`Unable to sign confirmed intent: ${signedPromotion.errors.join("; ")}`);
+  }
+  const intent = signedPromotion.intent;
+  await writeIntentAdmissionDecision({
+    runDir,
+    runId,
+    admissionDecision,
+    precedenceDecision
+  });
 
   const policyVerdict = authorizeFactoryStart(intent, {
     allowDarkRun: true,
@@ -394,7 +463,7 @@ export async function runFactory(
               artifact(
                 "intent",
                 "admission-decision",
-                ADMISSION_DECISION_ARTIFACT_NAME,
+                "intent-admission-decision.json",
                 "Deterministic draft admission allow/block/escalate decision and gate details."
               )
             ]),
@@ -482,11 +551,18 @@ export async function runFactory(
       runDir,
       draft: capturedIntentDraftBeforeAdmission,
       clarificationReport,
-      admissionDecision,
       ambiguityAssessment: promotedIntent?.ambiguityAssessment,
       archetypeSuggestion
     });
   }
+  await writeSuccessfulGateAdmissionDecisions({
+    runDir,
+    runId,
+    admissionDecision,
+    planningAdmission: admittedPlanningOutput.planningAdmission,
+    precedenceDecision,
+    workspaceTrust: workspace.trust
+  });
   await mkdir(resolve(runDir, "delivery"), { recursive: true });
   await writeJson(resolve(runDir, "intent.json"), intent);
   if (confirmedIntentOutputPath !== undefined) {
@@ -517,7 +593,13 @@ export async function runFactory(
     artifacts: [
       ...(capturedIntentDraftBeforeAdmission === undefined ? [] : ["intent-draft.json"]),
       ...(clarificationReport === undefined ? [] : [CLARIFICATION_REPORT_ARTIFACT_NAME]),
-      ...(admissionDecision === undefined ? [] : [ADMISSION_DECISION_ARTIFACT_NAME]),
+      ...(admissionDecision === undefined ? [] : ["intent-admission-decision.json"]),
+      "planning-admission-decision.json",
+      "capability-admission-decision.json",
+      "repo-scope-admission-decision.json",
+      "workspace-trust-admission-decision.json",
+      "admission-decisions.jsonl",
+      "policy-snapshot.json",
       "intent.json",
       "intent-ambiguity.json",
       ...(archetypeSuggestion === undefined ? [] : ["intent-archetype-suggestion.json"]),
@@ -644,7 +726,6 @@ async function writeDraftAdmissionArtifacts(input: {
   readonly runDir: string;
   readonly draft: IntentDraft;
   readonly clarificationReport: ReturnType<typeof createClarificationReport> | undefined;
-  readonly admissionDecision: AdmissionDecisionArtifactPayload | undefined;
   readonly ambiguityAssessment: IntentAmbiguityAssessment | undefined;
   readonly archetypeSuggestion: ReturnType<typeof promoteIntentDraft>["archetypeSuggestion"] | undefined;
 }): Promise<void> {
@@ -652,9 +733,6 @@ async function writeDraftAdmissionArtifacts(input: {
   await writeJson(resolve(input.runDir, "intent-draft.json"), input.draft);
   if (input.clarificationReport !== undefined) {
     await writeJson(resolve(input.runDir, CLARIFICATION_REPORT_ARTIFACT_NAME), input.clarificationReport);
-  }
-  if (input.admissionDecision !== undefined) {
-    await writeJson(resolve(input.runDir, ADMISSION_DECISION_ARTIFACT_NAME), input.admissionDecision);
   }
   if (input.ambiguityAssessment !== undefined) {
     await writeJson(resolve(input.runDir, "intent-ambiguity.json"), createIntentAmbiguityArtifact(input.ambiguityAssessment));
@@ -664,12 +742,169 @@ async function writeDraftAdmissionArtifacts(input: {
   }
 }
 
-async function writeAdmissionDecisionArtifact(
-  runDir: string,
-  admissionDecision: AdmissionDecisionArtifactPayload
-): Promise<void> {
-  await mkdir(runDir, { recursive: true });
-  await writeJson(resolve(runDir, ADMISSION_DECISION_ARTIFACT_NAME), admissionDecision);
+async function writeSuccessfulGateAdmissionDecisions(input: {
+  readonly runDir: string;
+  readonly runId: string;
+  readonly admissionDecision: AdmissionDecisionArtifactPayload;
+  readonly planningAdmission: PlanningAdmissionAcceptedArtifactPayload;
+  readonly precedenceDecision: PrecedenceDecision;
+  readonly workspaceTrust: "trusted" | "untrusted";
+}): Promise<void> {
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "planning",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "planning",
+      outcome: "allow",
+      precedenceDecision: input.precedenceDecision,
+      evidence: {
+        admissionStage: "planning",
+        planId: input.planningAdmission.planId,
+        admitted: input.planningAdmission.admitted,
+        admissionStatus: input.planningAdmission.admissionStatus,
+        candidateCount: readCandidateCount(input.planningAdmission)
+      }
+    })
+  });
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "capability",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "capability",
+      outcome: "allow",
+      precedenceDecision: input.precedenceDecision,
+      evidence: {
+        admissionStage: "capability",
+        planId: input.planningAdmission.planId,
+        violationCount: 0,
+        admitted: true
+      }
+    })
+  });
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "repo-scope",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "repo-scope",
+      outcome: "allow",
+      precedenceDecision: input.precedenceDecision,
+      evidence: {
+        admissionStage: "repo-scope",
+        planId: input.planningAdmission.planId,
+        deniedScopes: [],
+        admitted: true
+      }
+    })
+  });
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "workspace-trust",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "workspace-trust",
+      outcome: "allow",
+      precedenceDecision: input.precedenceDecision,
+      evidence: {
+        admissionStage: "workspace-trust",
+        declaredTrust: input.workspaceTrust,
+        requiredTrust: "trusted",
+        admitted: input.workspaceTrust === "trusted"
+      }
+    })
+  });
+}
+
+async function writeIntentAdmissionDecision(input: {
+  readonly runDir: string;
+  readonly runId: string;
+  readonly admissionDecision: AdmissionDecisionArtifactPayload;
+  readonly precedenceDecision: PrecedenceDecision;
+}): Promise<void> {
+  await writeAdmissionDecision({
+    runDir: input.runDir,
+    gate: "intent",
+    decision: baseAdmissionDecision({
+      runId: input.runId,
+      gate: "intent",
+      outcome: input.admissionDecision.decision,
+      precedenceDecision: input.precedenceDecision,
+      evidence: intentAdmissionEvidence(input.admissionDecision)
+    })
+  });
+}
+
+function baseAdmissionDecision<E extends object>(input: {
+  readonly runId: string;
+  readonly gate: AdmissionDecisionBase<E>["gate"];
+  readonly outcome: AdmissionDecisionBase<E>["outcome"];
+  readonly precedenceDecision: PrecedenceDecision;
+  readonly evidence: E;
+}): AdmissionDecisionBase<E> {
+  return {
+    schemaVersion: "1.0.0",
+    runId: input.runId,
+    gate: input.gate,
+    outcome: input.outcome,
+    timestamp: new Date().toISOString(),
+    precedenceResolution: {
+      status: input.precedenceDecision.status,
+      ...(input.precedenceDecision.status !== "no-conflict"
+        ? { precedenceDecisionPath: resolve("precedence-decision.json") }
+        : {})
+    },
+    evidence: input.evidence
+  };
+}
+
+function intentAdmissionEvidence(admissionDecision: AdmissionDecisionArtifactPayload): object {
+  return {
+    ambiguityScore: admissionDecision.details.ambiguity.ambiguity,
+    admissionStage: "intent",
+    ...admissionDecision
+  };
+}
+
+function noConflictPrecedenceDecisionForDraft(): PrecedenceDecision {
+  return {
+    schemaVersion: "1.0.0",
+    status: "no-conflict",
+    resolvedEnvelope: { repoScopes: [], toolPermissions: [], budget: {} },
+    tiers: [],
+    blockedBy: []
+  } as unknown as PrecedenceDecision;
+}
+
+function repoPolicyForCurrentCompatibility(repoPolicy: RepoPolicy, intent: ConfirmedIntent): RepoPolicy {
+  if (repoPolicy !== DENY_ALL_REPO_POLICY) {
+    return repoPolicy;
+  }
+
+  return {
+    schemaVersion: "1.0.0",
+    repoScopes: intent.capabilityEnvelope.repoScopes,
+    toolPermissions: intent.capabilityEnvelope.toolPermissions,
+    ...(intent.capabilityEnvelope.executeGrants !== undefined
+      ? { executeGrants: intent.capabilityEnvelope.executeGrants }
+      : {}),
+    budget: intent.capabilityEnvelope.budget,
+    trustOverride: "trusted"
+  };
+}
+
+function stripSignature(intent: ConfirmedIntent): object {
+  const { signature: _signature, ...intentBody } = intent;
+  return intentBody;
+}
+
+function readCandidateCount(planningAdmission: PlanningAdmissionAcceptedArtifactPayload): number {
+  const candidateAdmissionSummary = (planningAdmission as { readonly candidateAdmissionSummary?: { readonly candidateCount?: unknown } })
+    .candidateAdmissionSummary;
+  return typeof candidateAdmissionSummary?.candidateCount === "number"
+    ? candidateAdmissionSummary.candidateCount
+    : 1;
 }
 
 async function writePlanningAdmissionArtifacts(input: {

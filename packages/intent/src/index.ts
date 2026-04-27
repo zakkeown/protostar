@@ -22,6 +22,7 @@ export { admitBugfixCapabilityEnvelope, admitCosmeticTweakCapabilityEnvelope, ad
 export { evaluateRepoScopeAdmission, validateCapabilityEnvelopeRepoScopes, validateCapabilityEnvelopeWriteGrants } from "./repo-scope-admission.js";
 export { validateCapabilityEnvelopeBudgetLimits, validateCapabilityEnvelopeExecuteGrants, validateCapabilityEnvelopeToolPermissions } from "./capability-grant-admission.js";
 export { normalizeDraftCapabilityEnvelope } from "./capability-normalization.js";
+export { promoteAndSignIntent } from "./promote-and-sign-intent.js";
 export { evaluateIntentAmbiguityAdmission, promoteIntentDraft } from "./promote-intent-draft.js";
 export { ADMISSION_DECISION_ARTIFACT_NAME, ADMISSION_DECISION_OUTCOMES, ADMISSION_DECISION_SCHEMA_VERSION, createAdmissionDecisionArtifact } from "./admission-decision.js";
 export type { AdmissionDecisionAmbiguityDetail, AdmissionDecisionArtifactDetails, AdmissionDecisionArtifactPayload, AdmissionDecisionGateSummary, AdmissionDecisionOutcome, CreateAdmissionDecisionArtifactInput } from "./admission-decision.js";

@@ -78,7 +78,7 @@ const executionAndReviewArtifactFiles = [
 ] as const;
 
 describe("factory CLI draft admission hardening", () => {
-  it("writes all 5 gate admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
+  it("writes all 5 gates admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
       const draftPath = resolve(tempDir, "clear-cosmetic.json");
@@ -219,7 +219,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.deepEqual(payload, intentArtifact);
       const confirmedIntentOutput = await readJson(confirmedIntentOutputPath);
       assert.deepEqual(payload, confirmedIntentOutput);
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["schemaVersion"], "protostar.intent.admission-decision.v1");
       assert.equal(admissionDecision["artifact"], "admission-decision.json");
       assert.equal(admissionDecision["decision"], "allow");
@@ -291,7 +291,7 @@ describe("factory CLI draft admission hardening", () => {
       const confirmedIntentOutput = await readJson(confirmedIntentOutputPath);
       assert.deepEqual(payload, confirmedIntentOutput);
 
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["decision"], "allow");
       assert.equal(admissionDecision["admitted"], true);
       assert.equal(admissionDecision["draftId"], draft["draftId"]);
@@ -392,7 +392,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.equal(clarificationReport["artifact"], "clarification-report.json");
       assert.equal(clarificationReport["draftId"], draft["draftId"]);
 
-      const admissionDecision = await readJsonObject(resolve(runDir, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(runDir);
       assert.equal(admissionDecision["decision"], "allow");
       assert.equal(admissionDecision["admitted"], true);
       assert.equal(admissionDecision["draftId"], draft["draftId"]);
@@ -507,7 +507,7 @@ describe("factory CLI draft admission hardening", () => {
       }
 
       const runDir = resolve(outDir, runId);
-      const admissionDecision = await readJsonObject(resolve(runDir, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(runDir);
       const admissionDetails = readObjectProperty(admissionDecision, "details");
       const admissionGate = readObjectProperty(admissionDetails, "gate");
       assert.equal(admissionDecision["decision"], "allow");
@@ -1408,7 +1408,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.match(result.stderr, /Draft intent refused by admission gate\./);
       assert.doesNotMatch(result.stderr, /Invalid planning pile result/);
 
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["decision"], "block");
       assert.equal(admissionDecision["admitted"], false);
       assert.equal(hasOwn(admissionDecision, "confirmedIntentId"), false);
@@ -1479,7 +1479,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.match(result.stderr, /strategy must be a non-empty string/);
       assert.match(result.stderr, /requiredCapabilities must be provided/);
 
-      const admissionDecision = await readJsonObject(resolve(runDir, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(runDir);
       assert.equal(admissionDecision["decision"], "allow");
       assert.equal(admissionDecision["admitted"], true);
       assert.equal(admissionDecision["draftId"], draft["draftId"]);
@@ -1637,9 +1637,9 @@ describe("factory CLI draft admission hardening", () => {
           assert.match(result.stderr, /Draft intent refused by admission gate\./, testCase.label);
         }
 
-        const admissionDecisionPath = resolve(outDir, testCase.runId, "admission-decision.json");
+        const admissionDecisionPath = resolve(outDir, testCase.runId, "intent-admission-decision.json");
         assert.equal(await pathExists(admissionDecisionPath), true, `${testCase.label}: admission decision missing.`);
-        const admissionDecision = await readJsonObject(admissionDecisionPath);
+        const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, testCase.runId));
         assert.equal(admissionDecision["schemaVersion"], "protostar.intent.admission-decision.v1", testCase.label);
         assert.equal(admissionDecision["artifact"], "admission-decision.json", testCase.label);
         assert.equal(admissionDecision["decision"], testCase.expectedDecision, testCase.label);
@@ -1723,7 +1723,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.match(result.stderr, /Draft intent refused by admission gate\./);
       assert.match(result.stderr, /Required clarifications:/);
       assert.match(result.stderr, /context/);
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["decision"], "block");
       assert.equal(admissionDecision["admitted"], false);
       const admissionDetails = readObjectProperty(admissionDecision, "details");
@@ -1763,7 +1763,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.match(result.stderr, /Draft intent refused by admission gate\./);
       assert.doesNotMatch(result.stderr, /ENOENT|missing-planning-fixture/);
 
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["decision"], "block");
       assert.equal(admissionDecision["admitted"], false);
       await assertIntentOutputFilesSuppressed(outDir, runId);
@@ -1856,7 +1856,7 @@ describe("factory CLI draft admission hardening", () => {
       assert.match(result.stderr, /Draft intent refused by admission gate\./);
       assert.match(result.stderr, /Policy findings:/);
       assert.match(result.stderr, /tool-authority-overage/);
-      const admissionDecision = await readJsonObject(resolve(outDir, runId, "admission-decision.json"));
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
       assert.equal(admissionDecision["decision"], "escalate");
       assert.equal(admissionDecision["admitted"], false);
       const admissionDetails = readObjectProperty(admissionDecision, "details");
@@ -2251,6 +2251,13 @@ async function readJsonObject(path: string): Promise<Record<string, unknown>> {
   const parsed = await readJson(path);
   assert.equal(isRecord(parsed), true);
   return parsed as Record<string, unknown>;
+}
+
+async function readIntentAdmissionEvidence(runDir: string): Promise<Record<string, unknown>> {
+  const decision = await readJsonObject(resolve(runDir, "intent-admission-decision.json"));
+  assert.equal(decision["schemaVersion"], "1.0.0");
+  assert.equal(decision["gate"], "intent");
+  return readObjectProperty(decision, "evidence");
 }
 
 function readObjectProperty(record: Record<string, unknown>, key: string): Record<string, unknown> {
