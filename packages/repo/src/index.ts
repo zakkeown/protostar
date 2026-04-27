@@ -23,5 +23,7 @@ export function defineWorkspace(input: WorkspaceRef): WorkspaceRef {
   return input;
 }
 
+export { deleteFile, FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
+export type { AuthorizedWorkspaceOp, FsAdapterErrorReason } from "./fs-adapter.js";
 export { assertWorkspaceTrust, WorkspaceTrustError } from "./workspace-trust-runtime.js";
 export type { RuntimeWorkspaceOp } from "./workspace-trust-runtime.js";

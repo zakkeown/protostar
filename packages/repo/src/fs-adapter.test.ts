@@ -42,7 +42,7 @@ describe("fs-adapter", () => {
   it("writes a branded workspace file", async (t) => {
     const repo = await buildSacrificialRepo();
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
-    const op = opFor(repo.dir, "nested/output.txt", "write");
+    const op = opFor(repo.dir, "output.txt", "write");
 
     await writeFile(op, Buffer.from("created by adapter\n"));
 
