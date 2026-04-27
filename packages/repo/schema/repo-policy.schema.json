@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/repo-policy.schema.json",
+  "title": "RepoPolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "subprocessTailBytes", "tombstoneRetentionHours"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceRoot": { "type": "string" },
+    "subprocessTailBytes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stdout", "stderr"],
+      "properties": {
+        "stdout": { "type": "integer", "minimum": 0 },
+        "stderr": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "commandAllowlist": { "type": "array", "items": { "type": "string" } },
+    "tombstoneRetentionHours": { "type": "number", "minimum": 0 }
+  }
+}
