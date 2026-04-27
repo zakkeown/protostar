@@ -26,9 +26,9 @@
 
 **Phase 3 — Repo Runtime + Sandbox** (in progress)
 
-Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, and strict symlink audit are complete.
+Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, strict symlink audit, and subprocess validation schemas are complete.
 
-**Next action:** Continue Phase 3 Wave 1 with Plan 08 (subprocess allowlist/schemas).
+**Next action:** Continue Phase 3 Wave 2 with Plan 07 (apply-change-set) or Plan 09 (subprocess runner), depending on sequencing.
 
 ## Phase Status
 
@@ -55,6 +55,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 3 Plan 08 (`03-08-subprocess-allowlist-and-schemas-PLAN.md`): added frozen subprocess baseline allowlist, policy-extension union helper, outer argv guard with enumerated `ArgvViolation` reasons, frozen git/pnpm/node/tsc schemas, and 19 subprocess validation tests. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-27:** Completed Phase 3 Plan 06 (`03-06-symlink-audit-PLAN.md`): added `auditSymlinks(workspaceRoot)` with Node 22 recursive `readdir`, stable workspace-relative POSIX offending paths, parentPath/path compatibility fallback, and 6 TDD audit tests covering clean, root, nested, multiple, outside-target, and broken symlinks.
 - **2026-04-27:** Completed Phase 3 Plan 05 (`03-05-fs-adapter-PLAN.md`): added repo-owned `readFile`/`writeFile`/`deleteFile` adapter functions, `FsAdapterError` refusal reasons, lstat symlink refusal, workspace escape/canonicalization checks, and 8 TDD adapter tests.
 - **2026-04-27:** Completed Phase 3 Plan 04 (`03-04-sacrificial-repo-test-fixture-PLAN.md`): added `buildSacrificialRepo` under `@protostar/repo/internal/test-fixtures`, backed by real `isomorphic-git` repos in tmpdir, with deterministic commits, branch/dirty/symlink options, subpath export wiring, and fixture self-tests.
