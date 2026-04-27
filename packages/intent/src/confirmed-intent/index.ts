@@ -3,6 +3,7 @@ export type {
   ConfirmedIntent,
   ConfirmedIntentData,
   ConfirmedIntentParseResult,
+  CanonicalFormTag,
   SignatureEnvelope
 } from "../confirmed-intent.js";
 export type {

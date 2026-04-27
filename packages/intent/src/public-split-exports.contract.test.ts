@@ -49,7 +49,8 @@ describe("intent split public entrypoints", () => {
     assert.equal(clarification.artifact, CLARIFICATION_REPORT_ARTIFACT_NAME);
 
     const intent = buildConfirmedIntentForTest({
-      schemaVersion: "1.0.0",
+      // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+      schemaVersion: "1.1.0",
       signature: null,
       id: "intent_split_surface",
       ...(draft.draftId !== undefined ? { sourceDraftId: draft.draftId } : {}),
@@ -87,7 +88,8 @@ describe("intent split public entrypoints", () => {
     });
 
     assert.equal(parseConfirmedIntent(intent).ok, true);
-    assert.equal(intent.schemaVersion, "1.0.0");
+    // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+    assert.equal(intent.schemaVersion, "1.1.0");
     assert.equal(intent.signature, null);
   });
 });

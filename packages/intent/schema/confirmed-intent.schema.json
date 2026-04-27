@@ -18,7 +18,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.0.0" },
+    "schemaVersion": { "const": "1.1.0" },
     "id": { "type": "string", "pattern": "^intent_.+" },
     "sourceDraftId": { "type": "string", "pattern": "^draft_.+" },
     "mode": { "enum": ["greenfield", "brownfield"] },
@@ -33,18 +33,32 @@
     "constraints": { "type": "array", "items": { "type": "string" } },
     "stopConditions": { "type": "array", "items": { "type": "string" } },
     "signature": {
-      "oneOf": [
+      "anyOf": [
         { "type": "null" },
-        {
-          "type": "object",
-          "required": ["algorithm", "value"],
-          "additionalProperties": false,
-          "properties": {
-            "algorithm": { "type": "string" },
-            "value": { "type": "string" }
-          }
-        }
+        { "$ref": "#/$defs/SignatureEnvelope" }
       ]
+    }
+  },
+  "$defs": {
+    "SignatureEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "canonicalForm",
+        "value",
+        "intentHash",
+        "envelopeHash",
+        "policySnapshotHash"
+      ],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalForm": { "enum": ["json-c14n@1.0"] },
+        "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "intentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "envelopeHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "policySnapshotHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
     }
   }
 }

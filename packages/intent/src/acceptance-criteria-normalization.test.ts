@@ -382,7 +382,8 @@ describe("normalizeAcceptanceCriteria", () => {
 
   it("carries manual justification through confirmed-intent parsing without requiring it for non-manual ACs", () => {
     const confirmedIntent = buildConfirmedIntentForTest({
-      schemaVersion: "1.0.0",
+      // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+      schemaVersion: "1.1.0",
       signature: null,
       id: "intent_manual_ac_justification",
       sourceDraftId: "draft_manual_ac_justification",

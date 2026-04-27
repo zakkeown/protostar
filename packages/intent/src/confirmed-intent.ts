@@ -16,9 +16,15 @@ import { parseAcceptanceCriteria } from "./acceptance-criteria.js";
 // (internal/test-builders subpath).
 declare const ConfirmedIntentBrand: unique symbol;
 
+export type CanonicalFormTag = "json-c14n@1.0";
+
 export interface SignatureEnvelope {
-  readonly algorithm: string;
+  readonly algorithm: "sha256";
+  readonly canonicalForm: CanonicalFormTag;
   readonly value: string;
+  readonly intentHash: string;
+  readonly envelopeHash: string;
+  readonly policySnapshotHash: string;
 }
 
 interface ConfirmedIntentBaseShape {
@@ -35,7 +41,7 @@ interface ConfirmedIntentBaseShape {
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
   readonly stopConditions: readonly string[];
-  readonly schemaVersion: "1.0.0";
+  readonly schemaVersion: "1.1.0";
   readonly signature: SignatureEnvelope | null;
 }
 
@@ -77,7 +83,7 @@ export interface ConfirmedIntentMintInput {
   readonly constraints?: readonly string[];
   readonly stopConditions?: readonly string[];
   readonly confirmedAt?: string;
-  readonly schemaVersion?: "1.0.0";
+  readonly schemaVersion?: "1.1.0";
   readonly signature?: SignatureEnvelope | null;
 }
 
@@ -108,7 +114,7 @@ export function mintConfirmedIntent(input: ConfirmedIntentMintInput): ConfirmedI
     capabilityEnvelope: copyCapabilityEnvelope(input.capabilityEnvelope),
     constraints: copyStringList(input.constraints),
     stopConditions: copyStringList(input.stopConditions),
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.1.0",
     signature: input.signature ?? null
   };
 
@@ -266,7 +272,7 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
     capabilityEnvelope: copyCapabilityEnvelope(capabilityEnvelope),
     constraints: copyStringList(constraints),
     stopConditions: copyStringList(stopConditions),
-    schemaVersion: schemaVersion ?? "1.0.0",
+    schemaVersion: schemaVersion ?? "1.1.0",
     signature: signature ?? null
   };
 
@@ -277,15 +283,15 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
   };
 }
 
-function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.0.0" | undefined {
+function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.1.0" | undefined {
   const value = record["schemaVersion"];
   if (value === undefined) {
     return undefined;
   }
-  if (value === "1.0.0") {
+  if (value === "1.1.0") {
     return value;
   }
-  errors.push("schemaVersion must be \"1.0.0\" when provided.");
+  errors.push("schemaVersion must be \"1.1.0\" when provided.");
   return undefined;
 }
 
@@ -298,16 +304,47 @@ function readOptionalSignature(record: Record<string, unknown>, errors: string[]
     return null;
   }
   if (!isRecord(value)) {
-    errors.push("signature must be null or an object with algorithm and value strings.");
+    errors.push("signature must be null or an object with algorithm, canonicalForm, and SHA-256 hash strings.");
     return undefined;
   }
   const algorithm = value["algorithm"];
+  const canonicalForm = value["canonicalForm"];
   const sigValue = value["value"];
-  if (typeof algorithm !== "string" || typeof sigValue !== "string") {
-    errors.push("signature must be null or an object with algorithm and value strings.");
+  const intentHash = value["intentHash"];
+  const envelopeHash = value["envelopeHash"];
+  const policySnapshotHash = value["policySnapshotHash"];
+  if (
+    algorithm !== "sha256" ||
+    canonicalForm !== "json-c14n@1.0" ||
+    typeof sigValue !== "string" ||
+    typeof intentHash !== "string" ||
+    typeof envelopeHash !== "string" ||
+    typeof policySnapshotHash !== "string"
+  ) {
+    errors.push("signature must be null or an object with algorithm sha256, canonicalForm json-c14n@1.0, and SHA-256 hash strings.");
     return undefined;
   }
-  return { algorithm, value: sigValue };
+  for (const [field, hash] of [
+    ["value", sigValue],
+    ["intentHash", intentHash],
+    ["envelopeHash", envelopeHash],
+    ["policySnapshotHash", policySnapshotHash]
+  ] as const) {
+    if (!/^[0-9a-f]{64}$/.test(hash)) {
+      errors.push(`signature.${field} must be a 64-character lowercase hex SHA-256 digest.`);
+    }
+  }
+  if (errors.length > 0) {
+    return undefined;
+  }
+  return {
+    algorithm,
+    canonicalForm,
+    value: sigValue,
+    intentHash,
+    envelopeHash,
+    policySnapshotHash
+  };
 }
 
 function readOptionalIntentAmbiguityMode(

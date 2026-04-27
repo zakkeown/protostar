@@ -25,7 +25,7 @@ import {
  *
  * Accepts the loose ConfirmedIntentMintInput shape so test fixtures can omit
  * optional fields (stopConditions, signature, schemaVersion default to []
- * / null / "1.0.0"); mintConfirmedIntent folds deepFreeze + normalization
+ * / null / "1.1.0"); mintConfirmedIntent folds deepFreeze + normalization
  * and stamps the module-private brand.
  */
 export function buildConfirmedIntentForTest(input: ConfirmedIntentMintInput): ConfirmedIntent {
