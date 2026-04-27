@@ -18,6 +18,7 @@ import {
   type PlanTaskRequiredCapabilities,
   type PlanningAdmissionArtifactPayload
 } from "@protostar/planning";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createMechanicalReviewGate,
@@ -38,7 +39,7 @@ const planGraphUri = "plan.json";
 
 type PlanningIntent = Parameters<typeof createPlanGraph>[0]["intent"];
 
-const admittedIntent = {
+const admittedIntent: PlanningIntent = buildConfirmedIntentForTest({
   id: intentId,
   title: "Load planning admission before review",
   problem: "Review must consume only an admitted artifact derived from persisted planning-admission.json.",
@@ -68,7 +69,7 @@ const admittedIntent = {
   },
   constraints: ["Review entrypoints must not receive raw PlanGraph proof evidence."],
   stopConditions: []
-} as const satisfies PlanningIntent;
+});
 
 describe("review admitted artifact integration", () => {
   it("loads persisted planning-admission.json and reviews execution derived from the admitted artifact", async () => {

@@ -1,13 +1,13 @@
-import {
-  assertIntentAmbiguityAccepted,
-  assessConfirmedIntentAmbiguity,
-  type IntentAmbiguityAssessment,
-  type IntentAmbiguityMode
+import type {
+  IntentAmbiguityAssessment,
+  IntentAmbiguityMode
 } from "@protostar/intent/ambiguity";
-import { assertConfirmedIntent, type ConfirmedIntent } from "@protostar/intent/confirmed-intent";
+import type { ConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import type { PromoteIntentDraftResult } from "@protostar/intent/admission";
 
-export type ConfirmedIntentHandoffSource = "confirmed-intent-input" | "draft-admission-gate";
+// Plan 06b Q-13c locks single-source handoff: the only way a ConfirmedIntent
+// reaches the factory pipeline is via the IntentDraft admission gate.
+export type ConfirmedIntentHandoffSource = "draft-admission-gate";
 
 export interface ConfirmedIntentHandoff {
   readonly source: ConfirmedIntentHandoffSource;
@@ -16,34 +16,25 @@ export interface ConfirmedIntentHandoff {
 }
 
 export interface CreateConfirmedIntentHandoffInput {
-  readonly parsedIntentInput: unknown;
   readonly intentMode: IntentAmbiguityMode;
-  readonly promotedIntent?: PromoteIntentDraftResult;
+  readonly promotedIntent: PromoteIntentDraftResult;
 }
 
 export function createConfirmedIntentHandoff(
   input: CreateConfirmedIntentHandoffInput
 ): ConfirmedIntentHandoff {
-  if (input.promotedIntent !== undefined) {
-    if (!input.promotedIntent.ok) {
-      throw new Error("Cannot hand a failed IntentDraft admission result to downstream factory stages.");
-    }
-
-    return {
-      source: "draft-admission-gate",
-      intent: input.promotedIntent.intent,
-      ambiguityAssessment: input.promotedIntent.ambiguityAssessment
-    };
+  if (!input.promotedIntent.ok) {
+    throw new Error("Cannot hand a failed IntentDraft admission result to downstream factory stages.");
   }
 
-  const intent = assertConfirmedIntent(input.parsedIntentInput);
+  // intentMode is preserved on the input for forward compat (Phase 2 will
+  // re-attach mode to the assessment); today we forward the assessment
+  // produced by promoteIntentDraft directly.
+  void input.intentMode;
+
   return {
-    source: "confirmed-intent-input",
-    intent,
-    ambiguityAssessment: assertIntentAmbiguityAccepted(
-      assessConfirmedIntentAmbiguity(intent, {
-        mode: input.intentMode
-      })
-    )
+    source: "draft-admission-gate",
+    intent: input.promotedIntent.intent,
+    ambiguityAssessment: input.promotedIntent.ambiguityAssessment
   };
 }

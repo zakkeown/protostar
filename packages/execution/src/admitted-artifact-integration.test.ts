@@ -15,6 +15,7 @@ import {
   type PlanningAdmissionArtifactPayload
 } from "@protostar/planning";
 import { defineWorkspace } from "@protostar/repo";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   prepareExecutionRun,
@@ -34,7 +35,7 @@ const planGraphUri = "plan.json";
 
 type PlanningIntent = Parameters<typeof createPlanGraph>[0]["intent"];
 
-const admittedIntent = {
+const admittedIntent: PlanningIntent = buildConfirmedIntentForTest({
   id: intentId,
   title: "Load planning admission before execution",
   problem: "Execution must consume only an admitted artifact derived from persisted planning-admission.json.",
@@ -64,7 +65,7 @@ const admittedIntent = {
   },
   constraints: ["Execution entrypoints must not receive raw PlanGraph proof evidence."],
   stopConditions: []
-} as const satisfies PlanningIntent;
+});
 
 describe("execution admitted artifact integration", () => {
   it("loads persisted planning-admission.json and prepares execution from the admitted artifact", async () => {

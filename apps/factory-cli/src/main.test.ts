@@ -121,6 +121,8 @@ describe("factory CLI draft admission hardening", () => {
           "mode",
           "problem",
           "requester",
+          "schemaVersion",
+          "signature",
           "sourceDraftId",
           "stopConditions",
           "title"
@@ -200,7 +202,7 @@ describe("factory CLI draft admission hardening", () => {
         return;
       }
 
-      const intent = parsed.intent;
+      const intent = parsed.data;
       assert.ok(intent, "ConfirmedIntent parse result should include intent.");
       const expectedAcceptanceCriterionIds = acceptanceCriterionIdsForDraft(draft);
 
@@ -287,7 +289,7 @@ describe("factory CLI draft admission hardening", () => {
         return;
       }
 
-      const intent = parsed.intent;
+      const intent = parsed.data;
       assert.ok(intent, "ConfirmedIntent parse result should include intent.");
       assert.equal(intent.id, "intent_dark_factory_scaffold");
       assert.equal(intent.sourceDraftId, draft["draftId"]);
@@ -310,7 +312,7 @@ describe("factory CLI draft admission hardening", () => {
       if (!parsedIntentArtifact.ok) {
         return;
       }
-      const artifactIntent = parsedIntentArtifact.intent;
+      const artifactIntent = parsedIntentArtifact.data;
       assert.ok(artifactIntent, "ConfirmedIntent artifact parse result should include intent.");
       assert.equal(artifactIntent.id, intent.id);
 

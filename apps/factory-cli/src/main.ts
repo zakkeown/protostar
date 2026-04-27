@@ -23,7 +23,7 @@ import {
   CLARIFICATION_REPORT_ARTIFACT_NAME,
   createClarificationReport
 } from "@protostar/intent/clarification-report";
-import { assertConfirmedIntent, type ConfirmedIntent } from "@protostar/intent/confirmed-intent";
+import type { ConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import type { IntentDraft } from "@protostar/intent/draft";
 import { authorizeFactoryStart } from "@protostar/policy/admission";
 import {
@@ -67,8 +67,7 @@ import {
 } from "./refusals-index.js";
 
 export interface RunCommandOptions {
-  readonly intentPath?: string;
-  readonly intentDraftPath?: string;
+  readonly intentDraftPath: string;
   readonly confirmedIntentOutputPath?: string;
   readonly outDir: string;
   readonly planningFixturePath: string;
@@ -157,54 +156,40 @@ export async function runFactory(
     ...dependencyOverrides
   };
   const workspaceRoot = process.env["INIT_CWD"] ?? process.cwd();
-  const intentPath = resolve(workspaceRoot, options.intentDraftPath ?? options.intentPath ?? "");
+  const intentPath = resolve(workspaceRoot, options.intentDraftPath);
   const outDir = resolve(workspaceRoot, options.outDir);
   const confirmedIntentOutputPath = options.confirmedIntentOutputPath === undefined
     ? undefined
     : resolve(workspaceRoot, options.confirmedIntentOutputPath);
   const parsedIntentInput = JSON.parse(await readFile(intentPath, "utf8"));
-  const capturedIntentDraftBeforeAdmission = options.intentDraftPath === undefined
-    ? undefined
-    : captureMutableIntentDraft(parsedIntentInput);
-  const clarificationReport = capturedIntentDraftBeforeAdmission === undefined
-    ? undefined
-    : createClarificationReport({
-        draft: capturedIntentDraftBeforeAdmission,
-        mode: options.intentMode
-      });
-  const promotedIntent = capturedIntentDraftBeforeAdmission === undefined
-    ? undefined
-    : promoteIntentDraft({
-        draft: capturedIntentDraftBeforeAdmission,
-        mode: options.intentMode
-      });
-  const admissionDecision = promotedIntent === undefined
-    ? undefined
-    : createAdmissionDecisionArtifact({
-        ...(capturedIntentDraftBeforeAdmission !== undefined ? { draft: capturedIntentDraftBeforeAdmission } : {}),
-        promotion: promotedIntent
-      });
-  const archetypeSuggestion = promotedIntent?.archetypeSuggestion;
+  const capturedIntentDraftBeforeAdmission = captureMutableIntentDraft(parsedIntentInput);
+  const clarificationReport = createClarificationReport({
+    draft: capturedIntentDraftBeforeAdmission,
+    mode: options.intentMode
+  });
+  const promotedIntent = promoteIntentDraft({
+    draft: capturedIntentDraftBeforeAdmission,
+    mode: options.intentMode
+  });
+  const admissionDecision = createAdmissionDecisionArtifact({
+    draft: capturedIntentDraftBeforeAdmission,
+    promotion: promotedIntent
+  });
+  const archetypeSuggestion = promotedIntent.archetypeSuggestion;
   const runId = options.runId ??
-    (promotedIntent?.ok === true
+    (promotedIntent.ok === true
       ? createRunId(promotedIntent.intent.id)
-      : capturedIntentDraftBeforeAdmission === undefined
-        ? createRunId(assertConfirmedIntent(parsedIntentInput).id)
-        : createDraftRunId(capturedIntentDraftBeforeAdmission));
+      : createDraftRunId(capturedIntentDraftBeforeAdmission));
   const runDir = resolve(outDir, runId);
-  if (admissionDecision !== undefined) {
-    await writeAdmissionDecisionArtifact(runDir, admissionDecision);
-  }
-  if (promotedIntent !== undefined && !promotedIntent.ok) {
+  await writeAdmissionDecisionArtifact(runDir, admissionDecision);
+  if (!promotedIntent.ok) {
     // Persist the clarification-report alongside the admission-decision so
     // operators (and Phase 9 inspect) have the full intent-side refusal
     // evidence on disk before runFactory throws. Without this write the
     // ambiguity-gate refusal path produced no clarification artifact (only
     // admission-decision.json), violating INTENT-01's runtime half.
-    if (clarificationReport !== undefined) {
-      await mkdir(runDir, { recursive: true });
-      await writeJson(resolve(runDir, CLARIFICATION_REPORT_ARTIFACT_NAME), clarificationReport);
-    }
+    await mkdir(runDir, { recursive: true });
+    await writeJson(resolve(runDir, CLARIFICATION_REPORT_ARTIFACT_NAME), clarificationReport);
     const reason = formatPromotionFailure(promotedIntent);
     await writeRefusalArtifacts({
       runDir,
@@ -212,18 +197,14 @@ export async function runFactory(
       runId,
       stage: "intent",
       reason,
-      refusalArtifact:
-        clarificationReport !== undefined
-          ? CLARIFICATION_REPORT_ARTIFACT_NAME
-          : ADMISSION_DECISION_ARTIFACT_NAME
+      refusalArtifact: CLARIFICATION_REPORT_ARTIFACT_NAME
     });
     throw new Error(reason);
   }
 
   const confirmedIntentHandoff = createConfirmedIntentHandoff({
-    parsedIntentInput,
     intentMode: options.intentMode,
-    ...(promotedIntent !== undefined ? { promotedIntent } : {})
+    promotedIntent
   });
   const intent = confirmedIntentHandoff.intent;
   const ambiguityAssessment = confirmedIntentHandoff.ambiguityAssessment;
@@ -1080,16 +1061,17 @@ function parseArgs(args: readonly string[]): ParsedArgs {
   }
 
   const draftPath = flags.intentDraft ?? flags.draft;
-  if (!flags.intent && !draftPath) {
+  if (flags.intent !== undefined) {
     return {
       type: "error",
-      message: "Missing required --intent <path>, --intent-draft <path>, or --draft <path>."
+      message:
+        "The --intent flag is no longer supported. Provide an IntentDraft via --intent-draft <path> or --draft <path>; ConfirmedIntent values can only originate from the draft admission gate."
     };
   }
-  if (flags.intent && draftPath) {
+  if (!draftPath) {
     return {
       type: "error",
-      message: "Use either --intent <path> or a draft path, not both."
+      message: "Missing required --intent-draft <path> or --draft <path>."
     };
   }
   if (!flags.out) {
@@ -1114,14 +1096,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
     };
   }
 
-  const intentSource = flags.intent !== undefined
-    ? { intentPath: flags.intent }
-    : { intentDraftPath: draftPath as string };
-
   return {
     type: "run",
     options: {
-      ...intentSource,
+      intentDraftPath: draftPath as string,
       outDir: flags.out,
       planningFixturePath: flags.planningFixture ?? "examples/planning-results/scaffold.json",
       failTaskIds: parseFailTaskIds(flags.failTaskIds),
@@ -1267,7 +1245,7 @@ function helpText(): string {
     "Protostar Factory",
     "",
     "Commands:",
-    `  ${executable} run (--intent <path> | --intent-draft <path> | --draft <path>) --out <dir> [--confirmed-intent-output <confirmed-intent.json|intent.json>] [--planning-fixture <path>] [--intent-mode <mode>] [--fail-task-ids <ids>] [--run-id <id>]`,
+    `  ${executable} run (--intent-draft <path> | --draft <path>) --out <dir> [--confirmed-intent-output <confirmed-intent.json|intent.json>] [--planning-fixture <path>] [--intent-mode <mode>] [--fail-task-ids <ids>] [--run-id <id>]`,
     "",
     "Example:",
     `  ${executable} run --draft examples/intents/scaffold.draft.json --out .protostar/runs --planning-fixture examples/planning-results/scaffold.json`

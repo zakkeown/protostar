@@ -15,6 +15,7 @@ import {
   type PlanTaskRequiredCapabilities
 } from "@protostar/planning";
 import { defineWorkspace } from "@protostar/repo";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   assertAdmittedPlanExecutionArtifact,
@@ -33,7 +34,7 @@ const intentId = "intent_execution_admitted_plan_runtime_boundary";
 
 type PlanningIntent = Parameters<typeof createPlanGraph>[0]["intent"];
 
-const admittedIntent = {
+const admittedIntent: PlanningIntent = buildConfirmedIntentForTest({
   id: intentId,
   title: "Admit plans before execution",
   problem: "Execution must only receive a plan after planning-admission.json admits it.",
@@ -63,7 +64,7 @@ const admittedIntent = {
   },
   constraints: ["Candidate and raw PlanGraph inputs must not reach execution."],
   stopConditions: []
-} as const satisfies PlanningIntent;
+});
 
 const workspace = defineWorkspace({
   root: "/tmp/protostar-execution-admission",

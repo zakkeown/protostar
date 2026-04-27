@@ -14,6 +14,7 @@ import {
   type PlanGraph,
   type PlanTaskRequiredCapabilities
 } from "@protostar/planning";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 import {
   createMechanicalReviewGate,
@@ -33,7 +34,7 @@ const intentId = "intent_review_admitted_plan_runtime_boundary";
 
 type PlanningIntent = Parameters<typeof createPlanGraph>[0]["intent"];
 
-const admittedIntent = {
+const admittedIntent: PlanningIntent = buildConfirmedIntentForTest({
   id: intentId,
   title: "Admit plans before review",
   problem: "Review must only receive a plan after planning-admission.json admits it.",
@@ -63,7 +64,7 @@ const admittedIntent = {
   },
   constraints: ["Candidate and raw PlanGraph inputs must not reach review."],
   stopConditions: []
-} as const satisfies PlanningIntent;
+});
 
 describe("review admitted-plan runtime admission", () => {
   it("accepts the admitted-plan execution artifact reference produced by planning-admission handoff", () => {
