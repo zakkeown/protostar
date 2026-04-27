@@ -8,7 +8,6 @@ import {
   ACCEPTANCE_CRITERION_VERIFICATION_MODES,
   createAcceptanceCriterionId,
   createAcceptanceCriterionIdHashInput,
-  defineConfirmedIntent,
   normalizeAcceptanceCriterionText,
   normalizeAcceptanceCriteria,
   parseConfirmedIntent,
@@ -18,6 +17,8 @@ import {
   type NormalizedAcceptanceCriteriaResult,
   type NormalizeAcceptanceCriteriaOutput
 } from "./index.js";
+
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 describe("normalizeAcceptanceCriteria", () => {
   it("exports the closed verification-mode set used by normalization", () => {
@@ -380,7 +381,9 @@ describe("normalizeAcceptanceCriteria", () => {
   });
 
   it("carries manual justification through confirmed-intent parsing without requiring it for non-manual ACs", () => {
-    const confirmedIntent = defineConfirmedIntent({
+    const confirmedIntent = buildConfirmedIntentForTest({
+      schemaVersion: "1.0.0",
+      signature: null,
       id: "intent_manual_ac_justification",
       sourceDraftId: "draft_manual_ac_justification",
       mode: "brownfield",
@@ -452,18 +455,18 @@ describe("normalizeAcceptanceCriteria", () => {
 
     assert.equal(parsed.ok, true);
     assert.equal(
-      parsed.intent?.acceptanceCriteria[0]?.justification,
+      (parsed.ok ? parsed.data : undefined)?.acceptanceCriteria[0]?.justification,
       "The outcome depends on inspecting rendered copy in the target UI."
     );
-    assert.equal("justification" in parsed.intent!.acceptanceCriteria[1]!, false);
-    assert.equal(parsed.intent?.sourceDraftId, "draft_manual_ac_justification");
-    assert.equal(parsed.intent?.mode, "brownfield");
-    assert.equal(parsed.intent?.goalArchetype, "cosmetic-tweak");
+    assert.equal(parsed.ok ? "justification" in parsed.data.acceptanceCriteria[1]! : false, false);
+    assert.equal((parsed.ok ? parsed.data : undefined)?.sourceDraftId, "draft_manual_ac_justification");
+    assert.equal((parsed.ok ? parsed.data : undefined)?.mode, "brownfield");
+    assert.equal((parsed.ok ? parsed.data : undefined)?.goalArchetype, "cosmetic-tweak");
     assert.equal(
-      parsed.intent?.context,
+      (parsed.ok ? parsed.data : undefined)?.context,
       "The change is limited to confirmed-intent parsing of acceptance criterion justifications."
     );
-    assert.deepEqual(parsed.intent?.stopConditions, [
+    assert.deepEqual((parsed.ok ? parsed.data : undefined)?.stopConditions, [
       "Stop if confirmed-intent parsing drops admission metadata."
     ]);
 

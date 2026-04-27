@@ -34,6 +34,10 @@
       "types": "./dist/admission/index.d.ts",
       "import": "./dist/admission/index.js"
     },
+    "./internal/test-builders": {
+      "types": "./dist/internal/test-builders.d.ts",
+      "import": "./dist/internal/test-builders.js"
+    },
     "./schema/clarification-report.schema.json": "./schema/clarification-report.schema.json",
     "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json"
   },

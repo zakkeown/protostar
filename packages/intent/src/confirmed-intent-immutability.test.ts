@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  promoteIntentDraft,
   type AcceptanceCriterionId,
   type ConfirmedIntent,
-  type IntentDraft,
   type IntentDraftId,
   type IntentId
 } from "./index.js";
+
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
 type MutableAcceptanceCriterion = {
   id: AcceptanceCriterionId;
@@ -89,25 +89,56 @@ function compileTimeReadonlyMutationChecks(intent: ConfirmedIntent): void {
 
 void compileTimeReadonlyMutationChecks;
 
-function promoteImmutabilityFixture(): ConfirmedIntent {
-  const promotion = promoteIntentDraft({
-    draft: immutabilityFixtureDraft(),
+function buildImmutabilityFixture(): ConfirmedIntent {
+  return buildConfirmedIntentForTest({
+    schemaVersion: "1.0.0",
+    signature: null,
+    id: "intent_confirmed_immutability" as IntentId,
+    sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
     mode: "brownfield",
-    confirmedAt: "2026-04-25T00:00:00.000Z"
+    goalArchetype: "cosmetic-tweak",
+    title: "Harden confirmed intent immutability",
+    problem:
+      "Confirmed intents are the admission-control boundary and must reject mutation after confirmation.",
+    requester: "ouroboros-ac-103",
+    confirmedAt: "2026-04-25T00:00:00.000Z",
+    context: "The change is limited to confirmed intent contract tests in packages/intent.",
+    acceptanceCriteria: [
+      {
+        id: "ac_runtime_freeze" as AcceptanceCriterionId,
+        statement: "Confirmed intents reject runtime mutation attempts against nested acceptance criteria.",
+        verification: "test"
+      }
+    ],
+    capabilityEnvelope: {
+      repoScopes: [
+        {
+          workspace: "protostar",
+          path: "packages/intent",
+          access: "write"
+        }
+      ],
+      toolPermissions: [
+        {
+          tool: "node:test",
+          permissionLevel: "use",
+          reason: "Exercise immutable ConfirmedIntent runtime contracts.",
+          risk: "low"
+        }
+      ],
+      budget: {
+        maxRepairLoops: 1,
+        timeoutMs: 30_000
+      }
+    },
+    constraints: ["Scope limited to packages/intent immutability contracts."],
+    stopConditions: ["Stop if immutable confirmed-intent contract tests fail."]
   });
-
-  if (!promotion.ok) {
-    throw new Error(
-      `Immutability fixture draft must promote cleanly; admission errors: ${promotion.errors.join("; ")}`
-    );
-  }
-
-  return promotion.intent;
 }
 
 describe("ConfirmedIntent immutability", () => {
   it("rejects runtime mutation attempts after confirmation", () => {
-    const intent = promoteImmutabilityFixture();
+    const intent = buildImmutabilityFixture();
     const mutableIntent = intent as unknown as MutableConfirmedIntent;
 
     assert.equal(Object.isFrozen(intent), true);
@@ -173,23 +204,65 @@ describe("ConfirmedIntent immutability", () => {
     assert.deepEqual(intent.stopConditions, ["Stop if immutable confirmed-intent contract tests fail."]);
   });
 
-  it("defensively copies normalized confirmation input", () => {
-    const draft = immutabilityFixtureDraft();
-    const intent = promoteImmutabilityFixture();
+  it("defensively copies confirmation input", () => {
+    const sourceAc = [
+      {
+        id: "ac_runtime_freeze" as AcceptanceCriterionId,
+        statement: "Confirmed intents reject runtime mutation attempts against nested acceptance criteria.",
+        verification: "test" as const
+      }
+    ];
+    const sourceConstraints = ["Scope limited to packages/intent immutability contracts."];
+    const sourceStopConditions = ["Stop if immutable confirmed-intent contract tests fail."];
 
-    // Mutating the source draft after promotion must not affect the frozen intent.
-    (draft as { acceptanceCriteria: unknown[] }).acceptanceCriteria.push({
+    const intent = buildConfirmedIntentForTest({
+      schemaVersion: "1.0.0",
+      signature: null,
+      id: "intent_confirmed_immutability_copy" as IntentId,
+      sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
+      mode: "brownfield",
+      goalArchetype: "cosmetic-tweak",
+      title: "Harden confirmed intent immutability",
+      problem:
+        "Confirmed intents are the admission-control boundary and must reject mutation after confirmation.",
+      requester: "ouroboros-ac-103",
+      confirmedAt: "2026-04-25T00:00:00.000Z",
+      context: "The change is limited to confirmed intent contract tests in packages/intent.",
+      acceptanceCriteria: sourceAc,
+      capabilityEnvelope: {
+        repoScopes: [
+          {
+            workspace: "protostar",
+            path: "packages/intent",
+            access: "write"
+          }
+        ],
+        toolPermissions: [
+          {
+            tool: "node:test",
+            permissionLevel: "use",
+            reason: "Exercise immutable ConfirmedIntent runtime contracts.",
+            risk: "low"
+          }
+        ],
+        budget: {
+          maxRepairLoops: 1,
+          timeoutMs: 30_000
+        }
+      },
+      constraints: sourceConstraints,
+      stopConditions: sourceStopConditions
+    });
+
+    // Mutating source arrays after the mint must not affect the frozen intent
+    // (mintConfirmedIntent folds defensive copies of nested arrays).
+    sourceAc.push({
+      id: "ac_extra" as AcceptanceCriterionId,
       statement: "Source mutation should not rewrite the confirmed intent.",
-      verification: "manual",
-      justification: "The source mutation is intentionally ignored after confirmation."
+      verification: "test"
     });
-    (draft.capabilityEnvelope!.repoScopes as unknown[]).push({
-      workspace: "protostar",
-      path: "packages/execution",
-      access: "execute"
-    });
-    (draft.constraints as string[]).push("source-only constraint");
-    (draft.stopConditions as string[]).push("source-only stop condition");
+    sourceConstraints.push("source-only constraint");
+    sourceStopConditions.push("source-only stop condition");
 
     assert.equal(intent.acceptanceCriteria.length, 1);
     assert.equal(intent.capabilityEnvelope.repoScopes.length, 1);
@@ -198,48 +271,3 @@ describe("ConfirmedIntent immutability", () => {
     assert.deepEqual(intent.stopConditions, ["Stop if immutable confirmed-intent contract tests fail."]);
   });
 });
-
-function immutabilityFixtureDraft(): IntentDraft {
-  return {
-    draftId: "draft_confirmed_immutability" as IntentDraftId,
-    mode: "brownfield",
-    goalArchetype: "cosmetic-tweak",
-    title: "Harden confirmed intent immutability",
-    problem:
-      "Confirmed intents are the admission-control boundary and must reject mutation after confirmation.",
-    requester: "ouroboros-ac-103",
-    context: "The change is limited to confirmed intent contract tests in packages/intent.",
-    acceptanceCriteria: [
-      {
-        statement: "Confirmed intents reject runtime mutation attempts against nested acceptance criteria.",
-        verification: "test"
-      }
-    ],
-    capabilityEnvelope: {
-      repoScopes: [
-        {
-          workspace: "protostar",
-          path: "packages/intent",
-          access: "write"
-        }
-      ],
-      toolPermissions: [
-        {
-          tool: "node:test",
-          permissionLevel: "use",
-          reason: "Exercise immutable ConfirmedIntent runtime contracts.",
-          risk: "low"
-        }
-      ],
-      budget: {
-        maxRepairLoops: 1,
-        timeoutMs: 30_000
-      }
-    },
-    constraints: ["Scope limited to packages/intent immutability contracts."],
-    stopConditions: ["Stop if immutable confirmed-intent contract tests fail."]
-  } as IntentDraft;
-}
-
-// Suppress unused warning for IntentId imported only for the runtime narrowing helpers above.
-void undefined as unknown as IntentId;

@@ -196,8 +196,8 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
   return Object.freeze(value) as DeepReadonly<T>;
 }
 
-function isFreezable(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isFreezable(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
 }
 
 export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult {

@@ -4,8 +4,33 @@ import { describe, it } from "node:test";
 import { createAcceptanceCriterionId, normalizeAcceptanceCriteria } from "@protostar/intent/acceptance-criteria";
 import { INTENT_AMBIGUITY_THRESHOLD, assessIntentAmbiguity } from "@protostar/intent/ambiguity";
 import { CLARIFICATION_REPORT_ARTIFACT_NAME, createClarificationReport } from "@protostar/intent/clarification-report";
-import { defineConfirmedIntent, parseConfirmedIntent } from "@protostar/intent/confirmed-intent";
+import { parseConfirmedIntent } from "@protostar/intent/confirmed-intent";
 import { evaluateIntentDraftCompleteness, type IntentDraft } from "@protostar/intent/draft";
+
+import * as IntentPublicApi from "@protostar/intent";
+import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
+
+// ─────────────────────────────────────────────────────────────────────────
+// Type-level negative-keyof asserts. None of these names may appear on the
+// public barrel of @protostar/intent. Adding any of them re-exports the
+// brand-minting surface and breaks INTENT-02.
+//
+// The full mint-surface pin lives in admission-e2e (Plan 06b Task D). This
+// in-package check is the first tripwire.
+// ─────────────────────────────────────────────────────────────────────────
+type IntentPublicKeys = keyof typeof IntentPublicApi;
+type Assert<T extends true> = T;
+type _NoDefineConfirmedIntent = Assert<"defineConfirmedIntent" extends IntentPublicKeys ? false : true>;
+type _NoAssertConfirmedIntent = Assert<"assertConfirmedIntent" extends IntentPublicKeys ? false : true>;
+type _NoMintConfirmedIntent = Assert<"mintConfirmedIntent" extends IntentPublicKeys ? false : true>;
+type _NoBuildConfirmedIntentForTest = Assert<
+  "buildConfirmedIntentForTest" extends IntentPublicKeys ? false : true
+>;
+void (undefined as unknown as
+  | _NoDefineConfirmedIntent
+  | _NoAssertConfirmedIntent
+  | _NoMintConfirmedIntent
+  | _NoBuildConfirmedIntentForTest);
 
 describe("intent split public entrypoints", () => {
   it("exposes draft, ambiguity, acceptance-criteria, clarification-report, and confirmed-intent slices", () => {
@@ -23,7 +48,9 @@ describe("intent split public entrypoints", () => {
     const clarification = createClarificationReport({ draft, mode: "brownfield" });
     assert.equal(clarification.artifact, CLARIFICATION_REPORT_ARTIFACT_NAME);
 
-    const intent = defineConfirmedIntent({
+    const intent = buildConfirmedIntentForTest({
+      schemaVersion: "1.0.0",
+      signature: null,
       id: "intent_split_surface",
       ...(draft.draftId !== undefined ? { sourceDraftId: draft.draftId } : {}),
       mode: "brownfield",
@@ -60,6 +87,8 @@ describe("intent split public entrypoints", () => {
     });
 
     assert.equal(parseConfirmedIntent(intent).ok, true);
+    assert.equal(intent.schemaVersion, "1.0.0");
+    assert.equal(intent.signature, null);
   });
 });
 
