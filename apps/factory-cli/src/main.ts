@@ -82,7 +82,7 @@ import {
   writePolicySnapshot,
   writePrecedenceDecision
 } from "./write-admission-decision.js";
-import { validateTwoKeyLaunch, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
+import { validateTwoKeyLaunch, verifyTrustedLaunchConfirmedIntent, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
 
 export interface RunCommandOptions {
   readonly intentDraftPath: string;
@@ -341,6 +341,36 @@ export async function runFactory(
     throw new Error(`Unable to sign confirmed intent: ${signedPromotion.errors.join("; ")}`);
   }
   const intent = signedPromotion.intent;
+
+  // GOV-04/GOV-06: verify the confirmed-intent file before any trust allow evidence is written.
+  // This closes T-2-5 (any path satisfies second key) and T-2-7 (signature bypass).
+  if (options.trust === "trusted") {
+    // options.confirmedIntent is guaranteed present by validateTwoKeyLaunch preflight
+    const confirmedIntentFilePath = resolve(workspaceRoot, options.confirmedIntent ?? "");
+    const verificationResult = await verifyTrustedLaunchConfirmedIntent({
+      confirmedIntentPath: confirmedIntentFilePath,
+      expectedIntent: intent,
+      policySnapshot,
+      resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+      readFile: (path) => readFile(path, "utf8")
+    });
+    if (!verificationResult.ok) {
+      const reason = `trusted launch confirmed intent verification failed: ${verificationResult.errors.join("; ")}`;
+      await writeEscalationMarker({
+        runDir,
+        marker: {
+          schemaVersion: "1.0.0",
+          runId,
+          gate: "workspace-trust",
+          reason,
+          createdAt: new Date().toISOString(),
+          awaiting: "operator-confirm"
+        }
+      });
+      throw new CliExitError(reason, 2);
+    }
+  }
+
   await writeIntentAdmissionDecision({
     runDir,
     runId,
