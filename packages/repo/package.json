@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./internal/test-fixtures": {
+      "types": "./dist/internal/test-fixtures/index.d.ts",
+      "import": "./dist/internal/test-fixtures/index.js"
+    },
     "./schema/workspace-trust-admission-decision.schema.json": "./schema/workspace-trust-admission-decision.schema.json"
   },
   "files": [
