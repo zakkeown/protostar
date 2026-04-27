@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-26
+**Last updated:** 2026-04-27
 
 ## Project
 
@@ -24,18 +24,18 @@
 
 ## Current Phase
 
-**Phase 1 — Intent + Planning Admission** (not yet planned)
+**Phase 2 — Authority + Governance Kernel** (pending)
 
-Foundation phase. Closes the front door so no weak intent or bad plan can reach execution. Most of this is wiring + fixing `pnpm run verify` to cover every package.
+Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** `/gsd-plan-phase 1`
+**Next action:** `/gsd-discuss-phase 2 --power`
 
 ## Phase Status
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | Intent + Planning Admission | Pending — start here |
-| 2 | Authority + Governance Kernel | Pending |
+| 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
+| 2 | Authority + Governance Kernel | Pending — start here |
 | 3 | Repo Runtime + Sandbox | Pending |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |

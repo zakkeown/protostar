@@ -20,7 +20,9 @@ Each phase carries forward the prior phase's invariants. No phase ships unless i
 | 9 | Operator Surface + Resumability | `run` / `status` / `resume` / `cancel` / `inspect` / `deliver` | Operator UX | 4, 7 |
 | 10 | V1 Hardening + Dogfood | Fixture matrix + sacrificial sibling repo + docs + security review | Real GitHub repo, real PRs | 1–9 |
 
-## Phase 1 — Intent + Planning Admission
+## Phase 1 — Intent + Planning Admission ✅ Complete (2026-04-27)
+
+**Status:** Verified — VERIFICATION.md PASSED 10/10. `pnpm run verify:full` 293/293 tests across 9 packages. Plan 06 was split into 06a (move `promoteIntentDraft` policy→intent) + 06b (brand `ConfirmedIntent`). Q-13b/c/d locks added (assertConfirmedIntent dropped, --intent CLI flag dropped, internal/test-builders subpath helper).
 
 **Goal:** The front door is sealed. Every path that reaches execution went through ambiguity gate (≤0.2) and planning admission. No fixture or test bypass exists.
 
