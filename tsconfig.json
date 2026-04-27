@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "packages/intent" },
+    { "path": "packages/authority" },
     { "path": "packages/admission-e2e" },
     { "path": "packages/artifacts" },
     { "path": "packages/policy" },
