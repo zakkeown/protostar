@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { intersectEnvelopes } from "../precedence/index.js";
 import { DENY_ALL_REPO_POLICY, parseRepoPolicy } from "./parse.js";
+
+const schemaDir = resolve(fileURLToPath(import.meta.url), "../../../schema");
 
 test("valid minimal repo policy parses", () => {
   const result = parseRepoPolicy({ schemaVersion: "1.0.0" });
@@ -72,4 +77,27 @@ test("unknown trustOverride is rejected", () => {
 
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /trustOverride/);
+});
+
+test("schema parity: budgetCaps properties have type number and minimum 0", async () => {
+  const schemaPath = resolve(schemaDir, "repo-policy.schema.json");
+  const raw = await readFile(schemaPath, "utf8");
+  const schema = JSON.parse(raw) as {
+    properties?: {
+      budgetCaps?: {
+        properties?: Record<string, { type?: string; minimum?: number }>
+      }
+    }
+  };
+
+  const budgetCapsProps = schema.properties?.budgetCaps?.properties;
+  assert.ok(budgetCapsProps, "budgetCaps.properties must exist in schema");
+
+  const capFields = ["maxUsd", "maxTokens", "timeoutMs", "maxRepairLoops"] as const;
+  for (const field of capFields) {
+    const prop: { type?: string; minimum?: number } | undefined = budgetCapsProps[field];
+    assert.ok(prop, `budgetCaps.${field} must exist in schema`);
+    assert.equal(prop.type, "number", `budgetCaps.${field}.type must be "number"`);
+    assert.equal(prop.minimum, 0, `budgetCaps.${field}.minimum must be 0`);
+  }
 });
