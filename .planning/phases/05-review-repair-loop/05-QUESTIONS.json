@@ -1,0 +1,594 @@
+{
+  "phase": "05-review-repair-loop",
+  "generated_at": "2026-04-27T00:00:00Z",
+  "stats": {
+    "total": 18,
+    "answered": 18,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "loop-shape",
+      "title": "Loop Shape & Orchestration",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Where does the review→repair→review loop live?",
+          "context": "Today `runMechanicalReviewExecutionLoop` (packages/review/src/index.ts:149) inlines `runExecutionDryRun` and re-runs review in a single function. Phase 4 just locked a real streaming executor with JSONL journal + lifecycle events. The Phase 5 loop has to drive both real execution and model review (plugged in Phase 8). Decision shapes who owns orchestration vs who owns verdict.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Keep it inside @protostar/review (extend the existing function)",
+              "description": "Review package owns the loop; takes an injected `executor` and `modelReviewer`. Pro: minimal churn, contract already exists. Con: review imports execution-runtime concerns (signal, journal writer); package-boundary smell."
+            },
+            {
+              "id": "b",
+              "label": "New top-level orchestrator package (`@protostar/loop` or similar)",
+              "description": "A dedicated coordinator that consumes execution + review + (later) model-review as injected services. Pro: clean separation — review stays a verdict function, execution stays a runner. Con: a fifth package boundary to keep aligned with the others."
+            },
+            {
+              "id": "c",
+              "label": "Drive it from `apps/factory-cli` (`runFactory`)",
+              "description": "The CLI orchestrator stitches execution → mechanical review → (model review) → repair → re-execute. Pro: matches today's `runFactory` posture (already 1190 lines of orchestration). Con: pushes loop semantics into the app layer where it can't be unit-tested cleanly; admission boundary blurs."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Mechanical → model serialization",
+          "context": "LOOP-01 says mechanical first, LOOP-02 says model second. Open question: is a mechanical-fail short-circuit (skip model entirely until mechanical passes) or do both always run for evidence purposes?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strict serial — model only runs when mechanical passes",
+              "description": "Mechanical fail → repair-and-retry without ever invoking the model. Saves model budget; matches `mechanical-first` literal reading. Phase 8 panel costs nothing on broken builds."
+            },
+            {
+              "id": "b",
+              "label": "Always run both, but mechanical is gating",
+              "description": "Both verdicts captured every iteration; only mechanical-pass + model-pass ⇒ approved. Pro: judges accumulate critique evidence even on broken builds (useful for repair). Con: model runs against code that doesn't compile — mostly noise, real cost in Phase 8."
+            },
+            {
+              "id": "c",
+              "label": "Conditional — mechanical-fail skips model, mechanical-pass-with-warnings runs model",
+              "description": "Three-state mechanical (`pass | warn | fail`): `fail` short-circuits, `warn`/`pass` proceeds to model. More nuance but adds a state to keep coherent."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Re-execution scope on repair",
+          "context": "Phase 3 locked fresh-clone-per-run and tombstone-on-failure. Phase 4 Q-19 locked sequential per-task apply with run-level bail on apply-failure. When repair triggers re-execution, what runs again?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Re-run only the failed/repair tasks against the current workspace",
+              "description": "Workspace persists across iterations within the same run; repair tasks re-execute on top of prior successful tasks. Cheapest. Tracks Phase 4's per-task apply model directly."
+            },
+            {
+              "id": "b",
+              "label": "Fresh-clone-per-iteration: full plan re-executes top to bottom",
+              "description": "Every repair iteration starts a new clone, replays all tasks. Maximum determinism, maximum cost. Matches the spirit of fresh-clone-per-run if you treat each iteration as a new run."
+            },
+            {
+              "id": "c",
+              "label": "Re-run the failed task plus its dependents in the same workspace",
+              "description": "Repair task + downstream subgraph; preserves earlier upstream successes. Middle ground. Requires plan-graph dependent computation in the loop."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "repair-plan",
+      "title": "RepairPlan Type & Authorship",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "RepairPlan shape",
+          "context": "LOOP-03 requires a typed `RepairPlan` consumed by execution. Today review emits `repairTaskId` strings on findings (packages/review/src/index.ts:485). Phase 4 admission only knows about `AdmittedPlanExecutionArtifact`. What does the executor receive on a repair pass?",
+          "options": [
+            {
+              "id": "a",
+              "label": "RepairPlan = list of `RepairTask` references with critiques attached",
+              "description": "`{ runId, attempt, repairs: Array<{ planTaskId, critique: ReviewFinding[], modelCritiques?: JudgeCritique[] }> }`. Executor re-runs each named task, passing critiques into adapter context. Plan graph stays unchanged; we patch the *task input*, not the plan."
+            },
+            {
+              "id": "b",
+              "label": "RepairPlan = a delta-shaped admitted plan",
+              "description": "Repair returns a new `AdmittedPlanExecutionArtifact` with only the repair tasks present (and their dependsOn rewritten). Reuses the entire admission/handoff machinery; executor doesn't need a new code path. Cost: re-validating against admission rules every loop."
+            },
+            {
+              "id": "c",
+              "label": "RepairPlan = critique bundle only; executor decides which tasks to retry",
+              "description": "Review hands back critiques; executor's task scheduler picks which to re-run based on lifecycle event status. Minimal new types, but spreads the repair semantics across two packages."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "RepairPlan authorship",
+          "context": "Who synthesizes the RepairPlan from review findings + (Phase 8) model critiques? This is a load-bearing seam — Phase 8 plugs panel critiques in here.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Review package authors it (mechanical findings + model critiques flow in, RepairPlan flows out)",
+              "description": "Single point of authorship; review owns the verdict→repair translation. Phase 8 just supplies critiques to review; review structures them."
+            },
+            {
+              "id": "b",
+              "label": "Separate `@protostar/repair` package",
+              "description": "Pure transform: takes review verdict + critiques, returns RepairPlan. Phase 5 ships the type + a pass-through implementation; Phase 8/later adds policy (which critiques are repairable vs blocking)."
+            },
+            {
+              "id": "c",
+              "label": "Loop orchestrator authors it inline",
+              "description": "Whoever owns the loop (Q-01) constructs the RepairPlan from raw findings. Cheapest; couples authorship to orchestration."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Critique propagation into adapter retry",
+          "context": "When a repair task re-runs, the LM Studio adapter must see *why* the previous attempt failed. Phase 4 Q-12 already has a parse-reformat retry. This is structurally different — it's a semantic critique from review.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Append critiques to adapter prompt as a structured `repairContext` field on the task",
+              "description": "Task gets `repairContext?: { previousAttempt: AdapterAttemptRef, critiques: Critique[] }`. Adapter's prompt template reads it and adds 'Previous attempt failed: …'. Clean, typed, testable."
+            },
+            {
+              "id": "b",
+              "label": "Pass critiques through `ctx` (per-call) — never on the task itself",
+              "description": "Loop injects critiques via `ctx.repairContext` when calling `adapter.execute`. Keeps the plan/task immutable across iterations. Slight downside: adapters that want to log this need separate plumbing."
+            },
+            {
+              "id": "c",
+              "label": "Persist critique-as-evidence; adapter reads via `ctx.repoReader`-equivalent",
+              "description": "Critiques written to `runs/{id}/review/iter-{N}/critique.json`; adapter receives only the URI and decides whether to read. Generic; possibly over-engineered for v0.1."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "mechanical-surface",
+      "title": "Mechanical Review Surface",
+      "questions": [
+        {
+          "id": "Q-07",
+          "title": "Build + lint check execution",
+          "context": "LOOP-01 lists 'build, lint, diff-touches-≤1-file for cosmetic archetype, AC presence'. Build+lint require subprocess invocation against the workspace. Phase 3 ships subprocess capabilities behind authorized ops. Where does this actually run?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Mechanical review invokes subprocess directly via `@protostar/repo`",
+              "description": "Review consumes `repoSubprocessRunner` (Phase 3) and runs configured commands (`pnpm verify`, `pnpm lint`) inside the workspace. Output captured as evidence. Pro: review owns the verdict end-to-end. Con: review now imports a runtime capability."
+            },
+            {
+              "id": "b",
+              "label": "Execution stage runs build/lint as terminal tasks; review only inspects evidence",
+              "description": "Plan includes implicit `build`/`lint` tasks at the tail. Execution emits their evidence. Review reads `evidence.json` and verdicts based on exit codes. Pro: review stays a pure inspector. Con: build/lint commands become plan concerns; the task graph balloons."
+            },
+            {
+              "id": "c",
+              "label": "Hybrid: a `mechanical-checks` adapter that's invoked by the loop between execution and review",
+              "description": "New adapter (sibling to lmstudio-coder) runs the configured checks. Review consumes its evidence. Pro: clean separation; reusable for non-cosmetic archetypes. Con: yet another adapter to design."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "`diff-touches-≤1-file` cosmetic enforcement boundary",
+          "context": "Cosmetic archetype already exists in `packages/policy/src/archetypes.ts`. The 1-file constraint can be checked at multiple points: at admission (plan declaration), at execution (after each apply), or at review (post-apply diff inspection).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Review-only — inspect the run-level diff after all tasks apply",
+              "description": "Review computes `git diff` between base and head of the run's branch and asserts ≤1 distinct file. Detects archetype escape regardless of how it happened. Definitive."
+            },
+            {
+              "id": "b",
+              "label": "Execution-time per-task check + review-time run-level check (both)",
+              "description": "Phase 4 already has per-task apply with hash-checked patches; cap each task's RepoChangeSet at 1 file *and* assert run-level total ≤1. Catches escapes at the smallest blast radius. More plumbing."
+            },
+            {
+              "id": "c",
+              "label": "Admission-only — plan declares `expectedFiles` and admission rejects plans with >1",
+              "description": "Catches the violation pre-execution. But model-generated diffs can violate even when the plan is conformant — admission alone isn't sufficient; need at least review."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "AC-presence check definition",
+          "context": "LOOP-01 says 'AC presence'. Where do acceptance criteria live, and what does 'presence' mean? Phase 1 admits intents; intents likely carry ACs. The mechanical check could mean (a) ACs declared, or (b) ACs covered by a test file in the diff.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Each AC must have a matching test ref recorded in the run evidence",
+              "description": "Plan task records `acceptanceTestRef: { acId, testFile, testName }`; review verifies the test file exists in the diff and the test name appears. Tightest contract. Forces planner to pair ACs with tests."
+            },
+            {
+              "id": "b",
+              "label": "ACs declared on intent + at least one assertion in the diff that mentions each ACid",
+              "description": "Looser: any test file containing a string match against the AC id passes. Simple regex check. Cheap; tolerant of reasonable noise."
+            },
+            {
+              "id": "c",
+              "label": "AC presence = ACs are declared and the build passes",
+              "description": "Trust build + lint to indirectly cover AC verification (e.g., a failing test = missing AC coverage). Weakest. Likely insufficient — relies on the planner having generated the right tests."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "model-seam",
+      "title": "Model Review Seam (for Phase 8)",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Model-review interface in v0.1",
+          "context": "Phase 5 must lock the loop shape so Phase 8 plugs in semantic+consensus without reopening it. The seam decision is: how concrete vs abstract is the model-reviewer interface in this phase?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Typed interface only; v0.1 uses a stub that always returns `{ verdict: 'pass' }`",
+              "description": "`ModelReviewer = (input: ModelReviewInput) => Promise<ModelReviewResult>`. Phase 5 ships the type + a `passthroughModelReviewer`. Phase 8 swaps in the real panel. Cleanest seam; v0.1 cosmetic-tweak runs are mechanical-only."
+            },
+            {
+              "id": "b",
+              "label": "Minimal panel-of-one stub: one local LM Studio judge (Qwen3-80B) wired now",
+              "description": "Phase 5 ships a real one-judge implementation; Phase 8 expands to N=2 panel + consensus. Pro: end-to-end real signal in v0.1. Con: introduces a second LM Studio adapter scope creep into Phase 5."
+            },
+            {
+              "id": "c",
+              "label": "Stub that records hand-coded critiques from a fixture file",
+              "description": "Useful for testing the loop's repair semantics deterministically. Phase 8 swaps for real panel. Pro: makes the loop testable without LM Studio. Slightly indirect."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Critique capture format",
+          "context": "Phase 8 will produce a panel of judge critiques. Phase 5 must lock the structural type now so the run-bundle schema doesn't shift later. LOOP-06 requires 'all judge critiques captured in the run bundle'.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Structured `JudgeCritique` with rubric scores + free-text rationale",
+              "description": "`{ judgeId, model, rubric: Record<string, number>, verdict: 'pass'|'repair'|'block', rationale: string, taskRefs: string[] }`. Extensible; supports consensus math in Phase 8."
+            },
+            {
+              "id": "b",
+              "label": "Free-text critique strings only, with severity tag",
+              "description": "`{ judgeId, severity: 'minor'|'major'|'critical', text: string }`. Minimal. Fine for v0.1 mechanical; thin for Phase 8 consensus computation."
+            },
+            {
+              "id": "c",
+              "label": "Discriminated union: one shape per critique kind (`build-failure`, `ac-uncovered`, `cosmetic-violation`, `semantic-issue`, ...)",
+              "description": "Strongly typed per-kind. Best for downstream pattern matching. Highest churn cost when new critique kinds appear."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "budget",
+      "title": "Budget & Exhaustion",
+      "questions": [
+        {
+          "id": "Q-12",
+          "title": "`maxRepairLoops` source-of-truth",
+          "context": "LOOP-04 says shared budget, default N=3. Phase 4 already added `budget.adapterRetriesPerTask` and `budget.taskWallClockMs` to the capability envelope. Where does the loop budget live?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Capability envelope: new field `budget.maxRepairLoops` (default 3), signed in ConfirmedIntent",
+              "description": "Mirrors Phase 4 Q-14/Q-15/Q-18 — single envelope bump cluster. Operator can change per-intent. Tamper-evident."
+            },
+            {
+              "id": "b",
+              "label": "factory-config.json (file) with envelope override",
+              "description": "Default in `factory-config.json` (Phase 4 Q-09); intent envelope can override per-run. Pro: easier ops tuning. Con: two sources of truth."
+            },
+            {
+              "id": "c",
+              "label": "Hardcoded in @protostar/review with a function-arg override",
+              "description": "Already partially done — `maxRepairLoops?: number` arg today (defaults to 0). Promote to default 3 and call it a day. Cheapest. No envelope plumbing."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "Budget sharing semantics",
+          "context": "'Shared budget' could mean (a) one counter for the whole loop, (b) separate counters for mechanical-only retries vs full mechanical+model loops, or (c) a hierarchical cap.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single loop counter — every repair-and-retry costs 1, regardless of which reviewer flagged it",
+              "description": "Simplest. N=3 means at most 3 repair iterations; doesn't matter if mechanical or model surfaced the issue. Matches LOOP-04 literal reading."
+            },
+            {
+              "id": "b",
+              "label": "Two counters: mechanical-repairs + model-repairs (each capped separately)",
+              "description": "Lets a stuck mechanical loop fail fast while letting model nuance get more retries (or vice versa). Operationally noisier; more knobs to tune."
+            },
+            {
+              "id": "c",
+              "label": "Single counter, but adapter retries (Q-14 of Phase 4) nest under it",
+              "description": "Total iterations × per-task adapter retries gives the worst-case model-call count. Hierarchical envelope: `maxRepairLoops × adapterRetriesPerTask`. Predictable upper bound on cost."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-14",
+          "title": "`block` verdict evidence on exhaustion",
+          "context": "LOOP-06 requires 'evidence-bearing block verdict with all judge critiques captured'. What concretely lives in the block artifact?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single `review-block.json` with full iteration history + all critiques + final diff URI",
+              "description": "`{ runId, planId, status: 'block', reason, iterations: ReviewIteration[], finalDiffArtifact, exhaustedBudget: { maxRepairLoops, attempted } }`. One artifact, easy to ship in Phase 7 PR body."
+            },
+            {
+              "id": "b",
+              "label": "Per-iteration JSONL (`review.jsonl`) + a small `review-result.json` summary",
+              "description": "Mirrors Phase 4 journal+snapshot pattern. `review.jsonl` is the source of truth for individual critique events; `review-result.json` is the summary for fast paths (delivery refusal, status surface)."
+            },
+            {
+              "id": "c",
+              "label": "Append to existing execution journal — review events with `kind: 'review-*'`",
+              "description": "Single journal, mixed event types. Fewer files; chronologically interleaved with execution events. Could complicate replay for resume."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "delivery-gate",
+      "title": "Final Gate & Delivery Contract",
+      "questions": [
+        {
+          "id": "Q-15",
+          "title": "ReviewDecision artifact shape",
+          "context": "LOOP-05: 'only pass from both mechanical and model review allows progression to delivery'. Phase 7 needs to consume something that says 'both passed'. Decision shape determines the delivery contract.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Branded `DeliveryAuthorization` token returned by the loop on success",
+              "description": "Type-level guarantee — Phase 7's `createGitHubPrDeliveryPlan` requires `DeliveryAuthorization` as input. Cannot be constructed except by a passing loop. Symmetric with Phase 1's `ConfirmedIntent` brand."
+            },
+            {
+              "id": "b",
+              "label": "JSON artifact `review-decision.json` with `{ mechanical: 'pass', model: 'pass', authorizedAt }`; Phase 7 reads + validates",
+              "description": "File-based gate. Easier to inspect post-hoc. Phase 7 validation must check both fields present + 'pass'. Token brand still possible by re-validating on read."
+            },
+            {
+              "id": "c",
+              "label": "Both — artifact on disk for evidence + brand for type-level enforcement",
+              "description": "Belt + suspenders. Mirrors Phase 1's `ConfirmedIntent` (file + brand). Most rigorous. Costs one extra read in delivery."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Delivery refusal layer",
+          "context": "Phase 7 (Octokit) is downstream. LOOP-05 says 'a delivery attempt with anything other than pass/pass is refused at the contract layer'. Where exactly does the refusal happen?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Type-level: delivery functions only accept `DeliveryAuthorization`",
+              "description": "Compile error if you try to deliver without one. Pairs with Q-15a. Strongest static guarantee."
+            },
+            {
+              "id": "b",
+              "label": "Authority-kernel admission gate: `authorizeDelivery(reviewDecision)`",
+              "description": "Like Phase 2's other authorized ops — a gate that returns a branded `AuthorizedDeliveryOp`. Fits the Phase 2 pattern; uniform with subprocess/network ops."
+            },
+            {
+              "id": "c",
+              "label": "Runtime check inside delivery package",
+              "description": "`createGitHubPrDeliveryPlan` reads the file and throws if not pass/pass. Simplest. Loosest — any consumer skipping that function bypasses the gate."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "persistence",
+      "title": "Persistence & Lifecycle",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "Review iteration storage layout",
+          "context": "Phase 4 chose `runs/{id}/execution/journal.jsonl` + per-task subdirs. Review needs analogous structure. Question is granularity.",
+          "options": [
+            {
+              "id": "a",
+              "label": "`runs/{id}/review/iter-{N}/{mechanical-result.json,model-result.json,repair-plan.json}`",
+              "description": "Per-iteration directory. Easy to grep, easy to display in `inspect`. Slight directory bloat for runs with many iterations (capped at maxRepairLoops + 1)."
+            },
+            {
+              "id": "b",
+              "label": "Flat: `runs/{id}/review/{review.jsonl, review-result.json, repair-plans/{N}.json}`",
+              "description": "Mirrors execution's flat layout exactly. Source of truth is JSONL; structured artifacts are sibling files. Smaller fs footprint; replay is simpler."
+            },
+            {
+              "id": "c",
+              "label": "Hierarchical inside a single `review-bundle.json`",
+              "description": "One file per run with all iterations nested. Smallest; but requires whole-file rewrite on each iteration — fragile under crash."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Review lifecycle events",
+          "context": "Phase 4 emits execution lifecycle events; Phase 9 will subscribe. Should Phase 5 emit a parallel review-event union (`review-iteration-started`, `mechanical-verdict`, `model-verdict`, `repair-plan-emitted`, `loop-approved`, `loop-blocked`)?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — separate `ReviewLifecycleEvent` union, written to `review.jsonl`",
+              "description": "Symmetric with execution. Phase 9 `inspect` and Phase 8 panel debugging benefit. Extra type to maintain."
+            },
+            {
+              "id": "b",
+              "label": "Reuse execution lifecycle events, add `review-*` variants to the same union",
+              "description": "Single event stream; richer chronology. Couples the two type unions — every review change touches execution's exported types."
+            },
+            {
+              "id": "c",
+              "label": "Defer — only emit terminal events (`approved`/`blocked`/`repair-limit-reached`) for v0.1",
+              "description": "Minimal lifecycle. Adequate for Phase 7 delivery gate. Phase 9 `inspect` will likely demand richer events later."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
