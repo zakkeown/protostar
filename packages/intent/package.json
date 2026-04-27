@@ -29,8 +29,11 @@
     "./confirmed-intent": {
       "types": "./dist/confirmed-intent/index.d.ts",
       "import": "./dist/confirmed-intent/index.js"
-    }
+    },
+    "./schema/clarification-report.schema.json": "./schema/clarification-report.schema.json",
+    "./schema/confirmed-intent.schema.json": "./schema/confirmed-intent.schema.json"
   },
+  "files": ["dist", "schema"],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test dist/*.test.js",

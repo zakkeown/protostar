@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/clarification-report.schema.json",
+  "title": "ClarificationReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifact",
+    "mode",
+    "status",
+    "summary",
+    "missingFields",
+    "questions",
+    "requiredClarifications",
+    "unresolvedQuestions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "artifact": { "const": "clarification-report.json" },
+    "mode": { "enum": ["greenfield", "brownfield"] },
+    "draftId": { "type": "string", "pattern": "^draft_.+" },
+    "status": { "enum": ["clear", "needs-clarification"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "questionCount",
+        "requiredClarificationCount",
+        "unresolvedQuestionCount",
+        "missingFieldCount"
+      ],
+      "properties": {
+        "questionCount": { "type": "integer", "minimum": 0 },
+        "requiredClarificationCount": { "type": "integer", "minimum": 0 },
+        "unresolvedQuestionCount": { "type": "integer", "minimum": 0 },
+        "missingFieldCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "missingFields": { "type": "array", "items": { "type": "string" } },
+    "questions": { "type": "array", "items": { "$ref": "#/$defs/clarificationQuestion" } },
+    "requiredClarifications": { "type": "array", "items": { "$ref": "#/$defs/requiredClarification" } },
+    "unresolvedQuestions": { "type": "array", "items": { "$ref": "#/$defs/unresolvedQuestion" } }
+  },
+  "$defs": {
+    "clarificationQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "category", "fieldPath", "prompt", "rationale"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^clarify_.+" },
+        "key": { "type": "string", "pattern": "^field:.+" },
+        "category": {
+          "enum": ["goal", "required-field", "acceptance-criteria", "capability-envelope", "policy", "context"]
+        },
+        "fieldPath": { "type": "string" },
+        "prompt": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requiredClarification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldPath", "prompt", "rationale", "source", "questionId", "questionKey"],
+      "properties": {
+        "fieldPath": { "type": "string" },
+        "prompt": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "source": { "const": "missing-field-detection" },
+        "questionId": { "type": "string", "pattern": "^clarify_.+" },
+        "questionKey": { "type": "string", "pattern": "^field:.+" }
+      }
+    },
+    "unresolvedQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["questionId", "questionKey", "fieldPath", "category", "prompt", "rationale", "required", "source"],
+      "properties": {
+        "questionId": { "type": "string", "pattern": "^clarify_.+" },
+        "questionKey": { "type": "string", "pattern": "^field:.+" },
+        "fieldPath": { "type": "string" },
+        "category": {
+          "enum": ["goal", "required-field", "acceptance-criteria", "capability-envelope", "policy", "context"]
+        },
+        "prompt": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "source": { "enum": ["required-field-detection", "ambiguity-signal"] }
+      }
+    }
+  }
+}

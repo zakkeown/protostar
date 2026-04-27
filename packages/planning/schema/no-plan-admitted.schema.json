@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/no-plan-admitted.schema.json",
+  "title": "NoPlanAdmitted",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifact",
+    "decision",
+    "admissionStatus",
+    "admitted",
+    "intentId",
+    "candidatePlan",
+    "errors"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "artifact": { "const": "no-plan-admitted.json" },
+    "decision": { "const": "block" },
+    "admissionStatus": { "const": "no-plan-admitted" },
+    "admitted": { "const": false },
+    "intentId": { "type": "string", "pattern": "^intent_.+" },
+    "planId": { "type": "string" },
+    "planningAttempt": { "type": "object" },
+    "candidateSource": { "type": "object" },
+    "candidatePlan": { "type": "object" },
+    "details": { "type": "object" },
+    "errors": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/confirmed-intent.schema.json",
+  "title": "ConfirmedIntent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "title",
+    "problem",
+    "requester",
+    "confirmedAt",
+    "acceptanceCriteria",
+    "capabilityEnvelope",
+    "constraints",
+    "stopConditions",
+    "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^intent_.+" },
+    "sourceDraftId": { "type": "string", "pattern": "^draft_.+" },
+    "mode": { "enum": ["greenfield", "brownfield"] },
+    "goalArchetype": { "type": "string" },
+    "title": { "type": "string", "minLength": 1 },
+    "problem": { "type": "string", "minLength": 1 },
+    "requester": { "type": "string", "minLength": 1 },
+    "confirmedAt": { "type": "string" },
+    "context": { "type": "string" },
+    "acceptanceCriteria": { "type": "array" },
+    "capabilityEnvelope": { "type": "object" },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "stopConditions": { "type": "array", "items": { "type": "string" } },
+    "signature": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["algorithm", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": { "type": "string" },
+            "value": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

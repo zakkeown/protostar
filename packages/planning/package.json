@@ -17,8 +17,10 @@
     "./artifacts": {
       "types": "./dist/artifacts/index.d.ts",
       "import": "./dist/artifacts/index.js"
-    }
+    },
+    "./schema/no-plan-admitted.schema.json": "./schema/no-plan-admitted.schema.json"
   },
+  "files": ["dist", "schema"],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test dist/*.test.js",
