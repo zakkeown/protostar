@@ -31,6 +31,8 @@ export {
   CredentialRefusedError
 } from "./clone-workspace.js";
 export type { CloneAuthMode, CloneRequest, CloneResult } from "./clone-workspace.js";
+export { cleanupWorkspace } from "./cleanup-workspace.js";
+export type { CleanupOptions, CleanupReason, TombstoneRecord } from "./cleanup-workspace.js";
 export { deleteFile, FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
 export type { AuthorizedWorkspaceOp, FsAdapterErrorReason } from "./fs-adapter.js";
 export { applyChangeSet } from "./apply-change-set.js";
@@ -49,5 +51,9 @@ export type {
   SubprocessRefusedReason,
   SubprocessResult
 } from "./subprocess-runner.js";
+export { GIT_SCHEMA, NODE_SCHEMA, PNPM_SCHEMA, TSC_SCHEMA } from "./subprocess-schemas/index.js";
+export type { CommandSchema } from "./subprocess-schemas/index.js";
+export { auditSymlinks } from "./symlink-audit.js";
+export type { SymlinkAuditResult } from "./symlink-audit.js";
 export { assertWorkspaceTrust, WorkspaceTrustError } from "./workspace-trust-runtime.js";
 export type { RuntimeWorkspaceOp } from "./workspace-trust-runtime.js";

@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@protostar/authority": "workspace:*",
+    "@protostar/paths": "workspace:*",
     "diff": "9.0.0",
     "isomorphic-git": "1.37.6"
   },
