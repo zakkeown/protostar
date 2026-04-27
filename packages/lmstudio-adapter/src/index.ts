@@ -8,3 +8,4 @@ export {
   type PreflightInput,
   type PreflightResult
 } from "./preflight.js";
+export { parseSseStream } from "./sse-parser.js";
