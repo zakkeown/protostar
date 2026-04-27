@@ -29,6 +29,8 @@ export { applyChangeSet } from "./apply-change-set.js";
 export type { ApplyError, ApplyResult, ApplyStatus, PatchRequest } from "./apply-change-set.js";
 export { applyOuterPatternGuard, ArgvViolation } from "./argv-pattern-guard.js";
 export type { ArgvViolationReason, OuterGuardSchema } from "./argv-pattern-guard.js";
+export { dirtyWorktreeStatus } from "./dirty-worktree-status.js";
+export type { DirtyWorktreeStatus } from "./dirty-worktree-status.js";
 export { intersectAllowlist, SUBPROCESS_BASELINE_ALLOWLIST } from "./subprocess-allowlist.js";
 export { runCommand, SubprocessRefusedError } from "./subprocess-runner.js";
 export type {
