@@ -1,5 +1,5 @@
-import { budget, convergence, firstOf } from "@dogpile/sdk";
-import type { AgentSpec, DogpileOptions } from "@dogpile/sdk";
+import { budget, convergence, firstOf } from "@protostar/dogpile-types";
+import type { AgentSpec, DogpileOptions } from "@protostar/dogpile-types";
 import type { ConfirmedIntent } from "@protostar/intent";
 import {
   assertCandidatePlanFromPlanningPileResult,

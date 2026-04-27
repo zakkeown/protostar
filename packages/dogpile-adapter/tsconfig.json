@@ -8,5 +8,9 @@
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../intent" }, { "path": "../planning" }]
+  "references": [
+    { "path": "../intent" },
+    { "path": "../planning" },
+    { "path": "../dogpile-types" }
+  ]
 }

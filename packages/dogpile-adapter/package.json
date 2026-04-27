@@ -17,7 +17,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@dogpile/sdk": "link:../../../dogpile",
+    "@protostar/dogpile-types": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*"
   },

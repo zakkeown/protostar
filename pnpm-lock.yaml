@@ -65,9 +65,9 @@ importers:
 
   packages/dogpile-adapter:
     dependencies:
-      '@dogpile/sdk':
-        specifier: link:../../../dogpile
-        version: link:../../../dogpile
+      '@protostar/dogpile-types':
+        specifier: workspace:*
+        version: link:../dogpile-types
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent
