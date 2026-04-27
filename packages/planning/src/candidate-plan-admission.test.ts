@@ -84,7 +84,11 @@ describe("candidate-plan admission validator", () => {
       ]
     } as const satisfies PlanGraph);
 
-    const result = admitCandidatePlan({ graph, intent: admittedIntent });
+    const result = admitCandidatePlan({
+      graph,
+      intent: admittedIntent,
+      allowedAdapters: ["lmstudio-coder"]
+    });
 
     assert.equal(result.ok, false);
     if (result.ok) assert.fail("Expected missing targetFiles to reject the candidate plan.");
@@ -179,10 +183,16 @@ describe("candidate-plan admission validator", () => {
   });
 
   it("rejects task adapterRef values outside allowedAdapters", () => {
-    const graph = createPlanGraph({
+    const graph = defineCandidatePlan({
       planId: "plan_candidate_plan_disallowed_adapter_ref",
-      intent: admittedIntent,
+      intentId: admittedIntent.id,
+      createdAt: "2026-04-26T00:00:00.000Z",
       strategy: "Reject a task selecting a disallowed adapter.",
+      acceptanceCriteria: admittedIntent.acceptanceCriteria.map(({ id, statement, verification }) => ({
+        id,
+        statement,
+        verification
+      })),
       tasks: [
         {
           id: "task-disallowed-adapter-ref",
@@ -195,9 +205,8 @@ describe("candidate-plan admission validator", () => {
           requiredCapabilities: noRequiredCapabilities,
           risk: "low"
         }
-      ],
-      createdAt: "2026-04-26T00:00:00.000Z"
-    });
+      ]
+    } as const satisfies PlanGraph);
 
     const result = admitCandidatePlan({
       graph,
@@ -245,10 +254,16 @@ describe("candidate-plan admission validator", () => {
   });
 
   it("rejects malformed task adapterRef values", () => {
-    const graph = createPlanGraph({
+    const graph = defineCandidatePlan({
       planId: "plan_candidate_plan_malformed_adapter_ref",
-      intent: admittedIntent,
+      intentId: admittedIntent.id,
+      createdAt: "2026-04-26T00:00:00.000Z",
       strategy: "Reject an adapter ref that does not match the lowercase adapter id grammar.",
+      acceptanceCriteria: admittedIntent.acceptanceCriteria.map(({ id, statement, verification }) => ({
+        id,
+        statement,
+        verification
+      })),
       tasks: [
         {
           id: "task-malformed-adapter-ref",
@@ -261,9 +276,8 @@ describe("candidate-plan admission validator", () => {
           requiredCapabilities: noRequiredCapabilities,
           risk: "low"
         }
-      ],
-      createdAt: "2026-04-26T00:00:00.000Z"
-    });
+      ]
+    } as const satisfies PlanGraph);
 
     const result = admitCandidatePlan({ graph, intent: admittedIntent });
 

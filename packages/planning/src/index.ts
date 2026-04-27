@@ -8,6 +8,27 @@ import type {
 } from "@protostar/intent";
 import type { CapabilityEnvelope, RiskLevel } from "@protostar/policy/capability-envelope";
 
+import {
+  admitTaskAdapterRef,
+  assertAdapterRef,
+  type AdapterRef
+} from "./task-adapter-ref.contract.js";
+import {
+  assertTargetFiles,
+  type TargetFiles
+} from "./task-target-files.contract.js";
+
+export {
+  admitTaskAdapterRef,
+  assertAdapterRef,
+  type AdapterRef,
+  type AdapterRefAdmissionResult
+} from "./task-adapter-ref.contract.js";
+export {
+  assertTargetFiles,
+  type TargetFiles
+} from "./task-target-files.contract.js";
+
 export type PlanTaskKind = "research" | "design" | "implementation" | "verification" | "release";
 
 export type PlanTaskId = `task-${string}`;
@@ -59,6 +80,7 @@ export interface PlanTaskRequiredCapabilities {
   readonly toolPermissions: readonly PlanTaskToolPermissionCapabilityRequirement[];
   readonly executeGrants?: readonly PlanTaskExecuteGrantCapabilityRequirement[];
   readonly workspace?: CapabilityEnvelope["workspace"];
+  readonly network?: CapabilityEnvelope["network"];
   readonly budget: PlanTaskBudgetCapabilityRequirement;
 }
 
@@ -74,6 +96,8 @@ export interface PlanTask {
   readonly kind: PlanTaskKind;
   readonly dependsOn: readonly PlanTaskId[];
   readonly covers: readonly AcceptanceCriterionId[];
+  readonly targetFiles?: TargetFiles;
+  readonly adapterRef?: AdapterRef;
   readonly requiredCapabilities: PlanTaskRequiredCapabilities;
   readonly risk: PlanTaskRiskDeclaration;
 }
@@ -235,6 +259,8 @@ export const PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS = {
 
 export type PlanningAdmissionValidatorVersions =
   typeof PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS;
+
+export const DEFAULT_ALLOWED_ADAPTERS = ["lmstudio-coder"] as const;
 
 export interface PlanningAdmissionRegisteredValidatorRun {
   readonly validator: PlanningAdmissionRegisteredValidatorName;
@@ -692,6 +718,7 @@ export interface CreatePlanningAdmissionArtifactInput {
   readonly candidateSourceUri?: string;
   readonly validation?: PlanGraphValidation;
   readonly planningAdmissionGrantModel?: unknown;
+  readonly allowedAdapters?: readonly string[];
 }
 
 export interface AdmitCandidatePlanInput extends CreatePlanningAdmissionArtifactInput {}
@@ -929,6 +956,10 @@ export type PlanGraphValidationViolationCode =
   | "malformed-task-dependencies"
   | "invalid-task-dependency-id"
   | "malformed-task-coverage"
+  | "target-files-missing"
+  | "target-files-empty"
+  | "malformed-task-adapter-ref"
+  | "adapter-ref-not-allowed"
   | "empty-task-coverage"
   | "invalid-task-coverage-accepted-criterion-id"
   | "duplicate-task-coverage-accepted-criterion-id"
@@ -1034,6 +1065,7 @@ export interface ValidatePlanGraphInput {
   readonly graph: PlanGraph;
   readonly intent: ConfirmedIntent;
   readonly planningAdmissionGrantModel?: unknown;
+  readonly allowedAdapters?: readonly string[];
 }
 
 export function createPlanGraph(input: CreatePlanGraphInput): CandidatePlan {
@@ -1225,6 +1257,10 @@ function parsePlanningPilePlanTasks(value: unknown, errors: string[]): readonly 
     const risk = readPlanningPileString(entry, `tasks[${index}].risk`, errors);
     const dependsOn = readPlanningPileStringArray(entry, `tasks[${index}].dependsOn`, errors);
     const covers = readPlanningPileStringArray(entry, `tasks[${index}].covers`, errors);
+    const targetFiles = entry["targetFiles"] === undefined
+      ? undefined
+      : readPlanningPileStringArray(entry, `tasks[${index}].targetFiles`, errors);
+    const adapterRef = readOptionalPlanningPileString(entry, `tasks[${index}].adapterRef`, errors);
     const requiredCapabilities = parsePlanningPileRequiredCapabilities(
       entry["requiredCapabilities"],
       `tasks[${index}].requiredCapabilities`,
@@ -1270,6 +1306,8 @@ function parsePlanningPilePlanTasks(value: unknown, errors: string[]): readonly 
         kind,
         dependsOn: dependsOn as readonly PlanTaskId[],
         covers: covers as readonly AcceptanceCriterionId[],
+        ...(targetFiles !== undefined ? { targetFiles } : {}),
+        ...(adapterRef !== undefined ? { adapterRef } : {}),
         requiredCapabilities,
         risk
       }
@@ -1321,8 +1359,26 @@ function parsePlanningPileRequiredCapabilities(
     repoScopes,
     toolPermissions,
     ...(executeGrants !== undefined ? { executeGrants } : {}),
+    ...optionalTaskRequiredNetwork(value["network"]),
     budget: taskBudget
   };
+}
+
+function optionalTaskRequiredNetwork(
+  value: unknown
+): Pick<PlanTaskRequiredCapabilities, "network"> | Record<string, never> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const allow = value["allow"];
+  if (allow !== "none" && allow !== "loopback" && allow !== "allowlist") {
+    return {};
+  }
+  const allowedHosts = value["allowedHosts"];
+  if (Array.isArray(allowedHosts) && allowedHosts.every((host) => typeof host === "string")) {
+    return { network: { allow, allowedHosts } };
+  }
+  return { network: { allow } };
 }
 
 function parsePlanningPileRequiredCapabilityRepoScopes(
@@ -1665,6 +1721,12 @@ function collectPlanTaskShapeAdmission(graph: PlanGraph): PlanTaskShapeAdmission
         kind: (isPlanTaskKind(kind) ? kind : String(kind)) as PlanTaskKind,
         dependsOn: Array.isArray(dependsOn) ? (dependsOn as readonly PlanTaskId[]) : [],
         covers: Array.isArray(covers) ? (covers as readonly AcceptanceCriterionId[]) : [],
+        ...(Object.hasOwn(entry, "targetFiles")
+          ? { targetFiles: entry["targetFiles"] as TargetFiles }
+          : {}),
+        ...(Object.hasOwn(entry, "adapterRef")
+          ? { adapterRef: entry["adapterRef"] as AdapterRef }
+          : {}),
         requiredCapabilities: entry["requiredCapabilities"] as PlanTaskRequiredCapabilities,
         risk: entry["risk"] as PlanTaskRiskDeclaration
       }
@@ -1675,6 +1737,72 @@ function collectPlanTaskShapeAdmission(graph: PlanGraph): PlanTaskShapeAdmission
     tasks,
     violations
   };
+}
+
+function collectTaskExecutionMetadataViolations(
+  task: PlanTask,
+  allowedAdapters: readonly string[]
+): PlanGraphValidationViolationDraft[] {
+  const violations: PlanGraphValidationViolationDraft[] = [];
+  if (task.targetFiles === undefined) {
+    violations.push({
+      code: "target-files-missing",
+      path: `tasks.${task.id}.targetFiles`,
+      taskId: task.id,
+      message: `Task ${task.id} targetFiles must be provided with at least one file.`
+    });
+  } else if (!Array.isArray(task.targetFiles) || task.targetFiles.length === 0) {
+    violations.push({
+      code: "target-files-empty",
+      path: `tasks.${task.id}.targetFiles`,
+      taskId: task.id,
+      message: `Task ${task.id} targetFiles must contain at least one file.`
+    });
+  } else {
+    try {
+      assertTargetFiles(task.targetFiles);
+    } catch (error: unknown) {
+      violations.push({
+        code: "target-files-empty",
+        path: `tasks.${task.id}.targetFiles`,
+        taskId: task.id,
+        message: error instanceof Error
+          ? `Task ${task.id} ${error.message}`
+          : `Task ${task.id} targetFiles must contain non-empty file paths.`
+      });
+    }
+  }
+
+  if (task.adapterRef !== undefined) {
+    try {
+      assertAdapterRef(task.adapterRef);
+    } catch {
+      violations.push({
+        code: "malformed-task-adapter-ref",
+        path: `tasks.${task.id}.adapterRef`,
+        taskId: task.id,
+        message: `Task ${task.id} adapterRef must match /^[a-z][a-z0-9-]*$/.`
+      });
+      return violations;
+    }
+
+    const adapterAdmission = admitTaskAdapterRef({
+      taskId: task.id,
+      adapterRef: task.adapterRef,
+      allowedAdapters
+    });
+    if (!adapterAdmission.ok) {
+      violations.push({
+        code: adapterAdmission.violation.kind,
+        path: `tasks.${task.id}.adapterRef`,
+        taskId: adapterAdmission.violation.taskId,
+        message:
+          `Task ${task.id} adapterRef "${adapterAdmission.violation.adapterRef}" must be one of allowedAdapters: ${adapterAdmission.violation.allowedAdapters.join(", ")}.`
+      });
+    }
+  }
+
+  return violations;
 }
 
 export function hashPlanGraph(graph: PlanGraph): PlanGraphHash {
@@ -1721,6 +1849,7 @@ export function validatePlanGraph(input: ValidatePlanGraphInput): PlanGraphValid
   const planningAdmissionGrantModel = normalizePlanningAdmissionGrantModelForEvaluation(
     input.planningAdmissionGrantModel ?? detectedPlanningAdmissionGrantModel
   );
+  const allowedAdapters = input.allowedAdapters ?? DEFAULT_ALLOWED_ADAPTERS;
   const registeredValidatorRuns: PlanningAdmissionRegisteredValidatorRun[] = [];
   const runValidator = (
     validator: PlanningAdmissionRegisteredValidatorName,
@@ -1789,6 +1918,14 @@ export function validatePlanGraph(input: ValidatePlanGraphInput): PlanGraphValid
     const riskDeclarationViolation = validateTaskRiskDeclaration(task);
     if (riskDeclarationViolation !== undefined) {
       validatorViolations.push(riskDeclarationViolation);
+    }
+
+    if (
+      input.allowedAdapters !== undefined ||
+      task.targetFiles !== undefined ||
+      task.adapterRef !== undefined
+    ) {
+      validatorViolations.push(...collectTaskExecutionMetadataViolations(task, allowedAdapters));
     }
 
     const taskRequiredCapabilitiesAdmission = normalizeTaskRequiredCapabilities(task);
@@ -2072,7 +2209,10 @@ export function createPlanningAdmissionArtifact(
   const validation = validatePlanGraph({
     graph: input.graph,
     intent: input.intent,
-    planningAdmissionGrantModel: input.planningAdmissionGrantModel
+    ...(input.planningAdmissionGrantModel !== undefined
+      ? { planningAdmissionGrantModel: input.planningAdmissionGrantModel }
+      : {}),
+    ...(input.allowedAdapters !== undefined ? { allowedAdapters: input.allowedAdapters } : {})
   });
 
   return createPlanningAdmissionArtifactFromValidation(input, validation);
@@ -2181,7 +2321,10 @@ export function admitCandidatePlan(input: AdmitCandidatePlanInput): AdmitCandida
   const validation = validatePlanGraph({
     graph: input.graph,
     intent: input.intent,
-    planningAdmissionGrantModel: input.planningAdmissionGrantModel
+    ...(input.planningAdmissionGrantModel !== undefined
+      ? { planningAdmissionGrantModel: input.planningAdmissionGrantModel }
+      : {}),
+    ...(input.allowedAdapters !== undefined ? { allowedAdapters: input.allowedAdapters } : {})
   });
   const planningAdmission = createPlanningAdmissionArtifactFromValidation(input, validation);
 
@@ -3947,6 +4090,7 @@ function normalizeTaskRequiredCapabilities(task: PlanTask): TaskRequiredCapabili
       toolPermissions: toolPermissions ?? [],
       ...(executeGrants !== undefined ? { executeGrants } : {}),
       ...(isRecord(value["workspace"]) ? { workspace: { allowDirty: value["workspace"]["allowDirty"] === true } } : {}),
+      ...optionalTaskRequiredNetwork(value["network"]),
       budget: budget ?? {}
     },
     violations
@@ -4235,6 +4379,7 @@ function copyPlanTaskRequiredCapabilities(
         }
       : {}),
     ...(capabilities.workspace !== undefined ? { workspace: { allowDirty: capabilities.workspace.allowDirty } } : {}),
+    ...(capabilities.network !== undefined ? { network: { ...capabilities.network } } : {}),
     budget: { ...capabilities.budget }
   };
 }
@@ -5026,6 +5171,8 @@ const PLANNING_PILE_TASK_KEYS = [
   "kind",
   "dependsOn",
   "covers",
+  "targetFiles",
+  "adapterRef",
   "requiredCapabilities",
   "risk"
 ] as const;
@@ -5033,6 +5180,8 @@ const PLANNING_PILE_REQUIRED_CAPABILITIES_KEYS = [
   "repoScopes",
   "toolPermissions",
   "executeGrants",
+  "workspace",
+  "network",
   "budget"
 ] as const;
 const PLANNING_PILE_REPO_SCOPE_KEYS = ["workspace", "path", "access"] as const;

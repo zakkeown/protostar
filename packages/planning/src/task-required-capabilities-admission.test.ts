@@ -152,6 +152,9 @@ describe("PlanGraph task required-capabilities admission boundary", () => {
           }
         : {}),
       workspace: { allowDirty: exactIntentRequiredCapabilities.workspace?.allowDirty ?? false },
+      ...(exactIntentRequiredCapabilities.network !== undefined
+        ? { network: { ...exactIntentRequiredCapabilities.network } }
+        : {}),
       budget: { ...exactIntentRequiredCapabilities.budget }
     } as const satisfies PlanTaskRequiredCapabilities;
     const candidatePlans: readonly {

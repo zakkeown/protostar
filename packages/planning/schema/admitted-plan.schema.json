@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://protostar.local/schema/admitted-plan.schema.json",
+  "title": "AdmittedPlan",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["planId", "intentId", "createdAt", "strategy", "acceptanceCriteria", "tasks"],
+  "properties": {
+    "planId": { "type": "string" },
+    "intentId": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "strategy": { "type": "string" },
+    "acceptanceCriteria": { "type": "array" },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "dependsOn",
+          "covers",
+          "targetFiles",
+          "requiredCapabilities",
+          "risk"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "type": "string" },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "covers": { "type": "array", "items": { "type": "string" } },
+          "targetFiles": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "adapterRef": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "requiredCapabilities": { "type": "object" },
+          "risk": { "type": "string" }
+        }
+      }
+    }
+  }
+}
