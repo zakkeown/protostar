@@ -27,6 +27,8 @@ export interface ExecutionTask {
   readonly title: string;
   readonly status: ExecutionTaskStatus;
   readonly dependsOn: readonly string[];
+  readonly targetFiles?: readonly string[];
+  readonly adapterRef?: string;
 }
 
 export interface ExecutionRunPlan {
@@ -217,7 +219,9 @@ export function prepareExecutionRun(input: PrepareExecutionRunInput): ExecutionR
       planTaskId: task.planTaskId,
       title: task.title,
       status: "pending",
-      dependsOn: task.dependsOn
+      dependsOn: task.dependsOn,
+      ...(task.targetFiles !== undefined ? { targetFiles: task.targetFiles } : {}),
+      ...(task.adapterRef !== undefined ? { adapterRef: task.adapterRef } : {})
     }))
   };
 }

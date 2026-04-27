@@ -867,6 +867,8 @@ export interface AdmittedPlanExecutionTask {
   readonly planTaskId: PlanTaskId;
   readonly title: string;
   readonly dependsOn: readonly PlanTaskId[];
+  readonly targetFiles?: readonly string[];
+  readonly adapterRef?: string;
 }
 
 export interface AdmittedPlanExecutionArtifact {
@@ -2866,7 +2868,9 @@ function createAdmittedPlanExecutionArtifact(input: {
     tasks: topoSortPlanTasks(input.plan.tasks).map((task) => ({
       planTaskId: task.id,
       title: task.title,
-      dependsOn: task.dependsOn
+      dependsOn: task.dependsOn,
+      ...(task.targetFiles !== undefined ? { targetFiles: task.targetFiles } : {}),
+      ...(task.adapterRef !== undefined ? { adapterRef: task.adapterRef } : {})
     }))
   } as unknown as AdmittedPlanExecutionArtifact;
 }
