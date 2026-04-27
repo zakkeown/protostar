@@ -67,8 +67,8 @@ Plans:
 
 Plans:
 - [x] 02-01-authority-package-skeleton-PLAN.md — wave 0 — `@protostar/authority` workspace skeleton + 5 schema files (zero-fs from day one)
-- [ ] 02-02-authorized-op-brands-PLAN.md — wave 1 — 4 AuthorizedOp brands (workspace/subprocess/network/budget) + budget tracker/aggregator interfaces (Q-05, Q-06, Q-07)
-- [ ] 02-03-signature-envelope-extension-PLAN.md — wave 1 — extend SignatureEnvelope with canonicalForm; HARD-BUMP confirmed-intent.schema.json to const 1.1.0 (Q-18 user lock — A8 widening overridden in iteration 2)
+- [x] 02-02-authorized-op-brands-PLAN.md — wave 1 — 4 AuthorizedOp brands (workspace/subprocess/network/budget) + budget tracker/aggregator interfaces (Q-05, Q-06, Q-07)
+- [x] 02-03-signature-envelope-extension-PLAN.md — wave 1 — extend SignatureEnvelope with canonicalForm; HARD-BUMP confirmed-intent.schema.json to const 1.1.0 (Q-18 user lock — A8 widening overridden in iteration 2)
 - [ ] 02-04-precedence-kernel-PLAN.md — wave 2 — intersectEnvelopes + PrecedenceDecision brand + parseRepoPolicy + DENY_ALL_REPO_POLICY (A3 default-DENY lock)
 - [ ] 02-05-canonicalize-and-signature-PLAN.md — wave 2 — json-c14n@1.0 canonicalizer + buildSignatureEnvelope + verifyConfirmedIntentSignature single helper (Q-15, Q-16, Q-17, Q-18)
 - [ ] 02-06a-admission-decision-base-PLAN.md — wave 2 — AdmissionDecisionBase + SignedAdmissionDecision brand (sixth Phase 2 brand) (Q-13, Q-15, Q-17)

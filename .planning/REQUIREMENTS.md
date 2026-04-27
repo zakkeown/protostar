@@ -25,7 +25,7 @@ Front-door hardening. No weak intent or bad plan reaches execution.
 Settle precedence before any real mutation.
 
 - [ ] **GOV-01**: Precedence order is documented and enforced: confirmed intent ⟶ policy ⟶ repo instructions ⟶ operator settings; conflicts produce explicit deny/allow with evidence
-- [ ] **GOV-02**: Capability envelope (`intent.capabilityEnvelope`) is enforced at every authority boundary (workspace ops, network, subprocess, budget) — not just stored
+- [x] **GOV-02**: Capability envelope (`intent.capabilityEnvelope`) is enforced at every authority boundary (workspace ops, network, subprocess, budget) — not just stored
 - [ ] **GOV-03**: Steward/owner boundary: each artifact has a single owning package; cross-stage reads go through admission helpers (no private-state reach-back)
 - [ ] **GOV-04**: `WorkspaceRef.trust` is consumed (not just declared) — `executionScope: "workspace"` grants are refused when trust ≠ `"trusted"`
 - [ ] **GOV-05**: Admission decisions ("allow" / "block" / "escalate") are persisted as `admission-decision.json` for every gate, not only the intent gate
@@ -180,7 +180,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | PLAN-A-02 | Phase 1 | Pending |
 | PLAN-A-03 | Phase 1 | Pending |
 | GOV-01 | Phase 2 | Pending |
-| GOV-02 | Phase 2 | Pending |
+| GOV-02 | Phase 2 | Complete |
 | GOV-03 | Phase 2 | Pending |
 | GOV-04 | Phase 2 | Pending |
 | GOV-05 | Phase 2 | Pending |

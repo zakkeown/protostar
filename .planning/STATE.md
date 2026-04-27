@@ -28,7 +28,7 @@
 
 Front door is sealed (Phase 1 verified 2026-04-27, 293/293 tests). Phase 2 builds the authority kernel: capability grants, signed admission decisions (GOV-06), and the governance event log.
 
-**Next action:** Execute Phase 2 Plan 02 (`02-02-authorized-op-brands-PLAN.md`)
+**Next action:** Continue Phase 2 Wave 1 with Plan 03 completion/summary, then advance to Wave 2.
 
 ## Phase Status
 
