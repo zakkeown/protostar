@@ -14,8 +14,8 @@ import {
 } from "./example-intent-fixtures.test-support.js";
 
 const REQUIRED_EXAMPLE_INTENT_FIXTURES = [
-  "bad-missing-capability.ambiguity.brownfield.json",
-  "bad-missing-capability.json",
+  "bad/missing-capability.ambiguity.brownfield.json",
+  "bad/missing-capability.json",
   "brownfield/clear-promoted.draft.json",
   "brownfield/weak-blocked.draft.json",
   "bugfix.draft.json",

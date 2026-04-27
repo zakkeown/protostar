@@ -144,7 +144,7 @@ const expectedPreHandoffTriggers: readonly PlanningAdmissionPreHandoffVerificati
 ];
 
 const missingPrWriteVerificationFixtureUrl = new URL(
-  "../../../examples/planning-results/bad-missing-pr-write-verification.json",
+  "../../../examples/planning-results/bad/missing-pr-write-verification.json",
   import.meta.url
 );
 

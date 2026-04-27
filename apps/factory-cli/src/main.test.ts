@@ -31,10 +31,10 @@ const cliPath = resolve(distDir, "main.js");
 const sampleFactoryDraftFixtureRelativePath = "examples/intents/scaffold.draft.json";
 const legacySampleConfirmedIntentFixtureRelativePath = "examples/intents/scaffold.json";
 const missingAcceptanceCoveragePlanningFixtureRelativePath =
-  "examples/planning-results/bad-missing-acceptance-coverage.json";
-const cyclicPlanningFixtureRelativePath = "examples/planning-results/bad-cyclic-plan-graph.json";
+  "examples/planning-results/bad/missing-acceptance-coverage.json";
+const cyclicPlanningFixtureRelativePath = "examples/planning-results/bad/cyclic-plan-graph.json";
 const authorityExpansionPlanningFixtureRelativePath =
-  "examples/planning-results/bad-capability-envelope-expansion.json";
+  "examples/planning-results/bad/capability-envelope-expansion.json";
 const suppressedIntentOutputFiles = [
   "intent-draft.json",
   "clarification-report.json",
