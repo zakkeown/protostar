@@ -76,7 +76,7 @@ Plans:
 - [x] 02-07-factory-cli-per-gate-writer-PLAN.md — wave 3 — runFactory wires precedence + per-gate triple-write + signed intent + policy-snapshot + admission-decisions.jsonl (Q-04, Q-14)
 - [x] 02-08-two-key-launch-and-escalate-PLAN.md — wave 3 — `--trust`/`--confirmed-intent` flags + remove hardcoded trust at main.ts:335 + escalation-marker.json (Q-11, Q-12, A4, A5, A6)
 - [x] 02-09-stage-reader-and-repo-runtime-PLAN.md — wave 4 — createAuthorityStageReader (FsAdapter-injected, legacy fallback) + assertTrustedWorkspaceForGrant predicate + packages/repo runtime trust check (Q-09, Q-10)
-- [ ] 02-10-admission-e2e-contract-suite-PLAN.md — wave 4 — 6 per-brand contract tests + authority-no-fs regression + signed-intent e2e (Q-08)
+- [x] 02-10-admission-e2e-contract-suite-PLAN.md — wave 4 — 6 per-brand contract tests + authority-no-fs regression + signed-intent e2e (Q-08)
 
 
 ## Phase 3 — Repo Runtime + Sandbox

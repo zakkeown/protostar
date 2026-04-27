@@ -26,7 +26,7 @@ Settle precedence before any real mutation.
 
 - [x] **GOV-01**: Precedence order is documented and enforced: confirmed intent ⟶ policy ⟶ repo instructions ⟶ operator settings; conflicts produce explicit deny/allow with evidence
 - [x] **GOV-02**: Capability envelope (`intent.capabilityEnvelope`) is enforced at every authority boundary (workspace ops, network, subprocess, budget) — not just stored
-- [ ] **GOV-03**: Steward/owner boundary: each artifact has a single owning package; cross-stage reads go through admission helpers (no private-state reach-back)
+- [x] **GOV-03**: Steward/owner boundary: each artifact has a single owning package; cross-stage reads go through admission helpers (no private-state reach-back)
 - [x] **GOV-04**: `WorkspaceRef.trust` is consumed (not just declared) — `executionScope: "workspace"` grants are refused when trust ≠ `"trusted"`
 - [x] **GOV-05**: Admission decisions ("allow" / "block" / "escalate") are persisted as `admission-decision.json` for every gate, not only the intent gate
 - [x] **GOV-06**: Signed/admitted intent posture: `ConfirmedIntent` carries an admission signature (hash of intent + policy snapshot at admission time) that downstream stages verify before acting
@@ -181,7 +181,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | PLAN-A-03 | Phase 1 | Pending |
 | GOV-01 | Phase 2 | Complete |
 | GOV-02 | Phase 2 | Complete |
-| GOV-03 | Phase 2 | Pending |
+| GOV-03 | Phase 2 | Complete |
 | GOV-04 | Phase 2 | Complete |
 | GOV-05 | Phase 2 | Complete |
 | GOV-06 | Phase 2 | Complete |
