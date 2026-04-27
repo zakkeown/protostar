@@ -89,6 +89,27 @@
 **Rationale:** Schema-stable from the start so Phase 2 doesn't introduce a breaking shape change. Zero crypto in Phase 1.
 **Status:** Decided.
 
+
+## Phase 1 bypass-closure resolutions (Plan 06b replan, 2026-04-26)
+
+These three decisions resolve the BLOCKED Plan 06b. They lock the public-surface invariants Phase 2 GOV-06 will need to respect; without them a future replan could regress (e.g. re-introduce `assertConfirmedIntent` as a public producer "because it's just a guard").
+
+### Q-13b — `assertConfirmedIntent` disposition: Option A (drop from public barrel)
+**Decision:** Drop `assertConfirmedIntent` from `@protostar/intent`'s public barrel and from the `./confirmed-intent` subpath barrel. It may remain as a non-exported file-internal helper inside `confirmed-intent.ts` if needed, or be deleted entirely. Callers that need a branded `ConfirmedIntent` must promote a draft via `promoteIntentDraft`. `defineConfirmedIntent` is also fully deleted (no rename, no internal alias) — its freeze logic folds into `mintConfirmedIntent`.
+**Rationale:** Resolves the original Plan 06b internal contradiction between Task 1 step 1f ("assertConfirmedIntent stays — it's a type guard") and Task 2's contract test ("MintingKeys === 'promoteIntentDraft'"). Both can be true only if assertConfirmedIntent is off the public surface. `promoteIntentDraft` is the SOLE public producer of `ConfirmedIntent`.
+**Status:** Decided.
+
+### Q-13c — `confirmed-intent-input` factory-cli source disposition: Option α (drop entirely)
+**Decision:** Drop the `"confirmed-intent-input"` source from `apps/factory-cli/src/confirmed-intent-handoff.ts`. Also remove the `--intent` CLI flag, the `intentPath` runFactory option field, the `assertConfirmedIntent`-based runId branch at `main.ts:192`, and any test cases exercising the pre-confirmed-JSON pathway. `--intentDraft` (IntentDraft input) becomes the only intent input. `ConfirmedIntentHandoffSource` collapses to a single literal: `"draft-admission-gate"`.
+**Rationale:** The `confirmed-intent-input` branch loaded a pre-confirmed JSON file and produced a branded `ConfirmedIntent` via `assertConfirmedIntent` without going through `promoteIntentDraft` — exactly the CLI bypass INTENT-02 forbids. Removing the option closes the bypass at the source rather than papering over it. No backward-compat to preserve in Phase 1; the pathway is the bypass.
+**Status:** Decided.
+
+### Q-13d — Test helper for 30+ migration sites: in scope (`@protostar/intent/internal/test-builders`)
+**Decision:** Add a private subpath `@protostar/intent/internal/test-builders` exposing `buildConfirmedIntentForTest(data: ConfirmedIntentData): ConfirmedIntent`. The helper internally calls `mintConfirmedIntent`. The subpath is a specific exports-map entry — NOT a wildcard, NOT under `./internal` alone. The 30+ test callsites (28 in `packages/planning/src/`, 1 in `packages/dogpile-adapter/src/`, 4 in `packages/intent/src/`) migrate from `defineConfirmedIntent({...})` → `buildConfirmedIntentForTest({..., schemaVersion: "1.0.0", signature: null})`. Production callsites that previously called `defineConfirmedIntent` (only `promote-intent-draft.ts`) migrate to `mintConfirmedIntent`.
+**Containment guard (3 layers):** (a) Banner inside `internal/test-builders.ts` declaring "test-only, do not import from production code, do not re-export from any consumer-facing barrel." (b) Type-level negative-keyof Asserts in admission-e2e contract test: `"buildConfirmedIntentForTest" extends keyof typeof IntentPublicApi ? false : true`. (c) Runtime leak-grep test in admission-e2e walking every `index.ts` under `packages/intent/src/` (excluding `internal/`) and asserting none import from `./internal/`.
+**Rationale:** Keeps the migration mechanical — helper signature `(data: ConfirmedIntentData) => ConfirmedIntent` is a near-drop-in for the deleted `defineConfirmedIntent`. Without this helper each test site becomes 30+ lines of draft scaffolding (build IntentDraft → call promoteIntentDraft → unwrap success branch), exceeding the plan's atomic-task budget. The subpath scoping + three-layer contract test maintains the public-surface invariant Q-13b establishes.
+**Status:** Decided.
+
 </decisions>
 
 <deferred_ideas>
