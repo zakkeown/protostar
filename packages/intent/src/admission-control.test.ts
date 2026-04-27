@@ -3020,6 +3020,42 @@ describe("intent admission policy", () => {
     }
   });
 
+  it("blocks workspace repo scope admission when workspace trust is untrusted", () => {
+    const trusted = evaluateRepoScopeAdmission({
+      goalArchetype: "cosmetic-tweak",
+      capabilityEnvelope: {
+        repoScopes: [
+          {
+            workspace: "protostar",
+            path: ".",
+            access: "read"
+          }
+        ]
+      },
+      workspaceTrust: { protostar: "trusted" }
+    });
+    assert.equal(trusted.decision, "allow");
+
+    const untrusted = evaluateRepoScopeAdmission({
+      goalArchetype: "cosmetic-tweak",
+      capabilityEnvelope: {
+        repoScopes: [
+          {
+            workspace: "protostar",
+            path: ".",
+            access: "read"
+          }
+        ]
+      },
+      workspaceTrust: { protostar: "untrusted" }
+    });
+
+    assert.equal(untrusted.decision, "deny");
+    assert.equal(untrusted.allowed, false);
+    assert.deepEqual(untrusted.reasonCodes, ["repo_scope_workspace_trust_refused"]);
+    assert.match(untrusted.results[0]?.message ?? "", /executionScope "workspace"/);
+  });
+
   it("covers AC 60104 repo-scope admission for allowed scopes, denied scopes, and unknown archetypes", () => {
     const cases = [
       {
