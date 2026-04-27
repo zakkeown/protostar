@@ -75,6 +75,8 @@ importers:
         specifier: workspace:*
         version: link:../planning
 
+  packages/dogpile-types: {}
+
   packages/evaluation:
     dependencies:
       '@protostar/review':

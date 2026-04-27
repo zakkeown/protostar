@@ -10,6 +10,7 @@
     { "path": "packages/review" },
     { "path": "packages/delivery" },
     { "path": "packages/evaluation" },
+    { "path": "packages/dogpile-types" },
     { "path": "packages/dogpile-adapter" },
     { "path": "apps/factory-cli" }
   ]
