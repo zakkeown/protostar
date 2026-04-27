@@ -106,12 +106,18 @@ export async function runCommand(
   }
 
   try {
-    const exitCode = await new Promise<number>((resolve, reject) => {
+    const exitCodePromise = new Promise<number>((resolve, reject) => {
       child.on("error", reject);
       child.on("exit", (code) => resolve(code ?? -1));
       stdoutStream.on("error", reject);
       stderrStream.on("error", reject);
     });
+    const stdioClosedPromise = Promise.all([
+      waitForReadableEnd(child.stdout),
+      waitForReadableEnd(child.stderr)
+    ]);
+    const exitCode = await exitCodePromise;
+    await stdioClosedPromise;
 
     await Promise.all([endStream(stdoutStream), endStream(stderrStream)]);
     return {
@@ -202,6 +208,17 @@ function createTailCapture(limit: number): {
       return totalBytes;
     }
   };
+}
+
+function waitForReadableEnd(stream: NodeJS.ReadableStream | null): Promise<void> {
+  if (stream === null) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    stream.once("error", reject);
+    stream.once("end", () => {
+      stream.off("error", reject);
+      resolve();
+    });
+  });
 }
 
 function endStream(stream: NodeJS.WritableStream): Promise<void> {
