@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   SNAPSHOT_FILE_NAME,
@@ -11,6 +12,8 @@ import {
 } from "@protostar/execution";
 
 import { writeSnapshotAtomic } from "./snapshot-writer.js";
+
+const sourceDir = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 describe("writeSnapshotAtomic", () => {
   it("writes canonical snapshot bytes under runDir/execution", async () => {
@@ -62,7 +65,7 @@ describe("writeSnapshotAtomic", () => {
   });
 
   it("uses source-pinned tmp rename and fsync calls", async () => {
-    const source = await readFile(join(process.cwd(), "apps/factory-cli/src/snapshot-writer.ts"), "utf8");
+    const source = await readFile(join(sourceDir, "snapshot-writer.ts"), "utf8");
 
     assert.match(source, /rename\(/);
     assert.match(source, /datasync|sync/);
