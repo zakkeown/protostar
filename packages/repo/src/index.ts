@@ -25,6 +25,8 @@ export function defineWorkspace(input: WorkspaceRef): WorkspaceRef {
 
 export { deleteFile, FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
 export type { AuthorizedWorkspaceOp, FsAdapterErrorReason } from "./fs-adapter.js";
+export { applyChangeSet } from "./apply-change-set.js";
+export type { ApplyError, ApplyResult, ApplyStatus, PatchRequest } from "./apply-change-set.js";
 export { applyOuterPatternGuard, ArgvViolation } from "./argv-pattern-guard.js";
 export type { ArgvViolationReason, OuterGuardSchema } from "./argv-pattern-guard.js";
 export { intersectAllowlist, SUBPROCESS_BASELINE_ALLOWLIST } from "./subprocess-allowlist.js";
