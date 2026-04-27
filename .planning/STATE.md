@@ -38,7 +38,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
 | 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-13 complete; phase not verified |
 | 4 | Execution Engine | Pending |
-| 5 | Review → Repair → Review Loop | Pending |
+| 5 | Review → Repair → Review Loop | Planned (2026-04-27) — 13 plans across 7 waves; verified iteration 2/3 |
 | 6 | Live Dogpile Piles | Pending |
 | 7 | Delivery | Pending |
 | 8 | Evaluation + Evolution | Pending |
@@ -55,6 +55,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 
 ## Recent Sessions
 
+- **2026-04-27:** Planned Phase 5 (`review-repair-loop`): 13 PLAN.md files across 7 waves covering all 18 CONTEXT.md decisions and LOOP-01..LOOP-06. Plan-checker verified iteration 2/3 after the planner relocated `RepairContext`/`AdapterAttemptRef`/`ExecutionRunResult`/`MechanicalCritiqueRef`/`ModelCritiqueRef` into `@protostar/planning` to break a review↔execution import cycle, fixed cascading wave numbers, added injected `readFile` + `RepoSubprocessRunner` capabilities to `@protostar/mechanical-checks` to honor the AGENTS.md fs-authority boundary, and pinned `appendFile` path-pattern verification for `review.jsonl` and per-iteration `iter-{N}/*.json` artifacts in 05-10 (Q-17/Q-18 verified at the Phase 5 boundary, not deferred to factory-cli wiring). Wave structure: 0 (skeletons + schema bumps) → 1 (types in planning) → 2 (transforms + adapter ctx + judge + per-task gate) → 3 (mechanical-checks adapter + AC-coverage admission rule) → 4 (loop body + persistence + DeliveryAuthorization mint) → 5 (factory-cli wiring) → 6 (Phase 7 delivery contract pin).
 - **2026-04-27:** Completed Phase 3 Plan 13 (`03-13-dogpile-sdk-pin-and-fresh-clone-checkpoint-PLAN.md`): pinned `@dogpile/sdk@0.2.0` on `@protostar/dogpile-types`, replaced the local shim implementation with upstream re-exports, ran the approved no-sibling fresh-clone install smoke with `/Users/zakkeown/Code/dogpile` restored, and filled `03-VALIDATION.md` with a 33-row per-task validation map. `pnpm run verify:full` passed.
 - **2026-04-27:** Completed Phase 3 Plan 12 (`03-12-admission-e2e-contract-suite-PLAN.md`): added five admission-e2e repo-runtime contract tests pinning hash-mismatch, 5-patch best-effort partial application, dirty-worktree refusal, symlink refusal, and subprocess allowlist/argv refusal evidence shapes. `pnpm --filter @protostar/admission-e2e test` passed with 60 tests; `pnpm run verify` passed.
 - **2026-04-27:** Completed Phase 3 Plan 11 (`03-11-barrel-and-factory-cli-wiring-PLAN.md`): added `cleanupWorkspace` with success removal and failure tombstone retention, expanded the `@protostar/repo` barrel, replaced factory-cli `INIT_CWD` workspace-root resolution with `resolveWorkspaceRoot()`, and wired `runFactory` through clone, symlink audit evidence, dirty-worktree refusal, repo-runtime admission decisions, and cleanup/tombstone handling. `pnpm run verify:full` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.

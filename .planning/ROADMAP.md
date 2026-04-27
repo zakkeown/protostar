@@ -158,6 +158,45 @@ Plans:
 
 **Notes:** Existing `runMechanicalReviewExecutionLoop` becomes one half of this loop. The model-review half is wired in Phase 8; this phase locks the loop shape so Phase 8 can plug in.
 
+**Plans:** 13 plans across 7 waves (0..6; parallel within wave). Wave numbering revised in iteration 2 after the plan-checker flagged depends-on cascades.
+
+Cross-cutting constraints (must_haves.truths shared across plans):
+- DeliveryAuthorization is a brand-only type; minted only on loop-approved path; required by Phase 7 delivery boundary (Q-15, Q-16) — appears in 05-04, 05-10, 05-13
+- Capability envelope owns budget.maxRepairLoops (Q-12) — appears in 05-03, 05-10
+- Strict pass/pass at brand mint; `model: "skipped"` rejected (Q-15) — appears in 05-04, 05-10
+- Cycle-resolution: shared types (RepairContext, AdapterAttemptRef, ExecutionRunResult, MechanicalCritiqueRef, ModelCritiqueRef) live in @protostar/planning to prevent review↔execution import cycle — appears in 05-04, 05-06, 05-10
+- AGENTS.md authority boundary: only apps/factory-cli + packages/repo touch fs; mechanical-checks adapter takes injected readFile + subprocess capabilities — appears in 05-07, 05-12
+
+Plans:
+
+**Wave 0** (skeletons + schema bumps; foundation for all downstream waves)
+- [ ] 05-01-repair-package-skeleton-PLAN.md — wave 0 — `@protostar/repair` workspace skeleton (pure-transform sibling to dogpile-adapter) (Q-05)
+- [ ] 05-02-mechanical-checks-package-skeleton-PLAN.md — wave 0 — `@protostar/mechanical-checks` workspace skeleton (subprocess-driven adapter) (Q-07)
+- [ ] 05-03-schema-bumps-PLAN.md — wave 0 — confirmedIntent 1.3.0 → 1.4.0 + budget.maxRepairLoops + plan-schema task.acceptanceTestRefs + fixture cascade (Q-09, Q-12)
+
+**Wave 1** *(blocked on Wave 0 completion)* (type contracts, including cycle-neutral relocation into @protostar/planning)
+- [ ] 05-04-review-types-and-brands-PLAN.md — wave 1 — RepairPlan/RepairContext/ModelReviewer/JudgeCritique/DeliveryAuthorization brand + ReviewLifecycleEvent union; relocates RepairContext/AdapterAttemptRef/ExecutionRunResult/MechanicalCritiqueRef/ModelCritiqueRef into @protostar/planning to break review↔execution cycle (Q-04, Q-06, Q-10, Q-11, Q-15, Q-16, Q-18)
+
+**Wave 2** *(blocked on Wave 1 completion)* (pure transforms + adapter context + per-task gate + judge adapter)
+- [ ] 05-05-synthesize-repair-plan-PLAN.md — wave 2 — pure-transform synthesizeRepairPlan + computeRepairSubgraph in @protostar/repair (Q-03, Q-04, Q-05)
+- [ ] 05-06-adapter-context-repair-extension-PLAN.md — wave 2 — AdapterContext.repairContext (sourced from @protostar/planning) + retryReason "repair" widening (Q-06)
+- [ ] 05-08-judge-adapter-PLAN.md — wave 2 — createLmstudioJudgeAdapter + shared lmstudio-client extraction + factory-config adapters.judge schema (Q-10, Q-11)
+- [ ] 05-09-apply-change-set-cosmetic-gate-PLAN.md — wave 2 — applyChangeSet per-task ≤1-file gate for cosmetic-tweak archetype (Q-08 first defense)
+
+**Wave 3** *(blocked on Wave 2 completion)* (mechanical-checks adapter + admission AC-coverage rule)
+- [ ] 05-07-mechanical-checks-adapter-PLAN.md — wave 3 — createMechanicalChecksAdapter (with injected readFile + subprocess capabilities — no node:fs in source) + diff-name-only + buildFindings (Q-07, Q-08 run-level, Q-09 mechanical side)
+- [ ] 05-11-admission-rule-ac-coverage-PLAN.md — wave 3 — admission rule rejecting plans without AC coverage + fixture cascade (Q-09 admission side)
+
+**Wave 4** *(blocked on Wave 3 completion)* (the loop body + persistence + DeliveryAuthorization minting)
+- [ ] 05-10-run-review-repair-loop-PLAN.md — wave 4 — runReviewRepairLoop body + ReviewPersistence (iter-N dirs, review.jsonl path-pattern verified, review-decision.json, review-block.json) + loadDeliveryAuthorization; ExecutionRunResult sourced from @protostar/planning (Q-01, Q-02, Q-12, Q-13, Q-14, Q-15, Q-17, Q-18)
+
+**Wave 5** *(blocked on Wave 4 completion)* (factory-cli wiring)
+- [ ] 05-12-factory-cli-wiring-PLAN.md — wave 5 — runFactory swaps to runReviewRepairLoop + buildReviewRepairServices (injects readFile + RepoSubprocessRunner into mechanical-checks) + preflightCoderAndJudge + .env.example (Q-01 wiring, Q-10 preflight)
+
+**Wave 6** *(blocked on Wave 5 completion)* (Phase 7 contract pin)
+- [ ] 05-13-delivery-contract-pin-PLAN.md — wave 6 — packages/delivery declares createGitHubPrDeliveryPlan(authorization: DeliveryAuthorization, ...) signature + @ts-expect-error negative tests (Q-16)
+
+
 ## Phase 6 — Live Dogpile Piles
 
 **Goal:** Live planning, review, and execution-coordination piles behind strict schemas. Protostar remains authority; Dogpile supplies bounded opinions.
