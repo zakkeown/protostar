@@ -28,7 +28,7 @@
 
 Phase 3 is making the repo boundary real: dependencies/env, path resolution, schema bump, sacrificial repo fixture, the brand-consuming FS adapter, strict symlink audit, subprocess validation schemas, and the repo-owned subprocess runner are complete.
 
-**Next action:** Continue Phase 3 Wave 2 with Plan 10 (clone/dirty/policy), then Wave 3 factory CLI wiring.
+**Next action:** Continue Phase 3 Wave 3 with Plan 11 (barrel and factory-cli wiring), then admission e2e contracts.
 
 ## Phase Status
 
@@ -36,7 +36,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 |---|-------|--------|
 | 1 | Intent + Planning Admission | ✅ Complete (2026-04-27) |
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
-| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-09 complete; phase not verified |
+| 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-10 complete; phase not verified |
 | 4 | Execution Engine | Pending |
 | 5 | Review → Repair → Review Loop | Pending |
 | 6 | Live Dogpile Piles | Pending |
@@ -55,6 +55,7 @@ Phase 3 is making the repo boundary real: dependencies/env, path resolution, sch
 
 ## Recent Sessions
 
+- **2026-04-27:** Completed Phase 3 Plan 10 (`03-10-clone-and-dirty-and-policy-PLAN.md`): added `cloneWorkspace` with credentialRef auth, retry cancellation, mocked `git.clone` tests, HEAD resolution, and post-clone symlink audit; added `dirtyWorktreeStatus` with the CONFLICT-02 tracked-file statusMatrix filter; added repo runtime policy parsing/loading with Q-02 workspaceRoot recursive-clone refusal; exported repo-policy and repo-runtime admission-decision schemas. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-27:** Completed Phase 3 Plan 09 (`03-09-subprocess-runner-PLAN.md`): added `runCommand` with pre-spawn allowlist/schema/argv validation, array-form `spawn` with `shell: false`, stdout/stderr stream-to-file capture, rolling tails, byte counts, timeout kill handling, and 10 subprocess runner integration tests. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-27:** Completed Phase 3 Plan 07 (`03-07-apply-change-set-PLAN.md`): added `applyChangeSet` with SHA-256 pre-image gating, `diff.parsePatch`/`diff.applyPatch`, binary-marker refusal, no-hunk parse-error protection, best-effort ordered per-file `ApplyResult[]`, and 8 apply-change-set tests. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-27:** Completed Phase 3 Plan 08 (`03-08-subprocess-allowlist-and-schemas-PLAN.md`): added frozen subprocess baseline allowlist, policy-extension union helper, outer argv guard with enumerated `ArgvViolation` reasons, frozen git/pnpm/node/tsc schemas, and 19 subprocess validation tests. `pnpm --filter @protostar/repo test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.

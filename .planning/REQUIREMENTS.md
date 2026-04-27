@@ -35,7 +35,7 @@ Settle precedence before any real mutation.
 
 Make the repo boundary real. This is where the dark factory starts touching matter.
 
-- [ ] **REPO-01**: Target repo registration — `defineWorkspace` accepts a `RepoTarget` (URL + credential ref) and produces a verified `WorkspaceRef`
+- [x] **REPO-01**: Target repo registration — `defineWorkspace` accepts a `RepoTarget` (URL + credential ref) and produces a verified `WorkspaceRef`
 - [x] **REPO-02**: Workspace snapshot / branch creation is implemented in `packages/repo` (clone, checkout, branch from base SHA)
 - [x] **REPO-03**: File read/write caps enforced per `capabilityEnvelope` — paths outside the workspace are refused at the `repo` layer
 - [x] **REPO-04**: Command caps — subprocess invocations go through a `repo`-owned runner with allowlist + arg validation (no shell strings)
@@ -185,7 +185,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | GOV-04 | Phase 2 | Complete |
 | GOV-05 | Phase 2 | Complete |
 | GOV-06 | Phase 2 | Complete |
-| REPO-01 | Phase 3 | Pending |
+| REPO-01 | Phase 3 | Complete |
 | REPO-02 | Phase 3 | Complete |
 | REPO-03 | Phase 3 | Complete |
 | REPO-04 | Phase 3 | Complete |
