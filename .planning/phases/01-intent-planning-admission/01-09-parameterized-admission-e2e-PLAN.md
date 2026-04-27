@@ -3,7 +3,7 @@ phase: 01-intent-planning-admission
 plan: 09
 type: execute
 wave: 3
-depends_on: [03, 04, 06, 07, 08]
+depends_on: [03, 04, 06b, 07, 08]
 files_modified:
   - packages/admission-e2e/src/fixture-discovery.ts
   - packages/admission-e2e/src/parameterized-admission.test.ts

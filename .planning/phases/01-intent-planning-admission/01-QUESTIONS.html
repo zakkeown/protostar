@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Phase 1 — Intent + Planning Admission — Discussion</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --green: #22c55e;
+    --green-tint: #f0fdf4;
+    --orange: #f97316;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f8fafc;
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  header h1 { margin: 0 0 8px 0; font-size: 18px; }
+  header .sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .stats { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .pill { padding: 4px 10px; border-radius: 999px; background: #f1f5f9; font-size: 12px; font-weight: 600; }
+  .pill.green { background: var(--green-tint); color: #166534; }
+  .pill.orange { background: #fff7ed; color: #9a3412; }
+  .progress { flex: 1 1 200px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; min-width: 200px; }
+  .progress > div { height: 100%; background: var(--green); width: 0%; transition: width 0.2s ease; }
+  .actions { display: flex; gap: 8px; }
+  button {
+    background: var(--accent); color: white; border: 0; padding: 8px 14px;
+    border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  button.secondary { background: white; color: var(--ink); border: 1px solid var(--border); }
+  button:hover { filter: brightness(1.05); }
+  main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .section { margin-bottom: 24px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; user-select: none;
+    padding: 10px 12px; background: white; border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .section-header h2 { margin: 0; font-size: 15px; flex: 1; }
+  .section-header .count { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .section-header .chev { transition: transform 0.15s; }
+  .section.collapsed .section-header .chev { transform: rotate(-90deg); }
+  .section.collapsed .grid { display: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .card.answered { border: 2px solid var(--green); background: var(--green-tint); padding: 13px; }
+  .card .qid {
+    display: inline-block; padding: 2px 8px; background: #eef2ff; color: #3730a3;
+    border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 8px;
+  }
+  .card h3 { margin: 0 0 8px 0; font-size: 14px; display: flex; align-items: baseline; }
+  .card .title { flex: 1; }
+  .card .ctx {
+    color: var(--muted); font-size: 12px; font-style: italic;
+    margin: 6px 0 10px 0; line-height: 1.4;
+  }
+  .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .option {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 8px; border: 1px solid transparent; border-radius: 5px;
+    cursor: pointer;
+  }
+  .option:hover { background: #f8fafc; }
+  .option input { margin-top: 3px; }
+  .option .label { font-size: 13px; font-weight: 600; }
+  .option .desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .option.selected { background: #ecfdf5; border-color: var(--green); }
+  .chat-more {
+    width: 100%; min-height: 56px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 6px 8px; font-family: inherit; font-size: 12px;
+  }
+  .chat-more.has-content { border: 2px solid var(--orange); }
+  .chat-more::placeholder { color: #94a3b8; }
+  .footer { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+  .save-banner {
+    background: #fef3c7; color: #78350f; padding: 10px 14px;
+    border-radius: 6px; font-size: 13px; margin: 12px 0;
+    display: none;
+  }
+  .save-banner.show { display: block; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase 1 — Intent + Planning Admission · Discussion Questions</h1>
+  <div class="sub">Answer at your own pace, then click <strong>Save answers</strong> and tell Claude <code>refresh</code> or <code>finalize</code>.</div>
+  <div class="stats">
+    <span class="pill"><span id="stat-total">0</span> total</span>
+    <span class="pill green"><span id="stat-answered">0</span> answered</span>
+    <span class="pill"><span id="stat-remaining">0</span> remaining</span>
+    <span class="pill orange"><span id="stat-chatmore">0</span> chat-more</span>
+    <div class="progress"><div id="progress-fill"></div></div>
+    <div class="actions">
+      <button id="save-top">Save answers</button>
+      <button class="secondary" id="download-top">Download JSON</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="save-banner" id="save-banner"></div>
+  <div id="sections"></div>
+  <div style="text-align:center; margin-top:24px;">
+    <button id="save-bottom">Save answers</button>
+    <button class="secondary" id="download-bottom">Download JSON</button>
+  </div>
+</main>
+<div class="footer">
+  Generated 2026-04-26 · 13 questions across 7 topics · Phase 1 of v1 roadmap
+</div>
+
+<script>
+const STATE = {"phase":"01-intent-planning-admission","generated_at":"2026-04-26T00:00:00Z","stats":{"total":13,"answered":0,"chat_more":0,"remaining":13},"sections":[{"id":"verify-gate","title":"Verify gate (sealing `pnpm run verify`)","questions":[{"id":"Q-01","title":"How should `verify` enumerate package tests?","context":"Current root `package.json:11` runs only `@protostar/intent` and `@protostar/factory-cli` tests. CONCERNS.md flags this — the 4684-line `policy/src/admission-control.test.ts` is not in the gate. Every package already has `test: pnpm run build && node --test dist/*.test.js`.","options":[{"id":"a","label":"`pnpm -r test` (run every package with a test script)","description":"Simplest, future-proof — new packages auto-join the gate. Trades a small amount of explicitness for zero drift."},{"id":"b","label":"Explicit allowlist of all 11 packages in the script","description":"Verbose but auditable. Adding a package requires editing `verify` — protects against an unintended package being silently added."},{"id":"c","label":"Tiered: fast (typecheck + intent + factory-cli) and full (`pnpm -r test`)","description":"Local dev gets fast feedback; CI runs full. Adds two scripts (`verify`, `verify:full`) and slightly more cognitive load."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-02","title":"Should `verify` re-exercise every fixture against the live admission path, or trust package tests?","context":"Fixtures live in `examples/intents/` and `examples/planning-results/`. PLAN-A-01 says every candidate plan must flow through `parsePlanningPileResult → admitCandidatePlans → assertAdmittedPlanHandoff`. Package tests already feed many of these fixtures, but coverage is per-package, not end-to-end.","options":[{"id":"a","label":"Add a dedicated `admission-fixtures.test.ts` that loops every fixture end-to-end","description":"One test owns 'no fixture escapes admission'. Lives in factory-cli or a new `admission-e2e` package. Fastest way to lock the invariant."},{"id":"b","label":"Trust per-package tests + assert fixture file count parity in a meta-test","description":"A small test asserts every file under `examples/intents/` is referenced by at least one test. Cheaper but indirect."},{"id":"c","label":"Both — meta-test for parity, e2e test for happy-path admission","description":"Belt and suspenders. Catches both 'fixture added but never tested' and 'fixture tested but not e2e'."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"bypass-prevention","title":"Bypass prevention (no test/CLI escape hatch)","questions":[{"id":"Q-03","title":"How do we prove no `ConfirmedIntent` is constructed outside `promoteIntentDraft`?","context":"INTENT-02 demands `promoteIntentDraft` be the only path. `ConfirmedIntent` lives in `packages/intent/src/confirmed-intent/`. There's already a `confirmed-intent-readonly.contract.ts` and a `public-split-exports.contract.test.ts`. The constructor is currently exported.","options":[{"id":"a","label":"Branded type + private constructor — only `promoteIntentDraft` can mint","description":"TypeScript-level guarantee. Requires moving the type into a sealed factory; downstream consumers receive the branded `ConfirmedIntent` and cannot reconstruct it. Strongest compile-time guard."},{"id":"b","label":"ESLint rule `no-restricted-imports` blocking direct constructor use","description":"Lint-time. Easy to add but easy to bypass with `// eslint-disable`. Pairs well with (a)."},{"id":"c","label":"Architecture test that greps the codebase for forbidden constructions","description":"Runtime/test-time grep for `new ConfirmedIntent(` or direct property assignment outside the admission module. Cheap, no compiler changes."},{"id":"d","label":"Combine (a) + a contract test that asserts only `promoteIntentDraft` is exported as a mint path","description":"Defense in depth. Brand at type level + contract test that locks the public surface."},{"id":"e","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-04","title":"How is `assertAdmittedPlanHandoff` enforced as the only handoff path into execution?","context":"PLAN-A-01 says every candidate plan flows through `parsePlanningPileResult → admitCandidatePlans → assertAdmittedPlanHandoff`. Execution package today reads `AdmittedPlan` directly. The `candidate-admitted-plan-boundary.contract.ts` exists in planning.","options":[{"id":"a","label":"Branded `AdmittedPlan` type — execution accepts only the brand","description":"Compile-time. `assertAdmittedPlanHandoff` is the only function that produces the brand. Mirrors (Q-03 a)."},{"id":"b","label":"Runtime signature — admission stamps a non-forgeable token, execution verifies","description":"Overlaps with Phase 2 GOV-06 (signed intent). Risk of duplicating Phase 2 work; consider deferring."},{"id":"c","label":"Architecture test asserting execution's only `AdmittedPlan` import path is `@protostar/planning/admission`","description":"Cheapest. Catches accidental short-circuits but not malicious ones."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"fuzzed-bad","title":"Fuzzed-bad fixtures (success criterion: refuses to advance)","questions":[{"id":"Q-05","title":"Fuzzing approach for the 'fuzzed-bad intent' and 'fuzzed-bad plan' success criteria","context":"Roadmap success criteria: 'A fuzzed-bad intent and a fuzzed-bad plan each produce the correct no-admission artifact and refuse to advance.' Current bad fixtures are hand-curated (`examples/intents/bad-missing-capability.json`, `examples/planning-results/bad-*.json`).","options":[{"id":"a","label":"Property-based fuzzing with `fast-check` — generate intents/plans, assert admission rejects all schema-violating ones","description":"Adds a dependency. Strong guarantee — covers state space the curated fixtures miss. Slower test runtime."},{"id":"b","label":"Snapshot-mutation generator — programmatically corrupt the good `scaffold` fixture and assert each mutant rejects","description":"Self-contained, deterministic. Mutations like 'drop required field', 'duplicate task id', 'inject unknown AC' systematically applied. No new dependency."},{"id":"c","label":"Expand the curated bad-fixture set to cover every admission rule, no fuzzing","description":"Simplest. Each rejection rule has at least one bad fixture. Loses generative coverage — only tests what was thought of."},{"id":"d","label":"Combine (b) deterministic mutator + (c) curated edge cases","description":"Mutator covers schema rules; curated fixtures cover semantic edge cases (cyclic graph, missing AC, capability expansion)."},{"id":"e","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-06","title":"Where do bad fixtures live, and how are they distinguished from good ones?","context":"Existing pattern: `examples/intents/bad-missing-capability.json` (prefix), `examples/planning-results/bad-*.json` (prefix). No registry of which fixture must reject and why.","options":[{"id":"a","label":"Keep `bad-*` prefix in `examples/`, add a `fixtures.manifest.json` listing each fixture and expected verdict","description":"Manifest is the single source of truth. Tests read it, loop through, assert verdict matches. New fixture without manifest entry fails."},{"id":"b","label":"Move bad fixtures to `examples/intents/bad/` and `examples/planning-results/bad/` subdirs","description":"Structural separation. Discovery-by-directory (every file in `bad/` must reject). No manifest needed."},{"id":"c","label":"Generate bad fixtures at test time only — keep `examples/` for human-readable good cases","description":"If fuzzing is the source (Q-05 a/b), bad fixtures live in test memory only. Cleaner tree, harder to inspect what was tested."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"no-admission-artifacts","title":"No-admission artifacts (refusal evidence)","questions":[{"id":"Q-07","title":"Schema versioning for `clarification-report.json` and `no-plan-admitted` artifacts","context":"INTENT-01 requires `clarification-report.json`. PLAN-A-02 requires a 'no-plan-admitted artifact'. Phase 2 will add admission decision artifacts that are 'schema-versioned'. Clarification report schema test exists at `packages/intent/src/clarification-report-schema.test.ts`.","options":[{"id":"a","label":"Embed `schemaVersion: \"1.0.0\"` in every refusal artifact + ship JSON Schemas under `packages/*/schema/`","description":"Aligns with Phase 2's schema-versioning requirement. Pays the cost upfront so Phase 2 doesn't have to migrate existing artifacts."},{"id":"b","label":"Brand the type only; defer JSON Schema files to Phase 2","description":"Less ceremony in Phase 1. Risk: artifacts emitted in Phase 1 fixtures can't be replayed against Phase 2 schemas without migration."},{"id":"c","label":"Embed `schemaVersion` field but no separate JSON Schema yet — schema added in Phase 2","description":"Middle ground. Field reserves the slot, validators come later."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-08","title":"Where are refusal artifacts written on disk?","context":"Successful runs write to `.protostar/runs/{id}/`. Refusals today abort early; no consistent home. CONCERNS.md notes 208 run dirs already accumulated on 2026-04-26.","options":[{"id":"a","label":"Under the same `.protostar/runs/{id}/` with a `terminal-status: rejected` marker file","description":"One run = one directory regardless of outcome. Operator surface (Phase 9) lists all runs uniformly."},{"id":"b","label":"Separate `.protostar/refusals/{id}/` tree","description":"Keeps successful runs uncluttered. Two query paths for any 'show me everything' tool."},{"id":"c","label":"Same dir as (a), plus a top-level `.protostar/refusals.jsonl` index for fast scans","description":"Best of both. Append-only index of all refusals; full evidence in run dir."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"ac-e2e","title":"Acceptance criteria normalization end-to-end","questions":[{"id":"Q-09","title":"Where does the cross-package 'draft → confirmed → downstream observes identical AC' test live?","context":"INTENT-03: 'Acceptance criteria normalization is contract-tested end-to-end'. Today, `acceptance-criteria-normalization.contract.ts` is in `packages/intent`. Downstream consumers (planning, execution) have their own AC checks but no shared E2E.","options":[{"id":"a","label":"New `packages/admission-e2e/` test-only package importing from intent + planning + execution","description":"Owns cross-cutting contracts. Future E2E tests (Phase 2 capability handoff, Phase 3 repo-scope) accumulate here."},{"id":"b","label":"In `apps/factory-cli/src/admission-e2e.test.ts` — CLI is already the integrator","description":"Reuses an existing test home. Risk: CLI tests grow into a catch-all."},{"id":"c","label":"In `packages/intent` with mock planning/execution consumers","description":"Self-contained but dishonest — mocks can drift from real downstream parsers."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-10","title":"What does 'identical AC' mean structurally — by-id, by-content-hash, or by-deep-equal?","context":"AC normalization may collapse whitespace, sort fields, etc. Downstream packages must observe the same AC the user confirmed.","options":[{"id":"a","label":"Deep equal on the whole `AcceptanceCriterion[]` array post-normalization","description":"Strongest. Any divergence (ordering, casing, extra field) is caught."},{"id":"b","label":"Stable content hash embedded in `ConfirmedIntent`, downstream re-hashes and compares","description":"Cheap to assert. Aligns with Phase 2 signature work — the hash is what gets signed."},{"id":"c","label":"ID-set equality — downstream stages must reference the same AC ids, content can be regenerated","description":"Loosest. Allows downstream to reformat for display."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"coverage-and-ci","title":"Fixture coverage and CI surface","questions":[{"id":"Q-11","title":"Greenfield + brownfield ambiguity coverage in the admission path","context":"Both `greenfield-ambiguity-fixtures.test.ts` and `brownfield-ambiguity-fixtures.test.ts` exist in `packages/intent`. Phase 1 success criterion says 'every fixture in `examples/intents/`' is exercised through admission in CI.","options":[{"id":"a","label":"Single parameterized admission test loops `examples/intents/**/*.json`, asserts expected verdict from manifest","description":"Mirrors Q-06 a. One test, complete coverage. Adding a fixture = adding a manifest line."},{"id":"b","label":"Two parallel test files (greenfield, brownfield) with explicit fixture lists","description":"Matches existing structure. Easier to read; harder to keep in sync with `examples/`."},{"id":"c","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"},{"id":"Q-12","title":"Does Phase 1 introduce a GitHub Actions workflow, or stay pnpm-script-only?","context":"No `.github/workflows/` exists. Phase 10 (V1 Hardening + Dogfood) is where dogfood/CI gating is explicit. But the phase 1 success criterion includes 'in CI'.","options":[{"id":"a","label":"Add a minimal `.github/workflows/verify.yml` running `pnpm install && pnpm run verify` on PR","description":"Honors the literal 'in CI' criterion. Small surface, easy to expand in Phase 10."},{"id":"b","label":"No workflow yet — interpret 'in CI' as 'in the verify gate' and defer GH Actions to Phase 10","description":"Minimizes Phase 1 scope. Risk: 'in CI' is technically unmet until Phase 10 ships."},{"id":"c","label":"Add the workflow but mark it advisory (no required-check) until Phase 10","description":"Live but non-blocking. Lets contributors see CI signal without binding decisions."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]},{"id":"scope","title":"Phase 1 scope boundary","questions":[{"id":"Q-13","title":"Is `ConfirmedIntent` admission signing in Phase 1 or strictly Phase 2 (GOV-06)?","context":"Phase 2 explicitly owns 'ConfirmedIntent carries an admission signature that downstream stages verify' (GOV-06). Q-04 option (b) and Q-10 option (b) both touch signing. Phase 1 could lay scaffolding without enforcement.","options":[{"id":"a","label":"Strictly Phase 2 — Phase 1 uses brands/types, no signature material","description":"Clean boundary. Phase 1 ships without crypto. Zero risk of Phase 2 having to undo work."},{"id":"b","label":"Phase 1 reserves a `signature: null` field on `ConfirmedIntent` for Phase 2 to fill","description":"Schema slot reserved; downstream consumers can already pattern-match. No verification logic in Phase 1."},{"id":"c","label":"Phase 1 emits a content-hash (no key material) that Phase 2 upgrades to a signature","description":"Hash is useful in its own right (replay detection, audit). Phase 2 swaps hash → signature."},{"id":"d","label":"Custom","description":""}],"answer":null,"chat_more":"","status":"unanswered"}]}]};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function recalcStats() {
+  let answered = 0, chatMore = 0, total = 0;
+  for (const sec of STATE.sections) {
+    for (const q of sec.questions) {
+      total++;
+      const hasAnswer = q.answer !== null && q.answer !== "";
+      const hasChat = q.chat_more && q.chat_more.trim() !== "";
+      if (hasAnswer) answered++;
+      if (hasChat) chatMore++;
+      q.status = hasAnswer ? "answered" : (hasChat ? "chat-more" : "unanswered");
+    }
+  }
+  STATE.stats = { total, answered, chat_more: chatMore, remaining: total - answered };
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-answered").textContent = answered;
+  document.getElementById("stat-remaining").textContent = total - answered;
+  document.getElementById("stat-chatmore").textContent = chatMore;
+  document.getElementById("progress-fill").style.width = total ? (answered / total * 100) + "%" : "0%";
+}
+
+function renderSectionCount(sec) {
+  const ans = sec.questions.filter(q => q.answer !== null && q.answer !== "").length;
+  return `${ans}/${sec.questions.length} answered`;
+}
+
+function render() {
+  const root = document.getElementById("sections");
+  root.innerHTML = "";
+  for (const sec of STATE.sections) {
+    const section = document.createElement("section");
+    section.className = "section";
+    section.dataset.id = sec.id;
+
+    const header = document.createElement("div");
+    header.className = "section-header";
+    header.innerHTML = `<span class="chev">▼</span><h2>${escapeHtml(sec.title)}</h2><span class="count" data-count>${renderSectionCount(sec)}</span>`;
+    header.addEventListener("click", () => section.classList.toggle("collapsed"));
+    section.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    for (const q of sec.questions) {
+      const card = document.createElement("div");
+      card.className = "card" + (q.answer ? " answered" : "");
+      card.dataset.qid = q.id;
+
+      const optionsHtml = q.options.map(opt => `
+        <label class="option ${q.answer === opt.id ? "selected" : ""}">
+          <input type="radio" name="${q.id}" value="${escapeHtml(opt.id)}" ${q.answer === opt.id ? "checked" : ""} />
+          <div>
+            <div class="label">${escapeHtml(opt.label)}</div>
+            ${opt.description ? `<div class="desc">${escapeHtml(opt.description)}</div>` : ""}
+          </div>
+        </label>
+      `).join("");
+
+      card.innerHTML = `
+        <h3><span class="qid">${q.id}</span><span class="title">${escapeHtml(q.title)}</span></h3>
+        <div class="ctx">${escapeHtml(q.context)}</div>
+        <div class="options">${optionsHtml}</div>
+        <textarea class="chat-more ${q.chat_more ? "has-content" : ""}" placeholder="Add context, nuance, or clarification for this question…">${escapeHtml(q.chat_more || "")}</textarea>
+      `;
+
+      // Bind radios
+      card.querySelectorAll('input[type=radio]').forEach(r => {
+        r.addEventListener("change", () => {
+          q.answer = r.value;
+          updateCard(card, q);
+          recalcStats();
+          updateSectionCount(section, sec);
+        });
+      });
+
+      // Bind textarea
+      const ta = card.querySelector("textarea");
+      ta.addEventListener("input", () => {
+        q.chat_more = ta.value;
+        ta.classList.toggle("has-content", !!ta.value.trim());
+        recalcStats();
+      });
+
+      grid.appendChild(card);
+    }
+
+    section.appendChild(grid);
+    root.appendChild(section);
+  }
+  recalcStats();
+}
+
+function updateCard(card, q) {
+  card.classList.toggle("answered", !!q.answer);
+  card.querySelectorAll(".option").forEach(opt => {
+    const input = opt.querySelector("input");
+    opt.classList.toggle("selected", input.value === q.answer);
+  });
+}
+
+function updateSectionCount(section, sec) {
+  section.querySelector("[data-count]").textContent = renderSectionCount(sec);
+}
+
+let fileHandle = null;
+
+async function saveAnswers() {
+  recalcStats();
+  const json = JSON.stringify(STATE, null, 2);
+  const banner = document.getElementById("save-banner");
+
+  if (window.showSaveFilePicker && fileHandle) {
+    try {
+      const writable = await fileHandle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      banner.textContent = "Saved. Tell Claude `refresh` to process, or `finalize` to write CONTEXT.md.";
+      banner.classList.add("show");
+      return;
+    } catch (e) { /* fall through to download */ }
+  }
+
+  if (window.showSaveFilePicker) {
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: "01-QUESTIONS.json",
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
+      });
+      const writable = await fileHandle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      banner.textContent = "Saved. Replace .planning/phases/01-intent-planning-admission/01-QUESTIONS.json with the saved file. Then tell Claude `refresh` or `finalize`.";
+      banner.classList.add("show");
+      return;
+    } catch (e) { /* user cancelled or fall through */ }
+  }
+
+  downloadAnswers();
+}
+
+function downloadAnswers() {
+  recalcStats();
+  const json = JSON.stringify(STATE, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "01-QUESTIONS.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  const banner = document.getElementById("save-banner");
+  banner.textContent = "Downloaded 01-QUESTIONS.json. Replace .planning/phases/01-intent-planning-admission/01-QUESTIONS.json, then tell Claude `refresh` or `finalize`.";
+  banner.classList.add("show");
+}
+
+document.getElementById("save-top").addEventListener("click", saveAnswers);
+document.getElementById("save-bottom").addEventListener("click", saveAnswers);
+document.getElementById("download-top").addEventListener("click", downloadAnswers);
+document.getElementById("download-bottom").addEventListener("click", downloadAnswers);
+
+render();
+</script>
+</body>
+</html>
