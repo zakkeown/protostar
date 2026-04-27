@@ -13,8 +13,9 @@
 //                                     admitCandidatePlans, assertAdmittedPlanHandoff}
 //                                     rejects/throws
 //
-// Top-level intent fixtures are drafts BY CONTRACT — no `parseConfirmedIntent`
-// call appears anywhere in this file. Confirmed-shape JSON files at top-level
+// Top-level intent fixtures are drafts BY CONTRACT — the confirmed-intent
+// parse path is intentionally absent from this file (Plan 01-09 step 6
+// guard against the silent-bypass pattern). Confirmed-shape JSON files at top-level
 // or under bad/ are skipped and surfaced as Plan 03 follow-ups via the
 // discovery layer.
 //
