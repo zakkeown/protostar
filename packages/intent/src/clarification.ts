@@ -61,7 +61,7 @@ export type ClarificationQuestionGeneratorInput = GenerateClarificationQuestions
 
 export type ClarificationQuestionGeneratorOutput = GenerateClarificationQuestionsOutput;
 
-export const CLARIFICATION_REPORT_SCHEMA_VERSION = "protostar.intent.clarification-report.v1";
+export const CLARIFICATION_REPORT_SCHEMA_VERSION = "1.0.0";
 
 export const CLARIFICATION_REPORT_ARTIFACT_NAME = "clarification-report.json";
 
