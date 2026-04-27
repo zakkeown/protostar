@@ -80,7 +80,7 @@ function compileTimeReadonlyMutationChecks(intent: ConfirmedIntent): void {
   // @ts-expect-error ConfirmedIntent stop conditions are readonly arrays.
   intent.stopConditions.push("new mutable stop condition");
 
-  // @ts-expect-error ConfirmedIntent schemaVersion is the locked Phase 2 value.
+  // @ts-expect-error ConfirmedIntent schemaVersion is the locked Phase 3 value.
   intent.schemaVersion = "2.0.0";
 
   // @ts-expect-error ConfirmedIntent signature is readonly.
@@ -91,8 +91,8 @@ void compileTimeReadonlyMutationChecks;
 
 function buildImmutabilityFixture(): ConfirmedIntent {
   return buildConfirmedIntentForTest({
-    // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
-    schemaVersion: "1.1.0",
+    // Migrated to 1.2.0 per Phase 3 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+    schemaVersion: "1.2.0",
     signature: null,
     id: "intent_confirmed_immutability" as IntentId,
     sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
@@ -154,8 +154,8 @@ describe("ConfirmedIntent immutability", () => {
     assert.equal(Object.isFrozen(intent.constraints), true);
     assert.equal(Object.isFrozen(intent.stopConditions), true);
 
-    // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
-    assert.equal(intent.schemaVersion, "1.1.0");
+    // Migrated to 1.2.0 per Phase 3 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+    assert.equal(intent.schemaVersion, "1.2.0");
     assert.equal(intent.signature, null);
 
     assert.throws(() => {
@@ -218,8 +218,8 @@ describe("ConfirmedIntent immutability", () => {
     const sourceStopConditions = ["Stop if immutable confirmed-intent contract tests fail."];
 
     const intent = buildConfirmedIntentForTest({
-      // Migrated to 1.1.0 per Phase 2 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
-      schemaVersion: "1.1.0",
+      // Migrated to 1.2.0 per Phase 3 Plan 03 hard bump (Q-18 user lock, revision iteration 2).
+      schemaVersion: "1.2.0",
       signature: null,
       id: "intent_confirmed_immutability_copy" as IntentId,
       sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
