@@ -12,14 +12,19 @@
     },
     "./schema/workspace-trust-admission-decision.schema.json": "./schema/workspace-trust-admission-decision.schema.json"
   },
-  "files": ["dist", "schema"],
+  "files": [
+    "dist",
+    "schema"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test \"dist/**/*.test.js\"",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@protostar/authority": "workspace:*"
+    "@protostar/authority": "workspace:*",
+    "diff": "9.0.0",
+    "isomorphic-git": "1.37.6"
   },
   "sideEffects": false
 }

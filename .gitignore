@@ -3,6 +3,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .protostar/runs/
+.protostar/workspaces/
 .env
 .env.*
 !.env.example
