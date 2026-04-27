@@ -10,6 +10,7 @@ import {
   runExecutionDryRun,
   TASK_JOURNAL_EVENT_SCHEMA_VERSION,
   type AdapterEvidence,
+  type AdapterFailureReason,
   type AdapterResult,
   type ExecutionAdapter,
   type ExecutionRunPlan,
@@ -39,6 +40,30 @@ describe("runRealExecution", () => {
     assert.match(await readFile(join(ctx.runDir, "execution", "snapshot.json"), "utf8"), /"status":"succeeded"/);
     assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1", "evidence.json")), true);
     assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1", "transcript.json")), true);
+  });
+
+  it("authorizes patch writes before applying a change set", async () => {
+    const ctx = await testContext({
+      envelope: { ...envelope(), repoScopes: [] }
+    });
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    let applyCalls = 0;
+
+    await assert.rejects(
+      runRealExecution({
+        ...ctx.input,
+        journalWriter: writer,
+        adapter: finalAdapter(changeSetResult("src/a.ts")),
+        applyChangeSet: async () => {
+          applyCalls += 1;
+          return [{ path: "src/a.ts", status: "applied" }];
+        }
+      }),
+      /workspace write not authorized/
+    );
+    await writer.close();
+
+    assert.equal(applyCalls, 0);
   });
 
   it("bails with block on apply failure and does not execute downstream tasks", async () => {
@@ -74,15 +99,20 @@ describe("runRealExecution", () => {
     ]);
   });
 
-  it("emits task-timeout when the task wall clock abort fires", async () => {
-    const ctx = await testContext({ envelope: { ...envelope(), budget: { adapterRetriesPerTask: 4, taskWallClockMs: 1, maxRepairLoops: 0 } } });
+  it("blocks on timeout and does not execute downstream tasks", async () => {
+    const ctx = await testContext({
+      taskCount: 2,
+      envelope: { ...envelope(), budget: { adapterRetriesPerTask: 4, taskWallClockMs: 1, maxRepairLoops: 0 } }
+    });
     const writer = await createJournalWriter({ runDir: ctx.runDir });
+    let adapterCalls = 0;
     const result = await runRealExecution({
       ...ctx.input,
       journalWriter: writer,
       adapter: {
         id: "slow",
         async *execute(_task, adapterCtx) {
+          adapterCalls += 1;
           await new Promise((resolveDone) => adapterCtx.signal.addEventListener("abort", resolveDone, { once: true }));
           yield { kind: "final", result: failedResult("timeout") };
         }
@@ -91,7 +121,34 @@ describe("runRealExecution", () => {
     });
     await writer.close();
 
+    assert.equal(result.outcome, "block");
+    assert.equal(result.blockReason, "task-timeout");
+    assert.equal(adapterCalls, 1);
     assert.equal(result.events.at(-1)?.type, "task-timeout");
+  });
+
+  it("blocks on adapter failure and does not execute downstream tasks", async () => {
+    const ctx = await testContext({ taskCount: 2 });
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    let adapterCalls = 0;
+    const result = await runRealExecution({
+      ...ctx.input,
+      journalWriter: writer,
+      adapter: {
+        id: "failing",
+        async *execute() {
+          adapterCalls += 1;
+          yield { kind: "final", result: failedResult("retries-exhausted") };
+        }
+      },
+      applyChangeSet: async () => []
+    });
+    await writer.close();
+
+    assert.equal(result.outcome, "block");
+    assert.equal(result.blockReason, "retries-exhausted");
+    assert.equal(adapterCalls, 1);
+    assert.equal(result.events.at(-1)?.type, "task-failed");
   });
 
   it("emits task-cancelled when a sentinel aborts between tasks", async () => {
@@ -268,7 +325,7 @@ function changeSetResult(path: string, preImageSha256 = sha("before")): AdapterR
   };
 }
 
-function failedResult(reason: "timeout" | "aborted"): AdapterResult {
+function failedResult(reason: AdapterFailureReason): AdapterResult {
   return { outcome: "adapter-failed", reason, evidence: evidence() };
 }
 
@@ -294,7 +351,7 @@ function reader(): RepoReader {
 
 function envelope(): CapabilityEnvelope {
   return {
-    repoScopes: [],
+    repoScopes: [{ workspace: "main", path: "src", access: "write" }],
     workspace: { allowDirty: false },
     network: { allow: "loopback" },
     budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, maxRepairLoops: 0 },

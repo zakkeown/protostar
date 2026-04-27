@@ -4,7 +4,6 @@ import {
   type AuthorizedBudgetOpData
 } from "../authorized-ops/budget-op.js";
 import {
-  mintAuthorizedNetworkOp,
   type AuthorizedNetworkOp,
   type AuthorizedNetworkOpData
 } from "../authorized-ops/network-op.js";
@@ -76,7 +75,7 @@ export function buildAuthorizedNetworkOpForTest(
     resolvedEnvelope: defaultResolvedEnvelope
   };
 
-  return mintAuthorizedNetworkOp({ ...defaults, ...overrides });
+  return Object.freeze({ ...defaults, ...overrides }) as AuthorizedNetworkOp;
 }
 
 export function buildAuthorizedBudgetOpForTest(

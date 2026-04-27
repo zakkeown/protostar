@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
+import { authorizeWorkspaceOp } from "@protostar/authority";
 import type { StageArtifactRef } from "@protostar/artifacts";
 import {
   JOURNAL_FILE_NAME,
@@ -151,7 +152,9 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
           attempt: 1,
           evidenceArtifact
         });
-        continue;
+        outcome = "block";
+        blockReason = "task-timeout";
+        break;
       }
 
       if (taskController.signal.aborted || input.rootSignal.aborted) {
@@ -175,6 +178,9 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
             : "task-failed";
         if (terminal === "task-timeout") {
           await emit({ kind: "task-timeout", planTaskId: task.planTaskId, at: nowIso(), attempt: 1, evidenceArtifact });
+          outcome = "block";
+          blockReason = "task-timeout";
+          break;
         } else if (terminal === "task-cancelled") {
           await emit({
             kind: "task-cancelled",
@@ -195,8 +201,10 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
             reason: final.reason,
             evidenceArtifact
           });
+          outcome = "block";
+          blockReason = final.reason;
+          break;
         }
-        continue;
       }
 
       const applyResults = await input.applyChangeSet(patchesFromChangeSet(final.changeSet, input));
@@ -272,17 +280,27 @@ async function executeToFinal(
 
 function patchesFromChangeSet(changeSet: unknown, input: RunRealExecutionInput): readonly PatchRequest[] {
   const entries = readChangeEntries(changeSet);
-  return entries.map((entry) => ({
-    path: entry.path,
-    op: {
+  return entries.map((entry) => {
+    const authorization = authorizeWorkspaceOp({
       workspace: input.runPlan.workspace,
-      path: isAbsolute(entry.path) ? entry.path : resolve(input.workspaceRoot, entry.path),
+      path: entry.path,
       access: "write",
       resolvedEnvelope: input.resolvedEnvelope
-    },
-    diff: entry.diff,
-    preImageSha256: entry.preImageSha256
-  }));
+    });
+    if (!authorization.ok) {
+      throw new Error(`workspace write not authorized for ${entry.path}: ${authorization.errors.join("; ")}`);
+    }
+
+    return {
+      path: entry.path,
+      op: {
+        ...authorization.authorized,
+        path: isAbsolute(entry.path) ? entry.path : resolve(input.workspaceRoot, entry.path)
+      },
+      diff: entry.diff,
+      preImageSha256: entry.preImageSha256
+    };
+  });
 }
 
 function readChangeEntries(changeSet: unknown): readonly { path: string; diff: string; preImageSha256: string }[] {

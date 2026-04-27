@@ -70,5 +70,3 @@ export function authorizeNetworkOp(input: AuthorizedNetworkOpData): AuthorizeNet
 }
 
 export type AuthorizedNetworkOpBrandWitness = AuthorizedNetworkOp;
-
-export { mintAuthorizedNetworkOp };
