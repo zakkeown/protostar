@@ -18,6 +18,11 @@ import {
   type AuthorizedWorkspaceOp,
   type AuthorizedWorkspaceOpData
 } from "../authorized-ops/workspace-op.js";
+import {
+  mintPrecedenceDecision,
+  type PrecedenceDecision,
+  type PrecedenceDecisionData
+} from "../precedence/precedence-decision.js";
 
 import type { CapabilityEnvelope } from "@protostar/intent";
 
@@ -75,4 +80,18 @@ export function buildAuthorizedBudgetOpForTest(
   };
 
   return mintAuthorizedBudgetOp({ ...defaults, ...overrides });
+}
+
+export function buildPrecedenceDecisionForTest(
+  overrides: Partial<PrecedenceDecisionData> = {}
+): PrecedenceDecision {
+  const defaults: PrecedenceDecisionData = {
+    schemaVersion: "1.0.0",
+    status: "no-conflict",
+    resolvedEnvelope: defaultResolvedEnvelope,
+    tiers: [],
+    blockedBy: []
+  };
+
+  return mintPrecedenceDecision({ ...defaults, ...overrides });
 }

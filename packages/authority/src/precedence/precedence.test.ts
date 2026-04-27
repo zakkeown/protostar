@@ -138,7 +138,7 @@ test("decision data is frozen", () => {
   const decision = intersectEnvelopes([tier()]);
 
   assert.throws(() => {
-    (decision as { tiers: readonly TierConstraint[] }).tiers = [];
+    (decision as unknown as { tiers: TierConstraint[] }).tiers = [];
   }, TypeError);
 });
 
