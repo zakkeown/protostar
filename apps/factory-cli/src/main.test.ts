@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 
 import { createAcceptanceCriterionId } from "@protostar/intent/acceptance-criteria";
 import { parseConfirmedIntent } from "@protostar/intent/confirmed-intent";
+import { verifyConfirmedIntentSignature } from "@protostar/authority";
+import type { ConfirmedIntent } from "@protostar/intent";
 import {
   hashPlanGraph,
   PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS,
@@ -76,6 +78,74 @@ const executionAndReviewArtifactFiles = [
 ] as const;
 
 describe("factory CLI draft admission hardening", () => {
+  it("writes all 5 gate admission decisions, policy snapshot, signed intent, and no legacy intent decision filename", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_all_5_gates_admission_decisions";
+      const runDir = resolve(outDir, runId);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+
+      const result = await runCli([
+        "run",
+        "--draft",
+        draftPath,
+        "--out",
+        outDir,
+        "--planning-fixture",
+        planningFixturePath,
+        "--run-id",
+        runId,
+        "--intent-mode",
+        "brownfield"
+      ]);
+
+      assert.equal(result.exitCode, 0, result.stderr);
+
+      const gates = ["intent", "planning", "capability", "repo-scope", "workspace-trust"] as const;
+      for (const gate of gates) {
+        const decision = await readJsonObject(resolve(runDir, `${gate}-admission-decision.json`));
+        assert.equal(decision["schemaVersion"], "1.0.0");
+        assert.equal(decision["runId"], runId);
+        assert.equal(decision["gate"], gate);
+        assert.equal(decision["outcome"], "allow");
+        assert.equal(readObjectProperty(decision, "precedenceResolution")["status"], "no-conflict");
+      }
+
+      const indexLines = (await readFile(resolve(runDir, "admission-decisions.jsonl"), "utf8")).trimEnd().split("\n");
+      assert.equal(indexLines.length, 5);
+      assert.deepEqual(indexLines.map((line) => JSON.parse(line).gate), [...gates]);
+      assert.equal(await pathExists(resolve(runDir, "admission-decision.json")), false);
+      assert.equal(await pathExists(resolve(runDir, "precedence-decision.json")), false);
+
+      const intent = await readJsonObject(resolve(runDir, "intent.json"));
+      const signature = readObjectProperty(intent, "signature");
+      assert.match(String(signature["value"]), /^[0-9a-f]{64}$/);
+      assert.equal(signature["canonicalForm"], "json-c14n@1.0");
+
+      const policySnapshot = await readJsonObject(resolve(runDir, "policy-snapshot.json"));
+      const resolvedEnvelope = readObjectProperty(policySnapshot, "resolvedEnvelope");
+      const verified = verifyConfirmedIntentSignature(
+        intent as unknown as ConfirmedIntent,
+        policySnapshot as unknown as Parameters<typeof verifyConfirmedIntentSignature>[1],
+        resolvedEnvelope as unknown as Parameters<typeof verifyConfirmedIntentSignature>[2]
+      );
+      assert.equal(verified.ok, true, verified.ok ? undefined : verified.errors.join("; "));
+
+      const tamperedIntent = { ...intent, title: "tampered" };
+      const tampered = verifyConfirmedIntentSignature(
+        tamperedIntent as unknown as ConfirmedIntent,
+        policySnapshot as unknown as Parameters<typeof verifyConfirmedIntentSignature>[1],
+        resolvedEnvelope as unknown as Parameters<typeof verifyConfirmedIntentSignature>[2]
+      );
+      assert.equal(tampered.ok, false);
+    });
+  });
+
   it("serializes only the normalized ConfirmedIntent JSON on successful draft admission", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
