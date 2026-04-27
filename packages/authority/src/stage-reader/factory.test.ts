@@ -194,13 +194,14 @@ function signedIntentArtifacts(): {
   readonly precedenceDecision: object;
 } {
   const intentBody = unsignedIntentBody();
+  const { signature: _unsignedSignature, ...signedBody } = intentBody;
   const policySnapshot = buildPolicySnapshot({
     capturedAt: "2026-04-27T00:00:00.000Z",
     policy,
     resolvedEnvelope
   });
   const signature = buildSignatureEnvelope({
-    intent: intentBody,
+    intent: signedBody,
     resolvedEnvelope,
     policySnapshotHash: hashPolicySnapshot(policySnapshot)
   });
