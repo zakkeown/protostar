@@ -25,3 +25,22 @@ This repo is a dark software factory control plane. Keep the authority boundary 
 - Side effects belong behind `repo`, `execution`, or caller-owned tool adapters, not in planning or review contracts.
 - Run `pnpm run verify` before handing work back.
 - Run `pnpm run factory` after changing stage composition or package exports.
+
+## @protostar/paths Carve-Out (added 2026-04-27, Phase 3 Q-15)
+
+AGENTS.md "domain-first only - avoid generic utils/agents/factory packages"
+rule has one user-locked exception: `@protostar/paths`.
+
+**Scope ceiling - path resolution only.** Permitted contents:
+- Deterministic walks from a starting directory to a sentinel file
+  (`pnpm-workspace.yaml`, future: `.git`, etc. only with explicit lock-revision).
+- Pure-compute path manipulation (`node:path` `resolve` / `relative` / `dirname`).
+
+**Forbidden:**
+- I/O beyond `existsSync` / `statSync` for sentinel detection.
+- Business logic (intent, planning, execution, review, evaluation, delivery, repo).
+- Networking. Subprocess. JSON parsing. YAML parsing.
+
+If a second consumer needs a path helper that doesn't fit the ceiling, split
+`@protostar/paths` rather than expand it. The carve-out is one exception, not
+a precedent for more.
