@@ -94,6 +94,49 @@ describe("createLmstudioCoderAdapter", () => {
     assert.equal(final.result.evidence.retries.length, 0);
   });
 
+  it("fails with parse-no-block when the diff references an out-of-target file", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([
+        [
+          "```diff",
+          "--- a/src/Other.tsx",
+          "+++ b/src/Other.tsx",
+          "@@ -1 +1 @@",
+          "-old",
+          "+new",
+          "```"
+        ].join("\n")
+      ])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "adapter-failed");
+    if (final.result.outcome !== "adapter-failed") throw new Error("expected failure");
+    assert.equal(final.result.reason, "parse-no-block");
+  });
+
+  it("fails with aux-read-budget-exceeded when the aux read budget is invalid", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      auxReadBudget: -1,
+      fetchImpl: createStreamingFetch([cosmeticTweakFixture.expectedDiffSample])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "adapter-failed");
+    if (final.result.outcome !== "adapter-failed") throw new Error("expected failure");
+    assert.equal(final.result.reason, "aux-read-budget-exceeded");
+  });
+
   it("appends every token delta to the adapter journal", async () => {
     const chunks = chunkString(cosmeticTweakFixture.expectedDiffSample, 7);
     const journalTokens: string[] = [];

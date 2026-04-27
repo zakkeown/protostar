@@ -100,6 +100,23 @@ describe("createLmstudioCoderAdapter retry behavior", () => {
     assert.equal(final.result.evidence.retries[0]?.errorClass, "TypeError");
   });
 
+  it("fails with lmstudio-unreachable for non-transient fetch errors", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: sequenceFetch([new TypeError("bad response shape")]),
+      sleepMs: async () => undefined
+    });
+
+    const final = finalEvent(await collectEvents(adapter.execute(toAdapterTask(), createContext())));
+
+    assert.equal(final.result.outcome, "adapter-failed");
+    if (final.result.outcome !== "adapter-failed") throw new Error("expected failure");
+    assert.equal(final.result.reason, "lmstudio-unreachable");
+    assert.equal(final.result.evidence.retries.length, 0);
+  });
+
   it("uses deterministic backoff delays from the injected RNG", async () => {
     const actualDelays: number[] = [];
     const seed = 12345;
