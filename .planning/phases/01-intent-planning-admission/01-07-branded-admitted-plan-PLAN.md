@@ -7,6 +7,8 @@ depends_on: [05]
 files_modified:
   - packages/planning/src/index.ts
   - packages/planning/src/artifacts/index.ts
+  - packages/planning/src/internal/brand-witness.ts
+  - packages/planning/package.json
   - packages/planning/src/candidate-admitted-plan-boundary.contract.ts
   - packages/planning/src/admitted-plan-handoff.test.ts
   - packages/execution/src/index.ts
@@ -27,6 +29,9 @@ must_haves:
     - path: packages/planning/src/index.ts
       provides: "Branded AdmittedPlan type + private mint + assertAdmittedPlanHandoff as sole public mint"
       contains: "assertAdmittedPlanHandoff"
+    - path: packages/planning/src/internal/brand-witness.ts
+      provides: "Type-only AdmittedPlan brand witness exposed via @protostar/planning/internal (admission-e2e only — unstable subpath)"
+      contains: "AdmittedPlanBrandWitness"
     - path: packages/execution/src/admitted-plan-input.contract.ts
       provides: "Compile-time pin: ExecutionRunPlan input type is AdmittedPlan, not CandidatePlan"
       contains: "AdmittedPlan"
@@ -179,31 +184,80 @@ type IfEquals<X, Y, Then = true, Else = false> = ...;
     - Plan 09's parameterized e2e test will exercise the runtime path; this contract is the compile-time pin.
   </behavior>
   <action>
-    1. Create packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts mirroring the structure of confirmed-intent-mint.contract.test.ts (Plan 06):
-       - Import * as PlanningPublicApi from "@protostar/planning".
-       - Allowlist: ["assertAdmittedPlanHandoff"] as const.
-       - Compile-time mechanism: extract every exported function whose ReturnType contains the AdmittedPlan brand; assert that key set equals the allowlist (Assert<Equal<...>>).
-       - Runtime smoke: assert typeof PlanningPublicApi.assertAdmittedPlanHandoff === "function".
-       - Document the mechanism in a top-of-file comment block.
+    **Mechanism choice (Option A — internal brand witness subpath, mirroring Plan 06).** `AdmittedPlanBrand` is a module-private `unique symbol` and cannot be named from a foreign module. Expose a TYPE-ONLY witness via a private `./internal` subpath on `@protostar/planning`. This is the same mechanism Plan 06 uses for `ConfirmedIntent` — keep the two symmetric.
 
-    2. Build + test:
-       - pnpm --filter @protostar/admission-e2e test (passes).
+    1. Create packages/planning/src/internal/brand-witness.ts:
+       ```ts
+       // packages/planning/src/internal/brand-witness.ts
+       // PRIVATE SUBPATH — admission-e2e only. NOT a public API. Phase 2 may relocate.
+       export type { AdmittedPlan as AdmittedPlanBrandWitness } from "../index.js";
+       ```
+       Re-exporting the branded type itself works as a witness: foreign modules cannot construct AdmittedPlan (the unique symbol stays module-private), but they CAN ask "is this return type assignable to AdmittedPlan?" through the witness type alias.
 
-    3. Sanity spike (record in SUMMARY, not gate-required):
-       - Temporarily add `export function createAdmittedPlan(...) { ... }` to packages/planning/src/index.ts (or a re-export shim).
+    2. Extend packages/planning/package.json `exports` with the internal subpath (mirror Plan 06's intent edit):
+       ```json
+       "./internal": {
+         "types": "./dist/internal/brand-witness.d.ts",
+         "import": "./dist/internal/brand-witness.js"
+       }
+       ```
+       Top-of-file banner in brand-witness.ts records the unstable contract. SUMMARY documents the rationale.
+
+    3. Create packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts mirroring confirmed-intent-mint.contract.test.ts (Plan 06):
+       - `import * as PlanningPublicApi from "@protostar/planning";`
+       - `import type { AdmittedPlanBrandWitness } from "@protostar/planning/internal";`
+       - Allowlist: `const ALLOWED_MINT_KEYS = ["assertAdmittedPlanHandoff"] as const;`
+       - Compile-time mechanism (load-bearing):
+         ```ts
+         type PlanningPublicSurface = typeof PlanningPublicApi;
+         type Equal<X, Y> =
+           (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false;
+         type Assert<T extends true> = T;
+
+         type ReturnsAdmitted<K extends keyof PlanningPublicSurface> =
+           PlanningPublicSurface[K] extends (...args: any[]) => infer R
+             ? Extract<R, AdmittedPlanBrandWitness> extends never
+               ? (R extends { readonly admitted: AdmittedPlanBrandWitness } ? true : false)
+               : true
+             : false;
+
+         type MintingKeys = {
+           [K in keyof PlanningPublicSurface]: ReturnsAdmitted<K> extends true ? K : never
+         }[keyof PlanningPublicSurface];
+
+         type _MintSurfacePinned = Assert<Equal<MintingKeys, "assertAdmittedPlanHandoff">>;
+         ```
+       - Runtime smoke: `assert.equal(typeof PlanningPublicApi.assertAdmittedPlanHandoff, "function");`
+       - Top-of-file comment block explains the mechanism: tsc -b is the gate; if `Equal<MintingKeys, "assertAdmittedPlanHandoff">` breaks, the contract test build fails.
+
+    4. Update packages/admission-e2e/tsconfig.json (if needed) so the subpath import resolves; mirror whatever Plan 06 needed for `@protostar/intent/internal`.
+
+    5. Build + test:
+       - pnpm --filter @protostar/planning build.
+       - pnpm --filter @protostar/admission-e2e build.
+       - pnpm --filter @protostar/admission-e2e test.
+
+    6. Sanity spike (VALIDATION GATE — record in SUMMARY):
+       - Temporarily add `export function createAdmittedPlan(input: any): AdmittedPlan { return assertAdmittedPlanHandoff(input); }` to packages/planning/src/index.ts.
        - Run pnpm --filter @protostar/admission-e2e build.
-       - Confirm tsc rejects.
-       - Revert.
+       - Confirm tsc rejects with an Equal failure at `_MintSurfacePinned` / `MintingKeys`.
+       - Revert. If the spike does NOT fail, the mechanism is broken — STOP and escalate.
   </action>
   <verify>
     <automated>cd /Users/zakkeown/Code/protostar && pnpm --filter @protostar/admission-e2e test</automated>
   </verify>
   <acceptance_criteria>
     - ls packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts exists.
-    - grep -c "assertAdmittedPlanHandoff" packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts is at least 2 (allowlist + assertion).
+    - ls packages/planning/src/internal/brand-witness.ts exists.
+    - grep -c "AdmittedPlanBrandWitness" packages/planning/src/internal/brand-witness.ts is at least 1.
+    - grep -c '"./internal"' packages/planning/package.json is at least 1 (subpath export wired).
+    - grep -c "AdmittedPlanBrandWitness" packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts is at least 1.
+    - grep -c "MintingKeys" packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts is at least 2 (definition + Assert).
+    - grep -c "assertAdmittedPlanHandoff" packages/admission-e2e/src/admitted-plan-handoff.contract.test.ts is at least 2 (allowlist + Equal target).
+    - pnpm --filter @protostar/planning build exits 0.
     - pnpm --filter @protostar/admission-e2e build exits 0.
     - pnpm --filter @protostar/admission-e2e test exits 0.
-    - SUMMARY records the sanity-spike outcome.
+    - SUMMARY records the sanity-spike outcome — adding `createAdmittedPlan` to the public barrel MUST cause tsc -b to fail at `_MintSurfacePinned`. If it does not, do not ship.
   </acceptance_criteria>
   <done>Cross-package contract pins the AdmittedPlan mint surface; admission-e2e green.</done>
 </task>
@@ -239,5 +293,5 @@ PLAN-A-01 closed: every candidate plan, fixture or pile, must traverse parsePlan
 </success_criteria>
 
 <output>
-After completion, create .planning/phases/01-intent-planning-admission/01-07-SUMMARY.md recording: the brand mechanism, every consumer narrowed (execution, review, factory-cli call sites), and the sanity-spike outcome from Task 2 step 3.
+After completion, create .planning/phases/01-intent-planning-admission/01-07-SUMMARY.md recording: the brand mechanism (Option A — internal brand witness subpath, symmetric with Plan 06), the `@protostar/planning/internal` subpath export rationale and stability disclaimer, every consumer narrowed (execution, review, factory-cli call sites), and the sanity-spike outcome from Task 2 step 6.
 </output>

@@ -81,6 +81,16 @@ Output: New `packages/dogpile-types` workspace, `dogpile-adapter` rewired to con
     - Test: package has `sideEffects: false` and zero runtime dependencies (Authority boundary preserved)
   </behavior>
   <action>
+    **Pre-execution surface audit (run BEFORE vendoring).** Run:
+    ```
+    grep -rE 'from ["\x27]@dogpile/sdk["\x27]' packages/dogpile-adapter/src
+    ```
+    and pin the discovered import list in 01-02-SUMMARY.md (and inline as a comment in `packages/dogpile-types/src/index.ts`) BEFORE writing any vendored code. This is the authoritative inventory of what must be vendored.
+
+    **Scope gate:** if the audit reveals MORE than 10 distinct symbols imported from `@dogpile/sdk`, OR any symbol with non-trivial runtime behavior (i.e. not just a `type` / `interface` / pure data shape — a function whose body mediates pile execution, retry, budget enforcement, or convergence logic that cannot be replaced by a stub returning a `readonly` shape), **STOP** and escalate to a plan split: a types-only package (this plan) plus a separate runtime-helpers plan. Do not silently vendor non-trivial runtime behavior — Phase 6 owns real Dogpile integration.
+
+    If the audit passes (≤ 10 symbols, all type-only or trivially-stubbable), proceed.
+
     Create the new workspace package:
 
     1. `packages/dogpile-types/package.json`:

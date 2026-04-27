@@ -3,7 +3,7 @@ phase: 01-intent-planning-admission
 plan: 10
 type: execute
 wave: 4
-depends_on: [01, 02, 09]
+depends_on: [01, 02, 03, 04, 05, 06, 07, 08, 09]
 files_modified:
   - .github/workflows/verify.yml
 autonomous: true

@@ -7,7 +7,9 @@ depends_on: [04, 05]
 files_modified:
   - packages/intent/src/confirmed-intent.ts
   - packages/intent/src/confirmed-intent/index.ts
+  - packages/intent/src/internal/brand-witness.ts
   - packages/intent/src/index.ts
+  - packages/intent/package.json
   - packages/intent/src/public-split-exports.contract.test.ts
   - packages/intent/src/confirmed-intent-readonly.contract.ts
   - packages/intent/src/confirmed-intent-immutability.test.ts
@@ -26,6 +28,9 @@ must_haves:
     - path: packages/intent/src/confirmed-intent.ts
       provides: "Branded ConfirmedIntent type + private mint function + promoteIntentDraft as sole public mint path"
       contains: "promoteIntentDraft"
+    - path: packages/intent/src/internal/brand-witness.ts
+      provides: "Type-only brand witness exposed via @protostar/intent/internal (admission-e2e only — unstable subpath)"
+      contains: "ConfirmedIntentBrandWitness"
     - path: packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts
       provides: "Contract test: only promoteIntentDraft can produce ConfirmedIntent on the public surface"
   key_links:
@@ -158,36 +163,90 @@ Public-surface contract: only `promoteIntentDraft` may produce a `ConfirmedInten
     - The existing intent-package public-split-exports contract is also extended with a new assertion: ConfirmedIntent type's expected key set includes schemaVersion, signature, and the brand marker.
   </behavior>
   <action>
-    1. Create packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts with the canonical describe/it shape. Body:
-       - Import * as IntentPublicApi from "@protostar/intent" (ESM star import).
-       - Define the allowlist of mint functions: ["promoteIntentDraft"] (as const string array).
-       - Compile-time helper: a generic Assert<T extends true> that pins `IntentPublicApi["promoteIntentDraft"]` returns a result whose success branch contains a ConfirmedIntent (use the existing types from @protostar/intent — do not re-declare).
-       - Runtime test: walk Object.keys(IntentPublicApi). For each key whose value is a function, attempt a type-narrowing check (this part is best-effort runtime; the LOAD-bearing check is the next item).
-       - Compile-time exhaustiveness: declare a type-level union of all exports (`type IntentPublicSurface = typeof IntentPublicApi`). For each key K in IntentPublicSurface where ReturnType<IntentPublicSurface[K]> contains the ConfirmedIntent brand, assert K is "promoteIntentDraft" via a `Assert<Equal<ExtractMintingKeys<IntentPublicSurface>, "promoteIntentDraft">>` chain. If a future contributor adds e.g. `export function createConfirmedIntent()`, the type-level Equal will fail and `tsc -b` will reject the contract test.
-       - Document the mechanism in a comment block at the top of the file.
+    **Mechanism choice (Option A — internal brand witness subpath).** The `ConfirmedIntentBrand` declared in Task 1 is a module-private `unique symbol` that cannot be named from a foreign module. To make the type-level enumeration writable from admission-e2e, expose a TYPE-ONLY brand witness via a private `./internal` subpath export. This gives a real type-level guarantee (the subpath is documented "unstable; admission-e2e only") rather than relying on hard-coded negative pins.
 
-    2. Extend packages/intent/src/public-split-exports.contract.test.ts to include schemaVersion and signature in the ConfirmedIntent expected-key set (KeysEqual<ConfirmedIntent, ...> Assert).
+    1. Create packages/intent/src/internal/brand-witness.ts. Body:
+       - `export type ConfirmedIntentBrandWitness = ConfirmedIntent[typeof __brandKey];` is NOT viable because `ConfirmedIntentBrand` itself is module-private. Instead, expose the BRANDED TYPE itself (re-exporting the whole ConfirmedIntent type as a witness suffices, since "what return types contain the brand" reduces to "what return types are assignable to ConfirmedIntent"):
+         ```ts
+         // packages/intent/src/internal/brand-witness.ts
+         // PRIVATE SUBPATH — admission-e2e only. NOT a public API. Do not import from
+         // application code. Phase 2 may relocate or remove this file without notice.
+         export type { ConfirmedIntent as ConfirmedIntentBrandWitness } from "../confirmed-intent.js";
+         ```
+       - This creates a stable TYPE name foreign modules CAN reference, while the underlying `unique symbol` remains module-private (consumers cannot construct a ConfirmedIntent — they can only ASK whether something IS one).
+       - The contract test then enumerates exports whose ReturnType is assignable to `ConfirmedIntentBrandWitness` and asserts the key set equals `"promoteIntentDraft"`.
 
-    3. Build + test:
-       - pnpm --filter @protostar/admission-e2e test (the contract test runs, even if its primary check is type-level).
-       - pnpm --filter @protostar/intent test (existing public-split-exports contract still passes after the new keys are added).
+    2. Extend packages/intent/package.json `exports` to expose the internal subpath. Add (preserving existing entries):
+       ```json
+       "./internal": {
+         "types": "./dist/internal/brand-witness.d.ts",
+         "import": "./dist/internal/brand-witness.js"
+       }
+       ```
+       Document the subpath as "unstable — admission-e2e only" in a comment-equivalent (since package.json has no comments, record this in the package's README addendum or in 01-06-SUMMARY.md and as a top-of-file banner inside brand-witness.ts).
 
-    4. Sanity spike (record outcome in SUMMARY, not gate-required):
-       - Temporarily add `export function createConfirmedIntent(...) { ... }` to packages/intent/src/index.ts.
+    3. Create packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts with the canonical describe/it shape. Body:
+       - Import * as IntentPublicApi from "@protostar/intent" (ESM star import — namespace object of the public surface).
+       - Import the witness type: `import type { ConfirmedIntentBrandWitness } from "@protostar/intent/internal";`
+       - Define the allowlist: `const ALLOWED_MINT_KEYS = ["promoteIntentDraft"] as const;`
+       - Compile-time mechanism (the LOAD-bearing check):
+         ```ts
+         type IntentPublicSurface = typeof IntentPublicApi;
+         type Equal<X, Y> =
+           (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false;
+         type Assert<T extends true> = T;
+
+         // For each function-typed key K in the public surface, decide whether its
+         // success-branch return type contains a ConfirmedIntentBrandWitness.
+         type ReturnsConfirmed<K extends keyof IntentPublicSurface> =
+           IntentPublicSurface[K] extends (...args: any[]) => infer R
+             ? Extract<R, ConfirmedIntentBrandWitness> extends never
+               ? (R extends { readonly confirmed: ConfirmedIntentBrandWitness } ? true : false)
+               : true
+             : false;
+
+         type MintingKeys = {
+           [K in keyof IntentPublicSurface]: ReturnsConfirmed<K> extends true ? K : never
+         }[keyof IntentPublicSurface];
+
+         // The single assertion: the set of minting keys is exactly "promoteIntentDraft".
+         type _MintSurfacePinned = Assert<Equal<MintingKeys, "promoteIntentDraft">>;
+         ```
+       - Runtime smoke (best-effort): `assert.equal(typeof IntentPublicApi.promoteIntentDraft, "function");` plus `assert.deepEqual([...ALLOWED_MINT_KEYS], ["promoteIntentDraft"]);`
+       - Document the mechanism in a comment block at the top of the file: explain that the type-level `Equal<MintingKeys, "promoteIntentDraft">` is the gate; runtime checks are smoke only; if the equality breaks, tsc -b fails the test build.
+
+    4. Update packages/admission-e2e/tsconfig.json (if needed): the subpath import resolves through the workspace's `paths` and the package's `exports` field — verify by running `pnpm --filter @protostar/admission-e2e build` after Task 1 and after creating brand-witness.ts. If subpath resolution fails, add a paths entry mapping `@protostar/intent/internal` to `../intent/dist/internal/brand-witness.d.ts` (mirror however other intent subpaths like `./draft` are referenced from sibling packages — grep for an existing example).
+
+    5. Extend packages/intent/src/public-split-exports.contract.test.ts to include schemaVersion and signature in the ConfirmedIntent expected-key set (KeysEqual<ConfirmedIntent, ...> Assert). The brand symbol property is module-private and CANNOT appear in the foreign-module key set; document this in a comment.
+
+    6. Build + test:
+       - pnpm --filter @protostar/intent build (the new internal subpath compiles).
+       - pnpm --filter @protostar/admission-e2e build (subpath import resolves; type-level Equal holds).
+       - pnpm --filter @protostar/admission-e2e test.
+       - pnpm --filter @protostar/intent test.
+
+    7. Sanity spike (record outcome in SUMMARY — VALIDATION GATE for the chosen mechanism):
+       - Temporarily add `export function createConfirmedIntent(...): ConfirmedIntent { ... }` to packages/intent/src/index.ts that returns a value via promoteIntentDraft internally (so the function is type-correct).
        - Run pnpm --filter @protostar/admission-e2e build.
-       - Confirm tsc rejects with the expected error from the contract test.
-       - Revert.
+       - Confirm tsc rejects with an `Equal` failure pointing at `_MintSurfacePinned` / `MintingKeys`.
+       - Revert. If the spike does NOT fail, the mechanism is broken — STOP and escalate; do not ship the contract test as-is.
   </action>
   <verify>
     <automated>cd /Users/zakkeown/Code/protostar && pnpm --filter @protostar/admission-e2e test && pnpm --filter @protostar/intent test</automated>
   </verify>
   <acceptance_criteria>
     - ls packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts exists.
-    - grep -c "promoteIntentDraft" packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts is at least 2 (allowlist + Assert reference).
+    - ls packages/intent/src/internal/brand-witness.ts exists.
+    - grep -c "ConfirmedIntentBrandWitness" packages/intent/src/internal/brand-witness.ts is at least 1.
+    - grep -c '"./internal"' packages/intent/package.json is at least 1 (subpath export wired).
+    - grep -c "ConfirmedIntentBrandWitness" packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts is at least 1 (witness imported).
+    - grep -c "MintingKeys" packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts is at least 2 (definition + Assert).
+    - grep -c "promoteIntentDraft" packages/admission-e2e/src/confirmed-intent-mint.contract.test.ts is at least 2 (allowlist + Equal target).
+    - pnpm --filter @protostar/intent build exits 0.
     - pnpm --filter @protostar/admission-e2e build exits 0.
     - pnpm --filter @protostar/admission-e2e test exits 0.
     - pnpm --filter @protostar/intent test exits 0 (public-split-exports contract updated for schemaVersion + signature still passes).
-    - SUMMARY records the sanity-spike outcome (does adding a fake mint cause tsc to fail?).
+    - SUMMARY records the sanity-spike outcome — adding `createConfirmedIntent` to the public barrel MUST cause tsc -b to fail at `_MintSurfacePinned`. If it does not, the mechanism is broken; do not ship.
   </acceptance_criteria>
   <done>Cross-package contract pins the mint surface; both packages still test green.</done>
 </task>
@@ -223,5 +282,5 @@ INTENT-02 closed: no test or CLI path can produce a ConfirmedIntent except by go
 </success_criteria>
 
 <output>
-After completion, create .planning/phases/01-intent-planning-admission/01-06-SUMMARY.md recording: the brand mechanism, the parseConfirmedIntent narrowing decision (and every consumer it affected), the new keys on the readonly contract, and the sanity-spike outcome from Task 2 step 4.
+After completion, create .planning/phases/01-intent-planning-admission/01-06-SUMMARY.md recording: the brand mechanism (Option A — internal brand witness subpath), the `@protostar/intent/internal` subpath export rationale and stability disclaimer, the parseConfirmedIntent narrowing decision (and every consumer it affected), the new keys on the readonly contract, and the sanity-spike outcome from Task 2 step 7.
 </output>

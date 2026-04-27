@@ -87,42 +87,52 @@ Output: packages/admission-e2e populated with fixture-discovery, parameterized a
     - /Users/zakkeown/Code/protostar/.planning/codebase/TESTING.md (test runner pattern; avoid new deps)
   </read_first>
   <behavior>
-    - fixture-discovery.ts: pure async function discoverFixtures(examplesRoot: string): Promise<readonly DiscoveredFixture[]> where DiscoveredFixture is { kind: "intent" | "planning"; absolutePath: string; relativePath: string; expectedVerdict: "accept" | "reject" }. expectedVerdict is "reject" if the path contains a /bad/ segment, "accept" otherwise.
-    - The discovery walks examples/intents/**/*.json AND examples/planning-results/**/*.json with kind set accordingly. *.draft.json files are intent fixtures with kind="intent".
-    - parameterized-admission.test.ts: a single describe block that calls discoverFixtures, then iterates. For each fixture, runs the appropriate admission flow:
-        * intent fixtures: read JSON → coerce to IntentDraft (or ConfirmedIntent if file is *.json without .draft.) → call promoteIntentDraft (for drafts) OR parseConfirmedIntent + assert ambiguity gate (for confirmed) → assert verdict matches expectedVerdict.
-        * planning fixtures: read JSON → parsePlanningPileResult → admitCandidatePlans → if all pass, assertAdmittedPlanHandoff → assert verdict matches expectedVerdict.
-    - Meta-test: asserts the discovery loop covered EVERY file under examples/intents and examples/planning-results that ends in .json. Failure mode: a fixture exists on disk but was not iterated.
-    - Files under examples/intents/greenfield/ and examples/intents/brownfield/ that are NOT under a bad/ subdir count as accept.
+    **Discovery scope is INTENTIONALLY NARROW (BLOCKER 2 + 3 fix).** The ambiguity-tier subdirs (`examples/intents/greenfield/`, `examples/intents/brownfield/`, anything matching `*.ambiguity.*`) are owned by their dedicated tests (`greenfield-ambiguity-fixtures.test.ts`, `brownfield-ambiguity-fixtures.test.ts`) and are EXPLICITLY EXCLUDED from this loop. Including them here would either (a) misclassify ambiguity-by-design drafts as expected-accept, or (b) silently bypass the ambiguity gate by treating confirmed-shaped fixtures as already-confirmed.
+
+    - fixture-discovery.ts: pure async function `discoverFixtures(examplesRoot: string): Promise<readonly DiscoveredFixture[]>` where `DiscoveredFixture = { kind: "intent" | "planning"; absolutePath: string; relativePath: string; expectedVerdict: "accept" | "reject" }`.
+    - **Discovery scope (in scope):**
+        * Intent side: `examples/intents/*.json` (TOP-LEVEL ONLY — non-recursive) → expectedVerdict = "accept". PLUS `examples/intents/bad/**/*.json` (recursive under bad/) → expectedVerdict = "reject".
+        * Planning side: `examples/planning-results/*.json` (TOP-LEVEL ONLY) → "accept". PLUS `examples/planning-results/bad/**/*.json` → "reject".
+    - **Discovery scope (explicitly excluded):**
+        * `examples/intents/greenfield/**` — owned by greenfield-ambiguity-fixtures.test.ts.
+        * `examples/intents/brownfield/**` — owned by brownfield-ambiguity-fixtures.test.ts.
+        * Any path matching `*.ambiguity.*` (regardless of directory).
+        * Any non-JSON file.
+    - **Input contract is fixed: top-level intent fixtures are IntentDraft shape.** The loop calls `promoteIntentDraft` on every accept-side intent fixture and asserts (a) ambiguity ≤ 0.2, (b) the result is a successful ConfirmedIntent. There is NO `parseConfirmedIntent` path in this e2e — that path was the silent-bypass (BLOCKER 2 root cause). If a top-level intent fixture is currently confirmed-shape rather than draft-shape, Plan 03 must convert it during fixture relocation; surface this as a Plan 03 follow-up if discovered.
+    - **Planning fixture flow:** read JSON → parsePlanningPileResult → admitCandidatePlans → if all pass, assertAdmittedPlanHandoff → assert verdict matches expectedVerdict.
+    - **Meta-test (coverage):** the loop has covered every file in the IN-SCOPE set. The meta-test does NOT count excluded directories (greenfield/, brownfield/, *.ambiguity.*) in the disk-side reference walk — it only sanity-checks that the loop didn't drop a top-level or bad/ file.
   </behavior>
   <action>
-    1. In packages/admission-e2e/package.json add an additional workspace dep: "@protostar/policy": "workspace:*" (already present per Plan 05). If absent, add. Also add "@protostar/factory-cli" is NOT a dependency (avoid circular). The test reads JSON directly from examples/ — fs is permitted in test files only.
+    1. In packages/admission-e2e/package.json confirm workspace deps include `@protostar/intent`, `@protostar/policy`, `@protostar/planning` (added by Plan 05). `@protostar/factory-cli` is NOT a dep (avoid circular). fs is permitted in test files only.
 
     2. In packages/admission-e2e/tsconfig.json, ensure references include @protostar/intent, @protostar/policy, @protostar/planning (already added by Plan 05).
 
     3. Create packages/admission-e2e/src/fixture-discovery.ts:
-       - Export interface DiscoveredFixture { readonly kind: "intent" | "planning"; readonly absolutePath: string; readonly relativePath: string; readonly expectedVerdict: "accept" | "reject" }.
-       - Export async function discoverFixtures(examplesRoot: string): Promise<readonly DiscoveredFixture[]>.
-       - Use node:fs/promises readdir with { withFileTypes: true, recursive: true }. Filter to *.json. Exclude *.schema.json under packages/* (only walk under examplesRoot — schema files don't live there, so this is naturally avoided).
-       - expectedVerdict = path.includes("/bad/") || path.includes("\\bad\\") ? "reject" : "accept" (handle both POSIX and Windows separators just in case).
-       - kind = examplesRoot subdir prefix: paths under examples/intents → "intent"; paths under examples/planning-results → "planning".
+       - Export `interface DiscoveredFixture { readonly kind: "intent" | "planning"; readonly absolutePath: string; readonly relativePath: string; readonly expectedVerdict: "accept" | "reject" }`.
+       - Export `async function discoverFixtures(examplesRoot: string): Promise<readonly DiscoveredFixture[]>`.
+       - **Two-phase walk per kind (NON-RECURSIVE for top-level + recursive only under bad/):**
+         * For intents: `readdir(${examplesRoot}/intents, { withFileTypes: true })`. Keep only `entry.isFile() && entry.name.endsWith(".json") && !entry.name.includes(".ambiguity.")` → expectedVerdict = "accept". Then `readdir(${examplesRoot}/intents/bad, { withFileTypes: true, recursive: true })` if it exists, filter to `*.json` and `!*.ambiguity.*` → expectedVerdict = "reject".
+         * Mirror for planning-results: top-level `*.json` → "accept", `bad/**/*.json` → "reject".
+       - **Excluded paths (assert in code):** any path containing `/greenfield/`, `/brownfield/`, or `.ambiguity.` is filtered out. Add a comment documenting that these are owned by their dedicated tests.
+       - kind set per root subdir: under intents → "intent"; under planning-results → "planning".
        - Result is sorted by relativePath for deterministic test ordering.
 
     4. Create packages/admission-e2e/src/parameterized-admission.test.ts:
-       - Resolve examplesRoot relative to import.meta.url: dist/parameterized-admission.test.js → ../../../../examples (the package is at packages/admission-e2e/, so ../../../examples from src files; verify the actual depth from dist).
-       - Call discoverFixtures(examplesRoot).
-       - Build two parallel arrays: intentFixtures and planningFixtures.
-       - it("covers every json file under examples/intents and examples/planning-results", ...): assert discovered count === actual count from a separate readdir walk (the meta-test).
-       - it.each-style loop using a for-of over the discovered list. For each fixture:
+       - Resolve `examplesRoot` relative to import.meta.url. The package is at packages/admission-e2e/; from `dist/parameterized-admission.test.js` the repo root is `../../..` and examples is `../../../examples`. Verify actual depth from dist before committing.
+       - Call `discoverFixtures(examplesRoot)`.
+       - **Meta-test (coverage):** perform an independent disk walk producing the same in-scope set (top-level + bad/, excluding greenfield/brownfield/*.ambiguity.*). Assert the loop's discovered set equals that reference set. Failure mode: a top-level or bad/ fixture exists on disk but was not iterated.
+       - For each fixture (for-of loop, label = relativePath):
            * Read file via node:fs/promises readFile + JSON.parse.
-           * Apply the admission flow per kind.
-           * If expectedVerdict === "accept": assert promoteIntentDraft / assertAdmittedPlanHandoff returns a success / branded value. Use the descriptive name as the assertion label.
-           * If expectedVerdict === "reject": assert the admission returns a failure result (errors non-empty / accepted: false / no admitted candidate). Do NOT throw on success branch — assert.fail with the fixture's relativePath in the message.
-       - Use the testCase.name discipline from intent-ambiguity-scoring.test.ts: assertion label is the relativePath.
+           * Intent fixtures (drafts only — by contract): coerce parsed JSON to IntentDraft and call `promoteIntentDraft`. If `expectedVerdict === "accept"`: assert (a) the result is the success branch carrying a `ConfirmedIntent`, AND (b) the underlying ambiguity score on the draft is ≤ 0.2 (read from the draft input or from the success-branch metadata, whichever the public API exposes). If `expectedVerdict === "reject"`: assert promoteIntentDraft returns the rejection branch (clarification report present / no confirmed intent).
+           * Planning fixtures: parsePlanningPileResult → admitCandidatePlans → assertAdmittedPlanHandoff. Verdict accept = branded AdmittedPlan returned; reject = errors / no admitted candidate.
+           * Do NOT throw on success branch — use `assert.fail` with the fixture's relativePath in the message so failure attribution is unambiguous.
+       - **DO NOT call `parseConfirmedIntent` anywhere in this file** — top-level intent fixtures are drafts by contract. If a top-level fixture currently parses as confirmed-shape, surface it (test fail) and add a Plan 03 follow-up note to convert it to draft shape; do not "coerce" to bypass the ambiguity gate.
 
-    5. Build + test pnpm --filter @protostar/admission-e2e test. Both the meta-test and the parameterized loop must pass against the current good + bad fixture set (post-Plan 03 relocation).
+    5. **Fixture-shape audit (executed BEFORE writing the test loop):** run `ls examples/intents/*.json` and read each top-level file. Confirm each has draft shape (no `confirmedAt` field, has draft-specific fields). If any are confirmed-shape, STOP and create a Plan 03 follow-up checklist item in SUMMARY; choose: (a) fix the fixture inline as part of this plan if trivial, or (b) park the test until Plan 03 follow-up lands.
 
-    6. SUMMARY records the discovered fixture counts for both kinds.
+    6. Build + test pnpm --filter @protostar/admission-e2e test. Both the meta-test and the parameterized loop must pass against the post-Plan-03 fixture set.
+
+    7. SUMMARY records: discovered fixture counts per kind (top-level + bad/), explicitly-excluded directory list with rationale, and any fixture-shape audit findings from step 5.
   </action>
   <verify>
     <automated>cd /Users/zakkeown/Code/protostar && pnpm --filter @protostar/admission-e2e build && pnpm --filter @protostar/admission-e2e test</automated>
@@ -131,9 +141,14 @@ Output: packages/admission-e2e populated with fixture-discovery, parameterized a
     - ls packages/admission-e2e/src/fixture-discovery.ts packages/admission-e2e/src/parameterized-admission.test.ts exist.
     - grep -c "discoverFixtures" packages/admission-e2e/src/fixture-discovery.ts is at least 2 (export + signature).
     - grep -c "/bad/" packages/admission-e2e/src/fixture-discovery.ts is at least 1.
+    - grep -cE "/greenfield/|/brownfield/|\.ambiguity\." packages/admission-e2e/src/fixture-discovery.ts is at least 1 (explicit exclusion).
+    - grep -c "greenfield" packages/admission-e2e/src/parameterized-admission.test.ts is 0 OR appears only in a comment that documents the exclusion (use `grep -v '^\s*//' packages/admission-e2e/src/parameterized-admission.test.ts | grep -c greenfield` is 0).
+    - grep -c "parseConfirmedIntent" packages/admission-e2e/src/parameterized-admission.test.ts is 0 (NEVER call this in the e2e — top-level fixtures are drafts).
+    - grep -c "promoteIntentDraft" packages/admission-e2e/src/parameterized-admission.test.ts is at least 1.
     - grep -c "expectedVerdict" packages/admission-e2e/src/parameterized-admission.test.ts is at least 2.
+    - The non-recursive top-level glob discipline is visible in fixture-discovery.ts: there must be at least one `readdir(...)` call WITHOUT `recursive: true` (top-level walk), AND at least one `readdir(.../bad, ..., recursive: true)` call (bad/ walk). Verify via `grep -c "recursive: true" packages/admission-e2e/src/fixture-discovery.ts` is at least 1, AND at least one readdir without that option exists.
     - pnpm --filter @protostar/admission-e2e test exits 0.
-    - Manual probe (record in SUMMARY): if a new file is dropped into examples/intents/bad/probe.json that does NOT reject, the suite fails. If a new file is dropped into examples/intents/probe.json that DOES reject, the suite fails. (Run locally, revert.)
+    - Manual probe (record in SUMMARY): drop `examples/intents/bad/probe.json` that does not reject → suite fails. Drop `examples/intents/probe.json` that does reject → suite fails. Drop `examples/intents/greenfield/probe.json` → suite is UNCHANGED (greenfield is excluded; that fixture is owned by greenfield-ambiguity-fixtures.test.ts). Run locally, revert.
   </acceptance_criteria>
   <done>Parameterized e2e test exercises every fixture according to directory-as-manifest; meta-test guarantees coverage.</done>
 </task>
@@ -156,6 +171,14 @@ Output: packages/admission-e2e populated with fixture-discovery, parameterized a
     - Also pins the AC array contains stableHash-derived ids that are byte-equal across calls (determinism).
   </behavior>
   <action>
+    **Pre-execution spike (run BEFORE writing the test).** Read `packages/planning/src/admitted-plan*.ts` and `packages/planning/src/index.ts` to locate where `AdmittedPlan` exposes `acceptanceCriteria`. Confirm:
+    (a) `AdmittedPlan` exposes an `acceptanceCriteria` field (or equivalent) at the SAME shape and SAME order as `ConfirmedIntent.acceptanceCriteria`.
+    (b) The handoff path (parsePlanningPileResult → admitCandidatePlans → assertAdmittedPlanHandoff) preserves the AC array verbatim — no reshaping, no per-task splitting.
+
+    If shape drift exists (e.g. AC are restructured per-task, or fields are dropped, or order is sorted differently): **STOP and escalate**. Do NOT ship a deep-equal test whose pass/fail state is unknown. The escalation is a Plan 07 follow-up: extend Plan 07 to expose AC verbatim at the AdmittedPlan boundary, then resume Plan 09 Task 2. Record the spike outcome in SUMMARY (either "AC shape preserved verbatim — proceeding" or "drift found at <location>, planning-side fix needed before this test ships").
+
+    Only after the spike confirms shape preservation, proceed:
+
     1. Create packages/admission-e2e/src/ac-normalization-deep-equal.test.ts:
        - import promoteIntentDraft from "@protostar/intent" plus the AcceptanceCriterion type.
        - import parsePlanningPileResult, admitCandidatePlans, assertAdmittedPlanHandoff from "@protostar/planning".
