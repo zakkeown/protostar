@@ -31,6 +31,21 @@ Each phase carries forward the prior phase's invariants. No phase ships unless i
 - Every fixture in `examples/intents/` and `examples/planning-results/` is exercised through the admission path in CI
 - A fuzzed-bad intent and a fuzzed-bad plan each produce the correct no-admission artifact and refuse to advance
 
+**Plans:** 10 plans across 4 waves (parallel within wave)
+
+Plans:
+- [ ] 01-01-tiered-verify-scripts-PLAN.md — wave 1 — root package.json `verify` (fast) + `verify:full` (recursive)
+- [ ] 01-02-dogpile-types-shim-PLAN.md — wave 1 — `packages/dogpile-types` workspace replaces sibling-link `@dogpile/sdk`
+- [ ] 01-03-bad-fixture-relocation-PLAN.md — wave 1 — relocate `bad-*.json` into `examples/**/bad/` subdirs (Q-06)
+- [ ] 01-04-schema-version-infra-PLAN.md — wave 1 — JSON Schemas + `schemaVersion: "1.0.0"` field on refusal artifacts (Q-07)
+- [ ] 01-05-admission-e2e-scaffold-PLAN.md — wave 1 — new `packages/admission-e2e/` test-only workspace (Q-09)
+- [ ] 01-06-branded-confirmed-intent-PLAN.md — wave 2 — brand `ConfirmedIntent`, private mint, `signature: null` reservation (Q-03 + Q-13)
+- [ ] 01-07-branded-admitted-plan-PLAN.md — wave 2 — brand `AdmittedPlan`, narrow execution input contract (Q-04)
+- [ ] 01-08-refusal-artifact-layout-PLAN.md — wave 2 — `.protostar/runs/{id}/...` + `.protostar/refusals.jsonl` index (Q-08)
+- [ ] 01-09-parameterized-admission-e2e-PLAN.md — wave 3 — `bad/`-driven e2e + AC deep-equal + snapshot mutator (Q-05, Q-10, Q-11)
+- [ ] 01-10-github-actions-verify-PLAN.md — wave 4 — `.github/workflows/verify.yml` running `pnpm run verify:full` (Q-12)
+
+
 **Notes:** Most of this is wiring + verify-gate fix. The ambiguity gate is already implemented (`packages/intent/src/ambiguity-scoring.ts`); this phase makes its enforcement uncircumventable.
 
 ## Phase 2 — Authority + Governance Kernel
