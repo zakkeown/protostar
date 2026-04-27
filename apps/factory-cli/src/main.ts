@@ -63,6 +63,7 @@ import {
   runMechanicalReviewExecutionLoop as defaultRunMechanicalReviewExecutionLoop,
   type ReviewVerdict
 } from "@protostar/review";
+import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
@@ -168,7 +169,7 @@ async function main(): Promise<void> {
     ...(command.options.confirmedIntent !== undefined ? { confirmedIntent: command.options.confirmedIntent } : {})
   });
   if (!twoKeyLaunch.ok) {
-    const workspaceRoot = process.env["INIT_CWD"] ?? process.cwd();
+    const workspaceRoot = resolveWorkspaceRoot();
     const outDir = resolve(workspaceRoot, command.options.outDir);
     const runId = command.options.runId ?? createLaunchRefusalRunId();
     const runDir = resolve(outDir, runId);
@@ -195,7 +196,7 @@ export async function runFactory(
     ...defaultFactoryCompositionDependencies,
     ...dependencyOverrides
   };
-  const workspaceRoot = process.env["INIT_CWD"] ?? process.cwd();
+  const workspaceRoot = resolveWorkspaceRoot();
   const intentPath = resolve(workspaceRoot, options.intentDraftPath);
   const outDir = resolve(workspaceRoot, options.outDir);
   const confirmedIntentOutputPath = options.confirmedIntentOutputPath === undefined

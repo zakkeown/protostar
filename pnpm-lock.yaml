@@ -38,6 +38,9 @@ importers:
       '@protostar/intent':
         specifier: workspace:*
         version: link:../../packages/intent
+      '@protostar/paths':
+        specifier: workspace:*
+        version: link:../../packages/paths
       '@protostar/planning':
         specifier: workspace:*
         version: link:../../packages/planning

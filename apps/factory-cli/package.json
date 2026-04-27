@@ -20,6 +20,7 @@
     "@protostar/evaluation": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",
+    "@protostar/paths": "workspace:*",
     "@protostar/planning": "workspace:*",
     "@protostar/policy": "workspace:*",
     "@protostar/repo": "workspace:*",

@@ -2221,6 +2221,7 @@ describe("fail-closed precedence and gate evidence", () => {
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeFile(resolve(tempDir, "pnpm-workspace.yaml"), "packages: []\n", "utf8");
 
       const result = await runCliWithWorkspace(
         [
@@ -3874,8 +3875,7 @@ function runCliWithWorkspace(args: readonly string[], workspaceRoot: string): Pr
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd: workspaceRoot,
       env: {
-        ...process.env,
-        INIT_CWD: workspaceRoot
+        ...process.env
       },
       stdio: ["ignore", "pipe", "pipe"]
     });
