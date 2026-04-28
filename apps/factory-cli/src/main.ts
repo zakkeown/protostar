@@ -4,9 +4,11 @@ import * as nodeFs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { appendFile, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { Command } from "@commander-js/extra-typings";
+import { CommanderError } from "commander";
 import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus, type StageArtifactRef } from "@protostar/artifacts";
 import {
   buildPlanningMission,
@@ -97,7 +99,8 @@ import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthori
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
-import { ArgvError, parseCliArgs, type ParsedCliArgs, type PileMode } from "./cli-args.js";
+import type { PileMode } from "./cli-args.js";
+import { buildRunCommand } from "./commands/run.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
@@ -140,6 +143,8 @@ import {
 } from "./write-admission-decision.js";
 import { validateTwoKeyLaunch, verifyTrustedLaunchConfirmedIntent, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
 import { buildReviewRepairServices, preflightCoderAndJudge, type ReviewLoopFsAdapter } from "./wiring/index.js";
+import { ExitCode } from "./exit-codes.js";
+import { writeStderr } from "./io.js";
 
 export interface RunCommandOptions {
   readonly intentDraftPath: string;
@@ -228,46 +233,37 @@ const defaultFactoryCompositionDependencies = {
   runEvaluationStages: defaultRunEvaluationStages
 } as const satisfies FactoryCompositionDependencies;
 
-const CONFIRMED_INTENT_OUTPUT_FILE_NAMES = ["confirmed-intent.json", "intent.json"] as const;
-
-async function main(): Promise<void> {
-  const command = parseArgs(process.argv.slice(2));
-
-  if (command.type === "help") {
-    console.log(helpText());
-    return;
-  }
-
-  if (command.type === "error") {
-    console.error(command.message);
-    console.error("");
-    console.error(helpText());
-    process.exitCode = 1;
-    return;
-  }
-
-  const twoKeyLaunch = validateTwoKeyLaunch({
-    trust: command.options.trust ?? "untrusted",
-    ...(command.options.confirmedIntent !== undefined ? { confirmedIntent: command.options.confirmedIntent } : {})
-  });
-  if (!twoKeyLaunch.ok) {
-    const workspaceRoot = resolveWorkspaceRoot();
-    const outDir = resolve(workspaceRoot, command.options.outDir);
-    const runId = command.options.runId ?? createLaunchRefusalRunId();
-    const runDir = resolve(outDir, runId);
-    await writeTwoKeyLaunchRefusalArtifacts({
-      runDir,
-      outDir,
-      runId,
-      refusal: twoKeyLaunch.refusal
+export async function main(argv: readonly string[]): Promise<number> {
+  const program = new Command("protostar-factory")
+    .exitOverride()
+    .configureOutput({
+      writeOut: (str) => process.stderr.write(str),
+      writeErr: (str) => process.stderr.write(str)
     });
-    console.error(twoKeyLaunch.refusal.reason);
-    process.exitCode = 2;
-    return;
+  program.addCommand(buildRunCommand());
+
+  const rawArgv = argv[0] === "--" ? argv.slice(1) : argv;
+  const normalizedArgv =
+    rawArgv.length > 0 && rawArgv[0] !== undefined && rawArgv[0].startsWith("--") ? ["run", ...rawArgv] : [...rawArgv];
+
+  if (normalizedArgv.length === 0 || normalizedArgv[0] === "help") {
+    program.outputHelp();
+    return ExitCode.Success;
   }
 
-  const result = await runFactory(command.options);
-  console.log(JSON.stringify(result.intent, null, 2));
+  try {
+    await program.parseAsync(normalizedArgv, { from: "user" });
+    return typeof process.exitCode === "number" ? process.exitCode : ExitCode.Success;
+  } catch (error: unknown) {
+    if (error instanceof CommanderError) {
+      if (error.code === "commander.helpDisplayed" || error.code === "commander.version") {
+        return ExitCode.Success;
+      }
+      return ExitCode.UsageOrArgError;
+    }
+    writeStderr(`unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+    return ExitCode.GenericError;
+  }
 }
 
 export async function runFactory(
@@ -2816,115 +2812,7 @@ function createDraftRunId(draft: IntentDraft): string {
   return `run_${timestamp}_${draftSuffix}`;
 }
 
-type ParsedArgs =
-  | {
-      readonly type: "run";
-      readonly options: RunCommandOptions;
-    }
-  | {
-      readonly type: "help";
-    }
-  | {
-      readonly type: "error";
-      readonly message: string;
-    };
-
-function parseArgs(args: readonly string[]): ParsedArgs {
-  const normalizedArgs = args[0] === "--" ? args.slice(1) : args;
-  const [command, ...rest] = normalizedArgs;
-
-  if (command === undefined || command === "help" || command === "--help" || command === "-h") {
-    return { type: "help" };
-  }
-
-  if (command !== "run") {
-    return {
-      type: "error",
-      message: `Unknown command: ${command}`
-    };
-  }
-
-  const flags = parseFlags(rest);
-  if (typeof flags === "string") {
-    return {
-      type: "error",
-      message: flags
-    };
-  }
-
-  const draftPath = flags.intentDraft ?? flags.draft;
-  if (flags.intent !== undefined) {
-    return {
-      type: "error",
-      message:
-        "The --intent flag is no longer supported. Provide an IntentDraft via --intent-draft <path> or --draft <path>; ConfirmedIntent values can only originate from the draft admission gate."
-    };
-  }
-  if (!draftPath) {
-    return {
-      type: "error",
-      message: "Missing required --intent-draft <path> or --draft <path>."
-    };
-  }
-  if (!flags.out) {
-    return {
-      type: "error",
-      message: "Missing required --out <dir>."
-    };
-  }
-  const intentMode = parseIntentMode(flags.intentMode);
-  if (!intentMode.ok) {
-    return {
-      type: "error",
-      message: intentMode.error
-    };
-  }
-  const confirmedIntentOutputPath = flags.confirmedIntentOutput ?? flags.intentOutput;
-  const confirmedIntentOutputPathValidation = validateConfirmedIntentOutputPath(confirmedIntentOutputPath);
-  if (!confirmedIntentOutputPathValidation.ok) {
-    return {
-      type: "error",
-      message: confirmedIntentOutputPathValidation.error
-    };
-  }
-  const executor = parseExecutor(flags.executor);
-  if (!executor.ok) {
-    return {
-      type: "error",
-      message: executor.error
-    };
-  }
-  const allowedAdapters = parseAllowedAdapters(flags.allowedAdapters);
-
-  return {
-    type: "run",
-    options: {
-      intentDraftPath: draftPath as string,
-      outDir: flags.out,
-      planningFixturePath: flags.planningFixture ?? "examples/planning-results/scaffold.json",
-      failTaskIds: parseFailTaskIds(flags.failTaskIds),
-      intentMode: intentMode.mode,
-      ...(confirmedIntentOutputPathValidation.path !== undefined
-        ? { confirmedIntentOutputPath: confirmedIntentOutputPathValidation.path }
-        : {}),
-      ...(flags.confirmedIntent !== undefined ? { confirmedIntent: flags.confirmedIntent } : {}),
-      ...(flags.runId !== undefined ? { runId: flags.runId } : {}),
-      trust: flags.trust,
-      executor: executor.value,
-      ...(allowedAdapters !== undefined ? { allowedAdapters } : {}),
-      ...(flags.planningMode !== undefined ? { planningMode: flags.planningMode } : {}),
-      ...(flags.reviewMode !== undefined ? { reviewMode: flags.reviewMode } : {}),
-      ...(flags.execCoordMode !== undefined ? { execCoordMode: flags.execCoordMode } : {}),
-      ...(flags.lineage !== undefined ? { lineage: flags.lineage } : {}),
-      ...(flags.evolveCode !== undefined ? { evolveCode: flags.evolveCode } : {}),
-      ...(flags.generation !== undefined ? { generation: flags.generation } : {}),
-      ...(flags.semanticJudgeModel !== undefined ? { semanticJudgeModel: flags.semanticJudgeModel } : {}),
-      ...(flags.consensusJudgeModel !== undefined ? { consensusJudgeModel: flags.consensusJudgeModel } : {})
-    }
-  };
-}
-
-async function writeTwoKeyLaunchRefusalArtifacts(input: {
+export async function writeTwoKeyLaunchRefusalArtifacts(input: {
   readonly runDir: string;
   readonly outDir: string;
   readonly runId: string;
@@ -2950,7 +2838,7 @@ async function writeTwoKeyLaunchRefusalArtifacts(input: {
   });
 }
 
-function createLaunchRefusalRunId(): string {
+export function createLaunchRefusalRunId(): string {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   return `run_${timestamp}_workspace_trust`;
 }
@@ -2962,34 +2850,6 @@ class CliExitError extends Error {
   ) {
     super(message);
   }
-}
-
-function validateConfirmedIntentOutputPath(value: string | undefined):
-  | {
-      readonly ok: true;
-      readonly path?: string;
-    }
-  | {
-      readonly ok: false;
-      readonly error: string;
-    } {
-  if (value === undefined) {
-    return { ok: true };
-  }
-
-  const fileName = basename(value);
-  if (CONFIRMED_INTENT_OUTPUT_FILE_NAMES.includes(fileName as (typeof CONFIRMED_INTENT_OUTPUT_FILE_NAMES)[number])) {
-    return {
-      ok: true,
-      path: value
-    };
-  }
-
-  return {
-    ok: false,
-    error:
-      "--confirmed-intent-output must point to confirmed-intent.json or intent.json so draft hardening cannot write ambiguous output files."
-  };
 }
 
 function formatPromotionFailure(result: ReturnType<typeof promoteIntentDraft>): string {
@@ -3026,97 +2886,11 @@ function formatPromotionFailure(result: ReturnType<typeof promoteIntentDraft>): 
   ].join(" ");
 }
 
-function parseFlags(args: readonly string[]): ParsedCliArgs | string {
-  try {
-    return parseCliArgs(args);
-  } catch (error: unknown) {
-    if (error instanceof ArgvError) {
-      return error.message;
-    }
-    throw error;
-  }
-}
-
-function parseFailTaskIds(value: string | undefined): readonly string[] {
-  if (value === undefined || value.trim().length === 0) {
-    return [];
-  }
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function parseExecutor(value: string | undefined):
-  | { readonly ok: true; readonly value: "dry-run" | "real" }
-  | { readonly ok: false; readonly error: string } {
-  if (value === undefined || value === "dry-run") {
-    return { ok: true, value: "dry-run" };
-  }
-  if (value === "real") {
-    return { ok: true, value: "real" };
-  }
-  return { ok: false, error: "--executor must be dry-run or real." };
-}
-
-function parseAllowedAdapters(value: string | undefined): readonly string[] | undefined {
-  if (value === undefined || value.trim().length === 0) {
-    return undefined;
-  }
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function parseIntentMode(value: string | undefined):
-  | {
-      readonly ok: true;
-      readonly mode: IntentAmbiguityMode;
-    }
-  | {
-      readonly ok: false;
-      readonly error: string;
-    } {
-  if (value === undefined) {
-    return {
-      ok: true,
-      mode: "brownfield"
-    };
-  }
-  if (value === "greenfield" || value === "brownfield") {
-    return {
-      ok: true,
-      mode: value
-    };
-  }
-  return {
-    ok: false,
-    error: "--intent-mode must be greenfield or brownfield."
-  };
-}
-
-function helpText(): string {
-  const executable = basename(process.argv[1] ?? "protostar-factory");
-  return [
-    "Protostar Factory",
-    "",
-    "Commands:",
-    `  ${executable} run (--intent-draft <path> | --draft <path>) --out <dir> [--confirmed-intent-output <confirmed-intent.json|intent.json>] [--planning-fixture <path>] [--intent-mode <mode>] [--fail-task-ids <ids>] [--run-id <id>]`,
-    "",
-    "Example:",
-    `  ${executable} run --draft examples/intents/scaffold.draft.json --out .protostar/runs --planning-fixture examples/planning-results/scaffold.json`
-  ].join("\n");
-}
-
 function isCliEntrypoint(): boolean {
   const entrypoint = process.argv[1];
   return entrypoint !== undefined && resolve(entrypoint) === fileURLToPath(import.meta.url);
 }
 
 if (isCliEntrypoint()) {
-  main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = error instanceof CliExitError ? error.exitCode : 1;
-  });
+  void main(process.argv.slice(2)).then((code) => process.exit(code));
 }

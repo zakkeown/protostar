@@ -8,6 +8,7 @@ import { parseCliArgs } from "./cli-args.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const mainSourcePath = resolve(repoRoot, "apps/factory-cli/src/main.ts");
+const runCommandSourcePath = resolve(repoRoot, "apps/factory-cli/src/commands/run.ts");
 
 describe("factory-cli real executor integration", () => {
   it("parses --executor real and --allowed-adapters", () => {
@@ -28,10 +29,11 @@ describe("factory-cli real executor integration", () => {
   });
 
   it("keeps dry-run as the documented default executor branch", async () => {
-    const source = await readFile(mainSourcePath, "utf8");
+    const mainSource = await readFile(mainSourcePath, "utf8");
+    const runCommandSource = await readFile(runCommandSourcePath, "utf8");
 
-    assert.match(source, /\(options\.executor \?\? "dry-run"\) === "real"/);
-    assert.match(source, /executor: executor\.value/);
+    assert.match(mainSource, /\(options\.executor \?\? "dry-run"\) === "real"/);
+    assert.match(runCommandSource, /executor: executor\.value/);
   });
 
   it("wires the real executor through LM Studio admission, adapter, repo reader, and journal", async () => {
