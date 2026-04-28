@@ -3736,8 +3736,23 @@ async function assertFactoryCompositionUsesPlanningAdmissionBoundary(): Promise<
   );
   assert.match(
     source,
+    /const workSlicingApplied = await maybeApplyWorkSlicingPile\(/,
+    "Execution handoff must consume admitted planning output from the persisted planning-admission boundary, including any re-admitted work-sliced plan."
+  );
+  assert.match(
+    source,
     /planningAdmission:\s*workingPersistedPlanningAdmission,/,
-    "Execution handoff must consume the persisted planning-admission.json payload, including any re-admitted work-sliced plan, not the in-memory candidate admission."
+    "Execution handoff must consume the persisted planning-admission payload selected by the work-slicing boundary."
+  );
+  assert.match(
+    source,
+    /planningAdmission:\s*input\.persistedPlanningAdmission,/,
+    "The work-slicing boundary must preserve the originally persisted planning-admission payload when slicing does not run."
+  );
+  assert.match(
+    source,
+    /planningAdmission:\s*rePersisted,/,
+    "The work-slicing boundary must consume the re-read planning-admission.json payload after a sliced plan is admitted."
   );
   assert.match(
     source,
