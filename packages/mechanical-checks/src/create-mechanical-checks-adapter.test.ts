@@ -142,6 +142,66 @@ describe("createMechanicalChecksAdapter", () => {
 
     assert.deepEqual(readFileCalls, ["/tmp/stdout.log"]);
   });
+
+  it("emits passing mechanicalScores for successful build/lint, one-file cosmetic diff, and covered AC", async (t) => {
+    const repo = await repoWithCommit([{ path: "a.test.ts", content: "test('renders', () => {});\n" }]);
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const adapter = createMechanicalChecksAdapter({
+      workspaceRoot: repo.dir,
+      commands: [
+        { id: "build", argv: ["pnpm", "build"] },
+        { id: "lint", argv: ["pnpm", "lint"] }
+      ],
+      archetype: "cosmetic-tweak",
+      baseRef: repo.baseRef,
+      runId: "run-1",
+      attempt: 0,
+      plan: planWithTask("task-x", "a.test.ts", "renders"),
+      readFile: async () => "ok 1 - renders",
+      gitFs: fs,
+      subprocess: subprocessStub([
+        subprocessResult("build", 0, "/tmp/build.stdout.log"),
+        subprocessResult("lint", 0, "/tmp/lint.stdout.log")
+      ])
+    });
+
+    const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
+
+    assert.deepEqual((final.result as any).evidence.mechanicalScores, {
+      build: 1,
+      lint: 1,
+      diffSize: 1,
+      acCoverage: 1
+    });
+  });
+
+  it("emits a failing lint mechanical score when lint exits non-zero", async (t) => {
+    const repo = await repoWithCommit([{ path: "a.test.ts", content: "test('renders', () => {});\n" }]);
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const adapter = createMechanicalChecksAdapter({
+      ...baseConfig(repo),
+      commands: [{ id: "lint", argv: ["pnpm", "lint"] }],
+      subprocess: subprocessStub([subprocessResult("lint", 1, "/tmp/lint.stdout.log")])
+    });
+
+    const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
+
+    assert.equal((final.result as any).evidence.mechanicalScores.lint, 0);
+  });
+
+  it("emits an oversized diff mechanical score for a three-file cosmetic-tweak diff", async (t) => {
+    const repo = await repoWithCommit([
+      { path: "a.ts", content: "a\n" },
+      { path: "b.ts", content: "b\n" },
+      { path: "c.ts", content: "c\n" }
+    ]);
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const adapter = createMechanicalChecksAdapter(baseConfig(repo));
+
+    const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
+
+    assert.equal((final.result as any).evidence.mechanicalScores.diffSize, 0);
+  });
 });
 
 async function repoWithCommit(files: readonly { readonly path: string; readonly content: string }[]) {
