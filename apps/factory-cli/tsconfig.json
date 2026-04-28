@@ -22,6 +22,7 @@
     { "path": "../../packages/delivery" },
     { "path": "../../packages/evaluation" },
     { "path": "../../packages/dogpile-adapter" },
-    { "path": "../../packages/lmstudio-adapter" }
+    { "path": "../../packages/lmstudio-adapter" },
+    { "path": "../../packages/repair" }
   ]
 }
