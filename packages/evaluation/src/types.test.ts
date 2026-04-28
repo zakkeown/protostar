@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  createEvaluationReport,
   EVALUATION_RUBRIC_DIMENSIONS,
   T_CONF,
   T_MEAN_DIMS,
@@ -11,6 +10,7 @@ import {
   T_MIN_DIMS,
   T_MIN_JUDGES,
   type ConsensusBreakdown,
+  type CreateEvaluationReportInput,
   type EvaluationRubricDimension,
   type EvaluationStageStatus,
   type MechanicalEvalResult,
@@ -119,8 +119,8 @@ describe("Phase 8 evaluation type surface", () => {
     assert.deepEqual(breakdown.thresholdsHit, ["minJudges", "minDims"]);
   });
 
-  it("keeps the legacy createEvaluationReport overload degraded and non-throwing", () => {
-    const report = createEvaluationReport({
+  it("exports no legacy reviewGate-shaped createEvaluationReport overload", () => {
+    const legacyInput = {
       runId: "run_eval_degraded",
       reviewGate: {
         planId: "plan-a",
@@ -128,15 +128,10 @@ describe("Phase 8 evaluation type surface", () => {
         verdict: "pass",
         findings: []
       }
-    });
-
-    assert.equal(report.verdict, "fail");
-    assert.equal(report.stages.length, 3);
-    for (const stage of report.stages) {
-      assert.equal(stage.verdict, "fail");
-      assert.equal(stage.score, 0);
-      assert.equal(stage.summary, "Phase 8 Plan 08-07 replaces this call site.");
-      assert.equal(JSON.stringify(stage).includes(`${"skip"}ped`), false);
-    }
+    };
+    // @ts-expect-error the Phase 8 Q-12 assembler no longer accepts reviewGate-shaped legacy input.
+    const _realInput: CreateEvaluationReportInput = legacyInput;
+    void _realInput;
+    assert.equal(legacyInput.runId, "run_eval_degraded");
   });
 });

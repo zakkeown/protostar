@@ -1,5 +1,3 @@
-import type { ReviewGate, ReviewVerdict } from "@protostar/review";
-
 /**
  * Phase 8 Q-03/Q-06/Q-09/Q-11/Q-12 evaluation contract surface.
  *
@@ -9,7 +7,7 @@ import type { ReviewGate, ReviewVerdict } from "@protostar/review";
  */
 export type EvaluationStageKind = "mechanical" | "semantic" | "consensus";
 export type EvaluationStageStatus = "pass" | "fail";
-export type EvaluationVerdict = ReviewVerdict;
+export type EvaluationVerdict = EvaluationStageStatus;
 export type EvolutionAction = "continue" | "converged" | "exhausted";
 
 export const ONTOLOGY_CONVERGENCE_THRESHOLD = 0.95;
@@ -117,31 +115,6 @@ export interface EvolutionDecision {
   readonly reason: string;
 }
 
-/**
- * @deprecated Phase 8 Plan 08-07 replaces this call site with `runEvaluationStages` from
- * `@protostar/evaluation-runner`. This degraded stub exists ONLY to keep `pnpm run verify`
- * green across Waves 1-4 of Phase 8. It MUST NOT ship past Plan 08-07.
- *
- * Returns a non-throwing `EvaluationReport` with verdict `"fail"` on every stage and
- * `score: 0`. Never emits the removed Q-11 evaluation verdict.
- */
-export function createEvaluationReport(input: {
-  readonly runId: string;
-  readonly reviewGate: ReviewGate;
-}): EvaluationReport {
-  const summary = "Phase 8 Plan 08-07 replaces this call site." as const;
-  const stages: readonly EvaluationStageResult[] = [
-    { stage: "mechanical", verdict: "fail", score: 0, summary },
-    { stage: "semantic", verdict: "fail", score: 0, summary },
-    { stage: "consensus", verdict: "fail", score: 0, summary }
-  ];
-  return {
-    runId: input.runId,
-    verdict: "fail",
-    stages
-  };
-}
-
 export function measureOntologySimilarity(
   previous: OntologySnapshot,
   current: OntologySnapshot,
@@ -244,6 +217,7 @@ function roundScore(value: number): number {
 
 export * from "./compute-mechanical-scores.js";
 export * from "./compute-semantic-confidence.js";
+export * from "./create-evaluation-report.js";
 export * from "./create-spec-ontology-snapshot.js";
 export * from "./evaluate-consensus.js";
 export * from "./evaluation-pile-result.js";
