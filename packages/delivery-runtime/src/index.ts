@@ -9,3 +9,7 @@ export type { DeliveryTarget, FullPreflightResult } from "./preflight-full.js";
 export { buildBranchName, generateBranchSuffix } from "./branch-template.js";
 export { buildPushOnAuth, pushBranch } from "./push-branch.js";
 export type { PushBranchInput, PushResult } from "./push-branch.js";
+export { findExistingPr } from "./find-existing-pr.js";
+export type { ExistingPrResult } from "./find-existing-pr.js";
+export { findCommentByMarker, postEvidenceComment } from "./post-evidence-comment.js";
+export type { EvidenceCommentInput, EvidenceCommentResult } from "./post-evidence-comment.js";
