@@ -20,6 +20,7 @@
     { "path": "../../packages/review" },
     { "path": "../../packages/mechanical-checks" },
     { "path": "../../packages/delivery" },
+    { "path": "../../packages/delivery-runtime" },
     { "path": "../../packages/evaluation" },
     { "path": "../../packages/dogpile-adapter" },
     { "path": "../../packages/lmstudio-adapter" },

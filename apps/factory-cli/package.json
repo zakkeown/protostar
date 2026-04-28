@@ -26,6 +26,7 @@
     "@protostar/artifacts": "workspace:*",
     "@protostar/authority": "workspace:*",
     "@protostar/delivery": "workspace:*",
+    "@protostar/delivery-runtime": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
     "@protostar/dogpile-types": "workspace:*",
     "@protostar/evaluation": "workspace:*",

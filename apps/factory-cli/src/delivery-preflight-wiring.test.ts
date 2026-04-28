@@ -221,6 +221,7 @@ describe("delivery preflight wiring", () => {
       });
 
       assert.equal(outcome.proceed, false);
+      assert.ok(outcome.refusalPath);
       const contents = await fs.readFile(outcome.refusalPath, "utf8");
       assert.equal(contents.includes(leakedToken), false);
     });

@@ -26,6 +26,9 @@ importers:
       '@protostar/delivery':
         specifier: workspace:*
         version: link:../../packages/delivery
+      '@protostar/delivery-runtime':
+        specifier: workspace:*
+        version: link:../../packages/delivery-runtime
       '@protostar/dogpile-adapter':
         specifier: workspace:*
         version: link:../../packages/dogpile-adapter
