@@ -43,6 +43,7 @@ const testEnvelope: CapabilityEnvelope = Object.freeze({
     timeoutMs: 60000,
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
+    deliveryWallClockMs: 600_000,
     maxRepairLoops: 1
   }
 });
