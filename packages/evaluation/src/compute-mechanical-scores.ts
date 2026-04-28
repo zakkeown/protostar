@@ -1,6 +1,8 @@
 import type { ReviewGate } from "@protostar/review";
 
-import { T_MECH, type MechanicalEvalResult } from "./index.js";
+import type { MechanicalEvalResult } from "./index.js";
+
+const T_MECH = 0.95;
 
 export type MechanicalArchetype = "cosmetic-tweak" | "feature-add" | "refactor" | "bugfix";
 

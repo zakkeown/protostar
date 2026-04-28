@@ -1,9 +1,5 @@
 import type { ReviewGate, ReviewVerdict } from "@protostar/review";
 
-export * from "./compute-mechanical-scores.js";
-export * from "./compute-semantic-confidence.js";
-export * from "./should-run-consensus.js";
-
 /**
  * Phase 8 Q-03/Q-06/Q-09/Q-11/Q-12 evaluation contract surface.
  *
@@ -245,3 +241,8 @@ export function decideEvolution(input: {
 function roundScore(value: number): number {
   return Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
 }
+
+export * from "./compute-mechanical-scores.js";
+export * from "./compute-semantic-confidence.js";
+export * from "./evaluate-consensus.js";
+export * from "./should-run-consensus.js";

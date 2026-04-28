@@ -41,27 +41,29 @@ function thresholdsFor(failures: ReadonlySet<ThresholdName>): ConsensusThreshold
   };
 }
 
-const thresholdNames: readonly ThresholdName[] = ["meanJudges", "minJudges", "meanDims", "minDims"];
-
 describe("evaluateConsensus", () => {
   describe("4-way threshold truth table", () => {
-    for (let mask = 0; mask < 16; mask += 1) {
-      const expectedFailures = thresholdNames.filter((_, index) => (mask & (1 << index)) !== 0);
-      const label = expectedFailures.length === 0 ? "all thresholds pass" : `${expectedFailures.join(", ")} fail`;
-
-      it(`truth table: ${label}`, () => {
-        const result = evaluateConsensus(baseCritiques(), thresholdsFor(new Set(expectedFailures)));
-
-        assert.equal(result.verdict, expectedFailures.length === 0 ? "pass" : "fail");
-        assert.deepEqual(result.breakdown.thresholdsHit, expectedFailures);
-        assert.equal(result.score, 0.8);
-        assert.deepEqual(result.breakdown.judgeMeans, [1, 0.6]);
-        assert.equal(result.breakdown.meanOfJudgeMeans, 0.8);
-        assert.equal(result.breakdown.minOfJudgeMeans, 0.6);
-        assert.equal(result.breakdown.meanOfDimMeans, 0.8);
-        assert.equal(result.breakdown.minOfDimMeans, 0.6);
-      });
-    }
+    it("truth table: all thresholds pass", () => runTruthTableCase([]));
+    it("truth table: meanJudges fails", () => runTruthTableCase(["meanJudges"]));
+    it("truth table: minJudges fails", () => runTruthTableCase(["minJudges"]));
+    it("truth table: meanJudges and minJudges fail", () => runTruthTableCase(["meanJudges", "minJudges"]));
+    it("truth table: meanDims fails", () => runTruthTableCase(["meanDims"]));
+    it("truth table: meanJudges and meanDims fail", () => runTruthTableCase(["meanJudges", "meanDims"]));
+    it("truth table: minJudges and meanDims fail", () => runTruthTableCase(["minJudges", "meanDims"]));
+    it("truth table: meanJudges, minJudges, and meanDims fail", () =>
+      runTruthTableCase(["meanJudges", "minJudges", "meanDims"]));
+    it("truth table: minDims fails", () => runTruthTableCase(["minDims"]));
+    it("truth table: meanJudges and minDims fail", () => runTruthTableCase(["meanJudges", "minDims"]));
+    it("truth table: minJudges and minDims fail", () => runTruthTableCase(["minJudges", "minDims"]));
+    it("truth table: meanJudges, minJudges, and minDims fail", () =>
+      runTruthTableCase(["meanJudges", "minJudges", "minDims"]));
+    it("truth table: meanDims and minDims fail", () => runTruthTableCase(["meanDims", "minDims"]));
+    it("truth table: meanJudges, meanDims, and minDims fail", () =>
+      runTruthTableCase(["meanJudges", "meanDims", "minDims"]));
+    it("truth table: minJudges, meanDims, and minDims fail", () =>
+      runTruthTableCase(["minJudges", "meanDims", "minDims"]));
+    it("truth table: all four thresholds fail", () =>
+      runTruthTableCase(["meanJudges", "minJudges", "meanDims", "minDims"]));
   });
 
   it("throws when no critiques are provided", () => {
@@ -103,3 +105,16 @@ describe("evaluateConsensus", () => {
     assert.deepEqual(result.breakdown.thresholds, DEFAULT_CONSENSUS_THRESHOLDS);
   });
 });
+
+function runTruthTableCase(expectedFailures: readonly ThresholdName[]): void {
+  const result = evaluateConsensus(baseCritiques(), thresholdsFor(new Set(expectedFailures)));
+
+  assert.equal(result.verdict, expectedFailures.length === 0 ? "pass" : "fail");
+  assert.deepEqual(result.breakdown.thresholdsHit, expectedFailures);
+  assert.equal(result.score, 0.8);
+  assert.deepEqual(result.breakdown.judgeMeans, [1, 0.6]);
+  assert.equal(result.breakdown.meanOfJudgeMeans, 0.8);
+  assert.equal(result.breakdown.minOfJudgeMeans, 0.6);
+  assert.equal(result.breakdown.meanOfDimMeans, 0.8);
+  assert.equal(result.breakdown.minOfDimMeans, 0.6);
+}

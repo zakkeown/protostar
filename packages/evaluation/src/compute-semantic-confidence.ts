@@ -1,6 +1,14 @@
 import type { JudgeCritique } from "@protostar/review";
 
-import { EVALUATION_RUBRIC_DIMENSIONS } from "./index.js";
+import type { EvaluationRubricDimension } from "./index.js";
+
+const EVALUATION_RUBRIC_DIMENSIONS = [
+  "acMet",
+  "codeQuality",
+  "security",
+  "regressionRisk",
+  "releaseReadiness"
+] as const satisfies readonly EvaluationRubricDimension[];
 
 export function computeSemanticConfidence(critiques: readonly JudgeCritique[]): number {
   if (critiques.length < 2) {
