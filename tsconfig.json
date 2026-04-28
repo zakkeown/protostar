@@ -11,6 +11,7 @@
     { "path": "packages/repo" },
     { "path": "packages/execution" },
     { "path": "packages/review" },
+    { "path": "packages/repair" },
     { "path": "packages/delivery" },
     { "path": "packages/evaluation" },
     { "path": "packages/dogpile-types" },

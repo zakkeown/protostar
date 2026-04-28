@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "verify": "pnpm run typecheck && pnpm --filter @protostar/intent test && pnpm --filter @protostar/factory-cli test",
+    "verify": "pnpm run typecheck && pnpm --filter @protostar/repair test && pnpm --filter @protostar/intent test && pnpm --filter @protostar/factory-cli test",
     "verify:full": "pnpm run typecheck && pnpm -r test",
     "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --draft examples/intents/scaffold.draft.json --out .protostar/runs"
   },
