@@ -21,6 +21,7 @@
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*",
+    "@protostar/repo": "workspace:*",
     "@protostar/repair": "workspace:*"
   },
   "sideEffects": false

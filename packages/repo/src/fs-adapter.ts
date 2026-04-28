@@ -10,6 +10,14 @@ export interface AuthorizedWorkspaceOp {
   readonly resolvedEnvelope: unknown;
 }
 
+export interface FsAdapter {
+  mkdir(path: string, options?: { readonly recursive?: boolean }): Promise<void>;
+  writeFile(path: string, content: string | Uint8Array): Promise<void>;
+  appendFile(path: string, content: string | Uint8Array): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
+  fsync(path: string): Promise<void>;
+}
+
 export type FsAdapterErrorReason =
   | "canonicalization-mismatch"
   | "escape-attempt"

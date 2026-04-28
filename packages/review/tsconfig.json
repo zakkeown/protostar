@@ -8,5 +8,11 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../artifacts" }, { "path": "../intent" }, { "path": "../planning" }, { "path": "../execution" }]
+  "references": [
+    { "path": "../artifacts" },
+    { "path": "../intent" },
+    { "path": "../planning" },
+    { "path": "../repo" },
+    { "path": "../execution" }
+  ]
 }

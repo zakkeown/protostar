@@ -16,6 +16,7 @@ export * from "./judge-types.js";
 export * from "./delivery-authorization.js";
 export * from "./lifecycle-events.js";
 export * from "./run-review-repair-loop.js";
+export * from "./persist-iteration.js";
 
 export type ReviewVerdict = "pass" | "repair" | "block";
 export type ReviewSeverity = "info" | "minor" | "major" | "critical";
