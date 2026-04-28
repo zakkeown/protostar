@@ -1,6 +1,10 @@
 export {
   resolveFactoryConfig,
+  type ExecutionCoordinationPileConfig,
   type FactoryConfig,
+  type PileKindConfig,
+  type PileMode,
+  type PilesConfig,
   type ResolvedFactoryConfig
 } from "./factory-config.js";
 export {
