@@ -1,5 +1,7 @@
 import type { IntentId } from "@protostar/intent";
 
+export { sortJsonValue } from "./canonical-json.js";
+
 export type FactoryStage = "intent" | "planning" | "execution" | "review" | "release";
 export type FactoryRunStatus = "created" | "running" | "blocked" | "repairing" | "ready-to-release" | "completed";
 

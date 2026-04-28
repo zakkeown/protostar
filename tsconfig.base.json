@@ -17,6 +17,7 @@
     "paths": {
       "@protostar/admission-e2e": ["packages/admission-e2e/src/index.ts"],
       "@protostar/artifacts": ["packages/artifacts/src/index.ts"],
+      "@protostar/artifacts/canonical-json": ["packages/artifacts/src/canonical-json.ts"],
       "@protostar/authority": ["packages/authority/src/index.ts"],
       "@protostar/authority/internal/test-builders": ["packages/authority/src/internal/test-builders.ts"],
       "@protostar/delivery": ["packages/delivery/src/index.ts"],
