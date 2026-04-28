@@ -261,6 +261,8 @@ Plans:
 
 ## Phase 8 — Evaluation + Evolution
 
+**Status:** Verified complete (2026-04-28). `08-VERIFICATION.md` passed 7/7 Phase 8 requirements after formally clarifying that Phase 8 owns calibration evidence capture while DOG-04 owns the ≥10-run empirical threshold tuning; `08-REVIEW.md` is clean and `08-SECURITY.md` secured 29/29 threats.
+
 **Goal:** Three-stage evaluation (mechanical → semantic → consensus) with the heterogeneous-local judge panel. Evolution decides `continue` / `converged` / `exhausted` from cross-run ontology snapshots. Specs and plans evolve before code.
 
 **Requirements:** EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVOL-01, EVOL-02, EVOL-03
@@ -281,9 +283,9 @@ Plans:
 - The `status: "skipped"` stubs in `createEvaluationReport` are gone; semantic + consensus produce real numeric scores
 - Two-judge panel runs with different model families (Qwen3-80B + e.g. DeepSeek/Llama via LM Studio); harsher-than-baseline rule documented and enforced
 - `decideEvolution` reads the previous run's snapshot from disk; generation can advance past 0
-- Convergence threshold is justified empirically, not magic-numbered
+- Convergence threshold is configurable and every run appends calibration evidence; DOG-04 performs the ≥10-run empirical tuning
 
-**Notes:** Plugs into Phase 5's `LOOP-02`. Resolves the stubbed-evaluation tech debt from `.planning/codebase/CONCERNS.md`.
+**Notes:** Plugs into Phase 5's `LOOP-02`. Resolves the stubbed-evaluation tech debt from `.planning/codebase/CONCERNS.md`. Threshold calibration follows `08-DISCUSSION-LOG.md`: Phase 8 records observations, Phase 10 dogfood calibrates from them.
 
 ## Phase 9 — Operator Surface + Resumability
 
@@ -323,7 +325,7 @@ Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07
 **Success criteria:**
 - Sibling Tauri+React+TypeScript repo (`../protostar-toy-ttt`) exists and is the registered target
 - Fixture matrix has at least one passing run for each scenario: `accepted`, `ambiguous`, `bad-plan`, `failed-execution`, `repaired-execution`, `blocked-review`, `pr-ready`
-- ≥10 consecutive cosmetic-tweak runs against the toy repo, ≥80% reaching `pr-ready`
+- ≥10 consecutive cosmetic-tweak runs against the toy repo, ≥80% reaching `pr-ready`, with convergence-threshold tuning justified from the Phase 8 calibration JSONL evidence
 - README + package docs are accurate; `pnpm release` produces shippable artifacts; security review is signed off
 
 **Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs.

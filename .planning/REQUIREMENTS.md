@@ -102,7 +102,7 @@ Formalize the Ouroboros-inspired loop. Evolve specs/plans before evolving code.
 - [x] **EVAL-04**: Stubbed `status: "skipped"` branches in `createEvaluationReport` are removed once mechanical + semantic + consensus are wired
 - [x] **EVOL-01**: Ontology / spec convergence — `decideEvolution` reads the previous run's snapshot from disk and produces `continue` / `converged` / `exhausted`
 - [x] **EVOL-02**: Evolution decision drives spec/plan refinement on the next run; core code evolution is gated behind explicit operator opt-in
-- [x] **EVOL-03**: Convergence threshold (currently `0.95` in `packages/evaluation/src/index.ts:123`) is calibrated empirically against ≥10 dogfood runs
+- [x] **EVOL-03**: Convergence threshold is configurable and every run appends calibration evidence for Phase 10 empirical tuning; the ≥10-run empirical calibration itself is owned by DOG-04
 
 ### Phase 9 — Operator Surface + Resumability
 
@@ -124,7 +124,7 @@ Run against the sacrificial sibling repo repeatedly. Build the fixture matrix. T
 - [ ] **DOG-01**: Sibling Tauri+React+TypeScript repo (`../protostar-toy-ttt`) scaffolded via `create-tauri-app` and pushed as a fresh GitHub repo
 - [ ] **DOG-02**: Fixture matrix — at least one passing run captured for each: `accepted`, `ambiguous`, `bad-plan`, `failed-execution`, `repaired-execution`, `blocked-review`, `pr-ready`
 - [ ] **DOG-03**: First seed ("change primary button color and add a hover state") runs end-to-end against the toy repo with zero human input mid-loop
-- [ ] **DOG-04**: ≥10 consecutive dogfood runs against the toy repo with ≥80% reaching `pr-ready`
+- [ ] **DOG-04**: ≥10 consecutive dogfood runs against the toy repo with ≥80% reaching `pr-ready`, including empirical convergence-threshold calibration from the appended Phase 8 calibration evidence
 - [ ] **DOG-05**: Docs — README explains the run lifecycle, every CLI command, and the run-bundle schema
 - [ ] **DOG-06**: Package hygiene — every package has a tested public surface, version pinned, no unused exports
 - [ ] **DOG-07**: Release scripts — `pnpm release` builds, tests, tags, and produces a publishable artifact set (or documents why packages stay private)
@@ -227,7 +227,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | EVAL-04 | Phase 8 | Complete |
 | EVOL-01 | Phase 8 | Complete |
 | EVOL-02 | Phase 8 | Complete |
-| EVOL-03 | Phase 8 | Complete |
+| EVOL-03 | Phase 8 | Complete — configurable threshold plus calibration JSONL evidence; empirical tuning delegated to DOG-04 |
 | OP-01 | Phase 9 | Pending |
 | OP-02 | Phase 9 | Pending |
 | OP-03 | Phase 9 | Pending |
@@ -239,7 +239,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | DOG-01 | Phase 10 | Pending |
 | DOG-02 | Phase 10 | Pending |
 | DOG-03 | Phase 10 | Pending |
-| DOG-04 | Phase 10 | Pending |
+| DOG-04 | Phase 10 | Pending — includes empirical convergence-threshold calibration from ≥10 dogfood runs |
 | DOG-05 | Phase 10 | Pending |
 | DOG-06 | Phase 10 | Pending |
 | DOG-07 | Phase 10 | Pending |

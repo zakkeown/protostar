@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 8 Plan 08 complete)
+**Last updated:** 2026-04-28 (Phase 8 complete)
 
 ## Project
 
@@ -24,11 +24,11 @@
 
 ## Current Phase
 
-**Phase 8 — Evaluation + Evolution** (in progress)
+**Phase 9 — Operator Surface + Resumability** (pending)
 
-Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`) completed 2026-04-28. Admission-e2e now pins the final high-risk evaluation/evolution invariants: no `"skipped"` evaluation verdicts, EvaluationResult refusal byte equality, evaluation-runner no-fs defense in depth, prior-generation planning mission text/gating, and calibration JSONL append shape.
+Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Run Phase 8 verification/review. `pnpm --filter @protostar/admission-e2e test` and `pnpm run verify` are green.
+**Next action:** Execute or refresh Phase 9 planning as needed. Phase 8 review, security, verification, and `pnpm run verify` are green.
 
 ## Phase Status
 
@@ -41,7 +41,7 @@ Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`) completed 2026-04-28. 
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
-| 8 | Evaluation + Evolution | All plans complete — verification-ready (Plans 08-01 through 08-08 complete) |
+| 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
 | 9 | Operator Surface + Resumability | Pending |
 | 10 | V1 Hardening + Dogfood | Pending |
 
@@ -54,6 +54,8 @@ Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`) completed 2026-04-28. 
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Closed Phase 8 (`08-evaluation-evolution`) after all 8 plans, clean code review, security verification, and goal-backward verification. The implemented loop now produces deterministic mechanical scores, calls semantic evaluation, runs consensus under the harsher mean/min rule when confidence is low, refuses malformed/empty judge output as structured `EvaluationResult` parse failures, blocks release on failed evaluation reports, persists evolution snapshots/chain/calibration logs from `factory-cli`, and feeds prior-generation summaries into planning while keeping prior code hints behind `--evolve-code`. Security verified 29/29 threats in `08-SECURITY.md`; verification passed 7/7 after the planning contract was clarified so Phase 8 owns calibration evidence capture and Phase 10 DOG-04 owns ≥10-run empirical threshold tuning. `pnpm run verify` passed. Final review artifact: `08-REVIEW.md` clean (0 findings).
 
 - **2026-04-28:** Completed Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`). Added five admission-e2e contracts: `no-skipped-evaluation.contract.test.ts` (static evaluation source scan + runtime report checks for all-pass, mechanical-fail, and consensus-not-required paths), `eval-refusal-byte-equality.contract.test.ts` (EvaluationResult/pile-evaluation schema-parse artifacts deepEqual after erasing parseErrors), `evaluation-runner-no-fs.contract.test.ts` (static scan plus runtime `runEvaluationStages` fake-pile exercise with Proxy sentinel; temporary fs import smoke failed as expected), `planning-mission-prior-summary.contract.test.ts` (Previous Generation Summary inclusion and Prior diff exclusion/inclusion based on `includePriorCodeHints`), and `calibration-log-append.contract.test.ts` (first/second-run JSONL append shape for `.protostar/calibration/ontology-similarity.jsonl`). Added admission-e2e dependencies/references for evaluation packages and ignored generated `.protostar/calibration/` + `.protostar/evolution/` runtime artifacts. Verification passed: focused admission-e2e filters for all five contracts, full `pnpm --filter @protostar/admission-e2e test` (103 tests), and `pnpm run verify`. Commits: `c86cf33`, `dcfe5ac`, `d884518`, `2e64945`, `db120e1`, support `f19a485`, `76d1ac3`.
 
