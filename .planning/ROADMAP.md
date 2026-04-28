@@ -223,7 +223,7 @@ Plans:
 - [x] 06-05-review-pile-reviewer-PLAN.md — wave 2 — @protostar/review ReviewPileResult + parseReviewPileResult + createReviewPileModelReviewer (Phase 5 Q-10 ModelReviewer impl) (Q-14, Q-17, PILE-02)
 - [x] 06-06-repair-and-planning-coordination-PLAN.md — wave 2 — @protostar/repair ExecutionCoordinationPileResult + parser + admitRepairPlanProposal; @protostar/planning admitWorkSlicing (Q-15, Q-18, PILE-03)
 - [x] 06-07-factory-cli-pile-wiring-PLAN.md — wave 3 — CLI flags --planning-mode/--review-mode/--exec-coord-mode + factory-config piles parsing + RefusalStage extension + pile-mode-resolver + pile-persistence (runs/{id}/piles/{kind}/iter-{N}/) + main.ts pile invocation flow with run-level AbortController (Q-03 fallback, Q-04, Q-06, Q-07, Q-08, Q-12, PILE-01, PILE-04, PILE-05)
-- [ ] 06-08-admission-e2e-pile-contract-PLAN.md — wave 4 — admission-e2e runtime no-fs contract (Q-09 runtime defense in depth) + refusal byte-equality (PILE-04 fixture-vs-live symmetry) + integration smoke (planning-pile-live, work-slicing-trigger, repair-plan-trigger) (PILE-03, PILE-04, PILE-06)
+- [x] 06-08-admission-e2e-pile-contract-PLAN.md — wave 4 — admission-e2e runtime no-fs contract (Q-09 runtime defense in depth) + refusal byte-equality (PILE-04 fixture-vs-live symmetry) + integration smoke (planning-pile-live, work-slicing-trigger, repair-plan-trigger) (PILE-03, PILE-04, PILE-06)
 
 ## Phase 7 — Delivery
 
