@@ -48,7 +48,7 @@ describe("composeScoreSheet", () => {
         taskRefs: ["task-3"]
       },
       {
-        judgeId: "aardvark",
+        judgeId: "aaron",
         model: "qwen3",
         verdict: "repair",
         rationale: "Alphabetical repair ordering.",
@@ -67,7 +67,7 @@ describe("composeScoreSheet", () => {
         "| Judge | Model | Verdict | Mean Score |",
         "|-------|-------|---------|------------|",
         "| beta | llama | block | 2.00 |",
-        "| aardvark | qwen3 | repair | 4.00 |",
+        "| aaron | qwen3 | repair | 4.00 |",
         "| alpha | deepseek | repair | 3.50 |",
         "| zeta | qwen3 | pass | 4.50 |",
         "",
@@ -82,7 +82,7 @@ describe("composeScoreSheet", () => {
         "</details>",
         "",
         "<details>",
-        "<summary>aardvark rationale</summary>",
+        "<summary>aaron rationale</summary>",
         "",
         "Alphabetical repair ordering.",
         "",
