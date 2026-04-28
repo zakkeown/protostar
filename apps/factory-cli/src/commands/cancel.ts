@@ -10,7 +10,7 @@ import { ExitCode } from "../exit-codes.js";
 import { writeStderr, writeStdoutJson } from "../io.js";
 import { assertRunIdConfined, parseRunId } from "../run-id.js";
 
-const terminalStatuses = new Set<FactoryRunStatus>(["completed", "blocked", "cancelled"]);
+const nonCancellableStatuses = new Set<FactoryRunStatus>(["completed", "blocked", "cancelled", "ready-to-release"]);
 const cancellingStatus = 'cancelling';
 const alreadyTerminalError = 'already-terminal';
 
@@ -58,7 +58,7 @@ async function executeCancel(runIdInput: string): Promise<number> {
     return ExitCode.NotFound;
   }
 
-  if (terminalStatuses.has(manifest.value.status)) {
+  if (nonCancellableStatuses.has(manifest.value.status)) {
     writeStdoutJson({
       runId: parsedRunId.value,
       error: alreadyTerminalError,

@@ -26,7 +26,7 @@ describe("resume stage dispatch - Phase 9 Q-15 lock", () => {
     assert.equal(JSON.parse(result.stdout).error, "operator-cancelled-terminal");
   });
 
-  it("transient CANCEL sentinel is unlinked before mid-execution dispatch", () => {
+  it("transient CANCEL sentinel is unlinked before fail-closed mid-execution dispatch", () => {
     const workspace = makeWorkspace();
     const runDir = writeRun(workspace, "transient-run", "running");
     writeFileSync(join(runDir, "CANCEL"), "", "utf8");
@@ -50,10 +50,10 @@ describe("resume stage dispatch - Phase 9 Q-15 lock", () => {
       encoding: "utf8"
     });
 
-    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.status, 6, result.stderr);
     assert.equal(existsSync(join(runDir, "CANCEL")), false);
     assert.match(result.stderr, /clearing transient cancel sentinel before resume/);
-    assert.match(result.stderr, /mid-execution resume dispatch accepted/);
+    assert.match(result.stderr, /real mid-execution resume is not wired/);
   });
 
   it("completed runs exit 6 as not resumable", () => {

@@ -1,6 +1,6 @@
 import * as fsPromises from "node:fs/promises";
 import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 import { Command } from "@commander-js/extra-typings";
 import { setFactoryRunStatus, sortJsonValue, type FactoryRunManifest, type FactoryRunStatus } from "@protostar/artifacts";
@@ -119,8 +119,17 @@ export async function executeDeliver(runIdInput: string, deps: DeliverCommandDep
   }
 
   const reauthorize = deps.reAuthorizeFromPayload ?? defaultReAuthorizeFromPayload;
+  const reviewDecisionPath = resolveRunRelativePath(runDir, payloadResult.payload.decisionPath);
+  if (reviewDecisionPath === null) {
+    writeStdoutJson({
+      runId,
+      error: "decision-path-outside-run",
+      reason: "decision-path-outside-run"
+    });
+    return ExitCode.Conflict;
+  }
   const authorizationResult = await reauthorize(payloadResult.payload, {
-    readReviewDecision: async (decisionPath) => JSON.parse(await readFile(join(runDir, decisionPath), "utf8")) as unknown
+    readReviewDecision: async () => JSON.parse(await readFile(reviewDecisionPath, "utf8")) as unknown
   });
   if (!authorizationResult.ok) {
     writeStdoutJson({
@@ -159,6 +168,18 @@ export async function executeDeliver(runIdInput: string, deps: DeliverCommandDep
     baseSha: payloadResult.payload.baseSha
   });
   return ExitCode.Success;
+}
+
+function resolveRunRelativePath(runDir: string, relativePath: string): string | null {
+  if (relativePath.startsWith("/") || relativePath.includes("\0")) {
+    return null;
+  }
+  const resolvedRunDir = resolve(runDir);
+  const resolvedPath = resolve(resolvedRunDir, relativePath);
+  if (resolvedPath === resolvedRunDir || resolvedPath.startsWith(`${resolvedRunDir}${sep}`)) {
+    return resolvedPath;
+  }
+  return null;
 }
 
 async function invokeDelivery(input: {

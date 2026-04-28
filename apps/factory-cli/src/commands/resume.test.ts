@@ -100,6 +100,29 @@ describe("resume command", () => {
     assert.equal(runDir.endsWith("run_orphaned"), true);
   });
 
+  it("fails closed with default dependencies instead of reporting false resume success", async () => {
+    const workspace = await tempWorkspace();
+    const runDir = await createRun(workspace, "run_default", "running");
+    await writeJournal(runDir, [
+      event({ runId: "run_default", planTaskId: "task-default", kind: "task-running", seq: 1 })
+    ]);
+
+    const result = await runResume(workspace, ["run_default"]);
+
+    assert.equal(result.exitCode, 6);
+    assert.match(result.stderr, /real mid-execution resume is not wired/);
+  });
+
+  it("fails closed for default review resume dependencies", async () => {
+    const workspace = await tempWorkspace();
+    await createRun(workspace, "run_review_default", "repairing");
+
+    const result = await runResume(workspace, ["run_review_default"]);
+
+    assert.equal(result.exitCode, 6);
+    assert.match(result.stderr, /real mid-review resume is not wired/);
+  });
+
   it("dispatches repairing runs to review resume at iter-(N+1)", async () => {
     const workspace = await tempWorkspace();
     await createRun(workspace, "run_repairing", "repairing");

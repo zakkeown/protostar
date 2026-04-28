@@ -56,9 +56,11 @@ async function computeRunLivenessInner(opts: ComputeRunLivenessOptions): Promise
   }
 
   const nowMs = opts.nowMs ?? Date.now();
+  const lastActivityAt = lastJournalAt ?? Date.parse(manifest.createdAt);
   if (
     manifest.status === "running" &&
-    nowMs - (lastJournalAt ?? 0) > opts.thresholdMs &&
+    Number.isFinite(lastActivityAt) &&
+    nowMs - lastActivityAt > opts.thresholdMs &&
     !hasSentinel
   ) {
     return {

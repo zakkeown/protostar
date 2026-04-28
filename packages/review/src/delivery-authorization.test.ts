@@ -99,6 +99,50 @@ describe("reAuthorizeFromPayload", () => {
     assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
   });
 
+  it("rejects forged minimal pass/pass decisions", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return { runId: "run-1", mechanical: "pass", model: "pass" };
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
+  });
+
+  it("rejects legacy verdict aliases instead of treating them as authorization evidence", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return {
+          schemaVersion: "1.0.0",
+          runId: "run-1",
+          planId: "plan-1",
+          mechanicalVerdict: "pass",
+          modelVerdict: "pass",
+          authorizedAt: "2026-04-28T00:00:00.000Z",
+          finalIteration: 1,
+          finalDiffArtifact: {
+            stage: "execution",
+            kind: "diff",
+            uri: "runs/run-1/execution/final.diff"
+          }
+        };
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
+  });
+
+  it("rejects decisions missing final diff evidence", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        const { finalDiffArtifact: _finalDiffArtifact, ...decision } = validReviewDecision({ runId: "run-1" });
+        return decision;
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
+  });
+
   it("rejects when the decision cannot be read", async () => {
     const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
       async readReviewDecision() {

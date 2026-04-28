@@ -40,13 +40,13 @@ export interface ResumeCommandDependencies {
 const defaultDependencies: ResumeCommandDependencies = {
   async resumeRealExecution(input) {
     writeStderr(
-      `mid-execution resume dispatch accepted for ${input.orphanSet.length} orphaned task(s)`
+      `real mid-execution resume is not wired for ${input.orphanSet.length} orphaned task(s); refusing false-success resume`
     );
-    return ExitCode.Success;
+    return ExitCode.NotResumable;
   },
   async resumeReviewLoop(input) {
-    writeStderr(`mid-review resume dispatch accepted at review iter-${input.startIter}`);
-    return ExitCode.Success;
+    writeStderr(`real mid-review resume is not wired for review iter-${input.startIter}; refusing false-success resume`);
+    return ExitCode.NotResumable;
   }
 };
 

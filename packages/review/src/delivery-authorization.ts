@@ -71,16 +71,12 @@ export async function reAuthorizeFromPayload(
     return { ok: false, reason: 'decision-missing' };
   }
 
-  if (!isReviewDecisionWithRunId(decisionRaw)) {
+  if (!isApprovedReviewDecision(decisionRaw)) {
     return { ok: false, reason: 'gate-not-pass' };
   }
 
   if (decisionRaw.runId !== payload.runId) {
     return { ok: false, reason: 'runId-mismatch' };
-  }
-
-  if (reviewDecisionMechanicalVerdict(decisionRaw) !== "pass" || reviewDecisionModelVerdict(decisionRaw) !== "pass") {
-    return { ok: false, reason: 'gate-not-pass' };
   }
 
   return {
@@ -92,16 +88,27 @@ export async function reAuthorizeFromPayload(
   };
 }
 
-function isReviewDecisionWithRunId(value: unknown): value is Record<string, unknown> & { readonly runId: string } {
-  return isRecord(value) && typeof value["runId"] === "string";
+function isApprovedReviewDecision(value: unknown): value is ReviewDecisionArtifact {
+  return (
+    isRecord(value) &&
+    value["schemaVersion"] === "1.0.0" &&
+    typeof value["runId"] === "string" &&
+    typeof value["planId"] === "string" &&
+    value["mechanical"] === "pass" &&
+    value["model"] === "pass" &&
+    typeof value["authorizedAt"] === "string" &&
+    typeof value["finalIteration"] === "number" &&
+    isStageArtifactRef(value["finalDiffArtifact"])
+  );
 }
 
-function reviewDecisionMechanicalVerdict(decision: Record<string, unknown>): unknown {
-  return decision["mechanical"] ?? decision["mechanicalVerdict"];
-}
-
-function reviewDecisionModelVerdict(decision: Record<string, unknown>): unknown {
-  return decision["model"] ?? decision["modelVerdict"];
+function isStageArtifactRef(value: unknown): value is StageArtifactRef {
+  return (
+    isRecord(value) &&
+    typeof value["stage"] === "string" &&
+    typeof value["kind"] === "string" &&
+    typeof value["uri"] === "string"
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

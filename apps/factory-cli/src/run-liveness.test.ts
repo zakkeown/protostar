@@ -94,6 +94,34 @@ describe("computeRunLiveness", () => {
     assert.equal(liveness.lastJournalAt, null);
   });
 
+  it("keeps a fresh running manifest without a journal live", async () => {
+    const runDir = await tempRunDir();
+    await writeManifest(runDir, "running", "2026-04-28T00:00:00.000Z");
+
+    const liveness = await computeRunLiveness({
+      runDir,
+      thresholdMs: 60_000,
+      nowMs: Date.parse("2026-04-28T00:00:30.000Z")
+    });
+
+    assert.equal(liveness.state, "live");
+    assert.equal(liveness.lastJournalAt, null);
+  });
+
+  it("marks a stale running manifest without a journal orphaned using createdAt fallback", async () => {
+    const runDir = await tempRunDir();
+    await writeManifest(runDir, "running", "2026-04-28T00:00:00.000Z");
+
+    const liveness = await computeRunLiveness({
+      runDir,
+      thresholdMs: 60_000,
+      nowMs: Date.parse("2026-04-28T00:01:01.000Z")
+    });
+
+    assert.equal(liveness.state, "orphaned");
+    assert.equal(liveness.lastJournalAt, null);
+  });
+
   it("returns terminal manifest status as the state", async () => {
     const runDir = await tempRunDir();
     await writeManifest(runDir, "completed");
@@ -133,12 +161,16 @@ async function tempRunDir(): Promise<string> {
   return runDir;
 }
 
-async function writeManifest(runDir: string, status: FactoryRunStatus): Promise<void> {
+async function writeManifest(
+  runDir: string,
+  status: FactoryRunStatus,
+  createdAt = "2026-04-28T00:00:00.000Z"
+): Promise<void> {
   const manifest: FactoryRunManifest = {
     runId: "run_1",
     intentId: "intent_1" as never,
     status,
-    createdAt: "2026-04-28T00:00:00.000Z",
+    createdAt,
     stages: []
   };
   await writeFile(join(runDir, "manifest.json"), JSON.stringify(manifest), "utf8");

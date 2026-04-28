@@ -51,10 +51,10 @@ describe("cancel command", () => {
     await stat(output["sentinelPath"] as string);
   });
 
-  for (const status of ["completed", "blocked", "cancelled"] as const) {
+  for (const status of ["completed", "blocked", "cancelled", "ready-to-release"] as const) {
     it(`refuses ${status} manifests with exit 4 and terminal status JSON`, async () => {
       const workspace = await tempWorkspace();
-      await createRun(workspace, "run_terminal", status);
+      const runDir = await createRun(workspace, "run_terminal", status);
 
       const result = await runCancel(workspace, ["run_terminal"]);
 
@@ -65,6 +65,7 @@ describe("cancel command", () => {
         runId: "run_terminal",
         terminalStatus: status
       });
+      await assert.rejects(stat(join(runDir, "CANCEL")), /ENOENT/);
     });
   }
 

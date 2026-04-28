@@ -140,6 +140,38 @@ describe("deliver command", () => {
     });
   });
 
+  it("refuses authorization payload decision paths that escape the run directory", async () => {
+    const workspace = await tempWorkspace();
+    const runDir = await createAuthorizedRun(workspace, "run_escape", "ready-to-release");
+    await writeJson(join(runDir, "delivery", "authorization.json"), {
+      ...authorizationPayload("run_escape"),
+      decisionPath: "../other-run/review-gate.json"
+    });
+
+    const result = await runDeliver(workspace, ["run_escape"]);
+
+    assert.equal(result.exitCode, 4);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      error: "decision-path-outside-run",
+      reason: "decision-path-outside-run",
+      runId: "run_escape"
+    });
+  });
+
+  it("refuses absolute authorization payload decision paths", async () => {
+    const workspace = await tempWorkspace();
+    const runDir = await createAuthorizedRun(workspace, "run_abs", "ready-to-release");
+    await writeJson(join(runDir, "delivery", "authorization.json"), {
+      ...authorizationPayload("run_abs"),
+      decisionPath: join(workspace, ".protostar", "runs", "run_abs", "review-gate.json")
+    });
+
+    const result = await runDeliver(workspace, ["run_abs"]);
+
+    assert.equal(result.exitCode, 4);
+    assert.equal(JSON.parse(result.stdout)["error"], "decision-path-outside-run");
+  });
+
   it("rejects invalid and missing run ids with operator exit codes", async () => {
     const workspace = await tempWorkspace();
 
@@ -209,8 +241,17 @@ async function createAuthorizedRun(
   const runDir = await createRun(workspace, runId, status);
   await writeJson(join(runDir, "review-gate.json"), {
     runId,
+    schemaVersion: "1.0.0",
+    planId: "plan-1",
     mechanical: "pass",
-    model: "pass"
+    model: "pass",
+    authorizedAt: "2026-04-28T00:00:00.000Z",
+    finalIteration: 1,
+    finalDiffArtifact: {
+      stage: "execution",
+      kind: "diff",
+      uri: `runs/${runId}/execution/final.diff`
+    }
   });
   await writeJson(join(runDir, "delivery", "authorization.json"), authorizationPayload(runId));
   return runDir;
