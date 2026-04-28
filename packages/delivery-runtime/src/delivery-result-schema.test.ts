@@ -93,19 +93,15 @@ describe("delivery-result schema", () => {
     assert.deepEqual(JSON.parse(JSON.stringify(verdicts)), verdicts);
   });
 
-  it("round-trips all CiEvent variants", () => {
-    const events: readonly CiEvent[] = [
-      { kind: "pr-created", at: "2026-04-28T14:00:00.000Z", prNumber: 17, prUrl: "https://github.com/octo/repo/pull/17", headSha: "head-sha" },
-      { kind: "comment-posted", at: "2026-04-28T14:00:01.000Z", commentKind: "mechanical-full", commentId: 101 },
-      { kind: "comment-failed", at: "2026-04-28T14:00:02.000Z", commentKind: "judge-transcripts", reason: "Validation Failed" },
-      { kind: "ci-snapshot", at: "2026-04-28T14:00:03.000Z", checks },
-      { kind: "ci-terminal", at: "2026-04-28T14:00:04.000Z", verdict: "pass" },
-      { kind: "ci-timeout", at: "2026-04-28T14:10:00.000Z" },
-      { kind: "ci-cancelled", at: "2026-04-28T14:02:00.000Z", reason: "sigint" }
-    ];
+  for (const event of ciEvents()) {
+    it(`round-trips CiEvent kind ${event.kind}`, () => {
+      assert.deepEqual(roundTrip(event), event);
+    });
+  }
 
+  it("pins exactly seven CiEvent variants", () => {
+    const events = ciEvents();
     assert.equal(events.length, 7);
-    assert.deepEqual(roundTrip(events), events);
     assert.deepEqual(
       events.map((event) => event.kind),
       ["pr-created", "comment-posted", "comment-failed", "ci-snapshot", "ci-terminal", "ci-timeout", "ci-cancelled"]
@@ -121,4 +117,16 @@ function assertRequiredFields(value: object, keys: readonly string[]): void {
   for (const key of keys) {
     assert.equal(Object.hasOwn(value, key), true, `expected field ${key}`);
   }
+}
+
+function ciEvents(): readonly CiEvent[] {
+  return [
+    { kind: "pr-created", at: "2026-04-28T14:00:00.000Z", prNumber: 17, prUrl: "https://github.com/octo/repo/pull/17", headSha: "head-sha" },
+    { kind: "comment-posted", at: "2026-04-28T14:00:01.000Z", commentKind: "mechanical-full", commentId: 101 },
+    { kind: "comment-failed", at: "2026-04-28T14:00:02.000Z", commentKind: "judge-transcripts", reason: "Validation Failed" },
+    { kind: "ci-snapshot", at: "2026-04-28T14:00:03.000Z", checks },
+    { kind: "ci-terminal", at: "2026-04-28T14:00:04.000Z", verdict: "pass" },
+    { kind: "ci-timeout", at: "2026-04-28T14:10:00.000Z" },
+    { kind: "ci-cancelled", at: "2026-04-28T14:02:00.000Z", reason: "sigint" }
+  ];
 }

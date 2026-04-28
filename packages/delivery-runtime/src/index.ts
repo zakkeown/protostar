@@ -24,3 +24,15 @@ export { computeCiVerdict } from "./compute-ci-verdict.js";
 export type { CiCheckRun, CiVerdict } from "./compute-ci-verdict.js";
 export { pollCiStatus } from "./poll-ci-status.js";
 export type { CiSnapshot, PollCiStatusInput } from "./poll-ci-status.js";
+export { DELIVERY_RESULT_SCHEMA_VERSION } from "./delivery-result-schema.js";
+export type {
+  CiCancelledReason,
+  CiEvent,
+  CiTerminalVerdict,
+  DeferredScreenshotStatus,
+  DeliveryResult,
+  DeliveryResultCiSnapshot,
+  DeliveryResultCiVerdict,
+  DeliveryResultCommentFailure,
+  DeliveryResultEvidenceComment
+} from "./delivery-result-schema.js";
