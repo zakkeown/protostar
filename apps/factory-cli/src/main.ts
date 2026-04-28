@@ -12,14 +12,17 @@ import {
   buildPlanningMission,
   buildReviewMission,
   executionCoordinationPilePreset,
+  evaluationPilePreset,
   resolvePileBudget,
   runFactoryPile as defaultRunFactoryPile,
+  type PriorGenerationSummary,
   type PileRunContext,
   type PileRunOutcome,
   type PileFailure
 } from "@protostar/dogpile-adapter";
 import { createOpenAICompatibleProvider } from "@protostar/dogpile-types";
-import { createEvaluationReport, decideEvolution, type OntologySnapshot } from "@protostar/evaluation";
+import type { OntologySnapshot } from "@protostar/evaluation";
+import { runEvaluationStages as defaultRunEvaluationStages, type SnapshotReader } from "@protostar/evaluation-runner";
 import {
   prepareExecutionRun as defaultPrepareExecutionRun,
   runExecutionDryRun,
@@ -104,6 +107,17 @@ import { coderAdapterReadyAdmission } from "./coder-adapter-admission.js";
 import { writeEscalationMarker } from "./escalation-marker.js";
 import { createJournalWriter } from "./journal-writer.js";
 import { loadFactoryConfig } from "./load-factory-config.js";
+import {
+  resolveCodeEvolutionMode,
+  resolveConsensusJudgeModel,
+  resolveConvergenceThreshold,
+  resolveGeneration,
+  resolveLineageId,
+  resolveSemanticJudgeModel
+} from "./load-factory-config.js";
+import { appendCalibrationEntry, CALIBRATION_LOG_PATH } from "./calibration-log.js";
+import { appendChainLine, chainIndexPath, readLatestChainLine, type ChainIndexLine } from "./evolution-chain-index.js";
+import { writeEvolutionSnapshot } from "./evolution-snapshot-writer.js";
 import { loadRepoPolicy as loadAuthorityRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
 import { createFsRepoReader } from "./repo-reader-adapter.js";
@@ -145,6 +159,11 @@ export interface RunCommandOptions {
   readonly planningMode?: PileMode;
   readonly reviewMode?: PileMode;
   readonly execCoordMode?: PileMode;
+  readonly lineage?: string;
+  readonly evolveCode?: boolean;
+  readonly generation?: number;
+  readonly semanticJudgeModel?: string;
+  readonly consensusJudgeModel?: string;
 }
 
 export interface RunCommandResult {
@@ -160,6 +179,7 @@ export interface FactoryCompositionDependencies {
   readonly applyChangeSet: typeof defaultApplyChangeSet;
   readonly createLmstudioCoderAdapter: typeof createLmstudioCoderAdapter;
   readonly coderAdapterReadyAdmission: typeof coderAdapterReadyAdmission;
+  readonly runEvaluationStages: typeof defaultRunEvaluationStages;
   // Phase 6 Plan 06-07 Task 3 — pile invocation seam. Default = the real
   // adapter from @protostar/dogpile-adapter; tests override with a stub that
   // returns either ok=true or ok=false synchronously.
@@ -204,7 +224,8 @@ const defaultFactoryCompositionDependencies = {
   applyChangeSet: defaultApplyChangeSet,
   createLmstudioCoderAdapter,
   coderAdapterReadyAdmission,
-  runFactoryPile: defaultRunFactoryPile
+  runFactoryPile: defaultRunFactoryPile,
+  runEvaluationStages: defaultRunEvaluationStages
 } as const satisfies FactoryCompositionDependencies;
 
 const CONFIRMED_INTENT_OUTPUT_FILE_NAMES = ["confirmed-intent.json", "intent.json"] as const;
@@ -421,6 +442,16 @@ export async function runFactory(
     throw new Error(`Unable to sign confirmed intent: ${signedPromotion.errors.join("; ")}`);
   }
   const intent = signedPromotion.intent;
+  const lineageId = resolveLineageId(options.lineage, factoryConfig.config.evolution?.lineage, intent);
+  const chainPath = chainIndexPath(lineageId, workspaceRoot);
+  const chainLatest = await readLatestChainLine(chainPath);
+  const generation = resolveGeneration(options.generation, chainLatest);
+  const codeEvolutionMode = resolveCodeEvolutionMode(options.evolveCode, factoryConfig.config.evolution?.codeEvolution);
+  const convergenceThreshold = resolveConvergenceThreshold(factoryConfig.config.evolution?.convergenceThreshold);
+  const priorGenerationSummary = await buildPriorGenerationSummary({
+    chainLatest,
+    includePriorCodeHints: codeEvolutionMode === "opt-in"
+  });
 
   // GOV-04/GOV-06: verify the confirmed-intent file before any trust allow evidence is written.
   // This closes T-2-5 (any path satisfies second key) and T-2-7 (signature bypass).
@@ -479,7 +510,7 @@ export async function runFactory(
     runId,
     intentId: intent.id
   });
-  const planningMission = buildPlanningMission(intent);
+  const planningMission = buildPlanningMission(intent, priorGenerationSummary);
   const candidatePlanId = `plan_${runId}`;
   // Phase 6 Plan 06-07 Task 3a — planning seam (PILE-01).
   // Fixture mode: read fixture from disk (existing path).
@@ -984,13 +1015,101 @@ export async function runFactory(
   } finally {
     cancel.dispose();
   }
-  const evaluationReport = createEvaluationReport({
-    runId,
-    reviewGate: review
+  const snapshotReader: SnapshotReader = async (targetLineageId) => {
+    const latest = await readLatestChainLine(chainIndexPath(targetLineageId, workspaceRoot));
+    if (latest === undefined) return undefined;
+    return readOntologySnapshot(latest.snapshotPath);
+  };
+  const evaluationResult = await dependencies.runEvaluationStages(
+    {
+      runId,
+      intent,
+      plan: admittedPlanHandoff.plan,
+      reviewGate: review,
+      diffNameOnly: diffNameOnlyFromLoop(loop),
+      executionEvidence: {
+        buildExitCode: executionResult.status === "succeeded" ? 0 : 1,
+        lintExitCode: executionResult.status === "succeeded" ? 0 : 1
+      },
+      archetype: reviewLoopArchetype(intent.goalArchetype ?? "cosmetic-tweak"),
+      providers: {
+        semantic: createOpenAICompatibleProvider({
+          baseURL: factoryConfig.config.evaluation?.semanticJudge?.baseUrl
+            ?? factoryConfig.config.adapters.judge?.baseUrl
+            ?? factoryConfig.config.adapters.coder.baseUrl,
+          apiKey: process.env[factoryConfig.config.adapters.judge?.apiKeyEnv ?? factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+          model: resolveSemanticJudgeModel(
+            options.semanticJudgeModel,
+            factoryConfig.config.evaluation?.semanticJudge?.model
+          )
+        }),
+        consensus: createOpenAICompatibleProvider({
+          baseURL: factoryConfig.config.evaluation?.consensusJudge?.baseUrl
+            ?? factoryConfig.config.adapters.judge?.baseUrl
+            ?? factoryConfig.config.adapters.coder.baseUrl,
+          apiKey: process.env[factoryConfig.config.adapters.judge?.apiKeyEnv ?? factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+          model: resolveConsensusJudgeModel(
+            options.consensusJudgeModel,
+            factoryConfig.config.evaluation?.consensusJudge?.model
+          )
+        })
+      },
+      signal: runAbortController.signal,
+      budget: resolvePileBudget(evaluationPilePreset.budget, intent.capabilityEnvelope.budget),
+      snapshotReader,
+      lineageId,
+      generation,
+      convergenceThreshold
+    },
+    {
+      runFactoryPile: allPileModesFixture(pileModes) ? runEvaluationFixturePile : dependencies.runFactoryPile
+    }
+  );
+  if (evaluationResult.refusal !== undefined) {
+    const reason = `Evaluation pile refused (${evaluationResult.refusal.class}): ${formatPileFailureReason(evaluationResult.refusal)}`;
+    const refusalArtifact = await writeEvaluationRefusalArtifact({
+      runDir,
+      runId,
+      failure: evaluationResult.refusal,
+      reason
+    });
+    await writeRefusalArtifacts({
+      runDir,
+      outDir,
+      runId,
+      stage: "pile-evaluation",
+      reason,
+      refusalArtifact
+    });
+    throw new CliExitError(reason, 1);
+  }
+  const evaluationReport = evaluationResult.report;
+  const evolutionDecision = evaluationResult.evolutionDecision;
+  const snapshotWriteResult = await writeEvolutionSnapshot({
+    runDir,
+    snapshot: evaluationResult.snapshot,
+    lineageId
   });
-  const evolutionDecision = decideEvolution({
-    previous: createIntentOntologySnapshot(intent),
-    current: createPlanOntologySnapshot(admittedPlanHandoff.plan)
+  const evaluationTimestamp = new Date().toISOString();
+  await appendChainLine(chainPath, {
+    generation,
+    runId,
+    lineageId,
+    snapshotPath: snapshotWriteResult.snapshotPath,
+    timestamp: evaluationTimestamp,
+    priorVerdict: review.verdict === "pass" ? "pass" : "fail",
+    priorEvaluationVerdict: evaluationReport.verdict,
+    priorEvolutionAction: evolutionDecision.action,
+    evolutionReason: evolutionDecision.reason
+  });
+  await appendCalibrationEntry(resolve(workspaceRoot, CALIBRATION_LOG_PATH), {
+    runId,
+    lineageId,
+    generation,
+    ...(evolutionDecision.similarity !== undefined ? { similarity: evolutionDecision.similarity.score } : {}),
+    threshold: convergenceThreshold,
+    evolutionAction: evolutionDecision.action,
+    timestamp: evaluationTimestamp
   });
   let deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
   if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
@@ -1147,8 +1266,9 @@ export async function runFactory(
       artifacts: [
         artifact("review", "pile-mission", "review-mission.txt", "Model-visible review pile mission."),
         artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings."),
-        artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report stub."),
-        artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision stub.")
+        artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report."),
+        artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision."),
+        artifact("review", "evolution-snapshot", "evolution/snapshot.json", "Spec ontology snapshot for this lineage generation.")
       ]
     },
     {
@@ -1237,6 +1357,7 @@ export async function runFactory(
       "review-gate.json",
       "evaluation-report.json",
       "evolution-decision.json",
+      "evolution/snapshot.json",
       ...(deliveryWireStatus === "delivered" ? ["delivery/delivery-result.json", "delivery/ci-events.jsonl"] : [])
     ]
   };
@@ -1256,27 +1377,48 @@ export async function runFactory(
   }
 }
 
-function createIntentOntologySnapshot(intent: ConfirmedIntent): OntologySnapshot {
+async function buildPriorGenerationSummary(input: {
+  readonly chainLatest: ChainIndexLine | undefined;
+  readonly includePriorCodeHints: boolean;
+}): Promise<PriorGenerationSummary | undefined> {
+  if (input.chainLatest === undefined) return undefined;
+  const snapshot = await readOntologySnapshot(input.chainLatest.snapshotPath);
+  if (snapshot === undefined) return undefined;
   return {
-    generation: 0,
-    fields: intent.acceptanceCriteria.map((criterion) => ({
-      name: criterion.id,
-      type: criterion.verification,
-      description: criterion.statement
-    }))
+    generation: input.chainLatest.generation,
+    snapshotFields: snapshot.fields,
+    evolutionReason: input.chainLatest.evolutionReason ?? "No prior evolution reason recorded.",
+    priorVerdict: input.chainLatest.priorVerdict ?? "fail",
+    priorEvaluationVerdict: input.chainLatest.priorEvaluationVerdict ?? "fail",
+    includePriorCodeHints: input.includePriorCodeHints,
+    ...(input.includePriorCodeHints ? { priorDiffNameOnly: [] } : {})
   };
 }
 
-function createPlanOntologySnapshot(plan: AdmittedPlan | AdmittedPlanRecord): OntologySnapshot {
+async function readOntologySnapshot(snapshotPath: string): Promise<OntologySnapshot | undefined> {
+  let body: string;
+  try {
+    body = await readFile(snapshotPath, "utf8");
+  } catch (error: unknown) {
+    if (isNodeErrno(error) && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+  const json = JSON.parse(body) as {
+    readonly generation?: unknown;
+    readonly fields?: unknown;
+  };
   return {
-    generation: 1,
-    fields: plan.tasks.flatMap((task) =>
-      task.covers.map((criterionId) => ({
-        name: criterionId,
-        type: task.kind,
-        description: task.title
-      }))
-    )
+    generation: typeof json.generation === "number" ? json.generation : 0,
+    fields: Array.isArray(json.fields)
+      ? json.fields.map((field) => {
+          const record = field as { readonly name?: unknown; readonly type?: unknown; readonly description?: unknown };
+          return {
+            name: String(record.name ?? ""),
+            type: String(record.type ?? ""),
+            ...(typeof record.description === "string" ? { description: record.description } : {})
+          };
+        })
+      : []
   };
 }
 
@@ -1302,9 +1444,83 @@ function buildDeliveryArtifactList(executionEvidence: readonly StageArtifactRef[
     artifact("execution", "review-execution-loop", "review-execution-loop.json", "Review-execute-review loop transcript."),
     ...executionEvidence,
     artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings."),
-    artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report stub."),
-    artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision stub.")
+    artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report."),
+    artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision."),
+    artifact("review", "evolution-snapshot", "evolution/snapshot.json", "Spec ontology snapshot for this lineage generation.")
   ];
+}
+
+function allPileModesFixture(pileModes: Readonly<Record<FactoryCliPileKind, PileMode>>): boolean {
+  return pileModes.planning === "fixture" && pileModes.review === "fixture" && pileModes.executionCoordination === "fixture";
+}
+
+async function runEvaluationFixturePile(): Promise<PileRunOutcome> {
+  return {
+    ok: true,
+    result: {
+      output: JSON.stringify({
+        judgeCritiques: [
+          {
+            judgeId: "eval-fixture",
+            model: "fixture",
+            verdict: "pass",
+            rationale: "Deterministic fixture evaluation for dry-run factory CLI tests.",
+            rubric: {
+              acMet: 1,
+              codeQuality: 1,
+              security: 1,
+              regressionRisk: 1,
+              releaseReadiness: 1
+            }
+          }
+        ]
+      })
+    } as PileRunOutcome extends { readonly ok: true; readonly result: infer R } ? R : never,
+    trace: { events: [] } as PileRunOutcome extends { readonly ok: true; readonly trace: infer T } ? T : never,
+    accounting: { totalTokens: 0, totalUsd: 0, byProvider: {} } as PileRunOutcome extends { readonly ok: true; readonly accounting: infer A } ? A : never,
+    stopReason: null
+  };
+}
+
+function diffNameOnlyFromLoop(loop: ReviewRepairLoopResult): readonly string[] {
+  for (const iteration of [...loop.iterations].reverse()) {
+    const mechanical = iteration.mechanical;
+    if (isRecord(mechanical) && Array.isArray(mechanical["diffNameOnly"])) {
+      return mechanical["diffNameOnly"].filter((entry): entry is string => typeof entry === "string");
+    }
+  }
+  return [];
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNodeErrno(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error;
+}
+
+async function writeEvaluationRefusalArtifact(input: {
+  readonly runDir: string;
+  readonly runId: string;
+  readonly failure: PileFailure;
+  readonly reason: string;
+}): Promise<string> {
+  const artifactPath = "piles/evaluation/iter-0/refusal.json";
+  const fullPath = resolve(input.runDir, artifactPath);
+  await mkdir(dirname(fullPath), { recursive: true });
+  await writeJson(fullPath, {
+    schemaVersion: "1.0.0",
+    artifact: "refusal.json",
+    runId: input.runId,
+    kind: "evaluation",
+    iteration: 0,
+    stage: "pile-evaluation",
+    reason: input.reason,
+    sourceOfTruth: "EvaluationResult",
+    failure: input.failure
+  });
+  return artifactPath;
 }
 
 function statusForReviewVerdict(verdict: ReviewVerdict) {
@@ -2541,6 +2757,8 @@ function formatPileFailureReason(failure: PileFailure): string {
       return `pile-network: ${failure.lastError.code} ${failure.lastError.message}`;
     case "pile-cancelled":
       return `pile-cancelled: ${failure.kind} (${failure.reason})`;
+    case "eval-consensus-block":
+      return `eval-consensus-block: ${failure.thresholdsHit.join(", ")}`;
   }
 }
 
@@ -2700,7 +2918,12 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       ...(allowedAdapters !== undefined ? { allowedAdapters } : {}),
       ...(flags.planningMode !== undefined ? { planningMode: flags.planningMode } : {}),
       ...(flags.reviewMode !== undefined ? { reviewMode: flags.reviewMode } : {}),
-      ...(flags.execCoordMode !== undefined ? { execCoordMode: flags.execCoordMode } : {})
+      ...(flags.execCoordMode !== undefined ? { execCoordMode: flags.execCoordMode } : {}),
+      ...(flags.lineage !== undefined ? { lineage: flags.lineage } : {}),
+      ...(flags.evolveCode !== undefined ? { evolveCode: flags.evolveCode } : {}),
+      ...(flags.generation !== undefined ? { generation: flags.generation } : {}),
+      ...(flags.semanticJudgeModel !== undefined ? { semanticJudgeModel: flags.semanticJudgeModel } : {}),
+      ...(flags.consensusJudgeModel !== undefined ? { consensusJudgeModel: flags.consensusJudgeModel } : {})
     }
   };
 }

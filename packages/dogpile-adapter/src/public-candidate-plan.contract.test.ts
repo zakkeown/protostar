@@ -119,6 +119,63 @@ describe("Dogpile adapter planning result public boundary", () => {
     assert.equal(parsed.candidatePlan.intentId, intent.id);
   });
 
+  it("adds prior-generation summary without code hints by default", () => {
+    const intent = buildConfirmedIntentForTest({
+      id: "intent_dogpile_prior_summary",
+      title: "Use prior generation context",
+      problem: "Planning should see prior AC evolution without code-state hints.",
+      requester: "contract-test",
+      confirmedAt: "2026-04-28T00:00:00.000Z",
+      acceptanceCriteria: [
+        { id: "ac_prior_summary", statement: "Prior context appears", verification: "test" }
+      ],
+      capabilityEnvelope: { repoScopes: [], toolPermissions: [], budget: {} }
+    });
+
+    const mission = buildPlanningMission(intent, {
+      generation: 2,
+      snapshotFields: [{ name: "ac_prior_summary", type: "test", description: "Prior context appears" }],
+      evolutionReason: "Ontology similarity is below threshold.",
+      priorVerdict: "fail",
+      priorEvaluationVerdict: "pass",
+      includePriorCodeHints: false,
+      priorDiffNameOnly: ["src/button.ts"]
+    });
+
+    assert.match(mission.intent, /## Previous Generation Summary/);
+    assert.match(mission.intent, /Generation: 2/);
+    assert.match(mission.intent, /Prior verdict: fail/);
+    assert.match(mission.intent, /Prior evaluation verdict: pass/);
+    assert.match(mission.intent, /ac_prior_summary: test/);
+    assert.doesNotMatch(mission.intent, /Prior diff:/);
+  });
+
+  it("includes prior diff names only when code evolution is opted in", () => {
+    const intent = buildConfirmedIntentForTest({
+      id: "intent_dogpile_prior_code_hints",
+      title: "Use prior code hints",
+      problem: "Planning should see diff names only after opt-in.",
+      requester: "contract-test",
+      confirmedAt: "2026-04-28T00:00:00.000Z",
+      acceptanceCriteria: [
+        { id: "ac_prior_code", statement: "Prior code hint appears", verification: "test" }
+      ],
+      capabilityEnvelope: { repoScopes: [], toolPermissions: [], budget: {} }
+    });
+
+    const mission = buildPlanningMission(intent, {
+      generation: 1,
+      snapshotFields: [{ name: "ac_prior_code", type: "test" }],
+      evolutionReason: "Continue refining.",
+      priorVerdict: "pass",
+      priorEvaluationVerdict: "fail",
+      includePriorCodeHints: true,
+      priorDiffNameOnly: ["src/button.ts", "src/button.test.ts"]
+    });
+
+    assert.match(mission.intent, /Prior diff: src\/button.ts, src\/button.test.ts/);
+  });
+
   it("rejects planning output that attempts to expose admitted or execution-ready plan fields", () => {
     const intent = buildConfirmedIntentForTest({
       id: "intent_dogpile_reject_admitted_plan_shape",

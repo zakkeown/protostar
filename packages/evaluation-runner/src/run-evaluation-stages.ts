@@ -56,6 +56,7 @@ export interface RunEvaluationStagesInput {
   readonly snapshotReader: SnapshotReader;
   readonly lineageId: string;
   readonly generation: number;
+  readonly convergenceThreshold?: number;
 }
 
 export interface RunEvaluationStagesResult {
@@ -275,7 +276,8 @@ async function buildEvolutionDecision(
   const prior = await input.snapshotReader(input.lineageId);
   return decideEvolution({
     current: snapshot,
-    ...(prior !== undefined ? { previous: prior } : {})
+    ...(prior !== undefined ? { previous: prior } : {}),
+    ...(input.convergenceThreshold !== undefined ? { threshold: input.convergenceThreshold } : {})
   });
 }
 

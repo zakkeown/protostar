@@ -377,5 +377,7 @@ function formatPileFailureReason(outcome: PileRunOutcome): string {
       return `pile-network: ${failure.lastError.code} ${failure.lastError.message}`;
     case "pile-cancelled":
       return `pile-cancelled: ${failure.kind} (${failure.reason})`;
+    case "eval-consensus-block":
+      return `eval-consensus-block: ${failure.thresholdsHit.join(", ")}`;
   }
 }

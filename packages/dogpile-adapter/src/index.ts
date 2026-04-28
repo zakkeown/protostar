@@ -77,6 +77,16 @@ export interface FactoryPileMission {
   readonly intent: string;
 }
 
+export interface PriorGenerationSummary {
+  readonly generation: number;
+  readonly snapshotFields: readonly { readonly name: string; readonly type: string; readonly description?: string }[];
+  readonly evolutionReason: string;
+  readonly priorVerdict: "pass" | "fail";
+  readonly priorEvaluationVerdict: "pass" | "fail";
+  readonly includePriorCodeHints: boolean;
+  readonly priorDiffNameOnly?: readonly string[];
+}
+
 export const planningPilePreset: FactoryPilePreset = {
   kind: "planning",
   description: "Independent planners propose a DAG, risks, capabilities, and acceptance coverage before synthesis.",
@@ -162,7 +172,7 @@ export const EVAL_CONSENSUS_AGENT_DEFAULT = {
   model: "DeepSeek-Coder-V2-Lite-Instruct"
 } as const satisfies FactoryAgentSpec;
 
-export function buildPlanningMission(intent: ConfirmedIntent): FactoryPileMission {
+export function buildPlanningMission(intent: ConfirmedIntent, prior?: PriorGenerationSummary): FactoryPileMission {
   return {
     preset: planningPilePreset,
     intent: [
@@ -176,9 +186,28 @@ export function buildPlanningMission(intent: ConfirmedIntent): FactoryPileMissio
       "Return candidate-plan JSON only: task ids, dependencies, verification gates, release risks, and required capabilities.",
       "Dogpile planning output is not an admitted plan, execution-ready plan, or downstream handoff.",
       "Do not include admittedPlan, handoff, executionPlan, readyForExecution, status, admittedCapabilities, or budget.admitted fields.",
-      "Each task requiredCapabilities must use the normalized capability-envelope shape: repoScopes array, toolPermissions array, optional executeGrants array, and budget object."
+      "Each task requiredCapabilities must use the normalized capability-envelope shape: repoScopes array, toolPermissions array, optional executeGrants array, and budget object.",
+      ...previousGenerationSummaryLines(prior)
     ].join("\n")
   };
+}
+
+function previousGenerationSummaryLines(prior: PriorGenerationSummary | undefined): readonly string[] {
+  if (prior === undefined) return [];
+
+  return [
+    "",
+    "## Previous Generation Summary",
+    `Generation: ${prior.generation}`,
+    `Prior verdict: ${prior.priorVerdict}`,
+    `Prior evaluation verdict: ${prior.priorEvaluationVerdict}`,
+    `Reason: ${prior.evolutionReason}`,
+    "Snapshot fields:",
+    ...prior.snapshotFields.map((field) => `- ${field.name}: ${field.type}${field.description === undefined ? "" : ` — ${field.description}`}`),
+    ...(prior.includePriorCodeHints && prior.priorDiffNameOnly !== undefined
+      ? [`Prior diff: ${prior.priorDiffNameOnly.join(", ")}`]
+      : [])
+  ];
 }
 
 export function buildReviewMission(

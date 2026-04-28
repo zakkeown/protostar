@@ -38,6 +38,9 @@ importers:
       '@protostar/evaluation':
         specifier: workspace:*
         version: link:../../packages/evaluation
+      '@protostar/evaluation-runner':
+        specifier: workspace:*
+        version: link:../../packages/evaluation-runner
       '@protostar/execution':
         specifier: workspace:*
         version: link:../../packages/execution
@@ -183,6 +186,9 @@ importers:
 
   packages/evaluation:
     dependencies:
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
       '@protostar/review':
         specifier: workspace:*
         version: link:../review
