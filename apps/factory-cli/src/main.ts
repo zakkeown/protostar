@@ -2200,6 +2200,15 @@ interface RepoRuntimeDecisionEvidence {
   readonly subprocessRecords: readonly [];
 }
 
+function cloneUrlForRepoRuntime(input: {
+  readonly projectRoot: string;
+  readonly intent: ConfirmedIntent;
+}): string {
+  const target = input.intent.capabilityEnvelope.delivery?.target;
+  if (target === undefined) return pathToFileURL(input.projectRoot).href;
+  return `https://github.com/${target.owner}/${target.repo}.git`;
+}
+
 async function admitRepoRuntime(input: {
   readonly projectRoot: string;
   readonly runDir: string;
@@ -2241,7 +2250,10 @@ async function admitRepoRuntime(input: {
   try {
     await cleanupWorkspace(cloneDir, input.runId, { reason: "success" });
     cloneResult = await cloneWorkspace({
-      url: pathToFileURL(input.projectRoot).href,
+      url: cloneUrlForRepoRuntime({
+        projectRoot: input.projectRoot,
+        intent: input.intent
+      }),
       dir: cloneDir,
       depth: 1
     });

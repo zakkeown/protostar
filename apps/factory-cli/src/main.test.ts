@@ -201,6 +201,19 @@ describe("factory CLI draft admission hardening", () => {
     assert.match(source, /trust:\s*options\.trust/);
   });
 
+  it("clones the delivery target repository for delivery-backed repo-runtime runs", async () => {
+    const source = await readFile(resolve(repoRoot, "apps/factory-cli/src/main.ts"), "utf8");
+
+    assert.match(source, /function cloneUrlForRepoRuntime/);
+    assert.match(source, /capabilityEnvelope\.delivery\?\.target/);
+    assert.match(source, /https:\/\/github\.com\/\$\{target\.owner\}\/\$\{target\.repo\}\.git/);
+    assert.doesNotMatch(
+      source,
+      /cloneWorkspace\(\{\s*url:\s*pathToFileURL\(input\.projectRoot\)\.href/s,
+      "repo-runtime must not always clone the factory checkout when a delivery target is present."
+    );
+  });
+
   it("writes an escalation marker and exits 2 for escalate outcomes", async () => {
     await withTempDir(async (tempDir) => {
       const draftPath = resolve(tempDir, "policy-overage.json");
