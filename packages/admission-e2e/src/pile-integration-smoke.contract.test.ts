@@ -1,24 +1,17 @@
 /**
  * Phase 6 Plan 06-08 Task 3 — pile integration smoke (PILE-01, PILE-03).
  *
- * Source-grep contract on `apps/factory-cli/src/main.ts` asserting that the
- * three pile-trigger surfaces are wired (or explicitly deferred to a future
- * plan with a TODO marker). The actual end-to-end exercise of the planning
- * pile against `runFactory` lives in `apps/factory-cli/src/main.test.ts`
- * (test "invokes runFactoryPile in --planning-mode live and admits the parsed
- * pile output", main.test.ts:505) — that test boots the full factory-cli
- * harness, which requires fixtures and signing keys not portable to
- * admission-e2e.
+ * Source-grep contract on `apps/factory-cli/src/main.ts` AND
+ * `apps/factory-cli/src/exec-coord-trigger.ts` asserting that all three
+ * pile-trigger surfaces are wired. The actual end-to-end exercise of the
+ * planning pile against `runFactory` lives in
+ * `apps/factory-cli/src/main.test.ts` (test "invokes runFactoryPile in
+ * --planning-mode live and admits the parsed pile output", main.test.ts:505).
  *
- * THIS file pins the wiring at the source level so that any future deletion
- * of the trigger surfaces fails the contract test, and so that the work-
- * slicing / repair-plan deferral state is explicit and reviewable.
- *
- * Per Phase 6 Plan 06-08 plan note: "exec-coord seams are deferred from Plan
- * 06-07. This plan's smoke test only exercises the planning + review pile
- * paths, so the deferral does not block you." This test pins the deferral
- * state explicitly: when work-slicing/repair-plan are wired in a later plan,
- * the corresponding `it()` block flips from "deferred" to "wired".
+ * Plan 06-10 flipped the work-slicing/repair-plan deferral pins to positive
+ * wiring assertions; the exec-coord pile is now invoked from main.ts via
+ * the trigger module at both seams (work-slicing post-admission and
+ * repair-plan-refinement inside runReviewRepairLoop).
  */
 
 import { strict as assert } from "node:assert";
@@ -31,6 +24,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const factoryMainPath = resolve(repoRoot, "apps/factory-cli/src/main.ts");
 const factoryMainTestPath = resolve(repoRoot, "apps/factory-cli/src/main.test.ts");
+const execCoordTriggerPath = resolve(repoRoot, "apps/factory-cli/src/exec-coord-trigger.ts");
 
 async function loadFactorySource(): Promise<string> {
   return await readFile(factoryMainPath, "utf8");
@@ -38,6 +32,10 @@ async function loadFactorySource(): Promise<string> {
 
 async function loadFactoryTestSource(): Promise<string> {
   return await readFile(factoryMainTestPath, "utf8");
+}
+
+async function loadExecCoordTriggerSource(): Promise<string> {
+  return await readFile(execCoordTriggerPath, "utf8");
 }
 
 describe("pile-integration-smoke (PILE-01 / PILE-03 trigger surfaces)", () => {
@@ -96,35 +94,65 @@ describe("pile-integration-smoke (PILE-01 / PILE-03 trigger surfaces)", () => {
 
   // ---------- B. work-slicing-trigger (PILE-03 trigger #1) ----------
 
-  it("work-slicing-trigger: deferred — exec-coord work-slicing seam not wired in main.ts (Plan 06-07 deferral)", async () => {
-    // Per Plan 06-08 prelude: "The exec-coord seams are deferred from Plan
-    // 06-07." This test PINS the deferral so any future work-slicing wiring
-    // is a deliberate plan deliverable. When the seam ships, replace this
-    // assertion with positive wiring assertions (mirroring planning-pile-live).
+  it("work-slicing-trigger: factory-cli main.ts wires admitted-plan work-slicing through admitWorkSlicing", async () => {
     const source = await loadFactorySource();
-    const hasWorkSlicingTrigger =
-      /admitWorkSlicing\b/.test(source) ||
-      /shouldInvokeWorkSlicing\b/.test(source);
-    assert.equal(
-      hasWorkSlicingTrigger,
-      false,
-      "work-slicing-trigger: when admitWorkSlicing or shouldInvokeWorkSlicing appears in main.ts, replace this deferral pin with positive wiring assertions"
+    const trigger = await loadExecCoordTriggerSource();
+    assert.match(
+      source,
+      /shouldInvokeWorkSlicing\(/,
+      "work-slicing-trigger: heuristic gate must be invoked from main.ts"
+    );
+    assert.match(
+      source,
+      /invokeWorkSlicingPile\(/,
+      "work-slicing-trigger: pile invocation wrapper must be called from main.ts"
+    );
+    assert.match(
+      trigger,
+      /admitWorkSlicing\b/,
+      "work-slicing-trigger: admission helper must be referenced via the exec-coord-trigger module"
+    );
+    assert.match(
+      source,
+      /kind:\s*"execution-coordination"/,
+      "work-slicing-trigger: writePileArtifacts must be invoked with kind: \"execution-coordination\""
+    );
+    assert.match(
+      source,
+      /stage:\s*"pile-execution-coordination"/,
+      "work-slicing-trigger: refusal stage must be pile-execution-coordination"
     );
   });
 
   // ---------- C. repair-plan-trigger (PILE-03 trigger #2) ----------
 
-  it("repair-plan-trigger: deferred — exec-coord repair-plan seam not wired in main.ts (Plan 06-07 deferral)", async () => {
-    // Symmetric pin to work-slicing. When repair-plan generation hooks the
-    // exec-coord pile, swap this for positive wiring assertions.
+  it("repair-plan-trigger: factory-cli main.ts threads repairPlanRefiner into runReviewRepairLoop calling executionCoordinationPilePreset", async () => {
     const source = await loadFactorySource();
-    const hasRepairPlanTrigger =
-      /admitRepairPlanProposal\b/.test(source) ||
-      /executionCoordinationPilePreset/.test(source);
-    assert.equal(
-      hasRepairPlanTrigger,
-      false,
-      "repair-plan-trigger: when admitRepairPlanProposal or executionCoordinationPilePreset appears in main.ts, replace this deferral pin with positive wiring assertions"
+    const trigger = await loadExecCoordTriggerSource();
+    assert.match(
+      source,
+      /repairPlanRefiner/,
+      "repair-plan-trigger: refiner closure must be constructed in main.ts"
+    );
+    assert.match(
+      source,
+      /invokeRepairPlanRefinementPile\(/,
+      "repair-plan-trigger: refinement-pile wrapper must be called from main.ts"
+    );
+    assert.match(
+      source,
+      /executionCoordinationPilePreset|buildExecutionCoordinationMission/,
+      "repair-plan-trigger: exec-coord preset or mission builder must be referenced in main.ts"
+    );
+    assert.match(
+      trigger,
+      /admitRepairPlanProposal\b/,
+      "repair-plan-trigger: admission helper must be referenced via the exec-coord-trigger module"
+    );
+    assert.match(
+      trigger,
+      /buildExecutionCoordinationMission\b/,
+      "repair-plan-trigger: mission builder must be referenced via the exec-coord-trigger module"
     );
   });
 
