@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 
@@ -182,6 +182,146 @@ describe("applyChangeSet", () => {
     ]);
 
     assert.deepEqual(results, [{ path: "missing.txt", status: "skipped-error", error: "io-error" }]);
+  });
+
+  it("applies a cosmetic-tweak change set that touches one file", async (t) => {
+    const repo = await buildSacrificialRepo({
+      dirtyFiles: [{ path: "copy.txt", content: "old copy\n" }]
+    });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const op = opFor(repo.dir, "copy.txt");
+
+    const results = await applyChangeSet({
+      archetype: "cosmetic-tweak",
+      patches: [patchFor(op, "copy.txt", Buffer.from("old copy\n"), "new copy\n")]
+    });
+
+    assert.deepEqual(results, [{ path: "copy.txt", status: "applied" }]);
+    assert.deepEqual(await readFile(op), Buffer.from("new copy\n"));
+  });
+
+  it("refuses a cosmetic-tweak change set that touches two distinct files before writing", async (t) => {
+    const repo = await buildSacrificialRepo({
+      dirtyFiles: [
+        { path: "first.txt", content: "first before\n" },
+        { path: "second.txt", content: "second before\n" }
+      ]
+    });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const firstOp = opFor(repo.dir, "first.txt");
+    const secondOp = opFor(repo.dir, "second.txt");
+    const firstStat = await stat(firstOp.path);
+    const secondStat = await stat(secondOp.path);
+
+    const results = await applyChangeSet({
+      archetype: "cosmetic-tweak",
+      patches: [
+        patchFor(firstOp, "first.txt", Buffer.from("first before\n"), "first after\n"),
+        patchFor(secondOp, "second.txt", Buffer.from("second before\n"), "second after\n")
+      ]
+    });
+
+    assert.deepEqual(results, [
+      {
+        path: "first.txt",
+        status: "skipped-error",
+        error: "cosmetic-archetype-multifile",
+        evidence: { touchedFiles: ["first.txt", "second.txt"] }
+      }
+    ]);
+    assert.deepEqual(await readFile(firstOp), Buffer.from("first before\n"));
+    assert.deepEqual(await readFile(secondOp), Buffer.from("second before\n"));
+    assert.equal((await stat(firstOp.path)).mtimeMs, firstStat.mtimeMs);
+    assert.equal((await stat(secondOp.path)).mtimeMs, secondStat.mtimeMs);
+  });
+
+  it("applies a cosmetic-tweak patch with multiple hunks in one file", async (t) => {
+    const original = Buffer.from("a1\na2\na3\na4\na5\na6\na7\n");
+    const modified = "b1\na2\na3\nb4\na5\na6\nb7\n";
+    const repo = await buildSacrificialRepo({
+      dirtyFiles: [{ path: "multi-hunk.txt", content: original.toString("utf8") }]
+    });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const op = opFor(repo.dir, "multi-hunk.txt");
+
+    const results = await applyChangeSet({
+      archetype: "cosmetic-tweak",
+      patches: [patchFor(op, "multi-hunk.txt", original, modified)]
+    });
+
+    assert.deepEqual(results, [{ path: "multi-hunk.txt", status: "applied" }]);
+    assert.deepEqual(await readFile(op), Buffer.from(modified));
+  });
+
+  it("does not apply the cosmetic gate to non-cosmetic multi-file change sets", async (t) => {
+    const files = Array.from({ length: 5 }, (_, index) => ({
+      path: `feature-${index + 1}.txt`,
+      content: `feature before ${index + 1}\n`
+    }));
+    const repo = await buildSacrificialRepo({ dirtyFiles: files });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const patches = files.map((file, index) =>
+      patchFor(opFor(repo.dir, file.path), file.path, Buffer.from(file.content), `feature after ${index + 1}\n`)
+    );
+
+    const results = await applyChangeSet({ archetype: "feature-add", patches });
+
+    assert.deepEqual(statusesOf(results), ["applied", "applied", "applied", "applied", "applied"]);
+    for (const [index, file] of files.entries()) {
+      assert.deepEqual(await readFile(opFor(repo.dir, file.path)), Buffer.from(`feature after ${index + 1}\n`));
+    }
+  });
+
+  it("keeps object-shaped change sets backward compatible when archetype is omitted", async (t) => {
+    const repo = await buildSacrificialRepo({
+      dirtyFiles: [
+        { path: "legacy-a.txt", content: "a before\n" },
+        { path: "legacy-b.txt", content: "b before\n" }
+      ]
+    });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+
+    const results = await applyChangeSet({
+      patches: [
+        patchFor(opFor(repo.dir, "legacy-a.txt"), "legacy-a.txt", Buffer.from("a before\n"), "a after\n"),
+        patchFor(opFor(repo.dir, "legacy-b.txt"), "legacy-b.txt", Buffer.from("b before\n"), "b after\n")
+      ]
+    });
+
+    assert.deepEqual(statusesOf(results), ["applied", "applied"]);
+    assert.deepEqual(await readFile(opFor(repo.dir, "legacy-a.txt")), Buffer.from("a after\n"));
+    assert.deepEqual(await readFile(opFor(repo.dir, "legacy-b.txt")), Buffer.from("b after\n"));
+  });
+
+  it("refuses a cosmetic-tweak multi-file change set before even the first write", async (t) => {
+    const repo = await buildSacrificialRepo({
+      dirtyFiles: [
+        { path: "atomic-first.txt", content: "first original\n" },
+        { path: "atomic-second.txt", content: "second original\n" }
+      ]
+    });
+    t.after(() => rm(repo.dir, { recursive: true, force: true }));
+    const firstOp = opFor(repo.dir, "atomic-first.txt");
+    const secondOp = opFor(repo.dir, "atomic-second.txt");
+
+    const results = await applyChangeSet({
+      archetype: "cosmetic-tweak",
+      patches: [
+        patchFor(firstOp, "atomic-first.txt", Buffer.from("first original\n"), "first would write\n"),
+        patchFor(secondOp, "atomic-second.txt", Buffer.from("second original\n"), "second would write\n")
+      ]
+    });
+
+    assert.deepEqual(results, [
+      {
+        path: "atomic-first.txt",
+        status: "skipped-error",
+        error: "cosmetic-archetype-multifile",
+        evidence: { touchedFiles: ["atomic-first.txt", "atomic-second.txt"] }
+      }
+    ]);
+    assert.deepEqual(await readFile(firstOp), Buffer.from("first original\n"));
+    assert.deepEqual(await readFile(secondOp), Buffer.from("second original\n"));
   });
 });
 
