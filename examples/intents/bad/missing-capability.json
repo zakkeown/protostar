@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.4.0",
+  "schemaVersion": "1.5.0",
   "id": "intent_bad_missing_capability",
   "title": "Clarify factory intake routing",
   "problem": "Exercise a confirmed intent shape whose capability envelope is structurally present but missing the authority and budget details required for admission.",
@@ -24,7 +24,15 @@
     "budget": {
       "adapterRetriesPerTask": 4,
       "taskWallClockMs": 180000,
-      "maxRepairLoops": 3
+      "maxRepairLoops": 3,
+      "deliveryWallClockMs": 600000
+    },
+    "delivery": {
+      "target": {
+        "owner": "protostar-test",
+        "repo": "fixture-toy",
+        "baseBranch": "main"
+      }
     }
   },
   "constraints": [],
@@ -49,9 +57,18 @@
         "budgetKeys": [
           "adapterRetriesPerTask",
           "taskWallClockMs",
-          "maxRepairLoops"
+          "maxRepairLoops",
+          "deliveryWallClockMs"
         ]
       }
     }
+  },
+  "signature": {
+    "algorithm": "sha256",
+    "canonicalForm": "json-c14n@1.0",
+    "value": "82f77f8f749d48f022fc575c3386cb81e8afb6878a5e7f2f75109850b226dee0",
+    "intentHash": "aea6d34ee45f14e002936aa7d51e8039d6edb18de6cdc6ed184285142b954bfb",
+    "envelopeHash": "9fc98800d140c9c486e48c772eeb3149b2e8a4e810b168ebc8b6906e70673cd4",
+    "policySnapshotHash": "5c875dd1883273fb42e22880057062271835e6a1b3a664358bfa9a3b4704dc73"
   }
 }

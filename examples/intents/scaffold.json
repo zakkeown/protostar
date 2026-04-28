@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.4.0",
+  "schemaVersion": "1.5.0",
   "id": "intent_dark_factory_scaffold",
   "sourceDraftId": "draft_dark_factory_scaffold",
   "mode": "brownfield",
@@ -53,7 +53,15 @@
       "adapterRetriesPerTask": 4,
       "timeoutMs": 300000,
       "taskWallClockMs": 180000,
-      "maxRepairLoops": 1
+      "maxRepairLoops": 1,
+      "deliveryWallClockMs": 600000
+    },
+    "delivery": {
+      "target": {
+        "owner": "protostar-test",
+        "repo": "fixture-toy",
+        "baseBranch": "main"
+      }
     }
   },
   "constraints": [
@@ -84,9 +92,18 @@
           "timeoutMs",
           "adapterRetriesPerTask",
           "taskWallClockMs",
-          "maxRepairLoops"
+          "maxRepairLoops",
+          "deliveryWallClockMs"
         ]
       }
     }
+  },
+  "signature": {
+    "algorithm": "sha256",
+    "canonicalForm": "json-c14n@1.0",
+    "value": "86af56d0aab00c516b17294c0815b0fc9605864fec38c45be37b020f34929844",
+    "intentHash": "5c4e954bd045b0eb93fa579d71548d101b7b1e38567a61707044e77dab94e4cf",
+    "envelopeHash": "5c41e155d69de82f6383b5374dbf8f6d39faa7ef3d84e61a09bfdd3dd95152eb",
+    "policySnapshotHash": "c6280cfdd6b4ae75aeded9e3d87050a8d29109c28777032361c089fbeef43b82"
   }
 }
