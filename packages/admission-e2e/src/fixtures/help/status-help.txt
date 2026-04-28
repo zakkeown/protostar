@@ -1,0 +1,12 @@
+Usage: protostar-factory status [options]
+
+Show recent factory runs or a single run
+
+Options:
+  --run <runId>       show a single run
+  --limit <n>         limit row count (default: "25")
+  --all               ignore --limit
+  --since <duration>  only runs newer than duration (for example 24h)
+  --json              emit JSON instead of a human table
+  --full              include lineage, status, evaluation, and delivery fields
+  -h, --help          display help for command

@@ -1,0 +1,34 @@
+Usage: protostar-factory run [options]
+
+Run the Protostar factory loop
+
+Options:
+  --allowed-adapters <adapters>     comma-separated execution adapter allowlist
+  --confirmed-intent <path>         trusted launch confirmed intent file
+  --confirmed-intent-output <path>  write normalized confirmed intent to
+                                    confirmed-intent.json or intent.json
+  --consensus-judge-model <model>   override the consensus judge model
+  --draft <path>                    intent draft JSON file
+  --delivery-mode <mode>            auto | gated (Phase 9 Q-20)
+  --evolve-code                     include prior code hints in evolution
+                                    context
+  --exec-coord-mode <mode>          execution-coordination pile mode: fixture or
+                                    live
+  --executor <mode>                 executor mode: dry-run or real
+  --fail-task-ids <ids>             comma-separated task ids to fail in dry-run
+                                    mode
+  --generation <n>                  evolution generation override
+  --intent <path>                   unsupported legacy confirmed intent flag
+  --intent-draft <path>             intent draft JSON file
+  --intent-mode <mode>              intent ambiguity mode: greenfield or
+                                    brownfield
+  --intent-output <path>            legacy alias for --confirmed-intent-output
+  --lineage <id>                    evolution lineage id
+  --out <dir>                       run output directory
+  --planning-fixture <path>         planning pile fixture path
+  --planning-mode <mode>            planning pile mode: fixture or live
+  --review-mode <mode>              review pile mode: fixture or live
+  --run-id <id>                     explicit run id
+  --semantic-judge-model <model>    override the semantic judge model
+  --trust <level>                   workspace trust: untrusted or trusted
+  -h, --help                        display help for command

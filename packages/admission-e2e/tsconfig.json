@@ -16,11 +16,13 @@
     { "path": "../planning" },
     { "path": "../execution" },
     { "path": "../delivery-runtime" },
+    { "path": "../delivery" },
     { "path": "../dogpile-adapter" },
     { "path": "../dogpile-types" },
     { "path": "../evaluation" },
     { "path": "../evaluation-runner" },
     { "path": "../artifacts" },
+    { "path": "../review" },
     { "path": "../../apps/factory-cli" }
   ]
 }

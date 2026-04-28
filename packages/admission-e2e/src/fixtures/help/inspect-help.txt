@@ -1,0 +1,11 @@
+Usage: protostar-factory inspect [options] <runId>
+
+Inspect a factory run bundle as canonical JSON
+
+Arguments:
+  runId           run id to inspect
+
+Options:
+  --stage <name>  filter artifact rows by stage
+  --json          emit JSON output (default)
+  -h, --help      display help for command

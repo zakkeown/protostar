@@ -1,0 +1,14 @@
+Usage: protostar-factory prune [options]
+
+Prune old terminal run directories
+
+Options:
+  --older-than <duration>  only prune runs older than this duration (for example
+                           7d)
+  --dry-run                report candidates without deleting (default)
+  --archetype <name>       only consider runs whose manifest.archetype exactly
+                           matches
+  --confirm                actually delete candidate runs/<id> directories
+  -h, --help               display help for command
+
+Safety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ directories.

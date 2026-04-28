@@ -1,0 +1,9 @@
+Usage: protostar-factory resume [options] <runId>
+
+Resume a resumable factory run from durable run artifacts
+
+Arguments:
+  runId       run id to resume
+
+Options:
+  -h, --help  display help for command

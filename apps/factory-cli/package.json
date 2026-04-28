@@ -7,6 +7,18 @@
     "protostar-factory": "./dist/main.js"
   },
   "exports": {
+    "./exit-codes": {
+      "types": "./dist/exit-codes.d.ts",
+      "import": "./dist/exit-codes.js"
+    },
+    "./inspect-types": {
+      "types": "./dist/inspect-types.d.ts",
+      "import": "./dist/inspect-types.js"
+    },
+    "./io": {
+      "types": "./dist/io.d.ts",
+      "import": "./dist/io.js"
+    },
     "./pile-persistence": {
       "types": "./dist/pile-persistence.d.ts",
       "import": "./dist/pile-persistence.js"
@@ -14,6 +26,10 @@
     "./refusals-index": {
       "types": "./dist/refusals-index.d.ts",
       "import": "./dist/refusals-index.js"
+    },
+    "./status-types": {
+      "types": "./dist/status-types.d.ts",
+      "import": "./dist/status-types.js"
     }
   },
   "scripts": {
