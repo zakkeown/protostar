@@ -165,6 +165,25 @@ importers:
         specifier: workspace:*
         version: link:../repo
 
+  packages/mechanical-checks:
+    dependencies:
+      '@protostar/execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
+      '@protostar/repo':
+        specifier: workspace:*
+        version: link:../repo
+      '@protostar/review':
+        specifier: workspace:*
+        version: link:../review
+    devDependencies:
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/paths: {}
 
   packages/planning:

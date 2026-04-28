@@ -1,0 +1,25 @@
+{
+  "name": "@protostar/mechanical-checks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test dist/**/*.test.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@protostar/execution": "workspace:*",
+    "@protostar/repo": "workspace:*",
+    "@protostar/intent": "workspace:*",
+    "@protostar/review": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
