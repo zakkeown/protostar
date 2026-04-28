@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   mintDeliveryAuthorization,
+  reAuthorizeFromPayload,
   type DeliveryAuthorization,
   type LoadDeliveryAuthorization,
   type ReviewDecisionArtifact
@@ -52,6 +53,63 @@ describe("DeliveryAuthorization brand", () => {
   });
 });
 
+describe("reAuthorizeFromPayload", () => {
+  it("re-mints a delivery authorization after re-reading a pass/pass decision", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return validReviewDecision({ runId: "run-1" });
+      }
+    });
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.authorization.runId, "run-1");
+      assert.equal(result.authorization.decisionPath, "runs/run-1/review/review-decision.json");
+      assert.equal(Object.getOwnPropertySymbols(result.authorization).length, 1);
+    }
+  });
+
+  it("rejects when the persisted decision belongs to a different run", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return validReviewDecision({ runId: "run-other" });
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "runId-mismatch" });
+  });
+
+  it("rejects when the mechanical gate is not pass", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return { ...validReviewDecision({ runId: "run-1" }), mechanical: "fail" };
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
+  });
+
+  it("rejects when the model gate is not pass", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        return { ...validReviewDecision({ runId: "run-1" }), model: "block" };
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "gate-not-pass" });
+  });
+
+  it("rejects when the decision cannot be read", async () => {
+    const result = await reAuthorizeFromPayload(validAuthorizationPayload(), {
+      async readReviewDecision() {
+        throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      }
+    });
+
+    assert.deepEqual(result, { ok: false, reason: "decision-missing" });
+  });
+});
+
 // @ts-expect-error direct object literals cannot satisfy the private delivery brand.
 const _forgedDeliveryAuthorization: DeliveryAuthorization = {
   runId: "run-1",
@@ -80,3 +138,39 @@ const _skippedModelDecision: ReviewDecisionArtifact = {
   }
 };
 assert.equal(_skippedModelDecision.mechanical, "pass");
+
+function validAuthorizationPayload() {
+  return {
+    schemaVersion: "1.0.0",
+    runId: "run-1",
+    decisionPath: "runs/run-1/review/review-decision.json",
+    target: {
+      owner: "owner",
+      repo: "repo",
+      baseBranch: "main"
+    },
+    branchName: "protostar/run-1",
+    title: "Protostar factory run run-1",
+    body: "Factory run body",
+    headSha: "abc123",
+    baseSha: "def456",
+    mintedAt: "2026-04-28T19:00:00.000Z"
+  } as const;
+}
+
+function validReviewDecision(input: { readonly runId: string }): ReviewDecisionArtifact {
+  return {
+    schemaVersion: "1.0.0",
+    runId: input.runId,
+    planId: "plan-1",
+    mechanical: "pass",
+    model: "pass",
+    authorizedAt: "2026-04-28T00:00:00.000Z",
+    finalIteration: 1,
+    finalDiffArtifact: {
+      stage: "execution",
+      kind: "diff",
+      uri: "runs/run-1/execution/final.diff"
+    }
+  };
+}
