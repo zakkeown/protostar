@@ -101,10 +101,10 @@ completed: 2026-04-28T00:44:54Z
 ## Verification
 
 - `pnpm --filter @protostar/repo test` passed with 100 tests.
-- `pnpm run typecheck` passed.
+- `pnpm run typecheck` passed before concurrent 05-08 judge-adapter RED tests landed.
 - `grep -c 'cosmetic-archetype-multifile' packages/repo/src/apply-change-set.ts` returned `2`.
 - `grep -c 'archetype' packages/repo/src/apply-change-set.ts` returned `4`.
-- `pnpm run verify` failed on unrelated lmstudio-adapter judge-adapter WIP noted above.
+- Latest `pnpm run verify` failed during root typecheck on unrelated lmstudio-adapter judge-adapter WIP noted above.
 
 ## User Setup Required
 
@@ -127,7 +127,7 @@ Plan 05-07 can rely on this per-task first defense while implementing the run-le
 - Found summary file: `.planning/phases/05-review-repair-loop/05-09-SUMMARY.md`
 - Found task commits: `d252da2`, `b100283`, `adbbaac`
 - Verified package tests: `pnpm --filter @protostar/repo test`
-- Verified root typecheck: `pnpm run typecheck`
+- Verified root typecheck before concurrent 05-08 RED tests landed: `pnpm run typecheck`
 
 ---
 *Phase: 05-review-repair-loop*
