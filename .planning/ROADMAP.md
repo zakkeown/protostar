@@ -118,6 +118,8 @@ Plans:
 
 ## Phase 4 — Execution Engine
 
+**Status:** Automated verification passed — 12/12 must-haves verified; live LM Studio operator smoke pending.
+
 **Goal:** Replace the dry-run executor with a boring, deterministic, resumable task runner. The first real `ExecutionAdapter` is the LM Studio coder (Qwen3-Coder-Next-MLX-4bit) producing real diffs.
 
 **Requirements:** EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXEC-08
@@ -133,16 +135,16 @@ Plans:
 **Plans:** 10 plans across 5 waves (0..4; parallel within wave).
 
 Plans:
-- [ ] 04-01-state-machine-flip-PLAN.md — wave 0 — flip ExecutionTaskStatus + ExecutionLifecycleEventType to EXEC-01 vocab; rewrite dry-run executor; no compat shim (Q-01, Q-04)
-- [ ] 04-02-execution-contracts-PLAN.md — wave 1 — adapter-contract.ts (ExecutionAdapter, AdapterEvent, AdapterResult, AdapterContext, AdapterFailureReason) + journal-types.ts (TaskJournalEvent, ExecutionSnapshot) + exhaustiveness pins (Q-02, Q-05)
-- [ ] 04-03-stub-server-and-fixture-PLAN.md — wave 0 — @protostar/lmstudio-adapter workspace skeleton + stub LM Studio HTTP server (7 failure modes) + cosmetic-tweak fixture (load-bearing test asset)
-- [ ] 04-04-lmstudio-config-and-preflight-PLAN.md — wave 1 — pure resolveFactoryConfig (file+env+default+configHash) + factory-config.schema.json + preflightLmstudio classifier (5 outcomes) (Q-09, Q-13)
-- [ ] 04-05-sse-diff-retry-helpers-PLAN.md — wave 2 — sse-parser (Pitfall 1 fix) + diff-parser (strict fence) + prompt-builder + retry-classifier + deterministic backoff (Q-10, Q-12, Q-14)
-- [ ] 04-06-coder-adapter-orchestrator-PLAN.md — wave 3 — createLmstudioCoderAdapter ties parser+reader+retry+signal; happy / parse-reformat / retry / timeout paths; Hash 1 of 2 comment (Q-05, Q-06, Q-15)
-- [ ] 04-07-envelope-schema-bump-PLAN.md — wave 2 — confirmed-intent.schema.json 1.2.0 → 1.3.0 (network.allow + budget.adapterRetriesPerTask + budget.taskWallClockMs + allowedHosts) + repo-wide signed-intent fixture regeneration (Pitfall 7) (Q-14, Q-15, Q-18)
-- [ ] 04-08-network-op-and-plan-schema-PLAN.md — wave 3 — extend authorizeNetworkOp for network.allow enum + plan-schema task.targetFiles (≥1) + task.adapterRef admitted against allowedAdapters (Q-08, Q-11, Q-18)
-- [ ] 04-09-journal-snapshot-orphan-PLAN.md — wave 3 — pure formatTaskJournalLine / parseJournalLines / reduceJournalToSnapshot / replayOrphanedTasks in @protostar/execution + fs writers (append+fsync, tmp+rename) in apps/factory-cli (Q-02, Q-03)
-- [ ] 04-10-factory-cli-real-executor-wiring-PLAN.md — wave 4 — coderAdapterReadyAdmission gate + runRealExecution loop (apply-boundary, evidence, journal, snapshot, orphan-replay) + SIGINT/sentinel cancel + main.ts --executor real branch + .env.example (Q-13, Q-16, Q-17, Q-19)
+- [x] 04-01-state-machine-flip-PLAN.md — wave 0 — flip ExecutionTaskStatus + ExecutionLifecycleEventType to EXEC-01 vocab; rewrite dry-run executor; no compat shim (Q-01, Q-04)
+- [x] 04-02-execution-contracts-PLAN.md — wave 1 — adapter-contract.ts (ExecutionAdapter, AdapterEvent, AdapterResult, AdapterContext, AdapterFailureReason) + journal-types.ts (TaskJournalEvent, ExecutionSnapshot) + exhaustiveness pins (Q-02, Q-05)
+- [x] 04-03-stub-server-and-fixture-PLAN.md — wave 0 — @protostar/lmstudio-adapter workspace skeleton + stub LM Studio HTTP server (7 failure modes) + cosmetic-tweak fixture (load-bearing test asset)
+- [x] 04-04-lmstudio-config-and-preflight-PLAN.md — wave 1 — pure resolveFactoryConfig (file+env+default+configHash) + factory-config.schema.json + preflightLmstudio classifier (5 outcomes) (Q-09, Q-13)
+- [x] 04-05-sse-diff-retry-helpers-PLAN.md — wave 2 — sse-parser (Pitfall 1 fix) + diff-parser (strict fence) + prompt-builder + retry-classifier + deterministic backoff (Q-10, Q-12, Q-14)
+- [x] 04-06-coder-adapter-orchestrator-PLAN.md — wave 3 — createLmstudioCoderAdapter ties parser+reader+retry+signal; happy / parse-reformat / retry / timeout paths; Hash 1 of 2 comment (Q-05, Q-06, Q-15)
+- [x] 04-07-envelope-schema-bump-PLAN.md — wave 2 — confirmed-intent.schema.json 1.2.0 → 1.3.0 (network.allow + budget.adapterRetriesPerTask + budget.taskWallClockMs + allowedHosts) + repo-wide signed-intent fixture regeneration (Pitfall 7) (Q-14, Q-15, Q-18)
+- [x] 04-08-network-op-and-plan-schema-PLAN.md — wave 3 — extend authorizeNetworkOp for network.allow enum + plan-schema task.targetFiles (≥1) + task.adapterRef admitted against allowedAdapters (Q-08, Q-11, Q-18)
+- [x] 04-09-journal-snapshot-orphan-PLAN.md — wave 3 — pure formatTaskJournalLine / parseJournalLines / reduceJournalToSnapshot / replayOrphanedTasks in @protostar/execution + fs writers (append+fsync, tmp+rename) in apps/factory-cli (Q-02, Q-03)
+- [x] 04-10-factory-cli-real-executor-wiring-PLAN.md — wave 4 — coderAdapterReadyAdmission gate + runRealExecution loop (apply-boundary, evidence, journal, snapshot, orphan-replay) + SIGINT/sentinel cancel + main.ts --executor real branch + .env.example (Q-13, Q-16, Q-17, Q-19)
 
 
 ## Phase 5 — Review → Repair → Review Loop

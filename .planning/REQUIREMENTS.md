@@ -194,14 +194,14 @@ Explicitly excluded. Documented to prevent scope creep.
 | REPO-07 | Phase 3 | Complete |
 | REPO-08 | Phase 3 | Complete |
 | REPO-09 | Phase 3 | Complete |
-| EXEC-01 | Phase 4 | Pending |
-| EXEC-02 | Phase 4 | Pending |
-| EXEC-03 | Phase 4 | Pending |
-| EXEC-04 | Phase 4 | Pending |
-| EXEC-05 | Phase 4 | Pending |
-| EXEC-06 | Phase 4 | Pending |
-| EXEC-07 | Phase 4 | Pending |
-| EXEC-08 | Phase 4 | Pending |
+| EXEC-01 | Phase 4 | Verified (human smoke pending) |
+| EXEC-02 | Phase 4 | Verified (human smoke pending) |
+| EXEC-03 | Phase 4 | Verified (human smoke pending) |
+| EXEC-04 | Phase 4 | Verified (human smoke pending) |
+| EXEC-05 | Phase 4 | Verified (human smoke pending) |
+| EXEC-06 | Phase 4 | Verified (human smoke pending) |
+| EXEC-07 | Phase 4 | Verified (human smoke pending) |
+| EXEC-08 | Phase 4 | Verified (human smoke pending) |
 | LOOP-01 | Phase 5 | Pending |
 | LOOP-02 | Phase 5 | Pending |
 | LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; synthesizeRepairPlan implementation remains in 05-05 |
