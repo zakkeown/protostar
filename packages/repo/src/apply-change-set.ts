@@ -16,10 +16,18 @@ export interface PatchRequest {
   readonly preImageSha256: string;
 }
 
+export type ChangeSetArchetype = "cosmetic-tweak" | "feature-add" | "refactor" | "bugfix";
+
+export interface ApplyChangeSetInput {
+  readonly patches: readonly PatchRequest[];
+  readonly archetype?: ChangeSetArchetype;
+}
+
 export type ApplyStatus = "applied" | "skipped-hash-mismatch" | "skipped-error";
 
 export type ApplyError =
   | "binary-not-supported"
+  | "cosmetic-archetype-multifile"
   | "hunk-fit-failure"
   | "io-error"
   | "parse-error";
@@ -28,18 +36,50 @@ export interface ApplyResult {
   readonly path: string;
   readonly status: ApplyStatus;
   readonly error?: ApplyError;
+  readonly evidence?: {
+    readonly touchedFiles?: readonly string[];
+  };
 }
 
 export async function applyChangeSet(
-  patches: readonly PatchRequest[]
+  changeSet: readonly PatchRequest[] | ApplyChangeSetInput
 ): Promise<readonly ApplyResult[]> {
+  const input = normalizeChangeSet(changeSet);
+  const cosmeticRefusal = refuseCosmeticMultifile(input);
+  if (cosmeticRefusal !== null) return cosmeticRefusal;
+
   const results: ApplyResult[] = [];
 
-  for (const patch of patches) {
+  for (const patch of input.patches) {
     results.push(await applyOnePatch(patch));
   }
 
   return results;
+}
+
+function normalizeChangeSet(
+  changeSet: readonly PatchRequest[] | ApplyChangeSetInput
+): ApplyChangeSetInput {
+  if (!("patches" in changeSet)) return { patches: changeSet };
+
+  return changeSet;
+}
+
+function refuseCosmeticMultifile(input: ApplyChangeSetInput): readonly ApplyResult[] | null {
+  if (input.archetype !== "cosmetic-tweak") return null;
+
+  const touchedFiles = Array.from(new Set(input.patches.map(({ path }) => path))).sort();
+  if (touchedFiles.length <= 1) return null;
+
+  const firstPatch = input.patches[0];
+  return [
+    {
+      path: firstPatch?.path ?? touchedFiles[0] ?? "",
+      status: "skipped-error",
+      error: "cosmetic-archetype-multifile",
+      evidence: { touchedFiles }
+    }
+  ];
 }
 
 async function applyOnePatch(patch: PatchRequest): Promise<ApplyResult> {
