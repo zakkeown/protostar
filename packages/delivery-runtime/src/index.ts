@@ -22,3 +22,5 @@ export type {
 } from "./execute-delivery.js";
 export { computeCiVerdict } from "./compute-ci-verdict.js";
 export type { CiCheckRun, CiVerdict } from "./compute-ci-verdict.js";
+export { pollCiStatus } from "./poll-ci-status.js";
+export type { CiSnapshot, PollCiStatusInput } from "./poll-ci-status.js";

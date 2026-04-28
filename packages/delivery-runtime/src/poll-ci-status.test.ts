@@ -94,14 +94,15 @@ describe("pollCiStatus", () => {
 
 async function collectPolls(input: { readonly requiredChecks: readonly string[]; readonly intervalMs?: number }) {
   const snapshots = [];
-  for await (const snapshot of pollCiStatus({
+  const pollInput = {
     target,
     headSha,
     requiredChecks: input.requiredChecks,
     octokit: buildOctokit(token),
     signal: new AbortController().signal,
-    intervalMs: input.intervalMs
-  })) {
+    ...(input.intervalMs === undefined ? {} : { intervalMs: input.intervalMs })
+  };
+  for await (const snapshot of pollCiStatus(pollInput)) {
     snapshots.push(snapshot);
   }
   return snapshots;
