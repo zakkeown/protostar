@@ -108,8 +108,8 @@ Formalize the Ouroboros-inspired loop. Evolve specs/plans before evolving code.
 
 CLI first. The product feel: walk away, come back, understand exactly what happened.
 
-- [ ] **OP-01**: `protostar-factory run` — start a new run from a draft or confirmed intent
-- [ ] **OP-02**: `protostar-factory status [--run <runId>]` — current state of a run or all runs (last N)
+- [x] **OP-01**: `protostar-factory run` — start a new run from a draft or confirmed intent
+- [x] **OP-02**: `protostar-factory status [--run <runId>]` — current state of a run or all runs (last N)
 - [ ] **OP-03**: `protostar-factory resume <runId>` — pick up from the last persisted task journal entry
 - [ ] **OP-04**: `protostar-factory cancel <runId>` — cooperative cancel with cleanup
 - [ ] **OP-05**: `protostar-factory inspect <runId>` — pretty-print the run bundle (manifest, stage records, artifacts)
@@ -228,13 +228,13 @@ Explicitly excluded. Documented to prevent scope creep.
 | EVOL-01 | Phase 8 | Complete |
 | EVOL-02 | Phase 8 | Complete |
 | EVOL-03 | Phase 8 | Complete — configurable threshold plus calibration JSONL evidence; empirical tuning delegated to DOG-04 |
-| OP-01 | Phase 9 | Pending |
-| OP-02 | Phase 9 | Pending |
+| OP-01 | Phase 9 | Complete — 09-01 commander run extraction preserved run behavior behind the new dispatcher |
+| OP-02 | Phase 9 | Complete — 09-04 added status for recent runs and single-run lookup with human/JSON output |
 | OP-03 | Phase 9 | Pending |
 | OP-04 | Phase 9 | Pending |
 | OP-05 | Phase 9 | Pending |
 | OP-06 | Phase 9 | Pending |
-| OP-07 | Phase 9 | Pending |
+| OP-07 | Phase 9 | Partial — 09-04 status output is canonical JSON-stable; inspect output remains pending in 09-05 |
 | OP-08 | Phase 9 | Pending |
 | DOG-01 | Phase 10 | Pending |
 | DOG-02 | Phase 10 | Pending |

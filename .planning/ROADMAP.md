@@ -302,10 +302,10 @@ Plans:
 **Plans:** 11 plans
 
 Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07, 09, 10}; W5 = {11}):
-- [ ] 09-01-dispatcher-and-cli-primitives-PLAN.md — [W2; deps: 02] commander dispatcher + ExitCode + io.ts + run-id.ts + duration.ts + run command extraction
+- [x] 09-01-dispatcher-and-cli-primitives-PLAN.md — [W2; deps: 02] commander dispatcher + ExitCode + io.ts + run-id.ts + duration.ts + run command extraction
 - [x] 09-02-canonical-json-lift-PLAN.md — [W1] lift sortJsonValue to @protostar/artifacts/canonical-json (Q-12)
 - [x] 09-03-factory-run-status-enum-bump-PLAN.md — [W1] FactoryRunStatus += cancelling | cancelled | orphaned (Q-18)
-- [ ] 09-04-status-command-PLAN.md — [W3; deps: 01, 02, 03] listRuns + computeRunLiveness + status command (human + JSON, tiered rows)
+- [x] 09-04-status-command-PLAN.md — [W3; deps: 01, 02, 03] listRuns + computeRunLiveness + status command (human + JSON, tiered rows)
 - [ ] 09-05-inspect-command-PLAN.md — [W3; deps: 01, 02] inspect command, path-indexed artifacts, no trace inlining (Q-10/Q-11)
 - [ ] 09-06-cancel-command-PLAN.md — [W3; deps: 01, 03] cancel command (sentinel + manifest cancelling) + cancelled transition writer (Q-16/Q-17)
 - [ ] 09-07-resume-command-PLAN.md — [W4; deps: 01, 03, 04] stage-aware resume with replayOrphanedTasks + sentinel handling (Q-13/Q-14/Q-15)
