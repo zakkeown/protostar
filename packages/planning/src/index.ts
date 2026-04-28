@@ -28,6 +28,13 @@ export {
   assertTargetFiles,
   type TargetFiles
 } from "./task-target-files.contract.js";
+export type {
+  AdapterAttemptRef,
+  MechanicalCritiqueRef,
+  ModelCritiqueRef,
+  RepairContext
+} from "./repair-context.js";
+export type { ExecutionRunResult } from "./execution-run-result.js";
 
 export type PlanTaskKind = "research" | "design" | "implementation" | "verification" | "release";
 

@@ -32,6 +32,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@protostar/artifacts": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/policy": "workspace:*"
   },

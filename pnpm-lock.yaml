@@ -188,6 +188,9 @@ importers:
 
   packages/planning:
     dependencies:
+      '@protostar/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent
