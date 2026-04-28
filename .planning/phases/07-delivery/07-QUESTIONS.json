@@ -1,0 +1,654 @@
+{
+  "phase": "07-delivery",
+  "generated_at": "2026-04-28T00:00:00Z",
+  "stats": {
+    "total": 20,
+    "answered": 20,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "invocation-surface",
+      "title": "Invocation Surface & Authority",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Octokit invocation owner",
+          "context": "Authority boundary today: only apps/factory-cli + packages/repo touch fs. dogpile-adapter is allowed network (Phase 6). packages/delivery currently produces only a delivery plan blob (no I/O). Phase 7 introduces the first outbound HTTP from the factory.",
+          "options": [
+            {
+              "id": "a",
+              "label": "packages/delivery owns Octokit, factory-cli persists",
+              "description": "Symmetric with Phase 6 dogpile-adapter (network OK, fs forbidden). New export: executeDelivery(authorization, plan, ctx) -> DeliveryResult. factory-cli writes delivery-result.json. Update AGENTS.md authority rule to allow network in delivery package."
+            },
+            {
+              "id": "b",
+              "label": "factory-cli owns Octokit invocation directly",
+              "description": "All I/O (fs + net) stays in apps/factory-cli; packages/delivery stays a pure planner. Smallest authority-rule churn but bloats the 1190-line main.ts further."
+            },
+            {
+              "id": "c",
+              "label": "New @protostar/delivery-runtime package, delivery stays pure",
+              "description": "Mirrors Phase 5's split (review = pure inspector, mechanical-checks = subprocess adapter). delivery stays pure-transform; delivery-runtime owns Octokit + push. Two packages, one boundary each."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "PR creation transport: Octokit vs gh CLI",
+          "context": "Today: createGitHubPrDeliveryPlan emits argv ['gh', 'pr', 'create', ...]. Roadmap and REQUIREMENTS DELIVER-01 lock 'Octokit @octokit/rest + GitHub PAT from env'. The gh CLI surface is operator-friendly but adds a runtime dependency outside the dark-factory autonomy line.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Octokit only (drop gh argv emission)",
+              "description": "Dark-factory pure: no shell, no external CLI dep, full HTTP control. Add @octokit/rest as runtime dep on delivery (or delivery-runtime). Roadmap-aligned. Existing gh argv field on GitHubPrDeliveryPlan is removed."
+            },
+            {
+              "id": "b",
+              "label": "Octokit primary, keep gh argv as escape hatch in plan",
+              "description": "Octokit is the executor; gh argv stays in delivery-plan.json as an operator-runnable fallback for manual recovery. Two surfaces; small drift risk."
+            },
+            {
+              "id": "c",
+              "label": "gh CLI subprocess (via Phase 3 repoSubprocessRunner)",
+              "description": "Reuse existing subprocess infra. Adds 'gh' to subprocess allowlist; auth delegated to operator's gh login. Conflicts with REQUIREMENTS DELIVER-01 (Octokit + PAT from env)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Branch push mechanism",
+          "context": "Octokit can create commits via API but not push existing local commits. Phase 3 already vendors isomorphic-git@1.37.6 with a working clone path. Phase 7 needs to push the workspace branch to GitHub before opening a PR.",
+          "options": [
+            {
+              "id": "a",
+              "label": "isomorphic-git push() with token auth",
+              "description": "Reuse Phase 3's git stack. onAuth shim returns { username: 'x-access-token', password: PAT }. Pure-JS, deterministic, same dep posture as clone. No new subprocess."
+            },
+            {
+              "id": "b",
+              "label": "git push subprocess via Phase 3 repoSubprocessRunner",
+              "description": "Add 'git push' to the subprocess allowlist. Faster for large repos; relies on system git + credential helper. New auth surface (need GIT_ASKPASS or token-in-URL handling)."
+            },
+            {
+              "id": "c",
+              "label": "Octokit content API (commit individual files)",
+              "description": "Skip push entirely; replay each changed file via PUT /repos/.../contents/{path}. Avoids isomorphic-git push edge cases. Loses git ancestry — every PR looks like 'Protostar created these files,' no real commit graph."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "auth-and-envelope",
+      "title": "Auth & Capability Envelope",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "PAT source & env var name",
+          "context": "PROJECT.md says 'GitHub PAT from env var; never pass branch names to a shell unvalidated'. Phase 4 .env.example documents LM Studio env vars (LMSTUDIO_BASE_URL, etc.). No GitHub env var documented yet.",
+          "options": [
+            {
+              "id": "a",
+              "label": "PROTOSTAR_GITHUB_TOKEN (namespaced)",
+              "description": "Namespaced env var, won't collide with operator's existing GITHUB_TOKEN. Documented in .env.example. Required at preflight (delivery preflight step before run starts)."
+            },
+            {
+              "id": "b",
+              "label": "GITHUB_TOKEN (conventional)",
+              "description": "Convention used by gh CLI, GitHub Actions, Octokit examples. Operator may already have one; conflicts could leak between projects. Documented + required at preflight."
+            },
+            {
+              "id": "c",
+              "label": "GITHUB_TOKEN with PROTOSTAR_GITHUB_TOKEN override",
+              "description": "Both supported; PROTOSTAR_GITHUB_TOKEN wins when set. Operator escape hatch for sandboxing. Slightly more env-resolution code."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Capability envelope additions for delivery",
+          "context": "ConfirmedIntent envelope has network.allow + allowedHosts (Phase 4 Q-18). Delivery needs target repo (owner/name) and a write-allowed channel. Phase 5 added budget.maxRepairLoops; Phase 7 may need delivery-specific fields.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add envelope.delivery: { target: { owner, repo, baseBranch }, allowedHosts: ['api.github.com'] }",
+              "description": "Delivery target is signed into ConfirmedIntent at admission time — operator can't redirect a PR post-admission. Schema bump 1.4.0 -> 1.5.0. Mirrors Phase 4's bump pattern."
+            },
+            {
+              "id": "b",
+              "label": "Reuse network.allow=allowlist + allowedHosts; pass target via factory-config.json",
+              "description": "No envelope schema bump. Delivery target is a runtime config, not signed. Operator can change target between admission and delivery — looser security posture."
+            },
+            {
+              "id": "c",
+              "label": "envelope.delivery.target signed; allowedHosts derived from target",
+              "description": "Hybrid. Target owner/repo/baseBranch lives on envelope (signed). allowedHosts is computed (api.github.com + uploads.github.com if attachments). Smaller schema surface than (a)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Delivery preflight",
+          "context": "Phase 4 Q-13 introduced LM Studio preflight (5 outcomes). Phase 6 Q-03 extended preflight to per-agent model presence. Phase 7's analog: verify PAT scope, repo accessibility, base branch existence before any execution work runs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Preflight runs at run start (before admission boundary execution)",
+              "description": "Refuses fast: bad token, wrong repo, missing base branch -> preflight refusal artifact, run never enters execution. Saves model spend on doomed runs. Symmetric with Phase 4 LM Studio preflight ordering."
+            },
+            {
+              "id": "b",
+              "label": "Preflight runs at delivery boundary only (after loop approves)",
+              "description": "Token + repo only checked when delivery is about to fire. Lets a run produce useful evidence even if delivery is misconfigured. Wastes cycles on doomed runs; later failure mode."
+            },
+            {
+              "id": "c",
+              "label": "Both — fast preflight at start, full preflight at delivery boundary",
+              "description": "Start-time: token presence + format. Delivery-time: scope + repo + base SHA. Two-stage symmetric with Phase 4. More code, more discrimination."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "branch-validation",
+      "title": "Branch / Title / Body Validation",
+      "questions": [
+        {
+          "id": "Q-07",
+          "title": "Branch naming template",
+          "context": "Today: createGitHubPrDeliveryPlan defaults to `protostar/${runId}` where runId = `run_YYYYMMDDHHMMSS_<archetype>`. CONCERNS notes second-precision collisions. Phase 7 will actually push the branch.",
+          "options": [
+            {
+              "id": "a",
+              "label": "protostar/${runId} (current default, keep)",
+              "description": "No-op rename. Run-id is already unique-ish; collision risk is the ms-precision issue (already in CONCERNS scaling-limits). Operator can override with --head-branch."
+            },
+            {
+              "id": "b",
+              "label": "protostar/${archetype}/${runId-short} with run-suffix",
+              "description": "Hierarchical, easier to grep on the GitHub side. Adds a 6-char random suffix to runId at delivery time to defeat collisions. Branch length stays well under 244-byte limit."
+            },
+            {
+              "id": "c",
+              "label": "Caller-provided template via factory-config.json",
+              "description": "factory-config.json: delivery.branchTemplate: 'protostar/{archetype}/{runId}'. Maximally flexible; operator owns naming. Validation regex applies regardless."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Branch / title / body sanitization layer",
+          "context": "REQUIREMENTS DELIVER-02: branch ^[a-zA-Z0-9._/-]+$; title and body validated separately. Success criterion: 'refuses an injected control character'. PR title is operator-influenced (intent.title flows through).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Brand-on-validation: BranchName, PrTitle, PrBody types only mintable through validators",
+              "description": "Type-level: executeDelivery accepts BranchName/PrTitle/PrBody brands. Construction goes through validateBranchName(string): BranchName | RefusalArtifact. Symmetric with ConfirmedIntent / DeliveryAuthorization brands. Compile-time bypass guard."
+            },
+            {
+              "id": "b",
+              "label": "Runtime check inside executeDelivery, refuse with typed error",
+              "description": "executeDelivery validates each field at entry and returns DeliveryRefusal { kind: 'invalid-branch'|'invalid-title'|'invalid-body', evidence }. No new brands; smaller type surface."
+            },
+            {
+              "id": "c",
+              "label": "Both: validators mint brands; executeDelivery requires brands",
+              "description": "Defense in depth. Validators are pure transforms returning brand|refusal; executeDelivery's signature requires the brand. Catches bypass at both compile and runtime."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Title & body content rules",
+          "context": "PR title default today: `Protostar factory run ${runId}` or intent.title. PR body assembles factory-run + review verdict + plan id + artifact list. GitHub limits: title 256 chars, body 65536 chars. Control chars: \\u0000-\\u001f except \\n\\t.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Title: intent.title fallback to runId, max 200 chars, control chars stripped+rejected",
+              "description": "Strict: any control char (other than space/tab/lf where allowed) -> refusal. Truncation at 200 with ellipsis. Body: 60000-byte cap; over-budget evidence linked, not inlined."
+            },
+            {
+              "id": "b",
+              "label": "Title: literal `[protostar] ${runId}` (factory-controlled, ignore intent.title for v0.1)",
+              "description": "Removes operator-influenced text from title entirely. intent.title moves into body. Eliminates injection surface for title field. v0.1 simplification; revisit when archetypes broaden."
+            },
+            {
+              "id": "c",
+              "label": "Title: archetype-prefixed `[cosmetic-tweak] ${intent.title}` with strict regex",
+              "description": "Prefix discriminates archetype on GitHub list view. Strict regex ^[\\x20-\\x7e\\t\\n]+$ rejects non-ASCII control + binary. UTF-8 letters NOT allowed in v0.1 (revisit)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "evidence-bundle",
+      "title": "Evidence Bundle Composition",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Evidence delivery channel",
+          "context": "REQUIREMENTS DELIVER-03: 'PR body includes evidence bundle: PR URL, before/after screenshots (or Playwright trace path), 2-judge score sheet, mechanical-review summary, repair-loop history'. PR body cap is 65536 chars; full transcripts blow that.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Inline summary in PR body; full artifacts as PR comments",
+              "description": "Body has the score sheet, mechanical summary, and repair-loop summary. Separate Octokit comments post full transcripts (judge rationales, full mechanical-checks output). Each comment <65k. Cleanest separation; one PR creation + N comments."
+            },
+            {
+              "id": "b",
+              "label": "Body links to local-path evidence (operator pulls from .protostar/runs/)",
+              "description": "Body cites runs/{id}/review/iter-N/model-result.json paths. Reviewer must clone protostar to see full evidence. Smallest GitHub-side surface; worst reviewer UX."
+            },
+            {
+              "id": "c",
+              "label": "Body inlines summary; full bundle uploaded as a Gist linked from body",
+              "description": "Octokit Gists API hosts the full bundle as one or more files. PR body has a single link. Adds gist auth scope to PAT. Bundle is independently URL-shareable."
+            },
+            {
+              "id": "d",
+              "label": "Body inlines summary; full bundle as commit attachments in the PR branch",
+              "description": "Push runs/{id}/ as a separate commit on the PR branch under .protostar-evidence/. Reviewer sees evidence as part of the diff. Pollutes the actual cosmetic-tweak diff (cosmetic-archetype-violation risk)."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Screenshot strategy for v0.1 cosmetic-tweak",
+          "context": "DELIVER-03 mentions 'before/after screenshots (or Playwright trace path)'. v0.1 archetype is cosmetic-tweak on a Tauri+React toy repo (Phase 10 dependency, not yet scaffolded). Capturing live UI requires running the app.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Skip in v0.1; record 'screenshot capability deferred' marker in evidence",
+              "description": "Evidence bundle records screenshotStatus: 'deferred-v01' with rationale. Phase 10 dogfood adds the Playwright capture once toy repo lands. Most honest; doesn't ship a half-feature."
+            },
+            {
+              "id": "b",
+              "label": "Capture via Playwright in mechanical-checks adapter (Phase 5)",
+              "description": "Extend mechanical-checks-adapter to optionally run a Playwright capture step when archetype = cosmetic-tweak and target file is a UI component. Trace path stored as evidence. Adds Playwright as a runtime dep."
+            },
+            {
+              "id": "c",
+              "label": "Capture via subprocess to a target-repo-provided 'protostar:capture' npm script",
+              "description": "Toy repo declares a `protostar:capture` script (e.g. tauri-driver + Playwright). Factory invokes it via Phase 3 subprocess runner; trace path/PNG path is registered as evidence. No factory-side Playwright dep."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Score sheet detail level in PR body",
+          "context": "Phase 5 JudgeCritique = { judgeId, model, rubric: Record<string, number>, verdict, rationale, taskRefs }. v0.1 panel-of-one (Phase 6 Q-14 retroactively makes review-pile the reviewer; could be N agents). Phase 8 plans 2-judge consensus.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Compact table: judge | model | verdict | mean rubric score; rationales as collapsed details",
+              "description": "Markdown table for at-a-glance scan. Each rationale wrapped in <details><summary>. Reader expands what they want. Stable across panel sizes."
+            },
+            {
+              "id": "b",
+              "label": "Full rubric matrix: rows=judges, cols=rubric keys; rationales separate section",
+              "description": "Maximum information density on the matrix; rationales below. Wider tables can wrap awkwardly with N>2 judges. Best when rubric vocabulary stabilizes (Phase 8)."
+            },
+            {
+              "id": "c",
+              "label": "Single aggregate verdict + 'mechanical: pass / model: pass' line; full critiques in PR comments",
+              "description": "Body stays terse. All judge detail moves to comments per Q-10(a) pattern. Reader sees verdict-only in body and clicks for evidence."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "PR body templating mechanism",
+          "context": "Today's createPrBody is hardcoded string concatenation. DELIVER-06: 'PR body filenames match the actual artifact list emitted by runFactory (no drift)'. Drift is real risk (artifact list lives in main.ts; body lives in delivery package).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pure-function builder taking typed inputs; artifacts list passed in, not hardcoded",
+              "description": "buildPrBody({ runId, reviewDecision, mechanicalSummary, judgeCritiques, repairLoopIterations, artifacts: ArtifactRef[] }) -> PrBody. main.ts passes the live artifact list. Drift impossible at type level. Snapshot-tested for stability."
+            },
+            {
+              "id": "b",
+              "label": "Markdown template file in packages/delivery with named slots",
+              "description": "templates/pr-body.md with {{slot}} placeholders. Build does substitution. Easier for non-coders to tweak; adds template parsing."
+            },
+            {
+              "id": "c",
+              "label": "Per-section composers (mechanicalSummary, judgePanel, repairHistory) composed by main.ts",
+              "description": "Each section is its own pure function in delivery; main.ts orders them. More wires; better testability per section. Section ordering becomes a main.ts concern."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "ci-status",
+      "title": "CI Status Capture",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "CI polling timing & budget",
+          "context": "REQUIREMENTS DELIVER-04: 'After PR creation, factory polls CI/status checks until they complete; status snapshot is captured into the run bundle.' GitHub Actions on the toy repo may take 1-15 min. Phase 5 capability envelope has taskWallClockMs (default 180_000); Phase 7 needs its own budget.",
+          "options": [
+            {
+              "id": "a",
+              "label": "envelope.budget.deliveryWallClockMs (signed); poll interval 10s; default cap 600_000ms (10min)",
+              "description": "New signed envelope field. Predictable, tamper-evident. Polling uses Phase 6's hierarchical AbortSignal pattern (AbortSignal.any([runSignal, AbortSignal.timeout(deliveryWallClockMs)]))."
+            },
+            {
+              "id": "b",
+              "label": "factory-config.json delivery.statusPolling: { intervalMs, maxWallClockMs }; not signed",
+              "description": "Operator-tunable per environment. CI run-times vary by repo/runner; not a security boundary so no need to sign. Smaller schema surface."
+            },
+            {
+              "id": "c",
+              "label": "GitHub webhooks (poll-free) — no",
+              "description": "Webhooks would require a public listener; out of scope for dark-factory CLI (no daemon)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Which checks count toward CI verdict",
+          "context": "GitHub PRs may have: required status checks, optional checks, GitHub Actions check runs, third-party checks. DELIVER-05: 'CI verdict' is recorded in delivery-result.json.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Required checks only (per branch protection); optional ignored",
+              "description": "Reads branch-protection rules at preflight; verdict = AND over required checks. Aligns with GitHub's own merge gating. PRs to repos without branch protection -> 'no-required-checks' marker (not blocking)."
+            },
+            {
+              "id": "b",
+              "label": "All checks (required + optional); verdict = AND over all",
+              "description": "Strictest. Optional check failure blocks delivery verdict from going green. Most paranoid; can produce 'CI red' verdicts that operators don't actually care about."
+            },
+            {
+              "id": "c",
+              "label": "Configurable allowlist in factory-config.json (delivery.requiredChecks: string[])",
+              "description": "Operator names which checks count. Empty allowlist means 'no CI gating'. Phase 10 dogfood configures the toy repo's specific Actions workflow names."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Status-pending semantics at budget exhaustion",
+          "context": "If CI hasn't completed when deliveryWallClockMs elapses: do we treat the delivery as success (PR exists) with pending CI, or as failure?",
+          "options": [
+            {
+              "id": "a",
+              "label": "PR creation = delivery success; CI capture is best-effort with explicit 'timeout-pending' verdict",
+              "description": "delivery-result.json = { status: 'pr-created', prUrl, ciVerdict: 'timeout-pending', lastSnapshot, exhaustedAt }. Run terminal status = 'delivered-pending-ci'. Operator follow-up via Phase 9 inspect."
+            },
+            {
+              "id": "b",
+              "label": "Delivery is incomplete until CI verdict is final; budget exhaustion = run failure",
+              "description": "Strict. delivery-result.json absent on timeout; refusal artifact instead. Run terminal status = 'delivery-ci-timeout'. Forces operator to tune budget per repo CI durations."
+            },
+            {
+              "id": "c",
+              "label": "Two-step: PR creation persisted on success; CI capture is an asynchronous follow-up command",
+              "description": "executeDelivery returns after PR creation + initial CI snapshot. Phase 9 'protostar-factory deliver --capture-ci <runId>' completes the bundle later. Decouples delivery from CI duration entirely."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "persistence-and-cancel",
+      "title": "Persistence, Idempotency & Cancellation",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "delivery-result.json shape & persistence layout",
+          "context": "DELIVER-05: 'records PR URL, head/base SHA, CI verdict, and timestamps'. Phase 5 uses runs/{id}/review/iter-{N}/. Phase 6 mirrors at runs/{id}/piles/{kind}/iter-{N}/.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single runs/{id}/delivery/delivery-result.json with embedded ci-snapshots[]",
+              "description": "{ runId, prUrl, prNumber, headSha, baseSha, headBranch, baseBranch, createdAt, ciVerdict, ciSnapshots: Snapshot[], lastUpdatedAt, status: 'pr-created'|'pr-created-pending-ci'|'pr-created-ci-pass'|'pr-created-ci-fail' }. Single file; per-snapshot list grows during polling. tmp+rename per write."
+            },
+            {
+              "id": "b",
+              "label": "delivery-result.json (terminal) + delivery/ci-events.jsonl (append-only stream)",
+              "description": "Terminal artifact written once at delivery end. ci-events.jsonl records every poll snapshot for forensic replay. Mirrors Phase 4 journal+snapshot dual-write."
+            },
+            {
+              "id": "c",
+              "label": "runs/{id}/delivery/iter-{N}/ for retries",
+              "description": "If delivery is retried (Q-18), each attempt is its own iter-N dir. Symmetric with Phase 5/6 layout. Wasted shape if delivery is one-shot only."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Re-delivery / idempotency semantics",
+          "context": "Operator may run delivery again for the same runId after a fix or transient failure. Branch may already exist on GitHub; PR may already exist for that branch.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Idempotent: detect existing PR by head branch; update body/comments instead of creating duplicate",
+              "description": "On re-run: search PRs by headBranch; if found and not closed, update body + post follow-up CI snapshot. If closed, refusal artifact ('pr-already-closed')."
+            },
+            {
+              "id": "b",
+              "label": "Strict one-shot: refuse if branch or PR already exists; operator must explicitly --redeliver",
+              "description": "Default refuses re-delivery. --redeliver flag opts in to (a)'s behavior with a new branch suffix. Clearest forensic trail; more operator friction."
+            },
+            {
+              "id": "c",
+              "label": "Always create new branch (random suffix); allow multiple PRs per run",
+              "description": "Each delivery attempt is independent. Run history records multiple PR URLs. Clutters GitHub with stale PRs from repair iterations."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-19",
+          "title": "Cancellation seam during delivery",
+          "context": "Phase 4 Q-16: SIGINT + sentinel-file cancel for the run. Phase 6 Q-11: hierarchical AbortControllers. Delivery has multiple I/O steps: push, PR create, CI poll. Mid-step cancel can leave PR open without CI capture.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hierarchical AbortSignal: run-level parent, delivery-level child (with deliveryWallClockMs timeout); cancel mid-step is best-effort",
+              "description": "Mirrors Phase 6 pattern. Cancel during push: aborts push (branch may exist remote, recoverable). Cancel during PR create: aborted before-or-after creation; on resume, idempotency check finds the PR. Cancel during poll: capture last snapshot, mark 'ciVerdict: cancelled'."
+            },
+            {
+              "id": "b",
+              "label": "Atomic-or-nothing: delivery once started runs to terminal; SIGINT during delivery is deferred until next safe boundary",
+              "description": "Cleaner state guarantees. Worse operator UX: cannot cancel a stuck CI poll without kill -9. Conflicts with hierarchical-abort precedent."
+            },
+            {
+              "id": "c",
+              "label": "Stage gates: between push, between PR create, between each poll; SIGINT honored only at gate boundaries",
+              "description": "Compromise. Predictable cancel points. State at each gate is durable. More plumbing; gate checks per stage."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "guardrails-and-testing",
+      "title": "Auto-Merge Prevention & Testing Target",
+      "questions": [
+        {
+          "id": "Q-20",
+          "title": "No-auto-merge enforcement & v0.1 testing target",
+          "context": "DELIVER-07: 'No auto-merge — merge is an explicit operator action outside the factory for v1.' PROJECT.md confirms this. Phase 10 toy repo doesn't exist yet; Phase 7 needs a target to develop and test against. Two related questions bundled.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Type-level: no `merge` function exists in delivery; PAT scope minimized to public_repo without merge admin. Test against Octokit nock-based fixture server in v0.1; real GitHub deferred to Phase 10.",
+              "description": "Strongest static guarantee — `merge` is unimplementable without code change + commit. PAT scoping = defense in depth. nock fixtures are deterministic; pnpm verify stays offline. Phase 10 dogfood swaps fixture for real GitHub against the toy repo."
+            },
+            {
+              "id": "b",
+              "label": "Type-level no-merge + runtime contract test that asserts no PUT /repos/.../merge call ever fires; test against real GitHub from day one (sacrificial private repo)",
+              "description": "Belt + suspenders. Real GitHub catches API drift earlier; requires CI secret + sacrificial repo before Phase 10. More operational setup; harder to reproduce locally."
+            },
+            {
+              "id": "c",
+              "label": "Type-level no-merge; integration test against gh-server-rs or similar self-hosted GitHub-API mock; real GitHub deferred to Phase 10",
+              "description": "Higher fidelity than nock (full Octokit calls flow through). Adds a runtime dep on the mock server (subprocess or library). More setup than (a) for marginal coverage gain."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
