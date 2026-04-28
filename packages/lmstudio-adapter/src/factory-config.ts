@@ -7,9 +7,16 @@ export interface FactoryConfig {
     readonly coder: LmstudioAdapterConfig;
     readonly judge?: LmstudioAdapterConfig;
   };
+  // Phase 7 Q-15: operator-named CI check allowlist; absence means the
+  // delivery runtime reports ciVerdict="no-checks-configured".
+  readonly delivery?: DeliveryConfig;
   // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
   // means all piles default to mode="fixture" (Q-05).
   readonly piles?: PilesConfig;
+}
+
+export interface DeliveryConfig {
+  readonly requiredChecks: readonly string[];
 }
 
 export type PileMode = "fixture" | "live";
@@ -59,7 +66,12 @@ interface PartialFactoryConfig {
     readonly coder?: PartialLmstudioAdapterConfig;
     readonly judge?: PartialLmstudioAdapterConfig;
   };
+  readonly delivery?: PartialDeliveryConfig;
   readonly piles?: PilesConfig;
+}
+
+interface PartialDeliveryConfig {
+  readonly requiredChecks?: readonly string[];
 }
 
 interface PartialLmstudioAdapterConfig {
@@ -90,9 +102,10 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   })
 });
 
-const TOP_LEVEL_KEYS = new Set(["adapters", "piles"]);
+const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "piles"]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
+const DELIVERY_KEYS = new Set(["requiredChecks"]);
 const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
 const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
 const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
@@ -147,6 +160,9 @@ export function resolveFactoryConfig(input: {
       coder,
       judge
     },
+    ...(fileConfig.delivery !== undefined
+      ? { delivery: { requiredChecks: fileConfig.delivery.requiredChecks ?? [] } }
+      : {}),
     ...(fileConfig.piles !== undefined ? { piles: fileConfig.piles } : {})
   };
 
@@ -191,6 +207,25 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
       }
       if (config.adapters.judge !== undefined) {
         validateLmstudioAdapter("$.adapters.judge", config.adapters.judge, errors);
+      }
+    }
+  }
+
+  if (config.delivery !== undefined) {
+    if (!isPlainRecord(config.delivery)) {
+      errors.push("$.delivery must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.delivery", config.delivery, DELIVERY_KEYS));
+      if (config.delivery.requiredChecks !== undefined) {
+        if (!Array.isArray(config.delivery.requiredChecks)) {
+          errors.push("$.delivery.requiredChecks must be an array");
+        } else {
+          for (const [index, checkName] of config.delivery.requiredChecks.entries()) {
+            if (typeof checkName !== "string" || checkName.length === 0) {
+              errors.push(`$.delivery.requiredChecks[${index}] must be a non-empty string`);
+            }
+          }
+        }
       }
     }
   }

@@ -15,6 +15,18 @@
         "judge": { "$ref": "#/definitions/lmstudioAdapterConfig" }
       }
     },
+    "delivery": {
+      "type": "object",
+      "description": "Phase 7 Q-15: operator-named CI check allowlist; empty/absent -> 'no-checks-configured' verdict.",
+      "additionalProperties": false,
+      "properties": {
+        "requiredChecks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
     "piles": {
       "type": "object",
       "description": "Phase 6 (Q-04) per-pile-kind mode selection. Precedence: CLI override (--planning-mode, --review-mode, --exec-coord-mode) > this config > built-in default. Built-in default mode is `fixture` per Q-05. Per Q-06, live failures NEVER auto-fall-back to fixture — they emit a no-admission refusal artifact and the run exits non-zero. Live mode is an explicit operator opt-in.",
