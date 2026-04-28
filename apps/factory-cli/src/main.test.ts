@@ -3533,7 +3533,7 @@ async function assertFactoryCompositionUsesPlanningAdmissionBoundary(): Promise<
   );
   assert.match(
     source,
-    /dependencies\.runMechanicalReviewExecutionLoop\(\{[\s\S]*admittedPlan: admittedPlanHandoff\.executionArtifact/,
+    /runReviewRepairLoop\(\{[\s\S]*admittedPlan: admittedPlanHandoff\.executionArtifact/,
     "Review must receive only the admitted-plan execution artifact produced from planning-admission evidence."
   );
   assert.match(
@@ -3585,7 +3585,7 @@ async function assertFactoryCompositionUsesPlanningAdmissionBoundary(): Promise<
   assertSourceOrder(
     source,
     "const execution = dependencies.prepareExecutionRun({",
-    "const loop = dependencies.runMechanicalReviewExecutionLoop({",
+    "loop = await runReviewRepairLoop({",
     "Review must remain downstream of execution run plan creation."
   );
   assertSourceOrder(

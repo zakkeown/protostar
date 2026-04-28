@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import * as nodeFs from "node:fs";
+import { appendFile, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -13,6 +15,7 @@ import {
 import { createEvaluationReport, decideEvolution, type OntologySnapshot } from "@protostar/evaluation";
 import {
   prepareExecutionRun as defaultPrepareExecutionRun,
+  runExecutionDryRun,
   type ExecutionDryRunResult
 } from "@protostar/execution";
 import { createLmstudioCoderAdapter } from "@protostar/lmstudio-adapter";
@@ -59,6 +62,7 @@ import {
   parsePlanningPileResult,
   type CandidatePlanGraph
 } from "@protostar/planning/schema";
+import type { ExecutionRunResult } from "@protostar/planning";
 import {
   cleanupWorkspace,
   cloneWorkspace,
@@ -71,10 +75,7 @@ import {
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
-import {
-  runMechanicalReviewExecutionLoop as defaultRunMechanicalReviewExecutionLoop,
-  type ReviewVerdict
-} from "@protostar/review";
+import { runReviewRepairLoop, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
@@ -105,6 +106,7 @@ import {
   writePrecedenceDecision
 } from "./write-admission-decision.js";
 import { validateTwoKeyLaunch, verifyTrustedLaunchConfirmedIntent, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
+import { buildReviewRepairServices, preflightCoderAndJudge, type ReviewLoopFsAdapter } from "./wiring/index.js";
 
 export interface RunCommandOptions {
   readonly intentDraftPath: string;
@@ -129,7 +131,6 @@ export interface RunCommandResult {
 
 export interface FactoryCompositionDependencies {
   readonly prepareExecutionRun: typeof defaultPrepareExecutionRun;
-  readonly runMechanicalReviewExecutionLoop: typeof defaultRunMechanicalReviewExecutionLoop;
   readonly runRealExecution: typeof defaultRunRealExecution;
   readonly applyChangeSet: typeof defaultApplyChangeSet;
   readonly createLmstudioCoderAdapter: typeof createLmstudioCoderAdapter;
@@ -170,7 +171,6 @@ interface IntentAmbiguityArtifact {
 
 const defaultFactoryCompositionDependencies = {
   prepareExecutionRun: defaultPrepareExecutionRun,
-  runMechanicalReviewExecutionLoop: defaultRunMechanicalReviewExecutionLoop,
   runRealExecution: defaultRunRealExecution,
   applyChangeSet: defaultApplyChangeSet,
   createLmstudioCoderAdapter,
@@ -586,12 +586,10 @@ export async function runFactory(
     admittedPlan: admittedPlanHandoff.executionArtifact,
     workspace
   });
-  // Source-order contract anchor for the dry-run branch:
-  // const loop = dependencies.runMechanicalReviewExecutionLoop({
   const cancel = installCancelWiring({ runDir });
   let executionResult: ExecutionDryRunResult;
-  let loop: ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>;
-  let review: ReviewVerdict extends never ? never : ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>["finalReviewGate"];
+  let loop: ReviewRepairLoopResult;
+  let review: ReviewGate;
   try {
     await cancel.unlinkSentinelOnResume();
     if ((options.executor ?? "dry-run") === "real") {
@@ -606,6 +604,19 @@ export async function runFactory(
       });
       if (!admission.ok) {
         throw admission.error;
+      }
+      const judge = factoryConfig.config.adapters.judge;
+      if (judge === undefined) {
+        throw new Error("factoryConfig.adapters.judge is required for review preflight.");
+      }
+      const preflight = await preflightCoderAndJudge({
+        baseUrl: factoryConfig.config.adapters.coder.baseUrl,
+        coderModel: factoryConfig.config.adapters.coder.model,
+        judgeModel: judge.model,
+        timeoutMs: intent.capabilityEnvelope.budget.taskWallClockMs ?? 60_000
+      });
+      if (preflight.status !== "ready") {
+        throw new CliExitError(`LM Studio review preflight failed: ${preflight.status}${preflight.detail === undefined ? "" : ` (${preflight.detail})`}`, 1);
       }
       const journalWriter = await createJournalWriter({ runDir });
       try {
@@ -634,21 +645,55 @@ export async function runFactory(
           checkSentinelBetweenTasks: cancel.checkSentinelBetweenTasks
         });
         executionResult = realExecutionAsDryRunResult(execution, realResult);
-        loop = dryLoopFromExecutionResult({ executionResult });
-        review = loop.finalReviewGate;
       } finally {
         await journalWriter.close();
       }
     } else {
-      loop = dependencies.runMechanicalReviewExecutionLoop({
-        admittedPlan: admittedPlanHandoff.executionArtifact,
+      executionResult = runExecutionDryRun({
         execution,
-        initialFailTaskIds: options.failTaskIds,
-        maxRepairLoops: intent.capabilityEnvelope.budget.maxRepairLoops ?? 0
+        failTaskIds: options.failTaskIds
       });
-      executionResult = loop.finalExecutionResult;
-      review = loop.finalReviewGate;
     }
+    const reviewExecutor = createReviewTaskExecutor({
+      currentExecution: executionRunResultFromDry(executionResult),
+      executeRepairTasks: async () => executionRunResultFromDry(executionResult)
+    });
+    const reviewServices = buildReviewRepairServices({
+      fs: createNodeReviewFsAdapter(),
+      gitFs: nodeFs,
+      runsRoot: outDir,
+      workspaceRoot: repoRuntime.cloneDir,
+      factoryConfig,
+      archetype: intent.goalArchetype === undefined ? "cosmetic-tweak" : reviewLoopArchetype(intent.goalArchetype),
+      admittedPlan: admittedPlanHandoff.executionArtifact,
+      runId,
+      baseRef: "main",
+      executor: reviewExecutor,
+      subprocess: createMechanicalSubprocessRunner({ runDir, resolvedEnvelope: precedenceDecision.resolvedEnvelope })
+    });
+    loop = await runReviewRepairLoop({
+      runId,
+      confirmedIntent: intent,
+      admittedPlan: admittedPlanHandoff.executionArtifact,
+      initialExecution: executionRunResultFromDry(executionResult),
+      executor: reviewExecutor,
+      mechanicalChecker: (options.executor ?? "dry-run") === "real"
+        ? reviewServices.mechanicalChecker
+        : async () => dryMechanicalCheck({
+            runId,
+            planId: admittedPlanHandoff.executionArtifact.planId,
+            status: executionResult.status
+          }),
+      modelReviewer: (options.executor ?? "dry-run") === "real"
+        ? reviewServices.modelReviewer
+        : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] }),
+      persistence: reviewServices.persistence
+    });
+    review = reviewGateFromLoopResult({
+      runId,
+      planId: admittedPlanHandoff.executionArtifact.planId,
+      status: loop.status
+    });
   } finally {
     cancel.dispose();
   }
@@ -941,22 +986,207 @@ function realExecutionAsDryRunResult(
   };
 }
 
-function dryLoopFromExecutionResult(input: {
-  readonly executionResult: ExecutionDryRunResult;
-}): ReturnType<typeof defaultRunMechanicalReviewExecutionLoop> {
-  const review = {
-    planId: input.executionResult.planId,
-    runId: input.executionResult.runId,
-    verdict: input.executionResult.status === "succeeded" ? "pass" : "block",
-    findings: []
-  } satisfies ReturnType<typeof defaultRunMechanicalReviewExecutionLoop>["finalReviewGate"];
+function executionRunResultFromDry(result: ExecutionDryRunResult): ExecutionRunResult {
   return {
-    status: review.verdict === "pass" ? "approved" : "blocked",
-    maxRepairLoops: 0,
-    finalExecutionResult: input.executionResult,
-    finalReviewGate: review,
-    iterations: []
+    schemaVersion: "1.0.0",
+    runId: result.runId,
+    attempt: 0,
+    status: result.status === "succeeded" ? "completed" : "failed",
+    journalArtifact: {
+      stage: "execution",
+      kind: "execution-events",
+      uri: "execution-events.json",
+      description: "Execution lifecycle events."
+    },
+    perTask: result.tasks.map((task) => ({
+      planTaskId: task.planTaskId,
+      status: task.status === "succeeded" ? "ok" : "failed",
+      ...(task.evidence[0] !== undefined ? { evidenceArtifact: task.evidence[0] } : {})
+    })),
+    ...(result.evidence[0] !== undefined ? { diffArtifact: result.evidence[0] } : {})
   };
+}
+
+function reviewGateFromLoopResult(input: {
+  readonly runId: string;
+  readonly planId: string;
+  readonly status: ReviewRepairLoopResult["status"];
+}): ReviewGate {
+  return {
+    runId: input.runId,
+    planId: input.planId,
+    verdict: input.status === "approved" ? "pass" : "block",
+    findings: []
+  };
+}
+
+function dryMechanicalCheck(input: {
+  readonly runId: string;
+  readonly planId: string;
+  readonly status: ExecutionDryRunResult["status"];
+}) {
+  const gate = reviewGateFromLoopResult({
+    runId: input.runId,
+    planId: input.planId,
+    status: input.status === "succeeded" ? "approved" : "blocked"
+  });
+  return {
+    gate,
+    result: {
+      schemaVersion: "1.0.0",
+      runId: input.runId,
+      attempt: 0,
+      commands: [],
+      diffNameOnly: [],
+      findings: gate.findings
+    }
+  } as const;
+}
+
+function createReviewTaskExecutor(input: {
+  readonly currentExecution: ExecutionRunResult;
+  readonly executeRepairTasks: TaskExecutorService["executeRepairTasks"];
+}): TaskExecutorService {
+  return {
+    executeRepairTasks: input.executeRepairTasks
+  };
+}
+
+function reviewLoopArchetype(value: string): "cosmetic-tweak" | "feature-add" | "refactor" | "bugfix" {
+  if (value === "cosmetic-tweak" || value === "feature-add" || value === "refactor" || value === "bugfix") {
+    return value;
+  }
+  return "cosmetic-tweak";
+}
+
+function createNodeReviewFsAdapter(): ReviewLoopFsAdapter {
+  return {
+    async mkdir(path, options) {
+      await mkdir(path, options);
+    },
+    async writeFile(path, content) {
+      await writeFile(path, content);
+    },
+    async appendFile(path, content) {
+      await appendFile(path, content);
+    },
+    async rename(from, to) {
+      await rename(from, to);
+    },
+    async fsync(path) {
+      const handle = await open(path, "r").catch(async () => open(dirname(path), "r"));
+      try {
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+    },
+    async readFile(path) {
+      return readFile(path, "utf8");
+    }
+  };
+}
+
+function createMechanicalSubprocessRunner(input: {
+  readonly runDir: string;
+  readonly resolvedEnvelope: unknown;
+}) {
+  return {
+    async runCommand(command: {
+      readonly argv: readonly string[];
+      readonly cwd: string;
+      readonly signal: AbortSignal;
+      readonly timeoutMs: number;
+    }) {
+      const [program, ...args] = command.argv;
+      if (program === undefined) {
+        throw new Error("mechanical command argv must not be empty.");
+      }
+      const id = command.argv.join("-").replace(/[^a-zA-Z0-9._-]+/g, "_");
+      const dir = resolve(input.runDir, "review", "mechanical");
+      await mkdir(dir, { recursive: true });
+      const stdoutPath = resolve(dir, `${id}.stdout.log`);
+      const stderrPath = resolve(dir, `${id}.stderr.log`);
+      const result = await runSpawnedCommand({
+        program,
+        args,
+        cwd: command.cwd,
+        signal: command.signal,
+        timeoutMs: command.timeoutMs,
+        stdoutPath,
+        stderrPath
+      });
+      return {
+        argv: command.argv,
+        exitCode: result.exitCode,
+        durationMs: result.durationMs,
+        stdoutPath,
+        stderrPath,
+        stdoutBytes: result.stdoutBytes,
+        stderrBytes: result.stderrBytes
+      };
+    }
+  };
+}
+
+async function runSpawnedCommand(input: {
+  readonly program: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  readonly signal: AbortSignal;
+  readonly timeoutMs: number;
+  readonly stdoutPath: string;
+  readonly stderrPath: string;
+}): Promise<{
+  readonly exitCode: number;
+  readonly durationMs: number;
+  readonly stdoutBytes: number;
+  readonly stderrBytes: number;
+}> {
+  const startedAt = Date.now();
+  const stdoutChunks: Buffer[] = [];
+  const stderrChunks: Buffer[] = [];
+  let settled = false;
+
+  const child = spawn(input.program, [...input.args], {
+    cwd: input.cwd,
+    shell: false,
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  const timer = setTimeout(() => child.kill("SIGTERM"), input.timeoutMs);
+  const abort = () => child.kill("SIGTERM");
+  input.signal.addEventListener("abort", abort, { once: true });
+
+  child.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+  child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+
+  try {
+    const exitCode = await new Promise<number>((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code) => {
+        settled = true;
+        resolve(code ?? 124);
+      });
+    });
+    const stdout = Buffer.concat(stdoutChunks);
+    const stderr = Buffer.concat(stderrChunks);
+    await Promise.all([
+      writeFile(input.stdoutPath, stdout),
+      writeFile(input.stderrPath, stderr)
+    ]);
+    return {
+      exitCode,
+      durationMs: Date.now() - startedAt,
+      stdoutBytes: stdout.length,
+      stderrBytes: stderr.length
+    };
+  } finally {
+    clearTimeout(timer);
+    input.signal.removeEventListener("abort", abort);
+    if (!settled) {
+      child.kill("SIGTERM");
+    }
+  }
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
