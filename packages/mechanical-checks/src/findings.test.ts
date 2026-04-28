@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildFindings, type MechanicalChecksPlanInput } from "./findings.js";
+import {
+  buildFindings,
+  computeMechanicalScoresFromFindings,
+  type MechanicalChecksPlanInput
+} from "./findings.js";
 
 describe("buildFindings", () => {
   it("emits a critical build-failure for a failing verify command", () => {
@@ -120,6 +124,120 @@ describe("buildFindings", () => {
     });
 
     assert.deepEqual(findings, []);
+  });
+});
+
+describe("computeMechanicalScoresFromFindings", () => {
+  it("returns all passing scores for successful commands, one-file cosmetic diff, and full AC coverage", () => {
+    assert.deepEqual(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: ["a.test.ts"],
+        archetype: "cosmetic-tweak",
+        totalAcCount: 5,
+        coveredAcCount: 5
+      }),
+      { build: 1, lint: 1, diffSize: 1, acCoverage: 1 }
+    );
+  });
+
+  it("scores an absent build command as passing", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: undefined,
+        lintExitCode: 0,
+        diffNameOnly: ["a.test.ts"],
+        archetype: "cosmetic-tweak",
+        totalAcCount: 1,
+        coveredAcCount: 1
+      }).build,
+      1
+    );
+  });
+
+  it("scores a non-zero lint exit code as failing", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 1,
+        diffNameOnly: ["a.test.ts"],
+        archetype: "cosmetic-tweak",
+        totalAcCount: 1,
+        coveredAcCount: 1
+      }).lint,
+      0
+    );
+  });
+
+  it("scores a cosmetic-tweak two-file diff as oversized", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: ["a.ts", "b.ts"],
+        archetype: "cosmetic-tweak",
+        totalAcCount: 1,
+        coveredAcCount: 1
+      }).diffSize,
+      0
+    );
+  });
+
+  it("scores a cosmetic-tweak zero-file diff as within bounds", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: [],
+        archetype: "cosmetic-tweak",
+        totalAcCount: 1,
+        coveredAcCount: 1
+      }).diffSize,
+      1
+    );
+  });
+
+  it("scores a feature-add five-file diff as passing the graduated diff-size rule", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"],
+        archetype: "feature-add",
+        totalAcCount: 1,
+        coveredAcCount: 1
+      }).diffSize,
+      1
+    );
+  });
+
+  it("scores partial AC coverage as covered divided by total", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: ["a.test.ts"],
+        archetype: "feature-add",
+        totalAcCount: 5,
+        coveredAcCount: 3
+      }).acCoverage,
+      0.6
+    );
+  });
+
+  it("scores zero ACs as fully covered", () => {
+    assert.equal(
+      computeMechanicalScoresFromFindings({
+        buildExitCode: 0,
+        lintExitCode: 0,
+        diffNameOnly: ["a.test.ts"],
+        archetype: "feature-add",
+        totalAcCount: 0,
+        coveredAcCount: 0
+      }).acCoverage,
+      1
+    );
   });
 });
 
