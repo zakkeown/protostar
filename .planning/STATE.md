@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 9 Plan 06 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 09 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-06 are complete; cancel now atomically marks runs `cancelling`, touches the CANCEL sentinel, refuses terminal runs, and transitions sentinel-aborted runs to `cancelled`.
+**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-09 are complete; deliver now reauthorizes persisted authorization payloads before delivery, supports gated first delivery, retries incomplete completed runs, and noops already-delivered runs. Phase 10.1 boundary hygiene is inserted after Phase 10 and must be planned with `$gsd-plan-phase 10.1` before Phase 11 stress work.
 
 ## Phase Status
 
@@ -42,8 +42,9 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
-| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-06 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, and cancel commands are ready |
+| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-09 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, and deliver commands are ready |
 | 10 | V1 Hardening + Dogfood | Pending |
+| 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
 ## Active Documents
@@ -56,9 +57,13 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 
 ## Recent Sessions
 
+- **2026-04-28:** Completed Phase 9 Plan 09 (`09-09-deliver-command-PLAN.md`). Added `protostar-factory deliver <runId>` with parseRunId/path confinement, deliverable-state branching, idempotent noop for completed runs with PR URL + CI capture, retry for completed runs with missing delivery result, gated ready-to-release delivery with atomic manifest transition to `completed`, missing-authorization and validator-reject exit 4 JSON, and no direct `mintDeliveryAuthorization` usage. Verification passed: `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^deliver'` (script ran 300 tests), `pnpm --filter @protostar/factory-cli test` (300 tests), and `pnpm run verify`. Commits: `cdd77b6`, `7163121`.
+
 - **2026-04-28:** Completed Phase 9 Plan 06 (`09-06-cancel-command-PLAN.md`). Added `protostar-factory cancel <runId>` with parseRunId/path confinement, atomic tmp+rename manifest updates to `status: "cancelling"`, CANCEL sentinel touch, terminal-run refusal with exit 4 and canonical `{ error: "already-terminal" }` stdout JSON, and main.ts sentinel teardown that transitions `cancelling` to `cancelled`. Verification passed: `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^cancel'` (script ran 276 tests), `pnpm --filter @protostar/factory-cli test` (276 tests), and `pnpm run verify`. Commits: `1fd5162`, `6048256`.
 
 - **2026-04-28:** Completed Phase 9 Plan 05 (`09-05-inspect-command-PLAN.md`). Added `protostar-factory inspect <runId>` with canonical JSON output `{ manifest, artifacts, summary }`, fixed allowlist artifact indexing, sha256 + bytes for every artifact, `--stage` filtering over artifacts only, runId parse/confinement checks, and missing-run exit 3 diagnostics. Trace files are referenced by path/hash/bytes and are never inlined; tests assert a trace sentinel appears on disk but not in stdout. Verification passed: `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^inspect'`, `pnpm --filter @protostar/factory-cli test` (267 tests), and `pnpm run verify`. Commits: `1c03e3f`, `07ee317`.
+
+- **2026-04-28:** Inserted Phase 10.1 (`10.1-boundary-hygiene-pass`) after Phase 10 as urgent roadmap hygiene. Scope: prune stale/over-broad local workspace dependencies, remove misleading manifest-level cycles, and add/adjust dependency-boundary checks so package manifests match the source-level no-cycle architecture before Phase 11 stress work.
 
 - **2026-04-28:** Completed Phase 9 Plan 04 (`09-04-status-command-PLAN.md`). Added `listRuns()` directory scanning, `computeRunLiveness()` journal/sentinel-based runtime state derivation, and `protostar-factory status` with human table, canonical JSON minimal/full rows, `--run`, `--since`, `--limit`, and `--all`. Added `operator.livenessThresholdMs` to factory config schema/types and wired the status command into the commander root without disrupting `run`. Verification passed: `pnpm --filter @protostar/factory-cli test` (261 tests), `pnpm --filter @protostar/lmstudio-adapter test` with loopback escalation (75 tests), and `pnpm run verify`. Commits: `4c7318b`, `ea17719`, `24a20fb`, `3e0822e`.
 
