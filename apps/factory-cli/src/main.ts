@@ -33,7 +33,7 @@ import {
   type PileRunOutcome,
   type PileFailure
 } from "@protostar/dogpile-adapter";
-import { createOpenAICompatibleProvider } from "@protostar/dogpile-types";
+import { createOpenAICompatibleProvider, type JsonObject } from "@protostar/dogpile-types";
 import type { OntologySnapshot } from "@protostar/evaluation";
 import { runEvaluationStages as defaultRunEvaluationStages, type SnapshotReader } from "@protostar/evaluation-runner";
 import {
@@ -558,10 +558,8 @@ export async function runFactory(
     planningPileResultInput = planningFixtureInput.value;
   } else {
     const livePlanningOutcome = await dependencies.runFactoryPile(planningMission, {
-      provider: createOpenAICompatibleProvider({
-        baseURL: factoryConfig.config.adapters.coder.baseUrl,
-        apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
-        model: factoryConfig.config.adapters.coder.model
+      provider: createCoderPileProvider(factoryConfig, {
+        responseFormat: planningPileResultResponseFormat()
       }),
       signal: runAbortController.signal,
       budget: resolvePileBudget(planningMission.preset.budget, intent.capabilityEnvelope.budget),
@@ -2887,17 +2885,65 @@ function buildExecCoordPileContext(input: {
   readonly signal: AbortSignal;
 }): PileRunContext {
   return {
-    provider: createOpenAICompatibleProvider({
-      baseURL: input.factoryConfig.config.adapters.coder.baseUrl,
-      apiKey: process.env[input.factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
-      model: input.factoryConfig.config.adapters.coder.model
-    }),
+    provider: createCoderPileProvider(input.factoryConfig),
     signal: input.signal,
     budget: resolvePileBudget(
       executionCoordinationPilePreset.budget,
       input.intent.capabilityEnvelope.budget
     ),
     now: () => Date.now()
+  };
+}
+
+function createCoderPileProvider(
+  factoryConfig: { readonly config: { readonly adapters: { readonly coder: { readonly baseUrl: string; readonly model: string; readonly apiKeyEnv: string } } } },
+  options: { readonly responseFormat?: JsonObject } = {}
+) {
+  return createOpenAICompatibleProvider({
+    baseURL: factoryConfig.config.adapters.coder.baseUrl,
+    apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+    model: factoryConfig.config.adapters.coder.model,
+    ...(options.responseFormat !== undefined
+      ? {
+          extraBody: {
+            response_format: options.responseFormat
+          }
+        }
+      : {})
+  });
+}
+
+function planningPileResultResponseFormat(): JsonObject {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "planning_pile_result",
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          kind: {
+            type: "string",
+            enum: ["planning-pile-result"]
+          },
+          source: {
+            type: "string",
+            enum: ["dogpile"]
+          },
+          output: {
+            type: "string",
+            description: "A JSON.stringify payload whose parsed value is a candidate plan object with strategy and tasks."
+          },
+          modelProviderId: {
+            type: "string"
+          },
+          traceRef: {
+            type: "string"
+          }
+        },
+        required: ["kind", "source", "output"]
+      }
+    }
   };
 }
 

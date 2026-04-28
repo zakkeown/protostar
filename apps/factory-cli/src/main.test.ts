@@ -575,40 +575,61 @@ describe("factory CLI draft admission hardening", () => {
       const runId = "run_cli_live_planning_happy";
       const acIds = acceptanceCriterionIdsForDraft(draft);
       const pileBody = cosmeticPlanningFixture(acIds);
+      const providerBodies: Record<string, unknown>[] = [];
 
       await writeJson(draftPath, draft);
       await writeJson(planningFixturePath, { kind: "must-not-be-read" });
 
       const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
-        async () => ({
-          ok: true as const,
-          result: { output: JSON.stringify(pileBody), eventLog: { events: [] } } as never,
-          trace: { events: [] } as never,
-          accounting: { totalTokens: 0 } as never,
-          stopReason: null
-        })
+        async (mission, ctx) => {
+          assert.deepEqual(mission.preset.protocol, { kind: "coordinator", maxTurns: 3 });
+          await ctx.provider.generate({
+            temperature: 0,
+            metadata: {},
+            messages: [{ role: "user", content: "exercise structured planning provider" }]
+          } as unknown as Parameters<typeof ctx.provider.generate>[0]);
+          return {
+            ok: true as const,
+            result: { output: JSON.stringify(pileBody), eventLog: { events: [] } } as never,
+            trace: { events: [] } as never,
+            accounting: { totalTokens: 0 } as never,
+            stopReason: null
+          };
+        }
       );
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (_url, init) => {
+        providerBodies.push(JSON.parse(String(init?.body)));
+        return Response.json({ choices: [{ message: { content: "{}" } }] });
+      }) as typeof fetch;
 
       // Workspace-trust gate runs AFTER the planning seam, so we expect it to
       // refuse here — what matters for THIS test is that the pile was invoked
       // and its artifacts persisted before the gate fires.
-      await assert.rejects(
-        () =>
-          runFactory(
-            {
-              intentDraftPath: draftPath,
-              outDir,
-              planningFixturePath,
-              failTaskIds: [],
-              intentMode: "brownfield",
-              runId,
-              planningMode: "live"
-            },
-            { runFactoryPile: runFactoryPileSpy }
-          )
-      );
+      try {
+        await assert.rejects(
+          () =>
+            runFactory(
+              {
+                intentDraftPath: draftPath,
+                outDir,
+                planningFixturePath,
+                failTaskIds: [],
+                intentMode: "brownfield",
+                runId,
+                planningMode: "live"
+              },
+              { runFactoryPile: runFactoryPileSpy }
+            )
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
 
       assert.equal(runFactoryPileSpy.mock.callCount(), 1, "live mode must invoke runFactoryPile exactly once for planning");
+      assert.equal(providerBodies.length, 1, "planning provider smoke call must exercise one OpenAI-compatible request");
+      assert.deepEqual(readObjectProperty(readObjectProperty(providerBodies[0]!, "response_format"), "json_schema")["name"], "planning_pile_result");
+      assert.equal(readObjectProperty(providerBodies[0]!, "response_format")["type"], "json_schema");
       const resultJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "result.json"));
       assert.ok(resultJson["output"], "pile result.json must persist");
       const traceJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "trace.json"));

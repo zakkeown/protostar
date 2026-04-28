@@ -89,8 +89,8 @@ export interface PriorGenerationSummary {
 
 export const planningPilePreset: FactoryPilePreset = {
   kind: "planning",
-  description: "Independent planners propose a DAG, risks, capabilities, and acceptance coverage before synthesis.",
-  protocol: { kind: "broadcast", maxRounds: 2 },
+  description: "A planning coordinator integrates independent risk and verification input into one candidate-plan result.",
+  protocol: { kind: "coordinator", maxTurns: 3 },
   tier: "quality",
   agents: [
     { id: "planner-architecture", role: "architecture-planner" },

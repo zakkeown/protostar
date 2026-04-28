@@ -17,6 +17,8 @@
 export type { AgentSpec, DogpileOptions } from "@dogpile/sdk/types";
 export type {
   ConfiguredModelProvider,
+  JsonObject,
+  JsonValue,
   NormalizedStopReason,
   RunAccounting,
   RunEvent,
