@@ -588,6 +588,7 @@ describe("factory CLI draft admission hardening", () => {
       const runId = "run_cli_live_planning_happy";
       const acIds = acceptanceCriterionIdsForDraft(draft);
       const pileBody = cosmeticPlanningFixture(acIds);
+      const livePileBody = livePlanningPileResultWithMalformedNestedOutput(pileBody);
       const providerBodies: Record<string, unknown>[] = [];
 
       await writeJson(draftPath, draft);
@@ -603,7 +604,7 @@ describe("factory CLI draft admission hardening", () => {
           } as unknown as Parameters<typeof ctx.provider.generate>[0]);
           return {
             ok: true as const,
-            result: { output: JSON.stringify(pileBody), eventLog: { events: [] } } as never,
+            result: { output: JSON.stringify(livePileBody), eventLog: { events: [] } } as never,
             trace: { events: [] } as never,
             accounting: { totalTokens: 0 } as never,
             stopReason: null
@@ -651,6 +652,8 @@ describe("factory CLI draft admission hardening", () => {
       assert.deepEqual(outputSchema["required"], ["strategy", "tasks"]);
       const resultJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "result.json"));
       assert.ok(resultJson["output"], "pile result.json must persist");
+      const planningAdmission = await readJsonObject(resolve(outDir, runId, "planning-admission.json"));
+      assert.equal(planningAdmission["admitted"], true);
       const traceJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "trace.json"));
       assert.ok(traceJson, "pile trace.json must persist (Q-08)");
     });
@@ -3375,6 +3378,28 @@ function dogpilePlanningFixture(acceptanceCriterionIds: readonly string[]): Reco
     source: "dogpile",
     modelProviderId: "dogpile-planning-cell",
     traceRef: "trace-dogpile-candidate-admission-before-execution"
+  };
+}
+
+function livePlanningPileResultWithMalformedNestedOutput(fixture: Record<string, unknown>): Record<string, unknown> {
+  const output = JSON.parse(String(fixture["output"])) as Record<string, unknown>;
+  const tasks = readObjectArrayProperty(output, "tasks").map((task, index) => ({
+    ...task,
+    id: `task${index + 1}`,
+    covers: [],
+    requiredCapabilities: {
+      repoScopes: [{ workspace: "wrong-workspace", path: "not/inside/intent", access: "write" }],
+      toolPermissions: [{ tool: "shell", permissionLevel: "write" }],
+      budget: { cost: 1 }
+    }
+  }));
+  return {
+    kind: "planning-pile-result",
+    source: "dogpile",
+    output: {
+      ...output,
+      tasks
+    }
   };
 }
 

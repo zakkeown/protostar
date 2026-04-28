@@ -610,7 +610,7 @@ export async function runFactory(
       });
       throw new CliExitError(reason, 1);
     }
-    planningPileResultInput = normalizeLivePlanningPileResultInput(planningPileResultInput);
+    planningPileResultInput = normalizeLivePlanningPileResultInput(planningPileResultInput, intent);
   }
   const planningPileResultAdmission = parsePlanningPileResultInputs(planningPileResultInput);
   if (!planningPileResultAdmission.ok) {
@@ -2962,13 +2962,108 @@ function planningPileResultResponseFormat(): JsonObject {
   };
 }
 
-function normalizeLivePlanningPileResultInput(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry) => normalizeLivePlanningPileResultInput(entry));
+function normalizeLivePlanningPileResultInput(value: unknown, intent: ConfirmedIntent): unknown {
+  if (Array.isArray(value)) return value.map((entry) => normalizeLivePlanningPileResultInput(entry, intent));
   if (!isRecord(value) || !isRecord(value["output"])) return value;
   return {
     ...value,
-    output: JSON.stringify(value["output"])
+    output: JSON.stringify(normalizeLivePlanningPileOutput(value["output"], intent))
   };
+}
+
+function normalizeLivePlanningPileOutput(
+  output: Readonly<Record<string, unknown>>,
+  intent: ConfirmedIntent
+): Readonly<Record<string, unknown>> {
+  const rawTasks = Array.isArray(output["tasks"]) ? output["tasks"] : [];
+  const records = rawTasks.filter(isRecord);
+  const idMap = new Map<string, string>();
+  for (const [index, task] of records.entries()) {
+    const rawId = typeof task["id"] === "string" ? task["id"] : "";
+    idMap.set(rawId, isPlanTaskIdLike(rawId) ? rawId : `task-live-planning-${index + 1}`);
+  }
+
+  return {
+    ...output,
+    strategy: typeof output["strategy"] === "string" && output["strategy"].trim().length > 0
+      ? output["strategy"]
+      : "Normalize live planning output into an admissible candidate plan.",
+    tasks: records.map((task, index) => normalizeLivePlanningPileTask(task, index, idMap, intent))
+  };
+}
+
+function normalizeLivePlanningPileTask(
+  task: Readonly<Record<string, unknown>>,
+  index: number,
+  idMap: ReadonlyMap<string, string>,
+  intent: ConfirmedIntent
+): Readonly<Record<string, unknown>> {
+  const rawDependsOn = Array.isArray(task["dependsOn"]) ? task["dependsOn"] : [];
+  const dependsOn = rawDependsOn
+    .filter((dependency): dependency is string => typeof dependency === "string")
+    .flatMap((dependency) => {
+      const mapped = idMap.get(dependency);
+      return mapped === undefined ? [] : [mapped];
+    });
+  const covers = normalizeLivePlanningCovers(task["covers"], intent);
+
+  return {
+    ...task,
+    id: idMap.get(typeof task["id"] === "string" ? task["id"] : "") ?? `task-live-planning-${index + 1}`,
+    title: typeof task["title"] === "string" && task["title"].trim().length > 0
+      ? task["title"]
+      : `Live planning task ${index + 1}`,
+    kind: isLivePlanningTaskKind(task["kind"]) ? task["kind"] : "implementation",
+    dependsOn,
+    covers,
+    targetFiles: normalizeLivePlanningTargetFiles(task["targetFiles"], intent),
+    requiredCapabilities: normalizeLivePlanningRequiredCapabilities(intent),
+    risk: isLivePlanningRisk(task["risk"]) ? task["risk"] : "low"
+  };
+}
+
+function normalizeLivePlanningCovers(value: unknown, intent: ConfirmedIntent): readonly string[] {
+  const validIds = new Set<string>(intent.acceptanceCriteria.map((criterion) => criterion.id));
+  const covers = Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && validIds.has(entry))
+    : [];
+  return covers.length > 0 ? covers : intent.acceptanceCriteria.map((criterion) => criterion.id);
+}
+
+function normalizeLivePlanningTargetFiles(value: unknown, intent: ConfirmedIntent): readonly string[] {
+  const explicitTargets = Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    : [];
+  if (explicitTargets.length > 0) return explicitTargets;
+  return intent.capabilityEnvelope.repoScopes.map((scope) => scope.path);
+}
+
+function normalizeLivePlanningRequiredCapabilities(intent: ConfirmedIntent): Readonly<Record<string, unknown>> {
+  return {
+    repoScopes: intent.capabilityEnvelope.repoScopes.map((scope) => ({ ...scope })),
+    toolPermissions: intent.capabilityEnvelope.toolPermissions.map((permission) => ({
+      ...permission,
+      reason: `Confirmed intent permits ${permission.tool}.`,
+      risk: "low"
+    })),
+    ...(intent.capabilityEnvelope.executeGrants !== undefined
+      ? { executeGrants: intent.capabilityEnvelope.executeGrants.map((grant) => ({ ...grant })) }
+      : {}),
+    ...(intent.capabilityEnvelope.network !== undefined ? { network: { ...intent.capabilityEnvelope.network } } : {}),
+    budget: {}
+  };
+}
+
+function isPlanTaskIdLike(value: string): boolean {
+  return value.startsWith("task-");
+}
+
+function isLivePlanningTaskKind(value: unknown): value is string {
+  return value === "research" || value === "design" || value === "implementation" || value === "verification" || value === "release";
+}
+
+function isLivePlanningRisk(value: unknown): value is string {
+  return value === "low" || value === "medium" || value === "high";
 }
 
 function planningPileOutputSchemaProperties(): JsonObject {
