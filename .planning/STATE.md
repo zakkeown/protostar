@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 9 Plan 10 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 11 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-10 are complete; prune now provides dry-run-default run retention, confirmed deletion, active-status protection, archetype filtering, and append-only JSONL preservation. Phase 10.1 boundary hygiene is inserted after Phase 10 and must be planned with `$gsd-plan-phase 10.1` before Phase 11 stress work.
+**Next action:** Run Phase 9 closure verification/review. Plans 09-01 through 09-11 are complete; admission-e2e now pins the public CLI surface across help, exit codes, stdout JSON, status/inspect schemas, resume dispatch, and delivery reauthorization. Phase 10.1 boundary hygiene is inserted after Phase 10 and must be planned with `$gsd-plan-phase 10.1` before Phase 11 stress work.
 
 ## Phase Status
 
@@ -42,7 +42,7 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
-| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-10 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, and prune commands are ready |
+| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | Pending |
 | 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
@@ -56,6 +56,8 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 9 Plan 11 (`09-11-admission-e2e-cli-contracts-PLAN.md`). Added seven admission-e2e contracts pinning the Phase 9 public CLI surface: `ExitCode` integers, root/subcommand help fixtures with stdout-empty assertions, canonical stdout JSON round-trip/idempotency, minimal/full status row schemas, inspect output shape with no trace inlining, resume dispatch for operator-cancelled/transient-sentinel/completed runs, and delivery reauthorization including `runId-mismatch` and `gate-not-pass` rejection. Captured eight commander help fixtures and added narrow factory-cli subpath exports for contract-only imports. Verification passed: `pnpm --filter @protostar/factory-cli build`, `pnpm --filter @protostar/admission-e2e build`, `pnpm --filter @protostar/admission-e2e test` (124 tests), `pnpm run verify`, and help-fixture volatile-content scan. Commit: `3ea75f6`.
 
 - **2026-04-28:** Completed Phase 9 Plan 10 (`09-10-prune-command-PLAN.md`). Added `protostar-factory prune --older-than <duration>` with dry-run default, explicit `--confirm` deletion, optional case-sensitive `--archetype`, active-status protection for `created`, `running`, `cancelling`, `repairing`, and `ready-to-release` (plus `orphaned` defense-in-depth), scoped `fs.rm({ recursive: true, force: true })` to `.protostar/runs/<id>/`, and byte-identical preservation tests for `.protostar/refusals.jsonl` and `.protostar/evolution/{lineageId}.jsonl`. Documented lineage snapshot `ENOENT` tolerance in CONCERNS.md. Verification passed: RED build failed on missing prune module as expected, `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^prune'` (script ran 312 tests), `pnpm --filter @protostar/factory-cli test` (312 tests), `pnpm run verify`, and a manual dry-run fixture smoke. Commits: `412bfa9`, `a73ca42`.
 
