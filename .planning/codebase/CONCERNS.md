@@ -207,6 +207,14 @@
 - Mitigation: `tombstoneRetentionHours` (default 24) in `repo-policy.json`;
   operator runs `protostar-factory prune` (Phase 9) to reclaim.
 
+### Phase 7: push cancel is best-effort (Pitfall 11)
+
+isomorphic-git's push() takes no AbortSignal. We implement two-layer cancel:
+(1) pre-push signal check, (2) onAuth signal check between auth invocations.
+An in-flight HTTP pack upload cannot be interrupted from outside the callbacks.
+Recovery: Q-18 idempotency - next delivery attempt finds the partial push and
+reconciles via remote-SHA check (Pitfall 5).
+
 **`diff.applyPatch` is text-only (binary-not-supported):**
 - Issue: Cosmetic-tweak loop touching a `.png` icon will hit the
   `Binary files ... differ` patch placeholder. `applyChangeSet` records

@@ -7,3 +7,5 @@ export type { FastPreflightResult } from "./preflight-fast.js";
 export { FORBIDDEN_SCOPES, preflightDeliveryFull } from "./preflight-full.js";
 export type { DeliveryTarget, FullPreflightResult } from "./preflight-full.js";
 export { buildBranchName, generateBranchSuffix } from "./branch-template.js";
+export { buildPushOnAuth, pushBranch } from "./push-branch.js";
+export type { PushBranchInput, PushResult } from "./push-branch.js";
