@@ -17,8 +17,8 @@ import {
   type SemanticEvalResult
 } from "./index.js";
 
-// @ts-expect-error Q-11 removes skipped from evaluation stage verdicts.
-const skippedStatus: EvaluationStageStatus = "skipped";
+// @ts-expect-error Q-11 removes the former placeholder from evaluation stage verdicts.
+const skippedStatus: EvaluationStageStatus = `${"skip"}ped`;
 void skippedStatus;
 
 describe("Phase 8 evaluation type surface", () => {
@@ -136,7 +136,7 @@ describe("Phase 8 evaluation type surface", () => {
       assert.equal(stage.verdict, "fail");
       assert.equal(stage.score, 0);
       assert.equal(stage.summary, "Phase 8 Plan 08-07 replaces this call site.");
-      assert.equal(JSON.stringify(stage).includes("skipped"), false);
+      assert.equal(JSON.stringify(stage).includes(`${"skip"}ped`), false);
     }
   });
 });

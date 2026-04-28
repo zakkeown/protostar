@@ -1,23 +1,94 @@
 import type { ReviewGate, ReviewVerdict } from "@protostar/review";
 
+/**
+ * Phase 8 Q-03/Q-06/Q-09/Q-11/Q-12 evaluation contract surface.
+ *
+ * The stage result shape now carries verdict + numeric score, the rubric
+ * dimensions are fixed, and the former non-verdict placeholder is intentionally
+ * not a stage verdict.
+ */
 export type EvaluationStageKind = "mechanical" | "semantic" | "consensus";
-export type EvaluationStageStatus = "passed" | "failed" | "skipped";
+export type EvaluationStageStatus = "pass" | "fail";
 export type EvaluationVerdict = ReviewVerdict;
 export type EvolutionAction = "continue" | "converged" | "exhausted";
 
 export const ONTOLOGY_CONVERGENCE_THRESHOLD = 0.95;
 export const MAX_EVOLUTION_GENERATIONS = 30;
+export const EVALUATION_RUBRIC_DIMENSIONS = [
+  "acMet",
+  "codeQuality",
+  "security",
+  "regressionRisk",
+  "releaseReadiness"
+] as const;
+export type EvaluationRubricDimension = typeof EVALUATION_RUBRIC_DIMENSIONS[number];
+
+export const T_MECH = 0.95 as const;
+export const T_CONF = 0.85 as const;
+export const T_MEAN_JUDGES = 0.85 as const;
+export const T_MIN_JUDGES = 0.85 as const;
+export const T_MEAN_DIMS = 0.85 as const;
+export const T_MIN_DIMS = 0.85 as const;
 
 export interface EvaluationStageResult {
   readonly stage: EvaluationStageKind;
-  readonly status: EvaluationStageStatus;
+  readonly verdict: EvaluationStageStatus;
+  readonly score: number;
+  readonly scores?: Readonly<Record<string, number>>;
   readonly summary: string;
 }
 
 export interface EvaluationReport {
   readonly runId: string;
-  readonly verdict: EvaluationVerdict;
+  readonly verdict: EvaluationStageStatus;
   readonly stages: readonly EvaluationStageResult[];
+}
+
+export interface MechanicalEvalResult {
+  readonly verdict: EvaluationStageStatus;
+  readonly score: number;
+  readonly scores: {
+    readonly build: number;
+    readonly lint: number;
+    readonly diffSize: number;
+    readonly acCoverage: number;
+  };
+}
+
+export interface JudgePerDimensionScores {
+  readonly judgeId: string;
+  readonly model: string;
+  readonly rubric: Readonly<Record<EvaluationRubricDimension, number>>;
+}
+
+export interface SemanticEvalResult {
+  readonly verdict: EvaluationStageStatus;
+  readonly score: number;
+  readonly confidence: number;
+  readonly judges: readonly JudgePerDimensionScores[];
+}
+
+export interface ConsensusBreakdown {
+  readonly judgeMeans: readonly number[];
+  readonly dimMeans: Readonly<Record<EvaluationRubricDimension, number>>;
+  readonly meanOfJudgeMeans: number;
+  readonly minOfJudgeMeans: number;
+  readonly meanOfDimMeans: number;
+  readonly minOfDimMeans: number;
+  readonly thresholds: {
+    readonly tMeanJudges: number;
+    readonly tMinJudges: number;
+    readonly tMeanDims: number;
+    readonly tMinDims: number;
+  };
+  readonly thresholdsHit: readonly string[];
+}
+
+export interface ConsensusEvalResult {
+  readonly verdict: EvaluationStageStatus;
+  readonly score: number;
+  readonly breakdown: ConsensusBreakdown;
+  readonly judges: readonly JudgePerDimensionScores[];
 }
 
 export interface OntologyField {
@@ -46,35 +117,28 @@ export interface EvolutionDecision {
   readonly reason: string;
 }
 
+/**
+ * @deprecated Phase 8 Plan 08-07 replaces this call site with `runEvaluationStages` from
+ * `@protostar/evaluation-runner`. This degraded stub exists ONLY to keep `pnpm run verify`
+ * green across Waves 1-4 of Phase 8. It MUST NOT ship past Plan 08-07.
+ *
+ * Returns a non-throwing `EvaluationReport` with verdict `"fail"` on every stage and
+ * `score: 0`. Never emits the removed Q-11 evaluation verdict.
+ */
 export function createEvaluationReport(input: {
   readonly runId: string;
   readonly reviewGate: ReviewGate;
 }): EvaluationReport {
-  const mechanicalStatus = input.reviewGate.verdict === "pass" ? "passed" : "failed";
-
+  const summary = "Phase 8 Plan 08-07 replaces this call site." as const;
+  const stages: readonly EvaluationStageResult[] = [
+    { stage: "mechanical", verdict: "fail", score: 0, summary },
+    { stage: "semantic", verdict: "fail", score: 0, summary },
+    { stage: "consensus", verdict: "fail", score: 0, summary }
+  ];
   return {
     runId: input.runId,
-    verdict: input.reviewGate.verdict,
-    stages: [
-      {
-        stage: "mechanical",
-        status: mechanicalStatus,
-        summary:
-          input.reviewGate.verdict === "pass"
-            ? "Mechanical review gate passed."
-            : `Mechanical review gate returned ${input.reviewGate.verdict}.`
-      },
-      {
-        stage: "semantic",
-        status: "skipped",
-        summary: "Semantic evaluation is stubbed behind the mechanical gate."
-      },
-      {
-        stage: "consensus",
-        status: "skipped",
-        summary: "Multi-model consensus is stubbed until semantic uncertainty is available."
-      }
-    ]
+    verdict: "fail",
+    stages
   };
 }
 
