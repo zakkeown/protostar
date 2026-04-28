@@ -667,6 +667,15 @@ describe("factory CLI draft admission hardening", () => {
         (call) => (call.arguments[0] as { preset: { kind: string } }).preset.kind === "review"
       );
       assert.ok(reviewCalls.length >= 1, "review-mode live must invoke runFactoryPile with kind=review at least once");
+      // Q-08 — review pile traces are persisted at runs/{id}/piles/review/iter-N/.
+      const reviewResultJson = await readJsonObject(
+        resolve(outDir, runId, "piles", "review", "iter-0", "result.json")
+      );
+      assert.ok(reviewResultJson, "review pile result.json must persist (Q-07/Q-08)");
+      const reviewTraceJson = await readJsonObject(
+        resolve(outDir, runId, "piles", "review", "iter-0", "trace.json")
+      );
+      assert.ok(reviewTraceJson, "review pile trace.json must persist (Q-08 always-persist)");
     });
   });
 

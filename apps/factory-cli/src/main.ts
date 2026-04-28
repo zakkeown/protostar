@@ -814,10 +814,35 @@ export async function runFactory(
     // Phase 6 Plan 06-07 Task 3b — review seam (PILE-02). When mode=live, the
     // ModelReviewer is the review pile (Q-14 retroactive lock); fixture mode
     // continues to use the Phase 5 dry stub or reviewServices.modelReviewer.
+    // The injected runPile wrapper is the persistence boundary: each pile
+    // invocation writes its outcome to runs/{id}/piles/review/iter-N/ via
+    // writePileArtifacts (Q-07 layout, Q-08 always-persist trace).
+    let reviewPileIteration = 0;
     const liveReviewModelReviewer: typeof reviewServices.modelReviewer | undefined =
       pileModes.review === "live"
         ? createReviewPileModelReviewer({
-            runPile: dependencies.runFactoryPile,
+            runPile: async (mission, ctx) => {
+              const outcome = await dependencies.runFactoryPile(mission, ctx);
+              const iterationForThisCall = reviewPileIteration;
+              reviewPileIteration += 1;
+              await writePileArtifacts({
+                runDir,
+                runId,
+                kind: "review",
+                iteration: iterationForThisCall,
+                outcome,
+                ...(outcome.ok
+                  ? {}
+                  : {
+                      refusal: {
+                        reason: formatPileFailureReason(outcome.failure),
+                        stage: "pile-review",
+                        sourceOfTruth: "ReviewPileResult"
+                      }
+                    })
+              });
+              return outcome;
+            },
             buildMission: () => buildReviewMission(intent, admittedPlanningOutput.planningAdmission),
             buildContext: () => ({
               provider: createOpenAICompatibleProvider({
