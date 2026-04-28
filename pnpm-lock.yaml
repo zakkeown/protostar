@@ -74,6 +74,9 @@ importers:
 
   packages/admission-e2e:
     dependencies:
+      '@protostar/artifacts':
+        specifier: workspace:*
+        version: link:../artifacts
       '@protostar/authority':
         specifier: workspace:*
         version: link:../authority

@@ -20,6 +20,7 @@
     { "path": "../dogpile-types" },
     { "path": "../evaluation" },
     { "path": "../evaluation-runner" },
+    { "path": "../artifacts" },
     { "path": "../../apps/factory-cli" }
   ]
 }
