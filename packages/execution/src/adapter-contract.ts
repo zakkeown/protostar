@@ -1,4 +1,5 @@
 import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
+import type { RepairContext } from "@protostar/planning";
 import type { RepoChangeSet } from "@protostar/repo";
 
 export interface ExecutionAdapter {
@@ -27,6 +28,7 @@ export interface AdapterContext {
     readonly allow: "none" | "loopback" | "allowlist";
     readonly allowedHosts?: readonly string[];
   };
+  readonly repairContext?: RepairContext;
 }
 
 export interface RepoReader {
@@ -78,7 +80,7 @@ export interface AdapterEvidence {
   }[];
   readonly retries: readonly {
     readonly attempt: number;
-    readonly retryReason: "transient" | "parse-reformat";
+    readonly retryReason: "transient" | "parse-reformat" | "repair";
     readonly errorClass?: string;
     readonly durationMs: number;
   }[];

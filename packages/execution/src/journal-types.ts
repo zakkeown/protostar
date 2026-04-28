@@ -28,7 +28,7 @@ export type TaskJournalEvent = TaskJournalEventBase &
     | {
         readonly kind: "task-failed";
         readonly reason: string;
-        readonly retryReason?: "transient" | "parse-reformat" | "orphaned-by-crash";
+        readonly retryReason?: "transient" | "parse-reformat" | "orphaned-by-crash" | "repair";
         readonly errorClass?: string;
         readonly evidenceArtifact?: StageArtifactRef;
       }

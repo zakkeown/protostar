@@ -184,7 +184,7 @@ function emptyEvidence(): Extract<AdapterResult, { readonly outcome: "change-set
 function buildAdapterContext(
   overrides: Partial<Pick<AdapterContext, "budget" | "network" | "repairContext">> = {}
 ): AdapterContext {
-  return {
+  const context: AdapterContext = {
     signal: new AbortController().signal,
     confirmedIntent: {} as ConfirmedIntent,
     resolvedEnvelope: {
@@ -204,9 +204,9 @@ function buildAdapterContext(
       async appendToken() {}
     },
     budget: overrides.budget ?? { taskWallClockMs: 180_000, adapterRetriesPerTask: 4 },
-    network: overrides.network ?? { allow: "loopback" },
-    repairContext: overrides.repairContext
+    network: overrides.network ?? { allow: "loopback" }
   };
+  return overrides.repairContext === undefined ? context : { ...context, repairContext: overrides.repairContext };
 }
 
 function classifyFailureReason(reason: AdapterFailureReason): string {
