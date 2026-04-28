@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 8 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 02 complete)
 
 ## Project
 
@@ -24,11 +24,11 @@
 
 ## Current Phase
 
-**Phase 9 — Operator Surface + Resumability** (pending)
+**Phase 9 — Operator Surface + Resumability** (in progress)
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Execute or refresh Phase 9 planning as needed. Phase 8 review, security, verification, and `pnpm run verify` are green.
+**Next action:** Continue Phase 9 operator-surface plans. Plan 09-02 completed the Q-12 canonical JSON lift; `pnpm run verify` is green.
 
 ## Phase Status
 
@@ -54,6 +54,8 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 9 Plan 02 (`09-02-canonical-json-lift-PLAN.md`). Lifted the execution-private `sortJsonValue` helper into `@protostar/artifacts/canonical-json`, added the package subpath export and workspace TypeScript path alias, re-exported from the artifacts barrel, and switched `packages/execution/src/snapshot.ts` to import the shared helper without changing serialized snapshot bytes. Added artifacts `node:test` coverage for recursive key sorting, array order preservation, primitives, idempotency, byte-stable stringify output, and a snapshot-like round-trip fixture. Verification passed: `pnpm install`, `pnpm --filter @protostar/artifacts build/test`, `pnpm --filter @protostar/execution build/test`, and `pnpm run verify`. Commits: `15d2e78`, `677e050`.
 
 - **2026-04-28:** Closed Phase 8 (`08-evaluation-evolution`) after all 8 plans, clean code review, security verification, and goal-backward verification. The implemented loop now produces deterministic mechanical scores, calls semantic evaluation, runs consensus under the harsher mean/min rule when confidence is low, refuses malformed/empty judge output as structured `EvaluationResult` parse failures, blocks release on failed evaluation reports, persists evolution snapshots/chain/calibration logs from `factory-cli`, and feeds prior-generation summaries into planning while keeping prior code hints behind `--evolve-code`. Security verified 29/29 threats in `08-SECURITY.md`; verification passed 7/7 after the planning contract was clarified so Phase 8 owns calibration evidence capture and Phase 10 DOG-04 owns ≥10-run empirical threshold tuning. `pnpm run verify` passed. Final review artifact: `08-REVIEW.md` clean (0 findings).
 
