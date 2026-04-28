@@ -170,7 +170,7 @@ Cross-cutting constraints (must_haves.truths shared across plans):
 Plans:
 
 **Wave 0** (skeletons + schema bumps; foundation for all downstream waves)
-- [ ] 05-01-repair-package-skeleton-PLAN.md — wave 0 — `@protostar/repair` workspace skeleton (pure-transform sibling to dogpile-adapter) (Q-05)
+- [x] 05-01-repair-package-skeleton-PLAN.md — wave 0 — `@protostar/repair` workspace skeleton (pure-transform sibling to dogpile-adapter) (Q-05)
 - [ ] 05-02-mechanical-checks-package-skeleton-PLAN.md — wave 0 — `@protostar/mechanical-checks` workspace skeleton (subprocess-driven adapter) (Q-07)
 - [ ] 05-03-schema-bumps-PLAN.md — wave 0 — confirmedIntent 1.3.0 → 1.4.0 + budget.maxRepairLoops + plan-schema task.acceptanceTestRefs + fixture cascade (Q-09, Q-12)
 

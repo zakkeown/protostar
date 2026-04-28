@@ -204,7 +204,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | EXEC-08 | Phase 4 | Pending |
 | LOOP-01 | Phase 5 | Pending |
 | LOOP-02 | Phase 5 | Pending |
-| LOOP-03 | Phase 5 | Pending |
+| LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; synthesizeRepairPlan implementation remains in 05-05 |
 | LOOP-04 | Phase 5 | Pending |
 | LOOP-05 | Phase 5 | Pending |
 | LOOP-06 | Phase 5 | Pending |
