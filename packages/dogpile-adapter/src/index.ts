@@ -49,6 +49,13 @@ export type {
   RunFactoryPileDeps
 } from "./run-factory-pile.js";
 
+// Phase 6 Plan 06-04 (Q-15): two-trigger execution-coordination mission builder.
+export { buildExecutionCoordinationMission } from "./execution-coordination-mission.js";
+export type {
+  ExecutionCoordinationMissionInput,
+  ExecutionCoordinationMode
+} from "./execution-coordination-mission.js";
+
 export interface FactoryPilePreset {
   readonly kind: FactoryPileKind;
   readonly description: string;
