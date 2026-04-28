@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildFindings } from "./findings.js";
+import { buildFindings, type MechanicalChecksPlanInput } from "./findings.js";
 
 describe("buildFindings", () => {
   it("emits a critical build-failure for a failing verify command", () => {
@@ -134,10 +134,10 @@ function commandResult(id: string, exitCode: number) {
   };
 }
 
-function planWithTasks(tasks: readonly unknown[]) {
+function planWithTasks(tasks: MechanicalChecksPlanInput["tasks"]): MechanicalChecksPlanInput {
   return {
     planId: "plan-1",
     runId: "run-1",
     tasks
-  };
+  } as MechanicalChecksPlanInput;
 }
