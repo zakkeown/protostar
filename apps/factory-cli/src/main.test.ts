@@ -3029,6 +3029,7 @@ function cosmeticPlanningFixture(acceptanceCriterionIds: readonly string[]): Rec
         kind: "verification",
         dependsOn: index === 0 ? [] : [`task-cli-success-${index}`],
         covers: [criterionId],
+        acceptanceTestRefs: acceptanceTestRefsFor([criterionId]),
         requiredCapabilities: noRequiredCapabilities,
         risk: "low"
       }))
@@ -3066,6 +3067,7 @@ function multiCandidatePlanningFixture(acceptanceCriterionIds: readonly string[]
             kind: "verification",
             dependsOn: [],
             covers: [],
+            acceptanceTestRefs: [],
             requiredCapabilities: noRequiredCapabilities,
             risk: "low"
           }
@@ -3084,6 +3086,7 @@ function multiCandidatePlanningFixture(acceptanceCriterionIds: readonly string[]
           kind: "verification",
           dependsOn: index === 0 ? [] : [`task-cli-middle-candidate-${index}`],
           covers: [criterionId],
+          acceptanceTestRefs: acceptanceTestRefsFor([criterionId]),
           requiredCapabilities: noRequiredCapabilities,
           risk: "low"
         }))
@@ -3101,6 +3104,7 @@ function multiCandidatePlanningFixture(acceptanceCriterionIds: readonly string[]
           kind: "verification",
           dependsOn: index === 0 ? ["task-cli-last-candidate-missing"] : [`task-cli-last-candidate-${index}`],
           covers: [criterionId],
+          acceptanceTestRefs: acceptanceTestRefsFor([criterionId]),
           requiredCapabilities: noRequiredCapabilities,
           risk: "low"
         }))
@@ -3110,9 +3114,11 @@ function multiCandidatePlanningFixture(acceptanceCriterionIds: readonly string[]
 }
 
 function unauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: readonly string[]): Record<string, unknown> {
-  const [firstCriterionId, secondCriterionId] = acceptanceCriterionIds;
-  assert.equal(typeof firstCriterionId, "string");
-  assert.equal(typeof secondCriterionId, "string");
+  const firstCriterionId = acceptanceCriterionIds[0];
+  const secondCriterionId = acceptanceCriterionIds[1];
+  if (typeof firstCriterionId !== "string" || typeof secondCriterionId !== "string") {
+    throw new Error("unauthorized capability fixture requires at least two acceptance criteria.");
+  }
 
   return {
     kind: "planning-pile-result",
@@ -3127,6 +3133,7 @@ function unauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: readonly 
           kind: "verification",
           dependsOn: [],
           covers: [firstCriterionId],
+          acceptanceTestRefs: acceptanceTestRefsFor([firstCriterionId]),
           requiredCapabilities: {
             repoScopes: [
               {
@@ -3155,6 +3162,7 @@ function unauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: readonly 
           kind: "verification",
           dependsOn: ["task-cli-capability-overage"],
           covers: [secondCriterionId],
+          acceptanceTestRefs: acceptanceTestRefsFor([secondCriterionId]),
           requiredCapabilities: {
             repoScopes: [],
             toolPermissions: [],
@@ -3174,6 +3182,16 @@ function dogpileUnauthorizedCapabilityPlanningFixture(acceptanceCriterionIds: re
     modelProviderId: "dogpile-planning-cell",
     traceRef: "trace-dogpile-invalid-candidate-blocks-execution"
   };
+}
+
+function acceptanceTestRefsFor(
+  acceptanceCriterionIds: readonly string[]
+): readonly { readonly acId: string; readonly testFile: string; readonly testName: string }[] {
+  return acceptanceCriterionIds.map((acId) => ({
+    acId,
+    testFile: "apps/factory-cli/src/main.test.ts",
+    testName: "factory CLI candidate-plan admission fixture"
+  }));
 }
 
 function expectedExecutionAdmittedPlanEvidence(plan: Record<string, unknown>): Record<string, unknown> {
