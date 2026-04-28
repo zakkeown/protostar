@@ -11,7 +11,7 @@ import {
   type PlanningPileResult
 } from "@protostar/planning";
 
-export type FactoryPileKind = "planning" | "review" | "execution-coordination";
+export type FactoryPileKind = "planning" | "review" | "execution-coordination" | "evaluation";
 
 export {
   assertCandidatePlanFromPlanningPileResult,
@@ -55,15 +55,21 @@ export type {
   ExecutionCoordinationMissionInput,
   ExecutionCoordinationMode
 } from "./execution-coordination-mission.js";
+export { buildEvaluationMission } from "./evaluation-mission.js";
+export type { EvaluationMissionInput } from "./evaluation-mission.js";
 
 export interface FactoryPilePreset {
   readonly kind: FactoryPileKind;
   readonly description: string;
   readonly protocol: NonNullable<DogpileOptions["protocol"]>;
   readonly tier: NonNullable<DogpileOptions["tier"]>;
-  readonly agents: readonly AgentSpec[];
+  readonly agents: readonly FactoryAgentSpec[];
   readonly budget: NonNullable<DogpileOptions["budget"]>;
   readonly terminate: NonNullable<DogpileOptions["terminate"]>;
+}
+
+export interface FactoryAgentSpec extends AgentSpec {
+  readonly model?: string;
 }
 
 export interface FactoryPileMission {
@@ -130,6 +136,31 @@ export const executionCoordinationPilePreset: FactoryPilePreset = {
     convergence({ stableTurns: 2, minSimilarity: 0.84 })
   )
 };
+
+export const evaluationPilePreset: FactoryPilePreset = {
+  kind: "evaluation",
+  // evaluationPilePreset is intentionally baseline-only; factory-cli appends consensus when required.
+  description: "A semantic evaluation judge scores completed run evidence against the fixed Phase 8 rubric.",
+  protocol: { kind: "broadcast", maxRounds: 2 },
+  tier: "quality",
+  agents: [
+    { id: "eval-baseline", role: "semantic-judge", model: "Qwen3-Next-80B-A3B-MLX-4bit" }
+  ],
+  budget: {
+    maxTokens: 20000,
+    timeoutMs: 120000
+  },
+  terminate: firstOf(
+    budget({ maxTokens: 20000, timeoutMs: 120000 }),
+    convergence({ stableTurns: 2, minSimilarity: 0.9 })
+  )
+};
+
+export const EVAL_CONSENSUS_AGENT_DEFAULT = {
+  id: "eval-consensus",
+  role: "consensus-judge",
+  model: "DeepSeek-Coder-V2-Lite-Instruct"
+} as const satisfies FactoryAgentSpec;
 
 export function buildPlanningMission(intent: ConfirmedIntent): FactoryPileMission {
   return {
