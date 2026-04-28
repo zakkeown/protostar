@@ -1,0 +1,85 @@
+{
+  "id": "intent_dog_03_button_color_hover",
+  "sourceDraftId": "draft_dog_03_button_color_hover",
+  "mode": "brownfield",
+  "goalArchetype": "cosmetic-tweak",
+  "title": "Change the primary button color and add a hover state",
+  "problem": "The sacrificial Tauri React toy app has an intentionally rough PrimaryButton component with a hard-coded background color and no hover state. Update only that button so the factory can prove the cosmetic-tweak loop against a real public repository.",
+  "requester": "local-operator",
+  "confirmedAt": "2026-04-28T00:00:00.000Z",
+  "context": "Target repository: github.com/zakkeown/protostar-toy-ttt. The component lives at src/components/PrimaryButton.tsx in the sibling toy repo. The change should be branch-per-run and delivered as a pull request against main.",
+  "acceptanceCriteria": [
+    {
+      "id": "ac_d0e5c105063ffb31",
+      "statement": "The primary button color is changed from the scaffold seed value and the button includes a visible hover state.",
+      "verification": "evidence"
+    },
+    {
+      "id": "ac_37ecd3edbfdcf83c",
+      "statement": "The pull request CI check named build-and-test succeeds on the toy repo.",
+      "verification": "test"
+    }
+  ],
+  "capabilityEnvelope": {
+    "repoScopes": [
+      {
+        "workspace": "protostar-toy-ttt",
+        "path": "src/components/PrimaryButton.tsx",
+        "access": "write"
+      }
+    ],
+    "toolPermissions": [
+      {
+        "tool": "typescript",
+        "permissionLevel": "use",
+        "reason": "Build the toy Tauri React TypeScript app after the cosmetic change.",
+        "risk": "low"
+      },
+      {
+        "tool": "shell",
+        "permissionLevel": "use",
+        "reason": "Run package manager, git, and GitHub delivery commands for the dogfood PR.",
+        "risk": "low"
+      }
+    ],
+    "workspace": {
+      "allowDirty": false
+    },
+    "network": {
+      "allow": "loopback"
+    },
+    "budget": {
+      "timeoutMs": 300000,
+      "adapterRetriesPerTask": 1,
+      "taskWallClockMs": 300000,
+      "deliveryWallClockMs": 600000,
+      "maxRepairLoops": 1
+    },
+    "delivery": {
+      "target": {
+        "owner": "zakkeown",
+        "repo": "protostar-toy-ttt",
+        "baseBranch": "main"
+      }
+    }
+  },
+  "constraints": [
+    "Change only the toy repo button component unless an adjacent style file is strictly required.",
+    "Do not merge the pull request.",
+    "Do not modify the Protostar factory implementation during this dogfood run."
+  ],
+  "stopConditions": [
+    "Stop if the factory cannot target github.com/zakkeown/protostar-toy-ttt.",
+    "Stop if the generated change touches unrelated toy app files.",
+    "Stop if GitHub delivery cannot open a pull request with the scoped dogfood token."
+  ],
+  "schemaVersion": "1.5.0",
+  "signature": {
+    "algorithm": "sha256",
+    "canonicalForm": "json-c14n@1.0",
+    "value": "6eb42694fde39a924d13780d5155e35c215b4474c188e32168b43f592520a514",
+    "intentHash": "3fa80cf4ce41cf1dcbebc4fc1fc1eab752b432cd8c624a78d40091398bd78fa7",
+    "envelopeHash": "bb5bb012cc5e5e427dab1225a5dbc94e0975d10fec876a29a87d48d2c9483288",
+    "policySnapshotHash": "874c698c6b54f82972538e60f57b4fb3b2c1fe95f12859d8c52daae8ff7e5277"
+  }
+}

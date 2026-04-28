@@ -90,13 +90,23 @@ completed: 2026-04-28
 
 ## Checkpoint Status
 
-Task 3 is blocked before the live DOG-03 invocation because LM Studio is not reachable at `http://127.0.0.1:1234/v1/models` (`curl` exit 7). The GitHub prerequisite is ready: after sourcing `~/.env`, `gh repo view zakkeown/protostar-toy-ttt --json name,visibility` returned `protostar-toy-ttt PUBLIC`.
+Task 3 remains blocked before a qualifying DOG-03 PR is created.
+
+Update after operator started LM Studio:
+
+- LM Studio became reachable at `http://127.0.0.1:1234/v1/models`.
+- The configured Qwen coder/judge model names from the default factory config were not usable as loaded API models in this LM Studio session.
+- `qwen/qwen3-coder-next` failed to load through `/v1/responses` due to LM Studio resource guardrails.
+- `openai/gpt-oss-20b` returned a valid Responses API payload, so it was tried as a local fallback for both planning and review.
+- Trusted launch passed after pinning `createdAt` in the DOG-03 draft and minting a matching signed `confirmed-intent.json`.
+- Live planning then failed because the planning pile returned prose/fenced JSON contributions instead of a top-level `PlanningPileResult` JSON payload: `Planning pile output is not valid JSON: Unexpected token 'a', "architectu"... is not valid JSON`.
+
+The GitHub prerequisite is ready: after sourcing `~/.env`, `gh repo view zakkeown/protostar-toy-ttt --json name,visibility` returned `protostar-toy-ttt PUBLIC`.
 
 Required continuation:
 
-- Start LM Studio's OpenAI-compatible server on `127.0.0.1:1234`.
-- Load the configured coder model `qwen3-coder-next-mlx-4bit`.
-- Load the configured judge model used by the current factory config/defaults.
+- Use an LM Studio model/runtime combination that reliably returns strict `PlanningPileResult` JSON for Dogpile planning, or add a planning-output extraction/repair layer before JSON parse.
+- Ensure the configured coder and judge model names match the model IDs exposed by LM Studio.
 - Continue DOG-03 using actual owner `zakkeown/protostar-toy-ttt`, not the plan typo `zkeown`.
 
 ## Deviations from Plan
@@ -125,7 +135,7 @@ None. The only security-relevant surface changed is the planned `.protostar/dogf
 
 - `node_modules/@gsd-build/sdk/dist/cli.js` was not present; the PATH fallback `gsd-sdk` is available.
 - `gh` needed network escalation under the sandbox; the escalated repo visibility check passed.
-- LM Studio local endpoint is unavailable, blocking the real DOG-03 run.
+- Initial LM Studio local endpoint was unavailable. After startup, the available fallback model returned non-contract planning output, blocking the real DOG-03 run before execution or delivery.
 
 ## User Setup Required
 
