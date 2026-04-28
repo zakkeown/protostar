@@ -157,7 +157,11 @@ export function reAuthorizeFromPayload(
        - Add: `"./authorization-payload": { "types": "./dist/authorization-payload.d.ts", "import": "./dist/authorization-payload.js" }`.
     3. Update `packages/delivery/src/index.ts` to re-export the type + guard from the barrel for back-compat.
     4. Edit `packages/review/src/delivery-authorization.ts`:
-       - Loosen the `// INTERNAL: only call from runReviewRepairLoop` comment to: `// Phase 5 mint path — runReviewRepairLoop is the primary caller. Phase 9 Plan 09-08 added reAuthorizeFromPayload below as the legitimate re-mint entrypoint for deliver.`
+       - **JSDoc replacement (explicit):** Find the existing `// INTERNAL: only call from runReviewRepairLoop` comment above `mintDeliveryAuthorization` and REPLACE it verbatim with:
+         ```
+         // Mints DeliveryAuthorization. Legitimate callers: runReviewRepairLoop (in-loop), reAuthorizeFromPayload (external resume via factory-cli deliver). All other callers must use reAuthorizeFromPayload.
+         ```
+         No other text on that comment line; preserve indentation. Do NOT delete the comment — replace it.
        - Add `reAuthorizeFromPayload(payload, deps)` per the verbatim shape in `<interfaces>`. Implementation:
          a. `decisionRaw = await deps.readReviewDecision(payload.decisionPath)`. ENOENT/throw → `{ ok: false, reason: 'decision-missing' }`.
          b. Parse decisionRaw into the existing review-decision artifact shape (use the same parser the run loop uses — search for it in packages/review/src/).
@@ -166,7 +170,11 @@ export function reAuthorizeFromPayload(
          e. Otherwise call the existing `mintDeliveryAuthorization({runId: payload.runId, decisionPath: payload.decisionPath})` to obtain the brand.
          f. Return `{ ok: true, authorization }`.
     5. Update `packages/review/package.json` deps to include `@protostar/delivery` (workspace:*) if not present; update `packages/review/tsconfig.json` references.
-    6. Update `packages/review/src/index.ts` to barrel `reAuthorizeFromPayload`.
+    6. **Barrel re-export (explicit):** Add the following line to `packages/review/src/index.ts` (preserving existing exports):
+       ```typescript
+       export { reAuthorizeFromPayload } from './delivery-authorization.js';
+       ```
+       If `delivery-authorization.js` is already partially re-exported (e.g., for the `DeliveryAuthorization` brand), append `reAuthorizeFromPayload` to the existing named-export list rather than adding a duplicate `export { ... } from` line.
     7. Write tests covering the cases in `<behavior>`. Use a fake `readReviewDecision` injected per test.
     8. Run `pnpm install`, `pnpm --filter @protostar/delivery build && pnpm --filter @protostar/delivery test`, `pnpm --filter @protostar/review build && pnpm --filter @protostar/review test`.
   </action>
@@ -178,6 +186,8 @@ export function reAuthorizeFromPayload(
     - `grep -c 'isAuthorizationPayload' packages/delivery/src/authorization-payload.ts` is at least 1
     - `grep -c '"./authorization-payload"' packages/delivery/package.json` is 1
     - `grep -c 'reAuthorizeFromPayload' packages/review/src/delivery-authorization.ts` is at least 1
+    - `grep -c 'reAuthorizeFromPayload' packages/review/src/index.ts` is at least 1
+    - `grep -c 'Legitimate callers: runReviewRepairLoop' packages/review/src/delivery-authorization.ts` is 1
     - `grep -cE "'gate-not-pass'" packages/review/src/delivery-authorization.ts` is at least 1
     - `grep -cE "'runId-mismatch'" packages/review/src/delivery-authorization.ts` is at least 1
     - `pnpm --filter @protostar/delivery test` exits 0

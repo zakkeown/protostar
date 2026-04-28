@@ -2,7 +2,7 @@
 phase: 09-operator-surface-resumability
 plan: 06
 type: execute
-wave: 2
+wave: 3
 depends_on: [01, 03]
 files_modified:
   - apps/factory-cli/src/commands/cancel.ts

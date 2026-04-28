@@ -2,7 +2,7 @@
 phase: 09-operator-surface-resumability
 plan: 11
 type: execute
-wave: 4
+wave: 5
 depends_on: [01, 02, 03, 04, 05, 06, 07, 08, 09, 10]
 files_modified:
   - packages/admission-e2e/src/exit-codes.contract.test.ts

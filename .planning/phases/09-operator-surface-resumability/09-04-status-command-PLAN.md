@@ -2,7 +2,7 @@
 phase: 09-operator-surface-resumability
 plan: 04
 type: execute
-wave: 2
+wave: 3
 depends_on: [01, 02, 03]
 files_modified:
   - apps/factory-cli/src/run-discovery.ts

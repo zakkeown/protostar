@@ -2,7 +2,7 @@
 phase: 09-operator-surface-resumability
 plan: 10
 type: execute
-wave: 3
+wave: 4
 depends_on: [01, 03, 04]
 files_modified:
   - apps/factory-cli/src/commands/prune.ts

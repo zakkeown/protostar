@@ -2,8 +2,8 @@
 phase: 09-operator-surface-resumability
 plan: 01
 type: execute
-wave: 1
-depends_on: []
+wave: 2
+depends_on: ["02"]
 files_modified:
   - apps/factory-cli/package.json
   - apps/factory-cli/src/main.ts
@@ -24,7 +24,7 @@ must_haves:
     - "main.ts is a thin commander dispatcher; run logic lives in commands/run.ts as a behavior-preserving extraction (Q-01)"
     - "commander@14.0.3 + @commander-js/extra-typings@14.0.0 are pinned exact versions on apps/factory-cli (Q-02)"
     - "ExitCode const object exports 7 integers: Success=0, GenericError=1, UsageOrArgError=2, NotFound=3, Conflict=4, CancelledByOperator=5, NotResumable=6 (Q-03)"
-    - "writeStdoutJson canonicalizes via sortJsonValue (Q-12 dep — uses placeholder identity until 09-02 lands; Wave 1 same wave so 09-02 ships canonical-json in parallel and this plan's writeStdoutJson imports the lifted helper) and writeStderr is the only progress channel (Q-04)"
+    - "writeStdoutJson canonicalizes via sortJsonValue imported from @protostar/artifacts/canonical-json (Q-12; 09-02 lands in Wave 1, this plan now Wave 2 with depends_on: [02]) and writeStderr is the only progress channel (Q-04)"
     - "RUN_ID_REGEX is /^[a-zA-Z0-9_-]{1,128}$/; parseRunId rejects non-conforming input; assertRunIdConfined throws on path escapes (Q-19)"
     - "parseDuration accepts Ns/Nm/Nh/Nd/Nw and rejects malformed input (Q-06 helper, shared with prune in 09-10)"
     - "PROJECT.md Constraints lists commander family runtime-dep lock alongside isomorphic-git, diff, @dogpile/sdk, @octokit/*"
@@ -57,7 +57,7 @@ must_haves:
       pattern: "addCommand\\(buildRunCommand"
     - from: apps/factory-cli/src/io.ts
       to: packages/artifacts/src/canonical-json.ts
-      via: "import sortJsonValue (lands in 09-02 same wave; coordinated)"
+      via: "import sortJsonValue (09-02 ships in Wave 1; this plan is Wave 2 dep)"
       pattern: "from .*canonical-json"
 ---
 
@@ -170,7 +170,7 @@ async function main(argv: readonly string[]): Promise<number> {
     - apps/factory-cli/package.json (devDependencies layout, exports field)
     - .planning/phases/09-operator-surface-resumability/09-CONTEXT.md (Q-03, Q-04, Q-06, Q-19)
     - .planning/phases/09-operator-surface-resumability/09-RESEARCH.md (Pattern 3 branded RunId)
-    - packages/execution/src/snapshot.ts (sortJsonValue source — note 09-02 will lift this; this task imports from packages/artifacts/canonical-json AFTER 09-02 lands. If 09-02 is not yet merged at execute time, executor coordinates by waiting for 09-02 OR temporarily importing from execution and adding a TODO; both 09-01 and 09-02 are Wave 1 parallel.)
+    - packages/execution/src/snapshot.ts (sortJsonValue source — 09-02 lifts this in Wave 1 BEFORE this plan runs; this task imports from @protostar/artifacts/canonical-json directly, no fallback path needed since 09-02 is a hard depends_on)
   </read_first>
   <files>apps/factory-cli/src/exit-codes.ts, apps/factory-cli/src/io.ts, apps/factory-cli/src/run-id.ts, apps/factory-cli/src/duration.ts, apps/factory-cli/src/exit-codes.test.ts, apps/factory-cli/src/io.test.ts, apps/factory-cli/src/run-id.test.ts, apps/factory-cli/src/duration.test.ts</files>
   <behavior>
@@ -184,7 +184,7 @@ async function main(argv: readonly string[]): Promise<number> {
   <action>
     1. Create `apps/factory-cli/src/exit-codes.ts` with the verbatim `const ExitCode = { Success: 0, GenericError: 1, UsageOrArgError: 2, NotFound: 3, Conflict: 4, CancelledByOperator: 5, NotResumable: 6 } as const;` plus `export type ExitCodeValue = (typeof ExitCode)[keyof typeof ExitCode];`.
     2. Create `apps/factory-cli/src/io.ts`:
-       - `import { sortJsonValue } from "@protostar/artifacts/canonical-json";` (this import target lands in 09-02 same wave; if 09-02 is unmerged, executor MAY temporarily inline a `function sortJsonValue` here AND mark with `// TODO(09-02): replace with @protostar/artifacts/canonical-json import` comment; final commit must use the lifted import per Q-12).
+       - `import { sortJsonValue } from "@protostar/artifacts/canonical-json";` (this import target ships in 09-02, which is a hard `depends_on` for this plan via Wave 1 → Wave 2 ordering; no fallback path).
        - `export function writeStdoutJson(value: unknown): void { process.stdout.write(JSON.stringify(sortJsonValue(value)) + "\n"); }`
        - `export function writeStderr(line: string): void { process.stderr.write(line + "\n"); }`
     3. Create `apps/factory-cli/src/run-id.ts` matching the verbatim shape in `<interfaces>`. Use `path.resolve(runsRoot, runId)` and check `resolved.startsWith(path.resolve(runsRoot) + path.sep)`. Throw `Error` with message: `runId ${runId} resolves outside runs root`.
