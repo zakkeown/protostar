@@ -68,9 +68,7 @@ const downstreamArtifactFiles = [
   "review-execution-loop.json",
   "review-gate.json",
   "evaluation-report.json",
-  "evolution-decision.json",
-  "delivery-plan.json",
-  "delivery/pr-body.md"
+  "evolution-decision.json"
 ] as const;
 const executionAndReviewArtifactFiles = [
   "execution-plan.json",
@@ -81,9 +79,7 @@ const executionAndReviewArtifactFiles = [
   "review-mission.txt",
   "review-gate.json",
   "evaluation-report.json",
-  "evolution-decision.json",
-  "delivery-plan.json",
-  "delivery/pr-body.md"
+  "evolution-decision.json"
 ] as const;
 
 describe("factory CLI draft admission hardening", () => {
@@ -974,7 +970,7 @@ describe("factory CLI draft admission hardening", () => {
       assertStageStatus(manifestStages, "planning", "passed");
       assertStageStatus(manifestStages, "execution", "passed");
       assertStageStatus(manifestStages, "review", "passed");
-      assertStageStatus(manifestStages, "release", "passed");
+      assertStageStatus(manifestStages, "release", "skipped");
 
       const plan = await readJsonObject(resolve(runDir, "plan.json"));
       await assertPlanningResultIsCandidatePlanSource(runDir);

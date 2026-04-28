@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import * as nodeFs from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { appendFile, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
-import { createGitHubPrDeliveryPlanLegacy } from "@protostar/delivery";
 import {
   buildPlanningMission,
   buildReviewMission,
@@ -90,11 +90,12 @@ import {
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
-import { runReviewRepairLoop, createReviewPileModelReviewer, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
+import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthorization, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs, type PileMode } from "./cli-args.js";
+import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
@@ -464,6 +465,13 @@ export async function runFactory(
 
   if (policyVerdict.type !== "allow") {
     throw new Error(`Factory run refused by policy: ${policyVerdict.rationale}`);
+  }
+
+  if (intent.capabilityEnvelope.delivery !== undefined) {
+    const fastResult = await runFastDeliveryPreflight({ env: process.env, runDir, fs: fsPromises });
+    if (!fastResult.proceed) {
+      throw new CliExitError(`Delivery fast preflight refused: ${fastResult.result.outcome}`, 1);
+    }
   }
 
   const manifest = createFactoryRunManifest({
@@ -983,11 +991,36 @@ export async function runFactory(
     previous: createIntentOntologySnapshot(intent),
     current: createPlanOntologySnapshot(admittedPlanHandoff.plan)
   });
-  const deliveryPlan = createGitHubPrDeliveryPlanLegacy({
-    runId,
-    reviewGate: review,
-    title: intent.title
-  });
+  if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
+    const authorization = await loadDeliveryAuthorization({
+      decisionPath: loop.decisionPath,
+      readJson: async (path) => JSON.parse(await readFile(path, "utf8")) as unknown
+    });
+    if (authorization === null) {
+      throw new CliExitError("Delivery authorization could not be loaded from approved review decision.", 1);
+    }
+    const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
+    const deliverySignal = AbortSignal.any([
+      runAbortController.signal,
+      AbortSignal.timeout(deliveryWallClockMs)
+    ]);
+    const fullResult = await runFullDeliveryPreflight({
+      token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
+      target: intent.capabilityEnvelope.delivery.target,
+      runDir,
+      fs: fsPromises,
+      signal: deliverySignal
+    });
+    if (!fullResult.proceed) {
+      throw new CliExitError(`Delivery full preflight refused: ${fullResult.result.outcome}`, 1);
+    }
+    const { octokit, baseSha } = fullResult;
+    void authorization;
+    void octokit;
+    void baseSha;
+    // FIXME(Plan 07-11): wire executeDelivery here using fullResult.octokit + baseSha + plan composition
+    throw new CliExitError("Delivery execution is pending Plan 07-11 wiring.", 1);
+  }
   const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);
   const startedAt = new Date().toISOString();
   const finalManifest = [
@@ -1087,8 +1120,8 @@ export async function runFactory(
     },
     {
       stage: "release" as const,
-      status: deliveryPlan.status === "ready" ? ("passed" as const) : ("skipped" as const),
-      artifacts: deliveryPlan.artifacts
+      status: "skipped" as const,
+      artifacts: []
     }
   ].reduce(
     (current, stage) =>
@@ -1133,8 +1166,6 @@ export async function runFactory(
   await writeJson(resolve(runDir, "review-gate.json"), review);
   await writeJson(resolve(runDir, "evaluation-report.json"), evaluationReport);
   await writeJson(resolve(runDir, "evolution-decision.json"), evolutionDecision);
-  await writeJson(resolve(runDir, "delivery-plan.json"), deliveryPlan);
-  await writeFile(resolve(runDir, "delivery/pr-body.md"), `${deliveryPlan.body}\n`, "utf8");
 
   const finalResult = {
     runId,
@@ -1167,9 +1198,7 @@ export async function runFactory(
       ...executionResult.evidence.map((ref) => ref.uri),
       "review-gate.json",
       "evaluation-report.json",
-      "evolution-decision.json",
-      "delivery-plan.json",
-      "delivery/pr-body.md"
+      "evolution-decision.json"
     ]
   };
 
