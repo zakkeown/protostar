@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
+import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus, type StageArtifactRef } from "@protostar/artifacts";
 import {
   buildPlanningMission,
   buildReviewMission,
@@ -96,6 +96,7 @@ import { resolveWorkspaceRoot } from "@protostar/paths";
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import { ArgvError, parseCliArgs, type ParsedCliArgs, type PileMode } from "./cli-args.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
+import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
@@ -991,6 +992,7 @@ export async function runFactory(
     previous: createIntentOntologySnapshot(intent),
     current: createPlanOntologySnapshot(admittedPlanHandoff.plan)
   });
+  let deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
   if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
     const authorization = await loadDeliveryAuthorization({
       decisionPath: loop.decisionPath,
@@ -1015,11 +1017,42 @@ export async function runFactory(
       throw new CliExitError(`Delivery full preflight refused: ${fullResult.result.outcome}`, 1);
     }
     const { octokit, baseSha } = fullResult;
-    void authorization;
-    void octokit;
-    void baseSha;
-    // FIXME(Plan 07-11): wire executeDelivery here using fullResult.octokit + baseSha + plan composition
-    throw new CliExitError("Delivery execution is pending Plan 07-11 wiring.", 1);
+    if (octokit === undefined || baseSha === undefined) {
+      throw new CliExitError("Delivery full preflight did not return Octokit and base SHA.", 1);
+    }
+    const deliveryArtifacts = buildDeliveryArtifactList(executionResult.evidence);
+    const wireResult = await wireExecuteDelivery({
+      runId,
+      runDir,
+      authorization,
+      intent: {
+        title: intent.title,
+        archetype: intent.goalArchetype ?? "cosmetic-tweak"
+      },
+      target: intent.capabilityEnvelope.delivery.target,
+      bodyInput: {
+        runId,
+        target: intent.capabilityEnvelope.delivery.target,
+        mechanical: {
+          verdict: review.verdict === "pass" ? "pass" : "fail",
+          findings: review.findings
+        },
+        critiques: [],
+        iterations: [],
+        artifacts: deliveryArtifacts
+      },
+      token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
+      octokit,
+      baseSha,
+      workspaceDir: repoRuntime.cloneDir,
+      fs: fsPromises,
+      signal: deliverySignal,
+      requiredChecks: factoryConfig.config.delivery?.requiredChecks ?? []
+    });
+    deliveryWireStatus = wireResult.status;
+    if (wireResult.status === "delivery-blocked") {
+      throw new CliExitError("Delivery execution was blocked; see delivery/delivery-result.json.", 1);
+    }
   }
   const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);
   const startedAt = new Date().toISOString();
@@ -1120,8 +1153,13 @@ export async function runFactory(
     },
     {
       stage: "release" as const,
-      status: "skipped" as const,
-      artifacts: []
+      status: deliveryWireStatus === "delivered" ? ("passed" as const) : ("skipped" as const),
+      artifacts: deliveryWireStatus === "delivered"
+        ? [
+            artifact("release", "delivery-result", "delivery/delivery-result.json", "GitHub PR delivery result and latest CI verdict."),
+            artifact("release", "ci-events", "delivery/ci-events.jsonl", "Append-only CI capture and delivery event stream.")
+          ]
+        : []
     }
   ].reduce(
     (current, stage) =>
@@ -1198,7 +1236,8 @@ export async function runFactory(
       ...executionResult.evidence.map((ref) => ref.uri),
       "review-gate.json",
       "evaluation-report.json",
-      "evolution-decision.json"
+      "evolution-decision.json",
+      ...(deliveryWireStatus === "delivered" ? ["delivery/delivery-result.json", "delivery/ci-events.jsonl"] : [])
     ]
   };
 
@@ -1253,6 +1292,19 @@ function artifact(
     uri,
     description
   };
+}
+
+function buildDeliveryArtifactList(executionEvidence: readonly StageArtifactRef[]): readonly StageArtifactRef[] {
+  return [
+    artifact("intent", "confirmed-intent", "intent.json", "Normalized confirmed intent input."),
+    artifact("planning", "plan-graph", "plan.json", "Admitted PlanGraph written after planning admission."),
+    artifact("execution", "execution-result", "execution-result.json", "Execution result."),
+    artifact("execution", "review-execution-loop", "review-execution-loop.json", "Review-execute-review loop transcript."),
+    ...executionEvidence,
+    artifact("review", "review-gate", "review-gate.json", "Mechanical review verdict and findings."),
+    artifact("review", "evaluation-report", "evaluation-report.json", "Three-stage evaluation report stub."),
+    artifact("review", "evolution-decision", "evolution-decision.json", "Ontology convergence decision stub.")
+  ];
 }
 
 function statusForReviewVerdict(verdict: ReviewVerdict) {
