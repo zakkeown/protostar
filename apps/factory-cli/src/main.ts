@@ -102,6 +102,7 @@ import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
 import type { PileMode } from "./cli-args.js";
 import { buildRunCommand } from "./commands/run.js";
 import { buildStatusCommand } from "./commands/status.js";
+import { buildInspectCommand } from "./commands/inspect.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
@@ -243,6 +244,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     });
   program.addCommand(buildRunCommand());
   program.addCommand(buildStatusCommand());
+  program.addCommand(buildInspectCommand());
 
   const rawArgv = argv[0] === "--" ? argv.slice(1) : argv;
   const normalizedArgv =
