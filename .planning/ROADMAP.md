@@ -196,7 +196,7 @@ Plans:
 - [x] 05-12-factory-cli-wiring-PLAN.md — wave 5 — runFactory swaps to runReviewRepairLoop + buildReviewRepairServices (injects readFile + RepoSubprocessRunner into mechanical-checks) + preflightCoderAndJudge + .env.example (Q-01 wiring, Q-10 preflight)
 
 **Wave 6** *(blocked on Wave 5 completion)* (Phase 7 contract pin)
-- [ ] 05-13-delivery-contract-pin-PLAN.md — wave 6 — packages/delivery declares createGitHubPrDeliveryPlan(authorization: DeliveryAuthorization, ...) signature + @ts-expect-error negative tests (Q-16)
+- [x] 05-13-delivery-contract-pin-PLAN.md — wave 6 — packages/delivery declares createGitHubPrDeliveryPlan(authorization: DeliveryAuthorization, ...) signature + @ts-expect-error negative tests (Q-16)
 
 
 ## Phase 6 — Live Dogpile Piles

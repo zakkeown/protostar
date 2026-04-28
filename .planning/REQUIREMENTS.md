@@ -206,7 +206,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | LOOP-02 | Phase 5 | Complete — 05-08 added ModelReviewer and 05-10 invokes it only after mechanical pass |
 | LOOP-03 | Phase 5 | Complete — 05-05 added repair synthesis and 05-10 generates RepairPlan values for non-pass review iterations |
 | LOOP-04 | Phase 5 | Complete — 05-03 added maxRepairLoops, 05-05 added repair subgraph, 05-06 added repair context, and 05-10 re-executes via executor.executeRepairTasks |
-| LOOP-05 | Phase 5 | Complete — 05-10 writes review-decision.json and mints DeliveryAuthorization only on mechanical pass plus model pass |
+| LOOP-05 | Phase 5 | Complete — 05-10 writes review-decision.json and mints DeliveryAuthorization only on mechanical pass plus model pass; 05-13 pins the Phase 7 delivery contract to require that brand |
 | LOOP-06 | Phase 5 | Complete — 05-10 writes review-block.json with iteration history and budget/mechanical/model block reasons |
 | PILE-01 | Phase 6 | Pending |
 | PILE-02 | Phase 6 | Pending |
