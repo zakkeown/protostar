@@ -21,6 +21,7 @@ export type {
   RunAccounting,
   RunEvent,
   RunResult,
+  StreamEvent,
   StreamHandle,
   Trace
 } from "@dogpile/sdk/types";

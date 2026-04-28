@@ -41,6 +41,14 @@ export {
   type MapSdkStopContext
 } from "./map-sdk-stop-to-pile-failure.js";
 
+// Phase 6 Plan 06-04: network-only SDK invocation seam.
+export { runFactoryPile } from "./run-factory-pile.js";
+export type {
+  PileRunContext,
+  PileRunOutcome,
+  RunFactoryPileDeps
+} from "./run-factory-pile.js";
+
 export interface FactoryPilePreset {
   readonly kind: FactoryPileKind;
   readonly description: string;
