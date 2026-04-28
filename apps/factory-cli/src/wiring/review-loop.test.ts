@@ -17,7 +17,7 @@ describe("buildReviewRepairServices", () => {
     const fs = memoryFs();
     const services = buildReviewRepairServices({
       fs,
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -28,7 +28,7 @@ describe("buildReviewRepairServices", () => {
       executor: executor(),
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [] }),
-      judgeFactory: async () => ({ verdict: "pass", critiques: [] })
+      judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
     assert.equal(typeof services.mechanicalChecker, "function");
@@ -41,7 +41,7 @@ describe("buildReviewRepairServices", () => {
     const finding = findingForTask("task_1");
     const services = buildReviewRepairServices({
       fs: memoryFs(),
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -52,7 +52,7 @@ describe("buildReviewRepairServices", () => {
       executor: executor(),
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [finding] }),
-      judgeFactory: async () => ({ verdict: "pass", critiques: [] })
+      judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
     const result = await services.mechanicalChecker({
@@ -73,7 +73,7 @@ describe("buildReviewRepairServices", () => {
     let received: Record<string, unknown> | undefined;
     buildReviewRepairServices({
       fs,
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -87,7 +87,7 @@ describe("buildReviewRepairServices", () => {
         received = config as unknown as Record<string, unknown>;
         return finalMechanicalAdapter({ findings: [] })(config);
       },
-      judgeFactory: async () => ({ verdict: "pass", critiques: [] })
+      judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
     assert.equal(received?.["readFile"], fs.readFile);
@@ -98,7 +98,7 @@ describe("buildReviewRepairServices", () => {
     const reviewer: ModelReviewer = async () => ({ verdict: "pass", critiques: [] });
     const services = buildReviewRepairServices({
       fs: memoryFs(),
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -126,7 +126,7 @@ describe("buildReviewRepairServices", () => {
     const fs = memoryFs();
     const services = buildReviewRepairServices({
       fs,
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -137,7 +137,7 @@ describe("buildReviewRepairServices", () => {
       executor: executor(),
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [] }),
-      judgeFactory: async () => ({ verdict: "pass", critiques: [] })
+      judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
     const decision = await services.persistence.writeReviewDecision({
@@ -154,7 +154,7 @@ describe("runReviewRepairLoopWithDurablePersistence", () => {
   it("delegates to runReviewRepairLoop with built durable services", async () => {
     const result = await runReviewRepairLoopWithDurablePersistence({
       fs: memoryFs(),
-      gitFs: {},
+      gitFs: {} as never,
       runsRoot: "/runs",
       workspaceRoot: "/workspace",
       factoryConfig: factoryConfig(),
@@ -166,10 +166,10 @@ describe("runReviewRepairLoopWithDurablePersistence", () => {
       initialExecution: executionResult,
       confirmedIntent: {
         capabilityEnvelope: { budget: { maxRepairLoops: 0 } }
-      },
+      } as never,
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [] }),
-      judgeFactory: async () => ({ verdict: "pass", critiques: [] })
+      judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
     assert.equal(result.status, "approved");

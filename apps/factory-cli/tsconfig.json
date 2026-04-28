@@ -18,6 +18,7 @@
     { "path": "../../packages/repo" },
     { "path": "../../packages/execution" },
     { "path": "../../packages/review" },
+    { "path": "../../packages/mechanical-checks" },
     { "path": "../../packages/delivery" },
     { "path": "../../packages/evaluation" },
     { "path": "../../packages/dogpile-adapter" },

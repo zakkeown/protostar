@@ -41,6 +41,9 @@ importers:
       '@protostar/lmstudio-adapter':
         specifier: workspace:*
         version: link:../../packages/lmstudio-adapter
+      '@protostar/mechanical-checks':
+        specifier: workspace:*
+        version: link:../../packages/mechanical-checks
       '@protostar/paths':
         specifier: workspace:*
         version: link:../../packages/paths
