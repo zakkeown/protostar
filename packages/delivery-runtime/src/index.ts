@@ -6,3 +6,4 @@ export { preflightDeliveryFast } from "./preflight-fast.js";
 export type { FastPreflightResult } from "./preflight-fast.js";
 export { FORBIDDEN_SCOPES, preflightDeliveryFull } from "./preflight-full.js";
 export type { DeliveryTarget, FullPreflightResult } from "./preflight-full.js";
+export { buildBranchName, generateBranchSuffix } from "./branch-template.js";
