@@ -641,8 +641,15 @@ describe("factory CLI draft admission hardening", () => {
 
       assert.equal(runFactoryPileSpy.mock.callCount(), 1, "live mode must invoke runFactoryPile exactly once for planning");
       assert.equal(providerBodies.length, 1, "planning provider smoke call must exercise one OpenAI-compatible request");
-      assert.deepEqual(readObjectProperty(readObjectProperty(providerBodies[0]!, "response_format"), "json_schema")["name"], "planning_pile_result");
-      assert.equal(readObjectProperty(providerBodies[0]!, "response_format")["type"], "json_schema");
+      const responseFormat = readObjectProperty(providerBodies[0]!, "response_format");
+      const jsonSchema = readObjectProperty(responseFormat, "json_schema");
+      assert.deepEqual(jsonSchema["name"], "planning_pile_result");
+      assert.equal(responseFormat["type"], "json_schema");
+      assert.equal(jsonSchema["strict"], true);
+      const schema = readObjectProperty(jsonSchema, "schema");
+      const outputSchema = readObjectProperty(readObjectProperty(schema, "properties"), "output");
+      assert.equal(outputSchema["type"], "object");
+      assert.deepEqual(outputSchema["required"], ["strategy", "tasks"]);
       const resultJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "result.json"));
       assert.ok(resultJson["output"], "pile result.json must persist");
       const traceJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "trace.json"));

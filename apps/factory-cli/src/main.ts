@@ -610,6 +610,7 @@ export async function runFactory(
       });
       throw new CliExitError(reason, 1);
     }
+    planningPileResultInput = normalizeLivePlanningPileResultInput(planningPileResultInput);
   }
   const planningPileResultAdmission = parsePlanningPileResultInputs(planningPileResultInput);
   if (!planningPileResultAdmission.ok) {
@@ -2930,6 +2931,7 @@ function planningPileResultResponseFormat(): JsonObject {
     type: "json_schema",
     json_schema: {
       name: "planning_pile_result",
+      strict: true,
       schema: {
         type: "object",
         additionalProperties: false,
@@ -2943,8 +2945,10 @@ function planningPileResultResponseFormat(): JsonObject {
             enum: ["dogpile"]
           },
           output: {
-            type: "string",
-            description: "A JSON.stringify payload whose parsed value is a candidate plan object with strategy and tasks."
+            type: "object",
+            additionalProperties: false,
+            properties: planningPileOutputSchemaProperties(),
+            required: ["strategy", "tasks"]
           },
           modelProviderId: {
             type: "string"
@@ -2954,6 +2958,115 @@ function planningPileResultResponseFormat(): JsonObject {
           }
         },
         required: ["kind", "source", "output"]
+      }
+    }
+  };
+}
+
+function normalizeLivePlanningPileResultInput(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry) => normalizeLivePlanningPileResultInput(entry));
+  if (!isRecord(value) || !isRecord(value["output"])) return value;
+  return {
+    ...value,
+    output: JSON.stringify(value["output"])
+  };
+}
+
+function planningPileOutputSchemaProperties(): JsonObject {
+  return {
+    strategy: { type: "string" },
+    planId: { type: "string" },
+    createdAt: { type: "string" },
+    tasks: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          id: { type: "string", pattern: "^task-" },
+          title: { type: "string" },
+          kind: {
+            type: "string",
+            enum: ["research", "design", "implementation", "verification", "release"]
+          },
+          dependsOn: {
+            type: "array",
+            items: { type: "string", pattern: "^task-" }
+          },
+          covers: {
+            type: "array",
+            minItems: 1,
+            items: { type: "string", pattern: "^ac_" }
+          },
+          targetFiles: {
+            type: "array",
+            items: { type: "string" }
+          },
+          acceptanceTestRefs: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                kind: { type: "string" },
+                ref: { type: "string" }
+              },
+              required: ["kind", "ref"]
+            }
+          },
+          adapterRef: { type: "string" },
+          requiredCapabilities: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              repoScopes: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    workspace: { type: "string" },
+                    path: { type: "string" },
+                    access: { type: "string", enum: ["read", "write", "execute"] }
+                  },
+                  required: ["workspace", "path", "access"]
+                }
+              },
+              toolPermissions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    tool: { type: "string" },
+                    permissionLevel: { type: "string" }
+                  },
+                  required: ["tool", "permissionLevel"]
+                }
+              },
+              executeGrants: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    command: { type: "string" },
+                    scope: { type: "string" }
+                  },
+                  required: ["command", "scope"]
+                }
+              },
+              budget: {
+                type: "object",
+                additionalProperties: { type: "number" }
+              }
+            },
+            required: ["repoScopes", "toolPermissions", "budget"]
+          },
+          risk: { type: "string", enum: ["low", "medium", "high"] }
+        },
+        required: ["id", "title", "kind", "dependsOn", "covers", "requiredCapabilities", "risk"]
       }
     }
   };
