@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 6 Plan 02 complete)
+**Last updated:** 2026-04-28 (Phase 6 Plan 03 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
 
-**Next action:** Wave 0 complete (06-01, 06-02). Execute Phase 6 Wave 1 — 06-03, 06-04 in parallel; then W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08.
+**Next action:** Wave 0 complete (06-01, 06-02). Wave 1 part A complete (06-03 — adapter failure taxonomy + budget reconciliation). Execute 06-04 (`runFactoryPile` via `stream()` + AbortSignal.any hierarchical aborts). Then W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08.
 
 ## Phase Status
 
@@ -54,6 +54,8 @@ Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan s
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 6 Plan 03 (`06-03-adapter-budget-failure-types-PLAN.md`): added `packages/dogpile-adapter/src/pile-failure-types.ts` defining the six-variant `PileFailure` discriminated union (Q-13: pile-timeout / pile-budget-exhausted / pile-schema-parse / pile-all-rejected / pile-network / pile-cancelled, each with its own evidence shape) plus supporting `PileKind`, `PileSourceOfTruth`, `JudgeDecisionRef`, `PresetBudget`, `EnvelopeBudget`, `ResolvedPileBudget` types; added pure `resolvePileBudget` (Q-10 per-field min where both defined, envelope-omitted fields fall through, both-omit → `Number.MAX_SAFE_INTEGER`, `maxCalls` included iff at least one input defines it); added pure `mapSdkStopToPileFailure` with exhaustive switch + `assertNever` default (Q-13 SDK→Protostar translation; budget:cost / convergence / judge:accepted / judge:score-threshold → null); 8 TDD test cases per helper (16 new, 20/20 adapter pass). Resolved internal plan inconsistency by landing barrel re-exports in this plan rather than deferring to Plan 06-04 — the plan's own Task 3 acceptance gate and the user-supplied success criteria both required barrel availability now. `pnpm --filter @protostar/dogpile-adapter test` (20/20) and `pnpm run verify` (124/124) green; static no-fs contract still passes. Wave 1 part A closed; 06-04 unblocked.
 
 - **2026-04-28:** Completed Phase 6 Plan 02 (`06-02-wave0-config-schema-and-phase5-annotation-PLAN.md`): extended `packages/lmstudio-adapter/src/factory-config.schema.json` with a top-level optional `piles` block (Q-04) — `planning`, `review`, `executionCoordination` sub-objects each with `mode: enum [fixture, live] default fixture` (Q-05) and optional `fixturePath`; `executionCoordination` adds `workSlicing.{maxTargetFiles=3, maxEstimatedTurns=5}` per Q-15 / RESEARCH defaults; `additionalProperties: false` everywhere; description fields call out CLI override precedence and Q-06 no-auto-fallback rule. Landed the highest-risk doc artifact in Phase 6: a blockquote on Phase 5 CONTEXT Q-10 carrying the literal sentinel `Re-locked in Phase 6 Q-14 (2026-04-27)` directing implementers to ship `ModelReviewer` interface + fixture passthrough only and pointing at `createReviewPileModelReviewer()` in Phase 6 Plan 05. `pnpm --filter @protostar/lmstudio-adapter build/test` (66/66 pass) and root `pnpm run verify` green. Wave 0 closed; Wave 1 (06-03, 06-04) unblocked.
 - **2026-04-28:** Completed Phase 6 Plan 01 (`06-01-wave0-types-and-rename-PLAN.md`): widened `@protostar/dogpile-types` to re-export SDK runtime (`run`, `stream`, `createOpenAICompatibleProvider`) and types (`RunEvent`, `RunResult`, `Trace`, `RunAccounting`, `NormalizedStopReason`, `ConfiguredModelProvider`, `StreamHandle`); renamed `executionCoordinatorPilePreset → executionCoordinationPilePreset` per Q-16 with no deprecated alias (zero stale refs repo-wide); added static `packages/dogpile-adapter/src/no-fs.contract.test.ts` mirroring `authority-no-fs.contract.test.ts` (walks src/, bans `node:fs`/`node:fs/promises`/`fs`/`node:path`/`path` imports, excludes itself by basename). `pnpm --filter @protostar/dogpile-types build`, `pnpm --filter @protostar/dogpile-adapter build`, and `pnpm --filter @protostar/dogpile-adapter test` (4/4 pass) green. Wave 1 unblocked.
