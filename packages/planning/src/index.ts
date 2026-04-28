@@ -90,6 +90,12 @@ export interface PlanAcceptanceCriterion {
   readonly verification: AcceptanceCriterion["verification"];
 }
 
+export interface PlanTaskAcceptanceTestRef {
+  readonly acId: string;
+  readonly testFile: string;
+  readonly testName: string;
+}
+
 export interface PlanTask {
   readonly id: PlanTaskId;
   readonly title: string;
@@ -97,6 +103,7 @@ export interface PlanTask {
   readonly dependsOn: readonly PlanTaskId[];
   readonly covers: readonly AcceptanceCriterionId[];
   readonly targetFiles?: TargetFiles;
+  readonly acceptanceTestRefs?: readonly PlanTaskAcceptanceTestRef[];
   readonly adapterRef?: AdapterRef;
   readonly requiredCapabilities: PlanTaskRequiredCapabilities;
   readonly risk: PlanTaskRiskDeclaration;
@@ -868,6 +875,7 @@ export interface AdmittedPlanExecutionTask {
   readonly title: string;
   readonly dependsOn: readonly PlanTaskId[];
   readonly targetFiles?: readonly string[];
+  readonly acceptanceTestRefs?: readonly PlanTaskAcceptanceTestRef[];
   readonly adapterRef?: string;
 }
 
@@ -1262,6 +1270,9 @@ function parsePlanningPilePlanTasks(value: unknown, errors: string[]): readonly 
     const targetFiles = entry["targetFiles"] === undefined
       ? undefined
       : readPlanningPileStringArray(entry, `tasks[${index}].targetFiles`, errors);
+    const acceptanceTestRefs = entry["acceptanceTestRefs"] === undefined
+      ? undefined
+      : parsePlanningPileAcceptanceTestRefs(entry["acceptanceTestRefs"], `tasks[${index}].acceptanceTestRefs`, errors);
     const adapterRef = readOptionalPlanningPileString(entry, `tasks[${index}].adapterRef`, errors);
     const requiredCapabilities = parsePlanningPileRequiredCapabilities(
       entry["requiredCapabilities"],
@@ -1309,12 +1320,46 @@ function parsePlanningPilePlanTasks(value: unknown, errors: string[]): readonly 
         dependsOn: dependsOn as readonly PlanTaskId[],
         covers: covers as readonly AcceptanceCriterionId[],
         ...(targetFiles !== undefined ? { targetFiles } : {}),
+        ...(acceptanceTestRefs !== undefined ? { acceptanceTestRefs } : {}),
         ...(adapterRef !== undefined ? { adapterRef } : {}),
         requiredCapabilities,
         risk
       }
     ];
   });
+}
+
+function parsePlanningPileAcceptanceTestRefs(
+  value: unknown,
+  path: string,
+  errors: string[]
+): readonly PlanTaskAcceptanceTestRef[] | undefined {
+  if (!Array.isArray(value)) {
+    errors.push(`${path} must be an array.`);
+    return undefined;
+  }
+
+  const refs = value.flatMap((entry, index): PlanTaskAcceptanceTestRef[] => {
+    const entryPath = `${path}[${index}]`;
+    if (!isRecord(entry)) {
+      errors.push(`${entryPath} must be an object.`);
+      return [];
+    }
+
+    collectPlanningPileUnexpectedKeys(entry, ["acId", "testFile", "testName"], entryPath, errors);
+
+    const acId = readPlanningPileString(entry, `${entryPath}.acId`, errors);
+    const testFile = readPlanningPileString(entry, `${entryPath}.testFile`, errors);
+    const testName = readPlanningPileString(entry, `${entryPath}.testName`, errors);
+
+    if (acId === undefined || testFile === undefined || testName === undefined) {
+      return [];
+    }
+
+    return [{ acId, testFile, testName }];
+  });
+
+  return refs.length === value.length ? refs : undefined;
 }
 
 function parsePlanningPileRequiredCapabilities(
@@ -1725,6 +1770,9 @@ function collectPlanTaskShapeAdmission(graph: PlanGraph): PlanTaskShapeAdmission
         covers: Array.isArray(covers) ? (covers as readonly AcceptanceCriterionId[]) : [],
         ...(Object.hasOwn(entry, "targetFiles")
           ? { targetFiles: entry["targetFiles"] as TargetFiles }
+          : {}),
+        ...(Object.hasOwn(entry, "acceptanceTestRefs")
+          ? { acceptanceTestRefs: entry["acceptanceTestRefs"] as readonly PlanTaskAcceptanceTestRef[] }
           : {}),
         ...(Object.hasOwn(entry, "adapterRef")
           ? { adapterRef: entry["adapterRef"] as AdapterRef }
@@ -2870,6 +2918,7 @@ function createAdmittedPlanExecutionArtifact(input: {
       title: task.title,
       dependsOn: task.dependsOn,
       ...(task.targetFiles !== undefined ? { targetFiles: task.targetFiles } : {}),
+      ...(task.acceptanceTestRefs !== undefined ? { acceptanceTestRefs: task.acceptanceTestRefs } : {}),
       ...(task.adapterRef !== undefined ? { adapterRef: task.adapterRef } : {})
     }))
   } as unknown as AdmittedPlanExecutionArtifact;
@@ -5176,6 +5225,7 @@ const PLANNING_PILE_TASK_KEYS = [
   "dependsOn",
   "covers",
   "targetFiles",
+  "acceptanceTestRefs",
   "adapterRef",
   "requiredCapabilities",
   "risk"

@@ -161,9 +161,9 @@ describe("PlanTask acceptanceTestRefs", () => {
       risk: "low"
     } satisfies PlanTask;
 
-    // @ts-expect-error acceptanceTestRefs entries must include testFile and testName.
     const invalidTask = {
       ...validTask,
+      // @ts-expect-error acceptanceTestRefs entries must include testFile and testName.
       acceptanceTestRefs: [{ acId: "ac_acceptance_test_refs" }]
     } satisfies PlanTask;
 
