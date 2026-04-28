@@ -18,6 +18,17 @@ This repo is a dark software factory control plane. Keep the authority boundary 
 - `packages/dogpile-adapter`: Dogpile presets only. No filesystem authority here.
 - `apps/factory-cli`: operator surface and composition smoke path.
 
+## Authority Tiers
+
+- **fs-permitted, network-permitted (orchestration tier):** `apps/factory-cli`
+- **fs-permitted, network-forbidden (filesystem tier):** `packages/repo`, `@protostar/paths` (scope-ceiled carve-out)
+- **network-permitted, fs-forbidden (domain network tier):** `@protostar/dogpile-adapter` (Phase 6), `@protostar/delivery-runtime` (Phase 7)
+- **pure (everything else):** all other packages. No filesystem, no network.
+
+Filesystem authority is always `apps/factory-cli` plus `packages/repo`; network may live in domain packages with explicit no-fs contract tests. Each network-permitted package MUST contain a static `no-fs.contract.test.ts` that scans its `src/` for `node:fs` / `node:fs/promises` / `node:path` / `path` imports and asserts zero matches.
+
+Phase 7 also requires `@protostar/delivery-runtime` to ship a `no-merge.contract.test.ts` enforcing zero `pulls.merge` / `pullRequests.merge` / `enableAutoMerge` / `merge_method` / `pulls.updateBranch` / `gh pr merge` / `git merge --` references in source. This is the strongest invariant in the phase (DELIVER-07).
+
 ## Development Rules
 
 - Keep packages domain-first. Avoid generic `utils`, `agents`, or catch-all factory packages.

@@ -1,0 +1,34 @@
+{
+  "name": "@protostar/delivery-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "pnpm run build && node --test dist/*.test.js",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@octokit/plugin-retry": "^7",
+    "@octokit/plugin-throttling": "^9",
+    "@octokit/rest": "^22.0.1",
+    "@protostar/artifacts": "workspace:*",
+    "@protostar/delivery": "workspace:*",
+    "@protostar/intent": "workspace:*",
+    "@protostar/review": "workspace:*",
+    "isomorphic-git": "1.37.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "nock": "^14.0.13"
+  },
+  "sideEffects": false
+}
