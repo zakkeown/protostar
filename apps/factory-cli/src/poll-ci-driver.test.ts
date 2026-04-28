@@ -96,11 +96,10 @@ describe("drivePollCiStatus", () => {
   it("records cancellation when the generator throws AbortError after a snapshot", async () => {
     const runDir = await makeRunDir("run_ci_abort_mid_");
     const controller = new AbortController();
-    controller.abort("sentinel");
 
     const result = await drivePollCiStatus({
       initialResult: initialResult(),
-      poll: abortAfterFirstSnapshot(),
+      poll: abortAfterFirstSnapshot(controller),
       runDir,
       fs,
       signal: controller.signal
@@ -188,8 +187,9 @@ async function* generator(snapshots: readonly CiSnapshot[]): AsyncGenerator<CiSn
   }
 }
 
-async function* abortAfterFirstSnapshot(): AsyncGenerator<CiSnapshot, void, unknown> {
+async function* abortAfterFirstSnapshot(controller: AbortController): AsyncGenerator<CiSnapshot, void, unknown> {
   yield snapshot("2026-04-28T12:00:00.000Z", "pending", false);
+  controller.abort("sentinel");
   throw abortError();
 }
 
