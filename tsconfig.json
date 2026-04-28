@@ -16,6 +16,7 @@
     { "path": "packages/delivery" },
     { "path": "packages/delivery-runtime" },
     { "path": "packages/evaluation" },
+    { "path": "packages/evaluation-runner" },
     { "path": "packages/dogpile-types" },
     { "path": "packages/dogpile-adapter" },
     { "path": "packages/lmstudio-adapter" },

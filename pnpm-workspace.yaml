@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - packages/delivery-runtime
+  - packages/evaluation-runner
   - packages/mechanical-checks
   - packages/repair
   - "packages/*"
