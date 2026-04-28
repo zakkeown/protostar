@@ -1,0 +1,7 @@
+{
+  "kind": "planning-pile-result",
+  "source": "fixture",
+  "modelProviderId": "deterministic-planning-fixture",
+  "traceRef": "bad-ac-coverage-incomplete",
+  "output": "{\n  \"strategy\": \"Structurally valid plan that covers every AC with task.covers but omits one acceptanceTestRefs acId, forcing ac-coverage-incomplete.\",\n  \"tasks\": [\n    {\n      \"id\": \"task-ac-ref-covers-first-only\",\n      \"title\": \"Cover both sample ACs but reference only the evidence AC test\",\n      \"kind\": \"verification\",\n      \"dependsOn\": [],\n      \"covers\": [\"ac_f83218ad181d3db3\", \"ac_f2445295f9ba1e78\"],\n      \"acceptanceTestRefs\": [\n        {\n          \"acId\": \"ac_f83218ad181d3db3\",\n          \"testFile\": \"packages/admission-e2e/src/parameterized-admission.test.ts\",\n          \"testName\": \"loops every fixture and asserts expected verdict end-to-end\"\n        }\n      ],\n      \"requiredCapabilities\": {\n        \"repoScopes\": [],\n        \"toolPermissions\": [],\n        \"budget\": {}\n      },\n      \"risk\": \"low\"\n    }\n  ]\n}"
+}

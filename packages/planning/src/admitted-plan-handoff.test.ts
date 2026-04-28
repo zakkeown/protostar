@@ -127,7 +127,14 @@ describe("admitted plan execution handoff contract", () => {
         {
           planTaskId: "task-admit-plan-before-execution",
           title: "Admit the plan before execution",
-          dependsOn: []
+          dependsOn: [],
+          acceptanceTestRefs: [
+            {
+              acId: "ac_admitted_plan_handoff",
+              testFile: "packages/planning/src/index.test.ts",
+              testName: "task-admit-plan-before-execution covers ac_admitted_plan_handoff"
+            }
+          ]
         }
       ]
     });

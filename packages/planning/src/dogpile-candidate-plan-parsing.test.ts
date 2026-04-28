@@ -71,6 +71,13 @@ describe("Dogpile candidate-plan parsing", () => {
             kind: "verification",
             dependsOn: [],
             covers: ["ac_dogpile_candidate_plan_parsing"],
+            acceptanceTestRefs: [
+              {
+                acId: "ac_dogpile_candidate_plan_parsing",
+                testFile: "packages/planning/src/dogpile-candidate-plan-parsing.test.ts",
+                testName: "admits valid Dogpile planning output into the planning contract boundary"
+              }
+            ],
             requiredCapabilities: {
               repoScopes: [],
               toolPermissions: [],
@@ -84,6 +91,13 @@ describe("Dogpile candidate-plan parsing", () => {
             kind: "verification",
             dependsOn: ["task-dogpile-candidate-plan-parsing"],
             covers: ["ac_dogpile_candidate_plan_rejection"],
+            acceptanceTestRefs: [
+              {
+                acId: "ac_dogpile_candidate_plan_rejection",
+                testFile: "packages/planning/src/dogpile-candidate-plan-parsing.test.ts",
+                testName: "admits valid Dogpile planning output into the planning contract boundary"
+              }
+            ],
             requiredCapabilities: {
               repoScopes: [],
               toolPermissions: [],
