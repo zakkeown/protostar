@@ -1,0 +1,30 @@
+{
+  "name": "@protostar/evaluation-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "test": "node --test --test-reporter=spec dist/**/*.test.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@protostar/evaluation": "workspace:*",
+    "@protostar/dogpile-adapter": "workspace:*",
+    "@protostar/dogpile-types": "workspace:*",
+    "@protostar/intent": "workspace:*",
+    "@protostar/planning": "workspace:*",
+    "@protostar/review": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
