@@ -280,6 +280,132 @@ describe("runReviewRepairLoop", () => {
   it("keeps the deprecated mechanical loop export callable", () => {
     assert.equal(typeof runMechanicalReviewExecutionLoop, "function");
   });
+
+  // Phase 6 Plan 06-10 Task 1 — repairPlanRefiner hook (Q-15).
+
+  it("repairPlanRefiner absent: omits repair-plan-refined lifecycle event", async () => {
+    const persistence = recordingPersistence();
+
+    await runReviewRepairLoop({
+      runId: "run-1",
+      confirmedIntent: confirmedIntent(1),
+      admittedPlan: admittedPlan(["task-a"]),
+      initialExecution: executionResult(0),
+      executor: {
+        async executeRepairTasks() {
+          return executionResult(1);
+        }
+      },
+      mechanicalChecker: checkerSequence([
+        mechanical("repair", 0, [finding("task-a", "repair")]),
+        mechanical("pass", 1, [])
+      ]),
+      modelReviewer: async () => model("pass"),
+      persistence,
+      now: fixedClock()
+    });
+
+    const refinedEvents = persistence.events.filter((e) => e.kind === "repair-plan-refined");
+    assert.equal(refinedEvents.length, 0);
+  });
+
+  it("repairPlanRefiner returns deterministic plan unchanged: no repair-plan-refined event", async () => {
+    const persistence = recordingPersistence();
+    let executorRepairPlan: RepairPlan | undefined;
+
+    await runReviewRepairLoop({
+      runId: "run-1",
+      confirmedIntent: confirmedIntent(1),
+      admittedPlan: admittedPlan(["task-a"]),
+      initialExecution: executionResult(0),
+      executor: {
+        async executeRepairTasks(input) {
+          executorRepairPlan = input.repairPlan;
+          return executionResult(1);
+        }
+      },
+      mechanicalChecker: checkerSequence([
+        mechanical("repair", 0, [finding("task-a", "repair")]),
+        mechanical("pass", 1, [])
+      ]),
+      modelReviewer: async () => model("pass"),
+      persistence,
+      repairPlanRefiner: async (repairPlan) => repairPlan,
+      now: fixedClock()
+    });
+
+    const refinedEvents = persistence.events.filter((e) => e.kind === "repair-plan-refined");
+    assert.equal(refinedEvents.length, 0);
+    assert.ok(executorRepairPlan);
+  });
+
+  it("repairPlanRefiner returns a different plan: emits repair-plan-refined event and executor receives refined plan", async () => {
+    const persistence = recordingPersistence();
+    let executorRepairPlan: RepairPlan | undefined;
+    const refinedRepairPlan: RepairPlan = {
+      runId: "run-1",
+      attempt: 99,
+      repairs: [
+        {
+          planTaskId: "task-a",
+          mechanicalCritiques: [],
+          modelCritiques: []
+        }
+      ],
+      dependentTaskIds: ["task-a"]
+    };
+
+    await runReviewRepairLoop({
+      runId: "run-1",
+      confirmedIntent: confirmedIntent(1),
+      admittedPlan: admittedPlan(["task-a"]),
+      initialExecution: executionResult(0),
+      executor: {
+        async executeRepairTasks(input) {
+          executorRepairPlan = input.repairPlan;
+          return executionResult(1);
+        }
+      },
+      mechanicalChecker: checkerSequence([
+        mechanical("repair", 0, [finding("task-a", "repair")]),
+        mechanical("pass", 1, [])
+      ]),
+      modelReviewer: async () => model("pass"),
+      persistence,
+      repairPlanRefiner: async () => refinedRepairPlan,
+      now: fixedClock()
+    });
+
+    const refinedEvents = persistence.events.filter((e) => e.kind === "repair-plan-refined");
+    assert.equal(refinedEvents.length, 1);
+    assert.equal(refinedEvents[0]?.kind, "repair-plan-refined");
+    assert.equal(executorRepairPlan, refinedRepairPlan);
+  });
+
+  it("repairPlanRefiner throws: error propagates from runReviewRepairLoop", async () => {
+    const persistence = recordingPersistence();
+
+    await assert.rejects(
+      () =>
+        runReviewRepairLoop({
+          runId: "run-1",
+          confirmedIntent: confirmedIntent(1),
+          admittedPlan: admittedPlan(["task-a"]),
+          initialExecution: executionResult(0),
+          executor: executorStub(),
+          mechanicalChecker: checkerSequence([
+            mechanical("repair", 0, [finding("task-a", "repair")])
+          ]),
+          modelReviewer: async () => model("pass"),
+          persistence,
+          repairPlanRefiner: async () => {
+            throw new Error("refiner contract breached");
+          },
+          now: fixedClock()
+        }),
+      /refiner contract breached/
+    );
+  });
 });
 
 interface RecordingPersistence extends ReviewPersistence {

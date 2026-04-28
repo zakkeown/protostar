@@ -26,6 +26,27 @@ export interface ReviewRepairLoopInput {
   readonly modelReviewer: ModelReviewer;
   readonly persistence: ReviewPersistence;
   readonly now?: () => Date;
+  /**
+   * Phase 6 Plan 06-10 — optional refiner hook for the execution-coordination
+   * pile's repair-plan trigger (Q-15). Called AFTER the deterministic
+   * `synthesizeRepairPlan` and BEFORE iteration persistence / executor
+   * invocation. Refiner contract: do NOT throw; return either the refined
+   * plan or the original deterministic plan. When absent, behavior is
+   * byte-identical to deterministic-only synthesis.
+   */
+  readonly repairPlanRefiner?: RepairPlanRefiner;
+}
+
+export type RepairPlanRefiner = (
+  repairPlan: RepairPlan,
+  ctx: RepairPlanRefinerContext
+) => Promise<RepairPlan>;
+
+export interface RepairPlanRefinerContext {
+  readonly runId: string;
+  readonly attempt: number;
+  readonly admittedPlan: AdmittedPlanExecutionArtifact;
+  readonly confirmedIntent: ConfirmedIntent;
 }
 
 export interface TaskExecutorService {
@@ -284,7 +305,7 @@ export async function runReviewRepairLoop(
       plan: input.admittedPlan,
       repairTaskIds
     });
-    const repairPlan = synthesizeRepairPlan({
+    const deterministicRepairPlan = synthesizeRepairPlan({
       runId: input.runId,
       attempt,
       plan: input.admittedPlan,
@@ -292,6 +313,24 @@ export async function runReviewRepairLoop(
       ...(model !== undefined && model.verdict !== "pass" ? { model } : {}),
       dependentTaskIds
     });
+
+    const repairPlan = input.repairPlanRefiner
+      ? await input.repairPlanRefiner(deterministicRepairPlan, {
+          runId: input.runId,
+          attempt,
+          admittedPlan: input.admittedPlan,
+          confirmedIntent: input.confirmedIntent
+        })
+      : deterministicRepairPlan;
+
+    if (input.repairPlanRefiner !== undefined && repairPlan !== deterministicRepairPlan) {
+      await append(input, {
+        kind: "repair-plan-refined",
+        runId: input.runId,
+        attempt,
+        at: nowIso(now)
+      });
+    }
 
     await append(input, {
       kind: "repair-plan-emitted",

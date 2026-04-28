@@ -109,6 +109,7 @@ function classifyLifecycleEvent(event: ReviewLifecycleEvent): ReviewLifecycleEve
     case "mechanical-verdict":
     case "model-verdict":
     case "repair-plan-emitted":
+    case "repair-plan-refined":
     case "loop-approved":
     case "loop-blocked":
     case "loop-budget-exhausted":
@@ -129,6 +130,7 @@ function classifyWithSyntheticEvent(event: SyntheticReviewLifecycleEvent): strin
     case "mechanical-verdict":
     case "model-verdict":
     case "repair-plan-emitted":
+    case "repair-plan-refined":
     case "loop-approved":
     case "loop-blocked":
     case "loop-budget-exhausted":

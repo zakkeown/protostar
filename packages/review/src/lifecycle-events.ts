@@ -29,6 +29,12 @@ export type ReviewLifecycleEvent =
       readonly at: string;
     }
   | {
+      readonly kind: "repair-plan-refined";
+      readonly runId: string;
+      readonly attempt: number;
+      readonly at: string;
+    }
+  | {
       readonly kind: "loop-approved";
       readonly runId: string;
       readonly finalAttempt: number;
