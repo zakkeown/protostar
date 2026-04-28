@@ -203,7 +203,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | EXEC-07 | Phase 4 | Verified (human smoke pending) |
 | EXEC-08 | Phase 4 | Verified (human smoke pending) |
 | LOOP-01 | Phase 5 | In progress — 05-02 mechanical-checks package skeleton complete; 05-03 added PlanTask.acceptanceTestRefs; 05-09 added applyChangeSet per-task cosmetic multi-file refusal; real run-level/check-output mechanical review remains in 05-07 and 05-11 |
-| LOOP-02 | Phase 5 | Pending |
+| LOOP-02 | Phase 5 | In progress — 05-08 added the real panel-of-one LM Studio ModelReviewer and structured JudgeCritique capture; serial loop invocation remains in 05-10 and factory-cli preflight wiring remains in 05-12 |
 | LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; 05-04 added RepairPlan/RepairTask contracts; 05-05 added synthesizeRepairPlan fan-in; loop consumption remains in 05-10 |
 | LOOP-04 | Phase 5 | In progress — 05-03 added capabilityEnvelope.budget.maxRepairLoops default/range contract; 05-04 added ExecutionRunResult, RepairContext, and ReviewLifecycleEvent contracts; 05-05 added computeRepairSubgraph for repair rerun scope; 05-06 added AdapterContext repairContext and "repair" retry evidence; loop consumption remains in 05-10 |
 | LOOP-05 | Phase 5 | In progress — 05-04 added DeliveryAuthorization and strict pass/pass ReviewDecisionArtifact contracts; loop minting remains in 05-10 and delivery consumption in 05-13 |
