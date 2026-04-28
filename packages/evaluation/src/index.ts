@@ -244,5 +244,7 @@ function roundScore(value: number): number {
 
 export * from "./compute-mechanical-scores.js";
 export * from "./compute-semantic-confidence.js";
+export * from "./create-spec-ontology-snapshot.js";
 export * from "./evaluate-consensus.js";
+export * from "./lineage-hash.js";
 export * from "./should-run-consensus.js";

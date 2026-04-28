@@ -17,6 +17,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@protostar/intent": "workspace:*",
     "@protostar/review": "workspace:*"
   },
   "sideEffects": false
