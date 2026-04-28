@@ -174,7 +174,7 @@ Plans:
 **Wave 0** (skeletons + schema bumps; foundation for all downstream waves)
 - [x] 05-01-repair-package-skeleton-PLAN.md — wave 0 — `@protostar/repair` workspace skeleton (pure-transform sibling to dogpile-adapter) (Q-05)
 - [x] 05-02-mechanical-checks-package-skeleton-PLAN.md — wave 0 — `@protostar/mechanical-checks` workspace skeleton (subprocess-driven adapter) (Q-07)
-- [ ] 05-03-schema-bumps-PLAN.md — wave 0 — confirmedIntent 1.3.0 → 1.4.0 + budget.maxRepairLoops + plan-schema task.acceptanceTestRefs + fixture cascade (Q-09, Q-12)
+- [x] 05-03-schema-bumps-PLAN.md — wave 0 — confirmedIntent 1.3.0 → 1.4.0 + budget.maxRepairLoops + plan-schema task.acceptanceTestRefs + fixture cascade (Q-09, Q-12)
 
 **Wave 1** *(blocked on Wave 0 completion)* (type contracts, including cycle-neutral relocation into @protostar/planning)
 - [ ] 05-04-review-types-and-brands-PLAN.md — wave 1 — RepairPlan/RepairContext/ModelReviewer/JudgeCritique/DeliveryAuthorization brand + ReviewLifecycleEvent union; relocates RepairContext/AdapterAttemptRef/ExecutionRunResult/MechanicalCritiqueRef/ModelCritiqueRef into @protostar/planning to break review↔execution cycle (Q-04, Q-06, Q-10, Q-11, Q-15, Q-16, Q-18)
