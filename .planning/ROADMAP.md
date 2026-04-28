@@ -213,7 +213,7 @@ Plans:
 
 **Notes:** The reason this comes after 4+5 (not before): we want the deterministic engine + control loop to work end-to-end with fixtures before introducing live model variability into planning/review.
 
-**Plans:** 8 plans across 5 waves (0..4; parallel within wave).
+**Plans:** 10 plans across 7 waves (0..6; parallel within wave). Initial verification 2026-04-28 surfaced 2 gaps (PILE-03 runtime + PLAN-A-03 verify-gate flake) closed by Plans 06-09 + 06-10 (gap_closure: true).
 
 Plans:
 - [x] 06-01-wave0-types-and-rename-PLAN.md — wave 0 — widen @protostar/dogpile-types runtime+type re-exports; Q-16 rename executionCoordinatorPilePreset → executionCoordinationPilePreset; static no-fs.contract.test.ts in @protostar/dogpile-adapter (Q-09 static, Q-16, PILE-06)
@@ -224,6 +224,8 @@ Plans:
 - [x] 06-06-repair-and-planning-coordination-PLAN.md — wave 2 — @protostar/repair ExecutionCoordinationPileResult + parser + admitRepairPlanProposal; @protostar/planning admitWorkSlicing (Q-15, Q-18, PILE-03)
 - [x] 06-07-factory-cli-pile-wiring-PLAN.md — wave 3 — CLI flags --planning-mode/--review-mode/--exec-coord-mode + factory-config piles parsing + RefusalStage extension + pile-mode-resolver + pile-persistence (runs/{id}/piles/{kind}/iter-{N}/) + main.ts pile invocation flow with run-level AbortController (Q-03 fallback, Q-04, Q-06, Q-07, Q-08, Q-12, PILE-01, PILE-04, PILE-05)
 - [x] 06-08-admission-e2e-pile-contract-PLAN.md — wave 4 — admission-e2e runtime no-fs contract (Q-09 runtime defense in depth) + refusal byte-equality (PILE-04 fixture-vs-live symmetry) + integration smoke (planning-pile-live, work-slicing-trigger, repair-plan-trigger) (PILE-03, PILE-04, PILE-06)
+- [ ] 06-09-verify-gate-flake-fix-PLAN.md — wave 5 — gap-closure: diagnose run-real-execution.test.ts flake under chained `pnpm run verify`; harden async resource teardown (AbortController/timer/listener); restore PLAN-A-03 invariant (5 consecutive verify exit-0 runs); confirms Phase 5 LOOP-04 closure on the verify path (PLAN-A-03)
+- [ ] 06-10-exec-coord-runtime-wiring-PLAN.md — wave 6 — gap-closure: add repairPlanRefiner hook to runReviewRepairLoop + repair-plan-refined lifecycle event; new exec-coord-trigger module (work-slicing heuristic + admitWorkSlicing wrapper + admitRepairPlanProposal wrapper); wire both triggers in factory-cli main.ts (hard-fail at work-slicing, soft-fallback at refinement per Q-15); flip negative-grep deferral pins in pile-integration-smoke.contract.test.ts to positive wiring assertions (PILE-03, Q-15)
 
 ## Phase 7 — Delivery
 

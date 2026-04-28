@@ -28,7 +28,11 @@
 
 Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
 
-**Next action:** Phase 6 implementation complete — all 8 plans across 5 waves landed. Wave 4 (06-08) closed today: three admission-e2e contract tests pin runtime no-fs (Q-09 dual-layer with Plan 06-01's static walker), refusal byte-equality (PILE-04 / Q-12 fixture-vs-live symmetry), and pile-trigger surfaces (PILE-01 wired, PILE-03 deferral pinned with literal grep tokens for the future plan that wires admitWorkSlicing / executionCoordinationPilePreset). Phase 6 is ready for verification (`/gsd-verify-phase 06`). Exec-coord e2e tests will activate when the deferred seams ship in a follow-up plan.
+**Next action:** Phase 6 verification (2026-04-28) returned `gaps_found` (4/6). Two gap-closure plans drafted and plan-checked:
+- **06-09** (wave 5, requirements: PLAN-A-03) — diagnose `pnpm run verify` flake at apps/factory-cli (8 cancelled subtests in run-real-execution.test.ts; subtest 9 is the LOOP-04 closure test from Phase 5); harden async resource teardown; restore deterministic verify gate (≥5 consecutive exit-0 runs).
+- **06-10** (wave 6, requirements: PILE-03) — add `repairPlanRefiner` hook + `repair-plan-refined` lifecycle event to `runReviewRepairLoop`; new `exec-coord-trigger.ts` module with work-slicing heuristic; wire both triggers in factory-cli main.ts (hard-fail at work-slicing, soft-fallback at refinement per Q-15 + resolved policy 2026-04-28); flip negative-grep deferral pins in pile-integration-smoke.contract.test.ts to positive wiring assertions.
+
+Run `/gsd-execute-phase 6 --gaps-only` to land both. Plan 06-09 must complete before 06-10 (verify must be deterministic before adding more wiring).
 
 ## Phase Status
 
@@ -39,7 +43,7 @@ Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan s
 | 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-13 complete; phase not verified |
 | 4 | Execution Engine | Automated verification passed — human LM Studio smoke pending |
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
-| 6 | Live Dogpile Piles | Implementation complete; ready for verification (8/8 plans landed 2026-04-28) |
+| 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | Pending |
 | 8 | Evaluation + Evolution | Pending |
 | 9 | Operator Surface + Resumability | Pending |
