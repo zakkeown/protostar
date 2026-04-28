@@ -41,7 +41,7 @@ interface ConfirmedIntentBaseShape {
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
   readonly stopConditions: readonly string[];
-  readonly schemaVersion: "1.4.0";
+  readonly schemaVersion: "1.5.0";
   readonly signature: SignatureEnvelope | null;
 }
 
@@ -83,7 +83,7 @@ export interface ConfirmedIntentMintInput {
   readonly constraints?: readonly string[];
   readonly stopConditions?: readonly string[];
   readonly confirmedAt?: string;
-  readonly schemaVersion?: "1.4.0";
+  readonly schemaVersion?: "1.5.0";
   readonly signature?: SignatureEnvelope | null;
 }
 
@@ -114,7 +114,7 @@ export function mintConfirmedIntent(input: ConfirmedIntentMintInput): ConfirmedI
     capabilityEnvelope: copyCapabilityEnvelope(input.capabilityEnvelope),
     constraints: copyStringList(input.constraints),
     stopConditions: copyStringList(input.stopConditions),
-    schemaVersion: "1.4.0",
+    schemaVersion: "1.5.0",
     signature: input.signature ?? null
   };
 
@@ -172,7 +172,18 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
       allow: envelope.network?.allow ?? "loopback",
       ...(envelope.network?.allowedHosts !== undefined ? { allowedHosts: envelope.network.allowedHosts.map((host) => host) } : {})
     },
-    budget: copyFactoryBudget(envelope.budget)
+    budget: copyFactoryBudget(envelope.budget),
+    ...(envelope.delivery !== undefined
+      ? {
+          delivery: {
+            target: {
+              owner: envelope.delivery.target.owner,
+              repo: envelope.delivery.target.repo,
+              baseBranch: envelope.delivery.target.baseBranch
+            }
+          }
+        }
+      : {})
   };
 }
 
@@ -183,6 +194,7 @@ function copyFactoryBudget(budget: FactoryBudget): FactoryBudget {
     ...(budget.timeoutMs !== undefined ? { timeoutMs: budget.timeoutMs } : {}),
     ...(budget.adapterRetriesPerTask !== undefined ? { adapterRetriesPerTask: budget.adapterRetriesPerTask } : {}),
     ...(budget.taskWallClockMs !== undefined ? { taskWallClockMs: budget.taskWallClockMs } : {}),
+    ...(budget.deliveryWallClockMs !== undefined ? { deliveryWallClockMs: budget.deliveryWallClockMs } : {}),
     ...(budget.maxRepairLoops !== undefined ? { maxRepairLoops: budget.maxRepairLoops } : {})
   };
 }
@@ -281,7 +293,7 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
     capabilityEnvelope: copyCapabilityEnvelope(capabilityEnvelope),
     constraints: copyStringList(constraints),
     stopConditions: copyStringList(stopConditions),
-    schemaVersion: schemaVersion ?? "1.4.0",
+    schemaVersion: schemaVersion ?? "1.5.0",
     signature: signature ?? null
   };
 
@@ -292,15 +304,15 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
   };
 }
 
-function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.4.0" | undefined {
+function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.5.0" | undefined {
   const value = record["schemaVersion"];
   if (value === undefined) {
     return undefined;
   }
-  if (value === "1.4.0") {
+  if (value === "1.5.0") {
     return value;
   }
-  errors.push("schemaVersion must be \"1.4.0\" when provided.");
+  errors.push("schemaVersion must be \"1.5.0\" when provided.");
   return undefined;
 }
 

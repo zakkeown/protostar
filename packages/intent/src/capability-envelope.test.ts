@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 
 import { parseConfirmedIntent, type CapabilityEnvelope } from "./index.js";
 
-describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
-  it("pins schemaVersion to exactly 1.4.0", async () => {
+describe("ConfirmedIntent 1.5.0 capability envelope schema", () => {
+  it("pins schemaVersion to exactly 1.5.0", async () => {
     const schema = await readConfirmedIntentSchema();
     const properties = schema["properties"] as Record<string, Record<string, unknown>>;
 
-    assert.equal(properties["schemaVersion"]?.["const"], "1.4.0");
+    assert.equal(properties["schemaVersion"]?.["const"], "1.5.0");
     assert.equal("enum" in (properties["schemaVersion"] ?? {}), false);
     assert.equal("oneOf" in (properties["schemaVersion"] ?? {}), false);
   });
@@ -145,6 +145,50 @@ describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
     }
   });
 
+  it("defaults missing deliveryWallClockMs to 600000", () => {
+    const { deliveryWallClockMs: _deliveryWallClockMs, ...budget } =
+      buildCapabilityEnvelopeFixture()["budget"] as Record<string, unknown>;
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          budget
+        }
+      })
+    );
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.data.capabilityEnvelope.budget.deliveryWallClockMs, 600_000);
+    }
+  });
+
+  it("accepts a signed delivery target", () => {
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          delivery: {
+            target: {
+              owner: "protostar-test",
+              repo: "fixture-toy",
+              baseBranch: "main"
+            }
+          }
+        }
+      })
+    );
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.deepEqual(result.data.capabilityEnvelope.delivery?.target, {
+        owner: "protostar-test",
+        repo: "fixture-toy",
+        baseBranch: "main"
+      });
+    }
+  });
+
   it("rejects maxRepairLoops below 1", () => {
     const result = parseConfirmedIntent(
       buildConfirmedIntentFixture({
@@ -211,7 +255,7 @@ describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
     );
   });
 
-  it("CapabilityEnvelope type matches the 1.4.0 shape", () => {
+  it("CapabilityEnvelope type matches the 1.5.0 shape", () => {
     const envelope = {
       repoScopes: [
         {
@@ -233,7 +277,15 @@ describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
       budget: {
         adapterRetriesPerTask: 4,
         taskWallClockMs: 180_000,
+        deliveryWallClockMs: 600_000,
         maxRepairLoops: 3
+      },
+      delivery: {
+        target: {
+          owner: "protostar-test",
+          repo: "fixture-toy",
+          baseBranch: "main"
+        }
       }
     } satisfies CapabilityEnvelope;
 
@@ -248,7 +300,7 @@ async function readConfirmedIntentSchema(): Promise<Record<string, unknown>> {
 
 function buildConfirmedIntentFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    schemaVersion: "1.4.0",
+    schemaVersion: "1.5.0",
     id: "intent_capability_envelope",
     sourceDraftId: "draft_capability_envelope",
     mode: "brownfield",
@@ -294,6 +346,7 @@ function buildCapabilityEnvelopeFixture(): Record<string, unknown> {
     budget: {
       adapterRetriesPerTask: 4,
       taskWallClockMs: 180_000,
+      deliveryWallClockMs: 600_000,
       maxRepairLoops: 3
     }
   };

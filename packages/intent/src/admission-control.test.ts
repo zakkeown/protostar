@@ -1217,6 +1217,7 @@ describe("intent admission policy", () => {
       budget: {
         adapterRetriesPerTask: 4,
         taskWallClockMs: 180_000,
+        deliveryWallClockMs: 600_000,
         timeoutMs: 120_000,
         maxRepairLoops: 1
       }

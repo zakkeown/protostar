@@ -256,7 +256,7 @@ function upconvertLegacyConfirmedIntent(parsed: Record<string, unknown>, path: s
         }
       }
     : parsed["capabilityEnvelope"];
-  return { ...parsed, capabilityEnvelope, schemaVersion: "1.4.0" };
+  return { ...parsed, capabilityEnvelope, schemaVersion: "1.5.0" };
 }
 
 function validateAdmissionDecisionIndexEntry(raw: string, path: string, line: number): AdmissionDecisionIndexEntry {

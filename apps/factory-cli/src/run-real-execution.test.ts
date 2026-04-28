@@ -123,7 +123,20 @@ describe("runRealExecution", () => {
         id: "slow",
         async *execute(_task, adapterCtx) {
           adapterCalls += 1;
-          await new Promise((resolveDone) => adapterCtx.signal.addEventListener("abort", resolveDone, { once: true }));
+          // Race fix: with taskWallClockMs=1, the production-side abort timer can fire
+          // *before* this adapter attaches its listener. `addEventListener("abort", ...)`
+          // on an already-aborted signal never fires, so the promise would hang and the
+          // parent test suite would be cancelled by the runner ("Promise resolution is
+          // still pending but the event loop has already resolved"). Pre-check `.aborted`
+          // to handle the lost-race case deterministically. See 06-09 SUMMARY for the
+          // full diagnosis of the verify-gate flake this closes.
+          await new Promise<void>((resolveDone) => {
+            if (adapterCtx.signal.aborted) {
+              resolveDone();
+              return;
+            }
+            adapterCtx.signal.addEventListener("abort", () => resolveDone(), { once: true });
+          });
           yield { kind: "final", result: failedResult("timeout") };
         }
       },
@@ -449,14 +462,14 @@ function envelope(): CapabilityEnvelope {
     repoScopes: [{ workspace: "main", path: "src", access: "write" }],
     workspace: { allowDirty: false },
     network: { allow: "loopback" },
-    budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, maxRepairLoops: 3 },
+    budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, deliveryWallClockMs: 600_000, maxRepairLoops: 3 },
     toolPermissions: []
   };
 }
 
 function confirmedIntent(capabilityEnvelope: CapabilityEnvelope): ConfirmedIntent {
   return {
-    schemaVersion: "1.4.0",
+    schemaVersion: "1.5.0",
     id: "intent_real",
     title: "Real execution",
     problem: "Run real execution",

@@ -19,6 +19,7 @@ const resolvedEnvelope = {
     maxTokens: 500,
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
+    deliveryWallClockMs: 600_000,
     maxRepairLoops: 3
   }
 } as const satisfies CapabilityEnvelope;
@@ -173,7 +174,7 @@ describe("AuthorityStageReader", () => {
     ])));
 
     const parsed = await reader.readParsedConfirmedIntent();
-    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.4.0");
+    assert.equal((parsed as { schemaVersion: string }).schemaVersion, "1.5.0");
   });
 
   it("confirmedIntent() rejects when policy-snapshot.json is missing", async () => {
@@ -261,7 +262,7 @@ function unsignedIntentBody(): Omit<ConfirmedIntent, typeof Symbol.toStringTag> 
     capabilityEnvelope: resolvedEnvelope,
     constraints: [],
     stopConditions: [],
-    schemaVersion: "1.4.0",
+    schemaVersion: "1.5.0",
     signature: null
   } as unknown as Omit<ConfirmedIntent, typeof Symbol.toStringTag>;
 }

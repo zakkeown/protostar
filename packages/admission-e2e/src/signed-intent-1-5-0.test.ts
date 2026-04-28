@@ -10,18 +10,18 @@ import {
 import { promoteAndSignIntent } from "@protostar/intent";
 import { buildConfirmedIntentForTest } from "@protostar/intent/internal/test-builders";
 
-describe("signed ConfirmedIntent 1.4.0 envelope", () => {
+describe("signed ConfirmedIntent 1.5.0 envelope", () => {
   it("signs and verifies budget and network envelope fields", () => {
     const unsignedIntent = buildConfirmedIntentForTest({
       id: "intent_signed_1_3_0",
       sourceDraftId: "draft_signed_1_3_0",
-      title: "Signed 1.4.0 envelope",
+      title: "Signed 1.5.0 envelope",
       problem: "The signed intent must carry execution budget and network authority fields.",
       requester: "phase-04-plan-07",
       acceptanceCriteria: [
         {
           id: "ac_signed_1_3_0",
-          statement: "The signed 1.4.0 intent verifies after canonicalization.",
+          statement: "The signed 1.5.0 intent verifies after canonicalization.",
           verification: "test"
         }
       ],
@@ -40,7 +40,7 @@ describe("signed ConfirmedIntent 1.4.0 envelope", () => {
           {
             tool: "node:test",
             permissionLevel: "use",
-            reason: "Verify signed 1.4.0 intent behavior.",
+            reason: "Verify signed 1.5.0 intent behavior.",
             risk: "low"
           }
         ],
@@ -51,7 +51,15 @@ describe("signed ConfirmedIntent 1.4.0 envelope", () => {
         budget: {
           adapterRetriesPerTask: 4,
           taskWallClockMs: 180_000,
+          deliveryWallClockMs: 600_000,
           maxRepairLoops: 3
+        },
+        delivery: {
+          target: {
+            owner: "protostar-test",
+            repo: "fixture-toy",
+            baseBranch: "main"
+          }
         }
       },
       constraints: ["No compatibility shim for 1.2.0."],
@@ -85,10 +93,12 @@ describe("signed ConfirmedIntent 1.4.0 envelope", () => {
     );
 
     assert.equal(verified.ok, true, verified.ok ? "" : verified.errors.join("; "));
-    assert.equal(signed.intent.schemaVersion, "1.4.0");
+    assert.equal(signed.intent.schemaVersion, "1.5.0");
     assert.equal(signed.intent.capabilityEnvelope.budget.adapterRetriesPerTask, 4);
     assert.equal(signed.intent.capabilityEnvelope.budget.taskWallClockMs, 180_000);
+    assert.equal(signed.intent.capabilityEnvelope.budget.deliveryWallClockMs, 600_000);
     assert.equal(signed.intent.capabilityEnvelope.budget.maxRepairLoops, 3);
+    assert.equal(signed.intent.capabilityEnvelope.delivery?.target.owner, "protostar-test");
     assert.deepEqual(signed.intent.capabilityEnvelope.network, {
       allow: "allowlist",
       allowedHosts: ["api.github.com"]

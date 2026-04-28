@@ -129,7 +129,15 @@ export type IntentDraftCapabilityEnvelope = {
     timeoutMs?: number;
     adapterRetriesPerTask?: number;
     taskWallClockMs?: number;
+    deliveryWallClockMs?: number;
     maxRepairLoops?: number;
+  };
+  delivery?: {
+    target?: {
+      owner?: string;
+      repo?: string;
+      baseBranch?: string;
+    };
   };
   authorityJustification?: string;
 };

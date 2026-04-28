@@ -105,7 +105,18 @@ export function normalizeDraftCapabilityEnvelope(
       ...(executeGrants !== undefined ? { executeGrants } : {}),
       workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
       network: normalizeNetwork(envelope.network),
-      budget
+      budget,
+      ...(envelope.delivery?.target !== undefined
+        ? {
+            delivery: {
+              target: {
+                owner: envelope.delivery.target.owner ?? "",
+                repo: envelope.delivery.target.repo ?? "",
+                baseBranch: envelope.delivery.target.baseBranch ?? ""
+              }
+            }
+          }
+        : {})
     },
     errors: []
   };
@@ -161,6 +172,7 @@ function normalizeBudget(budget: DraftBudget | undefined): CapabilityEnvelope["b
     ...numberField("timeoutMs", budget.timeoutMs),
     adapterRetriesPerTask: integerField(budget.adapterRetriesPerTask, 4),
     taskWallClockMs: integerField(budget.taskWallClockMs, 180_000),
+    deliveryWallClockMs: integerField(budget.deliveryWallClockMs, 600_000),
     maxRepairLoops: integerField(budget.maxRepairLoops, 3)
   } satisfies CapabilityEnvelope["budget"];
 }
@@ -186,6 +198,7 @@ function defaultBudget(): CapabilityEnvelope["budget"] {
   return {
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
+    deliveryWallClockMs: 600_000,
     maxRepairLoops: 3
   };
 }

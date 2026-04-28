@@ -27,6 +27,7 @@ export interface FactoryBudget {
   readonly timeoutMs?: number;
   readonly adapterRetriesPerTask?: number;
   readonly taskWallClockMs?: number;
+  readonly deliveryWallClockMs?: number;
   readonly maxRepairLoops?: number;
 }
 
@@ -39,6 +40,16 @@ export type CapabilityEnvelopeNetworkAllow = "none" | "loopback" | "allowlist";
 export interface CapabilityEnvelopeNetwork {
   readonly allow: CapabilityEnvelopeNetworkAllow;
   readonly allowedHosts?: readonly string[];
+}
+
+export interface DeliveryTarget {
+  readonly owner: string;
+  readonly repo: string;
+  readonly baseBranch: string;
+}
+
+export interface CapabilityEnvelopeDelivery {
+  readonly target: DeliveryTarget;
 }
 
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD = "repair_loop_count";
@@ -99,6 +110,7 @@ export interface CapabilityEnvelope {
   readonly workspace?: CapabilityEnvelopeWorkspace;
   readonly network?: CapabilityEnvelopeNetwork;
   readonly budget: FactoryBudget;
+  readonly delivery?: CapabilityEnvelopeDelivery;
 }
 
 export function hasBudgetLimit(budget: FactoryBudget | IntentDraftCapabilityEnvelope["budget"] | undefined): boolean {
@@ -205,7 +217,7 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
 
   rejectUnknownKeys(
     value,
-    ["repoScopes", "toolPermissions", "executeGrants", "workspace", "network", "budget"],
+    ["repoScopes", "toolPermissions", "executeGrants", "workspace", "network", "budget", "delivery"],
     "capabilityEnvelope",
     errors
   );
@@ -216,7 +228,8 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
     ...optionalExecuteGrants(value["executeGrants"], errors),
     workspace: parseWorkspace(value["workspace"], errors),
     network: parseNetwork(value["network"], errors),
-    budget: parseBudget(value["budget"], errors)
+    budget: parseBudget(value["budget"], errors),
+    ...optionalDelivery(value["delivery"], errors)
   };
 }
 
@@ -468,7 +481,7 @@ function parseBudget(value: unknown, errors: string[]): FactoryBudget {
 
   rejectUnknownKeys(
     value,
-    ["maxUsd", "maxTokens", "timeoutMs", "adapterRetriesPerTask", "taskWallClockMs", "maxRepairLoops"],
+    ["maxUsd", "maxTokens", "timeoutMs", "adapterRetriesPerTask", "taskWallClockMs", "deliveryWallClockMs", "maxRepairLoops"],
     "capabilityEnvelope.budget",
     errors
   );
@@ -491,6 +504,15 @@ function parseBudget(value: unknown, errors: string[]): FactoryBudget {
       "capabilityEnvelope.budget.taskWallClockMs",
       1_000,
       1_800_000,
+      errors
+    ),
+    deliveryWallClockMs: readIntegerWithDefault(
+      value,
+      "deliveryWallClockMs",
+      "capabilityEnvelope.budget.deliveryWallClockMs",
+      30_000,
+      3_600_000,
+      600_000,
       errors
     ),
     maxRepairLoops: readIntegerWithDefault(
@@ -522,9 +544,62 @@ function readOptionalNumberObject(
   return { [key]: value };
 }
 
+function optionalDelivery(
+  value: unknown,
+  errors: string[]
+): Pick<CapabilityEnvelope, "delivery"> | Record<string, never> {
+  if (value === undefined) {
+    return {};
+  }
+
+  return {
+    delivery: parseDelivery(value, errors)
+  };
+}
+
+function parseDelivery(value: unknown, errors: string[]): CapabilityEnvelopeDelivery {
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.delivery must be an object.");
+    return { target: { owner: "", repo: "", baseBranch: "" } };
+  }
+
+  rejectUnknownKeys(value, ["target"], "capabilityEnvelope.delivery", errors);
+
+  return { target: parseDeliveryTarget(value["target"], errors) };
+}
+
+function parseDeliveryTarget(value: unknown, errors: string[]): DeliveryTarget {
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.delivery.target must be an object.");
+    return { owner: "", repo: "", baseBranch: "" };
+  }
+
+  rejectUnknownKeys(value, ["owner", "repo", "baseBranch"], "capabilityEnvelope.delivery.target", errors);
+
+  const owner = readString(value, "capabilityEnvelope.delivery.target.owner", errors);
+  const repo = readString(value, "capabilityEnvelope.delivery.target.repo", errors);
+  const baseBranch = readString(value, "capabilityEnvelope.delivery.target.baseBranch", errors);
+
+  if (owner !== undefined && !/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38}[a-zA-Z0-9])?$/.test(owner)) {
+    errors.push("capabilityEnvelope.delivery.target.owner must be a GitHub owner name.");
+  }
+  if (repo !== undefined && !/^[a-zA-Z0-9._-]{1,100}$/.test(repo)) {
+    errors.push("capabilityEnvelope.delivery.target.repo must be a GitHub repository name.");
+  }
+  if (baseBranch !== undefined && (!/^[a-zA-Z0-9._/-]+$/.test(baseBranch) || baseBranch.length > 244)) {
+    errors.push("capabilityEnvelope.delivery.target.baseBranch must be a valid branch name up to 244 characters.");
+  }
+
+  return {
+    owner: owner ?? "",
+    repo: repo ?? "",
+    baseBranch: baseBranch ?? ""
+  };
+}
+
 function readRequiredInteger(
   record: Record<string, unknown>,
-  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "maxRepairLoops">,
+  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "deliveryWallClockMs" | "maxRepairLoops">,
   path: string,
   minimum: number,
   maximum: number,
@@ -540,7 +615,7 @@ function readRequiredInteger(
 
 function readIntegerWithDefault(
   record: Record<string, unknown>,
-  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "maxRepairLoops">,
+  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "deliveryWallClockMs" | "maxRepairLoops">,
   path: string,
   minimum: number,
   maximum: number,

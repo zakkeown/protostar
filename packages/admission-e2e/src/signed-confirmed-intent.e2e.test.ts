@@ -141,6 +141,7 @@ function setupHappyRun() {
         adapterRetriesPerTask: 4,
         timeoutMs: 1000,
         taskWallClockMs: 180_000,
+        deliveryWallClockMs: 600_000,
         maxRepairLoops: 3
       }
     },
