@@ -205,7 +205,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | LOOP-01 | Phase 5 | In progress — 05-02 mechanical-checks package skeleton complete; 05-03 added PlanTask.acceptanceTestRefs; real mechanical review checks remain in 05-07 and 05-11 |
 | LOOP-02 | Phase 5 | Pending |
 | LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; 05-04 added RepairPlan/RepairTask contracts; synthesizeRepairPlan implementation remains in 05-05 |
-| LOOP-04 | Phase 5 | In progress — 05-03 added capabilityEnvelope.budget.maxRepairLoops default/range contract; 05-04 added ExecutionRunResult, RepairContext, and ReviewLifecycleEvent contracts; loop consumption remains in 05-10 |
+| LOOP-04 | Phase 5 | In progress — 05-03 added capabilityEnvelope.budget.maxRepairLoops default/range contract; 05-04 added ExecutionRunResult, RepairContext, and ReviewLifecycleEvent contracts; 05-06 added AdapterContext repairContext and "repair" retry evidence; loop consumption remains in 05-10 |
 | LOOP-05 | Phase 5 | In progress — 05-04 added DeliveryAuthorization and strict pass/pass ReviewDecisionArtifact contracts; loop minting remains in 05-10 and delivery consumption in 05-13 |
 | LOOP-06 | Phase 5 | In progress — 05-04 added JudgeCritique, ModelReviewer, lifecycle, and block/budget event contracts; block artifact persistence remains in 05-10 |
 | PILE-01 | Phase 6 | Pending |
