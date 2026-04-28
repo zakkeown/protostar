@@ -1,0 +1,651 @@
+{
+  "phase": "10-v1-hardening-dogfood",
+  "generated_at": "2026-04-28T00:00:00Z",
+  "stats": {
+    "total": 22,
+    "answered": 22,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "prior_decisions": {
+    "v0_0_1_locks_2026_04_24": "demo+ cosmetic-tweak loop, pnpm+Turbo monorepo, LM Studio (Qwen3-Coder exec + Qwen3-80B judge), Tauri+React toy sibling repo, Octokit PR. Phase 10 is where this loop actually ships (DOG-02 first row + DOG-04 seed).",
+    "dark_factory_2026_04_24": "Greenfield TS autonomous factory; dark except hard failures; heterogeneous-local judge panel; Phase 10 cosmetic-tweak loop runs against Tauri toy via auto-PR.",
+    "phase_7_delivery_lock": "packages/delivery-runtime owns Octokit + push (network-only); apps/factory-cli persists ci-events.jsonl. Real toy-repo PR + screenshots were explicitly DEFERRED from Phase 7 to Phase 10.",
+    "phase_9_cli_surface": "Phase 9 locks subcommand router (commander/extra-typings under apps/factory-cli/src/commands/), curated ExitCode enum, strict stdout=data discipline, --json for status/inspect/deliver/prune. Phase 10 docs and dogfood scripts MUST conform; never assume a richer CLI than Phase 9 ships.",
+    "archetype_scope": "Only `cosmetic-tweak` archetype is wired for v0.1 (packages/policy/src/admission-paths.ts). The other 7-row matrix slots come from the *outcome* axis (accepted, ambiguous, bad-plan, failed-execution, repaired-execution, blocked-review, pr-ready), not the archetype axis.",
+    "ambiguity_gate": "INTENT_AMBIGUITY_THRESHOLD = 0.2 is a hard contract. The `ambiguous` fixture row triggers refusal at this gate; no calibration in v0.1.",
+    "out_of_scope": "Beads memory graph, parallel waves, adaptive judge sizing, factory self-editing, numeric calibration of consensus thresholds, token-budget unit, cloud judges, non-cosmetic archetypes, GUI/TUI intake, Ouroboros runtime — all DEFERRED past v0.1. Phase 10 must NOT add any of these.",
+    "constraint_authority": "Only apps/factory-cli and packages/repo do filesystem I/O. Any new dogfood/release scripts must respect this; helpers that touch fs land in apps/factory-cli/src/ or packages/repo/src/.",
+    "constraint_runtime_deps": "Minimal external runtime deps (PROJECT.md). Adding any new package requires an explicit lock-revision note in PROJECT.md Constraints. Current Phase 10 candidates: changesets, knip, ts-prune, semgrep — each is dev-only and lighter; still flag in lock note.",
+    "constraint_pr_safety": "PR delivery uses Octokit + PAT from env; never pass branch names to a shell unvalidated (^[a-zA-Z0-9._/-]+$). Phase 10 dogfood automation MUST NOT regress this.",
+    "code_landmarks": [
+      ".planning/REQUIREMENTS.md:124-131 — DOG-01..DOG-08 wording (toy repo + matrix + ≥10 ≥80% + docs + hygiene + release + security)",
+      ".planning/ROADMAP.md:317-329 — Phase 10 success criteria + the v0.1 cosmetic-tweak loop note",
+      ".planning/STATE.md — every phase status; current Phase 8 verification pending; Phases 6, 7 not fully verified",
+      "packages/policy/src/admission-paths.ts — archetype routing; cosmetic-tweak is the only wired path",
+      "apps/factory-cli/src/main.ts — dispatcher (Phase 9 refactor target); after Phase 9 lands, commands/ folder is the new home",
+      "packages/delivery-runtime/ — Octokit + push surface invoked by Phase 9 deliver subcommand",
+      ".protostar/runs/<runId>/{manifest.json, intent.json, plan.json, execution-plan.json, planning-mission.txt, review-mission.txt, review-gate.json, piles/, execution/journal.jsonl + snapshot.json, evolution/snapshot.json, ci-events.jsonl} — observed run-bundle shape (must be documented by DOG-05)",
+      ".protostar/refusals.jsonl + .protostar/evolution/{lineageId}.jsonl — workspace-level append-only files prune must preserve",
+      "../protostar-toy-ttt/ — sibling repo path called out in DOG-01 (does not exist yet on disk)",
+      "AGENTS.md — domain-first packaging rule; no utils/agents/factory catch-all"
+    ]
+  },
+  "sections": [
+    {
+      "id": "toy-repo",
+      "title": "Toy Repo & First Seed (DOG-01, DOG-03)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Toy repo scaffold approach",
+          "context": "DOG-01 calls for `../protostar-toy-ttt` scaffolded via `create-tauri-app`. The factory only wires the `cosmetic-tweak` archetype, so the toy needs visible UI surfaces (buttons, colors, hover states) the seeds can target.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Vanilla create-tauri-app, no edits",
+              "description": "Run the official template, push as-is. Smallest setup; relies on whatever default UI the template ships. Risk: defaults may be too minimal for varied cosmetic seeds."
+            },
+            {
+              "id": "b",
+              "label": "create-tauri-app + a curated demo screen",
+              "description": "Add one small `App.tsx` with named components (PrimaryButton, Card, NavBar) so seeds have predictable handles. Slightly more work; gives seeds a stable target surface."
+            },
+            {
+              "id": "c",
+              "label": "create-tauri-app + intentional rough edges",
+              "description": "Vanilla template + a couple of low-quality components (no hover states, hard-coded colors, missing aria) so seeds have obvious affordances to improve. Better dogfood signal; more setup."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Toy repo GitHub visibility",
+          "context": "Octokit PRs need a real remote. The toy repo is a sacrificial dogfood surface, not product code. PAT scope and accidental disclosure both depend on visibility.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Public under your personal account",
+              "description": "Easiest to share dogfood evidence (link a PR in the README). Public history of factory-generated PRs becomes part of the marketing surface — also part of the failure surface if a run goes weird."
+            },
+            {
+              "id": "b",
+              "label": "Private under your personal account",
+              "description": "PAT scope same; no public exposure of factory-generated commits. Evidence in PRs/screenshots stays in repo notes."
+            },
+            {
+              "id": "c",
+              "label": "Org-owned (new org, public)",
+              "description": "Cleaner branding (`protostar-org/protostar-toy-ttt`), separates from personal repos. Costs an org and another PAT scoping."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Toy repo state between dogfood runs",
+          "context": "DOG-04 wants ≥10 consecutive runs ≥80% pr-ready. Each run opens a PR (via Phase 7/9 deliver). What does the toy `main` look like between runs?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hard-reset main after each run; PRs orphaned/closed",
+              "description": "Reset `main` to a known baseline before each run; close prior factory PRs unmerged. Each seed runs against an identical starting state — clean signal, easy comparison. Loses cumulative-improvement story."
+            },
+            {
+              "id": "b",
+              "label": "Squash-merge accepted PRs; reset on rejected",
+              "description": "If a run reaches `pr-ready`, merge it; otherwise reset main and close the PR. Toy actually evolves over the dogfood session; later seeds operate on prior factory output (real-world-ish). Risk: cascading drift if an early bad merge poisons later runs."
+            },
+            {
+              "id": "c",
+              "label": "Branch-per-run, never merge anything",
+              "description": "All factory PRs stay open against the same baseline `main`. No merge automation needed. After 10 runs you have 10 open PRs to eyeball; main stays pristine."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-04",
+          "title": "First seed — DOG-03 baseline",
+          "context": "DOG-03: 'change primary button color and add a hover state' must run end-to-end with zero human input mid-loop. Memory captures this exact wording from the 2026-04-24 lock. What's the formal seed for DOG-03?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Use the literal 2026-04-24 wording verbatim",
+              "description": "Intent text = 'Change the primary button color and add a hover state'. Zero ambiguity over what's locked. Whatever the factory does with this is the v0.1 demo."
+            },
+            {
+              "id": "b",
+              "label": "Slightly enriched seed with explicit acceptance criteria",
+              "description": "Same intent but the seed file includes hand-authored AC (e.g., 'PrimaryButton.tsx background changes; :hover rule added; existing tests still pass'). Closer to how a real operator would write it; tests the AC pipeline harder."
+            },
+            {
+              "id": "c",
+              "label": "A small seed library (3 cosmetic seeds), DOG-03 picks the first",
+              "description": "Author 3 canonical seeds (button color/hover, add a card shadow, change nav text-weight). DOG-03 = seed #1; DOG-04's 10× loop draws from the library. More variety in the dogfood signal."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "fixture-matrix",
+      "title": "Fixture Matrix (DOG-02)",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "Fixture storage location",
+          "context": "DOG-02 needs ≥1 captured passing run for each of 7 outcomes. These artifacts are consumed by tests and read by humans reviewing what 'good' looks like. Where do they live?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Inside `apps/factory-cli/__fixtures__/dogfood/`",
+              "description": "Co-locates with the binary that produces them. Easiest for factory-cli tests to import. Risk: factory-cli grows yet again; fixtures in source tree."
+            },
+            {
+              "id": "b",
+              "label": "New `packages/fixtures/` package",
+              "description": "Domain-first package owning the matrix; exports typed accessors. Cleanest authority story; one more package to maintain. Other test packages can depend on it."
+            },
+            {
+              "id": "c",
+              "label": "Under `.planning/fixtures/dogfood/`",
+              "description": "Treats fixtures as planning artifacts, not code. Clear they're operator-curated, not generated. No package boundary; tests reach across .planning (currently they don't)."
+            },
+            {
+              "id": "d",
+              "label": "Inside `packages/admission-e2e/__fixtures__/dogfood/`",
+              "description": "Phase 8 already established admission-e2e as the contract-test home. Adding fixtures here keeps the contract-test → fixture relationship one hop. Bloats admission-e2e."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Fixture capture format",
+          "context": "Each matrix row needs to be REPLAYABLE evidence. Run bundles can be 10s of MB (traces, journal, piles). Full snapshots are heavy and brittle to schema drift; assertion-only loses replay value.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Full run-bundle snapshot per row",
+              "description": "Copy the entire `.protostar/runs/<id>/` tree into the fixture. Maximum fidelity; biggest repo bloat; every artifact-shape change breaks every fixture."
+            },
+            {
+              "id": "b",
+              "label": "Manifest + key-artifact subset (no traces)",
+              "description": "Save manifest.json, intent.json, plan.json, review-gate.json, ci-events.jsonl, evolution/snapshot.json. Drop trace.json (Phase 6 Q-08 — they're huge). Small enough to commit; covers the operator-visible surface."
+            },
+            {
+              "id": "c",
+              "label": "Structured assertions only — no raw bundle",
+              "description": "Each row is a TS file: `{ outcome, archetype, expected: { manifest.status, reviewVerdict, hasPrUrl, ... } }`. Smallest footprint; loses 'this is what good looks like' as readable evidence."
+            },
+            {
+              "id": "d",
+              "label": "Hybrid: assertions in TS + minimal manifest+gate JSON",
+              "description": "Per row: a TS assertion file PLUS the actual manifest.json + review-gate.json captured from a real run. Operator can read evidence; tests assert on a small declarative shape. Two files per row."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Reliably triggering negative outcomes (`bad-plan`, `failed-execution`, `blocked-review`, `ambiguous`)",
+          "context": "Real cosmetic-tweak runs against the toy mostly succeed — the negative rows are HARDER to capture than the positive ones. We need a deterministic way to drive each failure mode without faking it past recognition.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Synthetic intents that naturally trigger each gate",
+              "description": "Hand-author intents that the real pipeline will refuse: 'do something' (ambiguous gate ≥0.2), 'add quantum leaderboard to button' (planning refusal), seed pointing at a non-existent file (execution failure). Real pipeline, real artifacts, no mocks."
+            },
+            {
+              "id": "b",
+              "label": "Harness-injected pile responses",
+              "description": "A test harness intercepts pile calls and returns canned bad-plan / blocked-review JSON. Deterministic; bypasses the real pile so artifacts may not match what production produces."
+            },
+            {
+              "id": "c",
+              "label": "Capability-envelope tweaks (e.g., zero file-write budget)",
+              "description": "Drive `failed-execution` by setting a write budget too small for the seed; drive `blocked-review` by tightening review thresholds. Real pipeline, knob-controlled. Some envelopes don't have an obvious dial."
+            },
+            {
+              "id": "d",
+              "label": "Mix per row — pick the most natural trigger for each",
+              "description": "Use (a) for ambiguous + bad-plan (intent-shaped), (c) for failed-execution + repaired-execution (envelope-shaped), real success runs for accepted + pr-ready. Most realistic per row; matrix construction code is heterogeneous."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Matrix execution cadence",
+          "context": "Are fixtures captured once and committed, or re-derived each CI run? Either choice has follow-on costs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "One-time capture, committed; tests read static files",
+              "description": "Capture each row once on a real machine, commit artifacts. CI just reads the JSON. Fast tests; fixtures drift from real factory output silently as the pipeline evolves."
+            },
+            {
+              "id": "b",
+              "label": "Re-derived each CI run (full pipeline against the toy)",
+              "description": "Every CI run executes the matrix against a fresh toy repo clone. Always current; CI takes minutes longer; needs LM Studio in CI (which the v0.1 testing posture rejects)."
+            },
+            {
+              "id": "c",
+              "label": "Static for CI; a manual `pnpm dogfood:matrix` script regenerates",
+              "description": "Default tests use committed fixtures (fast). Dogfood owner runs `pnpm dogfood:matrix` periodically to refresh. Drift surfaces when the regen diff is reviewed. Operator discipline."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "dogfood-loop",
+      "title": "Dogfood Loop (DOG-04)",
+      "questions": [
+        {
+          "id": "Q-09",
+          "title": "Loop driver — script vs subcommand",
+          "context": "DOG-04: ≥10 consecutive runs against the toy repo. Today `protostar-factory run` does ONE run. Where does the 10× orchestration live?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Shell script under `scripts/dogfood.sh`",
+              "description": "Plain bash loop calling `protostar-factory run` N times with seeds from a directory. No new TS surface; depends on shell discipline; cancellation is just SIGINT."
+            },
+            {
+              "id": "b",
+              "label": "New subcommand `protostar-factory dogfood --runs N --seeds <dir>`",
+              "description": "First-class operator surface; respects Phase 9's stdout=data + ExitCode taxonomy; can emit a single summary JSON. Adds CLI surface to lock — a v0.1 commitment we may not want yet."
+            },
+            {
+              "id": "c",
+              "label": "Node script under `apps/factory-cli/src/scripts/dogfood.ts` (not a subcommand)",
+              "description": "Compiled Node script invokable via `pnpm dogfood`. Uses the same APIs as the CLI but is NOT part of the locked CLI contract. Cancellation/cleanup is real. Halfway between (a) and (b)."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-10",
+          "title": "Pass criterion for `pr-ready`",
+          "context": "DOG-04: ≥80% reaching `pr-ready`. The exact pass condition decides whether the gate is meaningful.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Phase 5 review-gate.json final verdict = pass",
+              "description": "Run reached review and was approved (no repair-budget exhaustion, no block). Does NOT require a PR to actually open. Tests the loop's internal verdict; insulates from GitHub flakiness."
+            },
+            {
+              "id": "b",
+              "label": "Octokit PR opened against the toy repo (URL captured in ci-events.jsonl)",
+              "description": "Run reached delivery and a real PR exists. Tests Phase 7 + Phase 9 deliver end-to-end. Subject to GitHub API flakiness; failure could be GitHub, not the factory."
+            },
+            {
+              "id": "c",
+              "label": "PR opened AND CI green on the toy repo",
+              "description": "Highest bar — the change actually builds and tests pass on the toy. Requires the toy to have CI configured. Most operator-meaningful; longest feedback loop."
+            },
+            {
+              "id": "d",
+              "label": "Configurable per dogfood session (default = (b))",
+              "description": "`--pass-criterion {review|pr|ci}` flag on the dogfood driver; default to PR-opened. Lets future tightening happen without code change. Slightly more knobs to lock."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Loop concurrency",
+          "context": "10 sequential runs of LM-Studio-driven loops can take hours. Parallelism is tempting but contends for the same LM Studio backend and the same toy repo working tree.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strictly sequential",
+              "description": "One run at a time. No GPU contention; deterministic toy-repo state. Long wall-clock. Simplest."
+            },
+            {
+              "id": "b",
+              "label": "Sequential but resumable",
+              "description": "Sequential, plus a JSONL progress file so a killed dogfood session can resume. Same wall-clock; killer can ^C without losing prior runs."
+            },
+            {
+              "id": "c",
+              "label": "Shallow parallelism (2 workers, separate toy clones)",
+              "description": "Two workers, each with its own toy-repo clone, picking seeds from a queue. Halves wall-clock; doubles GPU load on LM Studio (likely a bottleneck); makes pr-ready scoring harder if PRs collide."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Dogfood result surfacing",
+          "context": "Dark autonomy says no progress logs. But a 10-run dogfood session needs SOME post-hoc summary the operator can act on.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single `dogfood-report.json` written at the end (one shot)",
+              "description": "Driver writes a final `.protostar/dogfood/<sessionId>/report.json` with per-run rows + aggregate %. Fully dark during run; one artifact at the end."
+            },
+            {
+              "id": "b",
+              "label": "Use `protostar-factory status --since <sessionStart>` after the fact",
+              "description": "No new artifact; operator runs `status` after dogfood ends. Reuses Phase 9 surface; no dogfood-specific schema to lock."
+            },
+            {
+              "id": "c",
+              "label": "Both: report.json + a console summary at the end (stderr)",
+              "description": "Machine-readable artifact AND a one-shot operator-facing summary line on stderr after the loop ends. Belt + suspenders; one more surface to keep stable."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "title": "Documentation (DOG-05)",
+      "questions": [
+        {
+          "id": "Q-13",
+          "title": "Documentation surface and depth",
+          "context": "DOG-05: README explains run lifecycle, every CLI command, run-bundle schema. Audience splits into operators (run + interpret) and contributors (build + extend).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single root README, monolithic",
+              "description": "One README at repo root covering everything. Easiest to maintain in one place; gets long; loses audience separation."
+            },
+            {
+              "id": "b",
+              "label": "Root README + per-package READMEs",
+              "description": "Root README is the operator-first quickstart + lifecycle. Each `packages/*/README.md` covers that package's public surface for contributors. More files; better separation of concerns; aligns with package hygiene (DOG-06)."
+            },
+            {
+              "id": "c",
+              "label": "Root README + a `docs/` folder of long-form Markdown",
+              "description": "Root is short; deep dives (lifecycle, run-bundle schema, security model) in `docs/lifecycle.md`, `docs/run-bundle.md`, etc. Doesn't require per-package docs. Adds a `docs/` surface to maintain."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Run-bundle schema documentation source of truth",
+          "context": "Every artifact in `.protostar/runs/<id>/` has a Zod schema (most live in `packages/artifacts`). Documentation can mirror those schemas or live separately.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hand-written reference under `docs/run-bundle.md`",
+              "description": "Operator-friendly prose + JSON examples per artifact. Drifts from code. Reads better."
+            },
+            {
+              "id": "b",
+              "label": "Generated from Zod schemas (zod-to-json-schema, committed)",
+              "description": "Build step emits `docs/run-bundle.schema.json` + a Markdown table from real Zod sources. Always current. New build dep; less reader-friendly without prose."
+            },
+            {
+              "id": "c",
+              "label": "Hand-written prose + a generated appendix listing every Zod schema",
+              "description": "Prose describes 'why this artifact exists'; appendix is the machine-derived field reference. Best of both; most setup work."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "CLI command reference",
+          "context": "Phase 9 locks `--help` output via admission-e2e snapshot tests. DOG-05 also wants every CLI command documented. Should `--help` BE the documentation, or a separate doc?",
+          "options": [
+            {
+              "id": "a",
+              "label": "`--help` is the source of truth; README links to it",
+              "description": "README has 'run `protostar-factory <cmd> --help` for flags'. Zero duplication; operators must shell into the binary to see flags. Phase 9 snapshot is the lock."
+            },
+            {
+              "id": "b",
+              "label": "`--help` snapshots committed under `docs/cli/<cmd>.txt`",
+              "description": "Phase 9 snapshot tests already capture --help; commit them under `docs/cli/` so GitHub renders them. README links to the directory. Zero duplicate authoring; one more committed artifact set."
+            },
+            {
+              "id": "c",
+              "label": "Hand-written CLI reference per command (separate from --help)",
+              "description": "Long-form examples + use cases per command in `docs/cli/<cmd>.md`. Best for new operators; biggest drift risk."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Run lifecycle visual",
+          "context": "DOG-05 says explain the run lifecycle. The pipeline is admission → planning → execution → review → repair? → evaluation → evolution → delivery. Visual aids help operators build a mental model.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Prose only — no diagrams",
+              "description": "Text walkthrough. Renders everywhere; no diagram-tooling commitment. Operators must build the picture themselves."
+            },
+            {
+              "id": "b",
+              "label": "One mermaid sequence diagram in README",
+              "description": "Mermaid renders on GitHub natively. One source-of-truth picture committed as code. Diagram drifts from code unless reviewed each phase."
+            },
+            {
+              "id": "c",
+              "label": "Mermaid stage diagram + per-stage prose section",
+              "description": "Diagram for shape; prose for substance per stage with file-path landmarks. Most useful for operators; most pages to keep in sync."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "release-and-security",
+      "title": "Release, Hygiene, Security (DOG-06, DOG-07, DOG-08)",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "Package publish posture for v0.1",
+          "context": "PROJECT.md doesn't currently say which `@protostar/*` packages are public. DOG-07 says `pnpm release` produces a publishable artifact set OR documents why packages stay private. v0.1 is greenfield; nothing depends on us yet.",
+          "options": [
+            {
+              "id": "a",
+              "label": "All packages stay private for v0.1",
+              "description": "`\"private\": true` everywhere. `pnpm release` builds + tags + writes a CHANGELOG; no npm publish. Documents posture in PROJECT.md. Lowest risk; defers public-API commitment."
+            },
+            {
+              "id": "b",
+              "label": "Only `apps/factory-cli` is public on npm",
+              "description": "Operator surface (the binary) ships; the implementation packages stay private. Users `npm i -g @protostar/factory-cli` only. Smaller commitment surface; bundling all deps into the binary takes work."
+            },
+            {
+              "id": "c",
+              "label": "All `@protostar/*` packages public on npm",
+              "description": "Full open monorepo; every domain package is `npm i`-able. Maximum extensibility; maximum commitment to public APIs from day 1."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Versioning + release tooling",
+          "context": "DOG-07 needs `pnpm release` to build, test, tag, and produce shippable artifacts. The monorepo has 10+ packages; either everything moves in lockstep or per-package versioning is needed.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Lockstep `pnpm version`-based script (hand-rolled)",
+              "description": "All packages share one version. `scripts/release.sh` runs `pnpm -r exec npm version`, `pnpm -r build`, `pnpm test`, `git tag`. Zero new deps; simple."
+            },
+            {
+              "id": "b",
+              "label": "Changesets (`@changesets/cli`)",
+              "description": "Industry-standard monorepo release tool; per-package versions, changeset files in PRs become CHANGELOG entries. Adds dev-dep; teaches contributors a workflow. Best fit if (Q-17 b/c)."
+            },
+            {
+              "id": "c",
+              "label": "release-please (Conventional Commits)",
+              "description": "Auto-derives versions + CHANGELOG from commit messages. Requires Conventional-Commit discipline. GitHub Action overhead. Heavier than (b) for similar payoff."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-19",
+          "title": "Public surface enforcement (DOG-06)",
+          "context": "DOG-06: 'every package has a tested public surface, version pinned, no unused exports'. Today exports are inferred from `package.json#exports` + index.ts re-exports; no automated enforcement.",
+          "options": [
+            {
+              "id": "a",
+              "label": "knip (unused exports + unused deps)",
+              "description": "Single tool; runs in CI; reports unused exports/files/deps across the monorepo. Lightweight config; fast."
+            },
+            {
+              "id": "b",
+              "label": "ts-prune only (unused exports)",
+              "description": "Smaller tool, narrower scope. No unused-deps detection. Less to configure."
+            },
+            {
+              "id": "c",
+              "label": "knip + an admission-e2e contract enumerating each package's public exports",
+              "description": "knip for the negative check (nothing unused); a hand-authored contract test for the positive check (these specific exports are stable). Hardest to drift; most setup."
+            },
+            {
+              "id": "d",
+              "label": "Manual review per release; no tooling",
+              "description": "DOG-06 covered by checklist in `pnpm release`. Operator discipline. Cheap; high drift risk by the second release."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-20",
+          "title": "Security review deliverable (DOG-08)",
+          "context": "DOG-08 covers capability envelope, subprocess, filesystem, network, secrets. Phase 9 docs mention Q-21 as a 'load-bearing security boundary'. Need a written artifact a future contributor can audit against.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Repo-root `SECURITY.md` (operator-facing threat model)",
+              "description": "Standard GitHub-recognized location; covers reportable surfaces and our trust assumptions. Public surface; good for adoption."
+            },
+            {
+              "id": "b",
+              "label": "`.planning/SECURITY-REVIEW.md` (internal audit log)",
+              "description": "Internal artifact: per-surface checklist (subprocess args, fs writes, network egress, env-var reads), what was reviewed, what was found, signoff date. Audit trail; not user-facing."
+            },
+            {
+              "id": "c",
+              "label": "Both — public SECURITY.md + internal SECURITY-REVIEW.md",
+              "description": "Public threat model + internal audit log. Most surface; clearest separation between 'tell users' and 'prove to ourselves'. Two docs to keep current."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-21",
+          "title": "Security audit enforcement",
+          "context": "DOG-08 requires the audit, but enforcement decides whether the constraints stick. Authority boundary (only `apps/factory-cli` + `packages/repo` do fs I/O) is already informal — currently relies on AGENTS.md.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hand-grep against PROJECT.md rules; documented in SECURITY-REVIEW.md",
+              "description": "Reviewer greps each forbidden surface (`fs.write`, `child_process.exec`, etc.) per package and notes the exception list. Cheap; human-driven; drifts."
+            },
+            {
+              "id": "b",
+              "label": "admission-e2e contract tests asserting forbidden imports",
+              "description": "e.g., `dogpile-adapter must not import 'node:fs'`. Static AST scan in tests. Fails CI on regression. Most enforceable; setup cost; needs an exception escape hatch."
+            },
+            {
+              "id": "c",
+              "label": "External tooling (semgrep / CodeQL) in CI",
+              "description": "Rule-based scanner with security-focused rule packs. Heavy lift to configure for our specific authority rules; finds general security issues for free."
+            },
+            {
+              "id": "d",
+              "label": "(b) for authority + AGENTS.md updates for the rest",
+              "description": "Programmatic enforcement of the authority boundary (load-bearing); the rest of DOG-08 is an audit narrative in SECURITY-REVIEW.md. Pragmatic split; keeps tests focused."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-22",
+          "title": "Phase 10 sub-ordering — dogfood-first vs ship-prep-first",
+          "context": "DOG-01..DOG-04 (toy + matrix + 10× runs) prove the factory works. DOG-05..DOG-08 (docs, hygiene, release, security) prepare it to ship. Order matters: dogfood may surface bugs that change the public surface docs/release would lock.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Dogfood first (DOG-01 → DOG-04), then ship prep (DOG-05 → DOG-08)",
+              "description": "Validate before documenting. Docs/release tooling assume the system actually works. Risk: ≥10 dogfood runs is the longest leg; ship-prep blocked behind it."
+            },
+            {
+              "id": "b",
+              "label": "Parallel — toy + matrix scaffolding alongside docs/hygiene",
+              "description": "DOG-01 + DOG-05/DOG-06 in parallel; DOG-04 + DOG-07/DOG-08 later. Faster wall-clock; risk that docs lock something dogfood would have caught."
+            },
+            {
+              "id": "c",
+              "label": "Ship-prep first (DOG-05 → DOG-08), then dogfood (DOG-01 → DOG-04) as final acceptance",
+              "description": "Lock docs/hygiene/release/security; dogfood is the final 'does this still work after we tightened everything' test. Risk: late dogfood exposing bugs forces re-documentation."
+            },
+            {
+              "id": "d",
+              "label": "DOG-01 + DOG-03 first (one real run end-to-end), then matrix + docs in parallel, then DOG-04 final",
+              "description": "Smallest possible end-to-end loop first as a smoke gate. Then everything else in parallel. Then the 10× run as Phase 10's exit gate. Most pragmatic ordering."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
