@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 7 delivery verified; Phase 8 Plan 01 complete)
+**Last updated:** 2026-04-28 (Phase 8 Plan 07 complete)
 
 ## Project
 
@@ -26,9 +26,9 @@
 
 **Phase 8 — Evaluation + Evolution** (in progress)
 
-Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-28. The new `@protostar/evaluation-runner` workspace skeleton exists, builds, and has a compiled placeholder rejection test; workspace metadata, root TypeScript references, lockfile importer, and root verify hook are registered.
+Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`) completed 2026-04-28. Factory CLI now resolves evaluation/evolution flags and config, runs `runEvaluationStages`, persists `runs/{id}/evolution/snapshot.json`, appends `.protostar/evolution/{lineage}.jsonl` and `.protostar/calibration/ontology-similarity.jsonl`, and feeds prior-generation summaries into Dogpile planning missions.
 
-**Next action:** Continue Phase 8 wave 1 with `08-02-types-and-schema-extensions-PLAN.md`. Phase 7 delivery closure restored repo-wide `pnpm run verify` and the factory smoke build path.
+**Next action:** Continue Phase 8 wave 6 with `08-08-admission-e2e-contracts-PLAN.md`. `pnpm run verify` is green; `pnpm run factory` builds and stops at the expected workspace-trust gate.
 
 ## Phase Status
 
@@ -41,7 +41,7 @@ Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-2
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
-| 8 | Evaluation + Evolution | In progress — Plan 08-01 complete |
+| 8 | Evaluation + Evolution | In progress — Plans 08-01 through 08-07 complete; Plan 08-08 pending |
 | 9 | Operator Surface + Resumability | Pending |
 | 10 | V1 Hardening + Dogfood | Pending |
 
@@ -54,6 +54,8 @@ Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-2
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`). Added evaluation/evolution CLI flags and resolvers (`--lineage`, `--evolve-code`, `--generation`, `--semantic-judge-model`, `--consensus-judge-model`), atomic evolution snapshot persistence, lineage JSONL chain indexing, calibration log appends, and factory-cli wiring from review output into `runEvaluationStages`. Dogpile planning missions now accept an optional `PriorGenerationSummary` that includes prior AC fields/reasons/verdicts while keeping prior code hints behind explicit code-evolution opt-in. Rule-driven fixes added factory-cli's evaluation-runner workspace dependency/reference, threaded the resolved convergence threshold into the runner, handled the new `eval-consensus-block` failure variant, and tolerated missing stale prior snapshots. Verification passed: `pnpm --filter @protostar/evaluation-runner test` (12), `pnpm --filter @protostar/dogpile-adapter test` (46), `pnpm --filter @protostar/factory-cli build`, `pnpm --filter @protostar/factory-cli test` (213), and `pnpm run verify`; `pnpm run factory` built then stopped at the expected workspace-trust gate. Commits: `7c50d85`, `1ba44d6`, `897a34e`.
 
 - **2026-04-28:** Closed Phase 7 (`07-delivery`) after all 12 plans plus advisory gates. Gap closure fixed five delivery review blockers and the DELIVER-03 evidence-flow gap: push/auth/API failures now use non-cancelled redacted refusal variants (`push-failed`, `github-api-error`), comment and CI-capture errors share the redaction sanitizer, `executeDelivery` enforces `DeliveryAuthorization.runId === ctx.runId`, post-PR initial CI capture failure still returns a durable delivered outcome, and factory-cli now feeds real review-loop critiques/iterations into the PR body while finalizing the body with the assigned PR URL. `07-REVIEW.md` is unblocked with one warning (oversized individual evidence comments still throw before typed delivery result), `07-SECURITY.md` remains secured (43/43 threats closed), and `07-VERIFICATION.md` passed (10/11 active must-haves, Phase 10 deferrals for real toy-repo PR and screenshots). `pnpm run verify` passed with 187 factory-cli tests; `pnpm run factory` built then stopped at the expected workspace-trust gate (exit 2).
 
@@ -126,7 +128,7 @@ From `MEMORY.md`:
 - Specific second judge model family (Phase 8) — Llama-70B vs DeepSeek vs other; pick during Phase 8 research
 - Toy-app linkage (Phase 10) — clone vs submodule vs worktree
 - Demo recording medium (Phase 10) — screenshot vs Playwright video trace
-- Convergence threshold calibration (Phase 8 EVOL-03) — needs ≥10 dogfood runs first
+- Convergence threshold calibration (Phase 8 EVOL-03) — logging is wired in Phase 8; empirical analysis continues with Phase 10 dogfood runs
 
 ---
 *Initialized: 2026-04-26 via `/gsd-new-project` brownfield init against dark-factory locks + operator-supplied 10-phase v1 ordering*

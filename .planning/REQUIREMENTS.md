@@ -99,10 +99,10 @@ Formalize the Ouroboros-inspired loop. Evolve specs/plans before evolving code.
 - [ ] **EVAL-01**: Mechanical eval stage produces deterministic numeric scores (build pass, lint clean, diff size, AC coverage)
 - [ ] **EVAL-02**: Semantic eval stage calls a heterogeneous-local judge (e.g. Qwen3-Next-80B-A3B-MLX-4bit) against diff + AC and returns numeric scores
 - [ ] **EVAL-03**: Consensus eval stage runs a second judge from a different model family when semantic confidence is below threshold; produces `pass`/`fail` using harsher-than-baseline rule (high mean AND high min)
-- [ ] **EVAL-04**: Stubbed `status: "skipped"` branches in `createEvaluationReport` are removed once mechanical + semantic + consensus are wired
-- [ ] **EVOL-01**: Ontology / spec convergence — `decideEvolution` reads the previous run's snapshot from disk and produces `continue` / `converged` / `exhausted`
-- [ ] **EVOL-02**: Evolution decision drives spec/plan refinement on the next run; core code evolution is gated behind explicit operator opt-in
-- [ ] **EVOL-03**: Convergence threshold (currently `0.95` in `packages/evaluation/src/index.ts:123`) is calibrated empirically against ≥10 dogfood runs
+- [x] **EVAL-04**: Stubbed `status: "skipped"` branches in `createEvaluationReport` are removed once mechanical + semantic + consensus are wired
+- [x] **EVOL-01**: Ontology / spec convergence — `decideEvolution` reads the previous run's snapshot from disk and produces `continue` / `converged` / `exhausted`
+- [x] **EVOL-02**: Evolution decision drives spec/plan refinement on the next run; core code evolution is gated behind explicit operator opt-in
+- [x] **EVOL-03**: Convergence threshold (currently `0.95` in `packages/evaluation/src/index.ts:123`) is calibrated empirically against ≥10 dogfood runs
 
 ### Phase 9 — Operator Surface + Resumability
 
@@ -224,10 +224,10 @@ Explicitly excluded. Documented to prevent scope creep.
 | EVAL-01 | Phase 8 | Pending |
 | EVAL-02 | Phase 8 | Pending |
 | EVAL-03 | Phase 8 | Pending |
-| EVAL-04 | Phase 8 | Pending |
-| EVOL-01 | Phase 8 | Pending |
-| EVOL-02 | Phase 8 | Pending |
-| EVOL-03 | Phase 8 | Pending |
+| EVAL-04 | Phase 8 | Complete |
+| EVOL-01 | Phase 8 | Complete |
+| EVOL-02 | Phase 8 | Complete |
+| EVOL-03 | Phase 8 | Complete |
 | OP-01 | Phase 9 | Pending |
 | OP-02 | Phase 9 | Pending |
 | OP-03 | Phase 9 | Pending |
