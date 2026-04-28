@@ -110,6 +110,11 @@ RECOMMENDED: use the `RunFactoryPileDeps` seam (inject a fake `stream`) and asse
   <verify>
     <automated>pnpm --filter @protostar/admission-e2e test --grep dogpile-adapter-no-fs</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/admission-e2e test --grep dogpile-adapter-no-fs`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     Both `it` blocks pass; the file exists at the documented path; static walker reports zero offenders; runtime invocation completes ok=true.
   </done>
@@ -149,6 +154,11 @@ RECOMMENDED: use the `RunFactoryPileDeps` seam (inject a fake `stream`) and asse
   <verify>
     <automated>pnpm --filter @protostar/admission-e2e test --grep refusal-byte-equal</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/admission-e2e test --grep refusal-byte-equal`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     Test passes; the two refusal artifacts agree on all schema-uniform fields; the only difference is the documented failure-class discriminator.
   </done>
@@ -183,6 +193,11 @@ RECOMMENDED: use the `RunFactoryPileDeps` seam (inject a fake `stream`) and asse
   <verify>
     <automated>pnpm --filter @protostar/admission-e2e test --grep "planning-pile-live|work-slicing-trigger|repair-plan-trigger" &amp;&amp; pnpm run verify</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/admission-e2e test --grep "planning-pile-live|work-slicing-trigger|repair-plan-trigger" &amp;&amp; pnpm run verify`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All three integration smoke blocks pass; full repo `pnpm run verify` is green; PILE-01, PILE-03, PILE-04, PILE-06 are all backed by automated regressions.
   </done>

@@ -13,7 +13,6 @@ files_modified:
   - packages/planning/src/admit-work-slicing.ts
   - packages/planning/src/admit-work-slicing.test.ts
   - packages/planning/src/index.ts
-  - packages/dogpile-adapter/src/index.ts
 autonomous: true
 requirements: [PILE-03]
 tags: [repair, planning, exec-coord, q-15, q-18]
@@ -98,7 +97,7 @@ Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
 
 <task type="auto" tdd="true">
   <name>Task 1: ExecutionCoordinationPileResult shape + parseExecutionCoordinationPileResult (Q-18)</name>
-  <files>packages/repair/src/execution-coordination-pile-result.ts, packages/repair/src/execution-coordination-pile-result.test.ts, packages/repair/src/index.ts, packages/dogpile-adapter/src/index.ts</files>
+  <files>packages/repair/src/execution-coordination-pile-result.ts, packages/repair/src/execution-coordination-pile-result.test.ts, packages/repair/src/index.ts</files>
   <read_first>
     - packages/repair/src/index.ts (current 4-line skeleton — see what's there from Phase 5 Plan 05-01)
     - packages/planning/src/index.ts (locate TaskSlice / Task type definitions; confirm what's exported)
@@ -127,22 +126,20 @@ Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
 
     Update `packages/repair/src/index.ts` to re-export `ExecutionCoordinationPileResult`, `ExecutionCoordinationProposal`, `parseExecutionCoordinationPileResult`, and `PileSource` (or import from @protostar/review and re-export).
 
-    Update `packages/dogpile-adapter/src/index.ts` to ergonomically re-export per CONTEXT Q-18:
-    ```ts
-    export {
-      parseExecutionCoordinationPileResult,
-      type ExecutionCoordinationPileResult,
-      type ExecutionCoordinationProposal
-    } from "@protostar/repair";
-    ```
+    **Do NOT edit `packages/dogpile-adapter/src/index.ts` in this plan** — Wave 2 file-ownership disjointness rule (see Plan 05 for the same constraint). Downstream consumers (Plan 07 factory-cli) import directly: `import { parseExecutionCoordinationPileResult } from "@protostar/repair"`. Ergonomic re-export through dogpile-adapter is deferred — the import path established here is final for v0.1.
 
     Per D-18 (Q-18): wire-format symmetry with PlanningPileResult; co-located in @protostar/repair per Claude's discretion (avoids new package mid-phase per RESEARCH §"Owning package").
   </action>
   <verify>
-    <automated>pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const a=require('@protostar/dogpile-adapter'); if (typeof a.parseExecutionCoordinationPileResult !== 'function') throw new Error('adapter re-export missing'); console.log('ok')"</automated>
+    <automated>pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/repair build &amp;&amp; node -e "const r=require('@protostar/repair'); if (typeof r.parseExecutionCoordinationPileResult !== 'function') throw new Error('repair missing parseExecutionCoordinationPileResult'); console.log('ok')"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const a=require('@protostar/dogpile-adapter'); if (typeof a.parseExecutionCoordinationPileResult !== 'function') throw new Error('adapter re-export missing'); console.log('ok')"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
-    All 5 parser tests pass; barrel re-exports correct on both `@protostar/repair` and `@protostar/dogpile-adapter`; static no-fs test for dogpile-adapter still green.
+    All 5 parser tests pass; @protostar/repair builds and exports parseExecutionCoordinationPileResult; static no-fs test for dogpile-adapter still green. (Adapter re-export deferred per Wave 2 disjointness.)
   </done>
 </task>
 
@@ -178,6 +175,11 @@ Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
   <verify>
     <automated>pnpm --filter @protostar/repair test --grep admit-repair-plan</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/repair test --grep admit-repair-plan`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 4 tests pass; `admitRepairPlanProposal` exported from `@protostar/repair`.
   </done>
@@ -217,6 +219,11 @@ Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
   <verify>
     <automated>pnpm --filter @protostar/planning test --grep admit-work-slicing</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/planning test --grep admit-work-slicing`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 5 tests pass; `admitWorkSlicing` + `WorkSlicingProposal` exported from `@protostar/planning`; existing planning tests still pass.
   </done>

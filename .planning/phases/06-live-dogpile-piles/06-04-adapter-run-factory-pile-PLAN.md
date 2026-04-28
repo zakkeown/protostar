@@ -154,9 +154,12 @@ function classifyAbortReason(signal: AbortSignal): "pile-timeout" | "pile-cancel
 
     Run tests — RED. Implement `run-factory-pile.ts`. Re-run — GREEN.
 
-    Add to `packages/dogpile-adapter/src/index.ts`:
+    Add to `packages/dogpile-adapter/src/index.ts` (this plan owns the consolidated Wave 1 barrel re-exports — Plan 03 deferred its barrel updates here to keep file ownership disjoint within the wave):
     - `export { runFactoryPile } from "./run-factory-pile.js";`
     - `export type { PileRunContext, PileRunOutcome, RunFactoryPileDeps } from "./run-factory-pile.js";`
+    - `export type { PileKind, PileFailure, JudgeDecisionRef, PresetBudget, EnvelopeBudget, ResolvedPileBudget, PileSourceOfTruth } from "./pile-failure-types.js";` (from Plan 03 Task 1)
+    - `export { resolvePileBudget } from "./resolve-pile-budget.js";` (from Plan 03 Task 2)
+    - `export { mapSdkStopToPileFailure } from "./map-sdk-stop-to-pile-failure.js";` (from Plan 03 Task 3)
 
     Per D-01 (Q-01): single SDK call seam; factory-cli passes ctx, receives outcome.
     Per D-02 (Q-02): `stream()` is the entrypoint; `run()` is NOT used.
@@ -166,6 +169,11 @@ function classifyAbortReason(signal: AbortSignal): "pile-timeout" | "pile-cancel
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter test --grep run-factory-pile &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep on-event-forwarding &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep pile-timeout &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep abort-hierarchy</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep run-factory-pile &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep on-event-forwarding &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep pile-timeout &amp;&amp; pnpm --filter @protostar/dogpile-adapter test --grep abort-hierarchy`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 8 test cases pass; static no-fs test (Plan 01) still passes; barrel exports `runFactoryPile`, `PileRunContext`, `PileRunOutcome`; `pnpm --filter @protostar/dogpile-adapter build` passes.
   </done>
@@ -207,6 +215,11 @@ function classifyAbortReason(signal: AbortSignal): "pile-timeout" | "pile-cancel
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter test --grep execution-coordination-mission &amp;&amp; node -e "const m=require('@protostar/dogpile-adapter'); if (typeof m.buildExecutionCoordinationMission !== 'function') throw new Error('missing builder'); if (m.executionCoordinationPilePreset.kind !== 'execution-coordination') throw new Error('preset kind drift'); console.log('mission ok')"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep execution-coordination-mission &amp;&amp; node -e "const m=require('@protostar/dogpile-adapter'); if (typeof m.buildExecutionCoordinationMission !== 'function') throw new Error('missing builder'); if (m.executionCoordinationPilePreset.kind !== 'execution-coordination') throw new Error('preset kind drift'); console.log('mission ok')"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 4 test cases pass; barrel exports the builder; preset referential equality holds; static no-fs test still passes.
   </done>

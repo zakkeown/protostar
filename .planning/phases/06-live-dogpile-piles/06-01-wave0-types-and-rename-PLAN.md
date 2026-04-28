@@ -112,6 +112,11 @@ The contract test file itself imports node:path/node:url; it must EXCLUDE itself
   <verify>
     <automated>pnpm --filter @protostar/dogpile-types build &amp;&amp; node -e "const m=require('@protostar/dogpile-types'); for (const k of ['run','stream','createOpenAICompatibleProvider','budget','convergence','firstOf']) { if (typeof m[k] !== 'function') throw new Error('missing runtime export: '+k); } console.log('runtime ok')"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-types build &amp;&amp; node -e "const m=require('@protostar/dogpile-types'); for (const k of ['run','stream','createOpenAICompatibleProvider','budget','convergence','firstOf']) { if (typeof m[k] !== 'function') throw new Error('missing runtime export: '+k); } console.log('runtime ok')"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     `pnpm --filter @protostar/dogpile-types build` succeeds; node -e prints `runtime ok`; `grep -c "^export" packages/dogpile-types/src/index.ts` is at least 4.
   </done>
@@ -134,6 +139,11 @@ The contract test file itself imports node:path/node:url; it must EXCLUDE itself
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter build &amp;&amp; grep -q "export const executionCoordinationPilePreset" packages/dogpile-adapter/src/index.ts &amp;&amp; ! grep -rn "executionCoordinatorPilePreset" packages/ apps/ .planning/codebase/ 2>/dev/null</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter build &amp;&amp; grep -q "export const executionCoordinationPilePreset" packages/dogpile-adapter/src/index.ts &amp;&amp; ! grep -rn "executionCoordinatorPilePreset" packages/ apps/ .planning/codebase/ 2>/dev/null`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     Build passes; `executionCoordinationPilePreset` exported; no `executionCoordinatorPilePreset` references remain in `packages/`, `apps/`, or `.planning/codebase/`.
   </done>
@@ -167,6 +177,11 @@ The contract test file itself imports node:path/node:url; it must EXCLUDE itself
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter test 2>&amp;1 | grep -E "no node:fs.*imports.*ok|✔.*no-fs|pass.*no-fs"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test 2>&amp;1 | grep -E "no node:fs.*imports.*ok|✔.*no-fs|pass.*no-fs"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     `pnpm --filter @protostar/dogpile-adapter test` passes; the no-fs contract test runs and reports OK; the file excludes itself from the walk (verified by file existing AND test passing).
   </done>

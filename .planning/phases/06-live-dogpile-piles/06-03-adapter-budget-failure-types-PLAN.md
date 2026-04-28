@@ -10,7 +10,6 @@ files_modified:
   - packages/dogpile-adapter/src/resolve-pile-budget.test.ts
   - packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.ts
   - packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.test.ts
-  - packages/dogpile-adapter/src/index.ts
 autonomous: true
 requirements: [PILE-04, PILE-05]
 tags: [dogpile, budget, failure-taxonomy, q-10, q-13]
@@ -162,6 +161,11 @@ Per-field min semantics (Q-10):
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter build &amp;&amp; grep -q "export type PileFailure" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; grep -q "pile-timeout" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; grep -q "pile-cancelled" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; [ "$(grep -cE '\"pile-(timeout|budget-exhausted|schema-parse|all-rejected|network|cancelled)\"' packages/dogpile-adapter/src/pile-failure-types.ts)" -eq 6 ]</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter build &amp;&amp; grep -q "export type PileFailure" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; grep -q "pile-timeout" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; grep -q "pile-cancelled" packages/dogpile-adapter/src/pile-failure-types.ts &amp;&amp; [ "$(grep -cE '\"pile-(timeout|budget-exhausted|schema-parse|all-rejected|network|cancelled)\"' packages/dogpile-adapter/src/pile-failure-types.ts)" -eq 6 ]`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     Build passes; file declares all six `class` discriminator strings; all types exported.
   </done>
@@ -201,14 +205,19 @@ Per-field min semantics (Q-10):
   <verify>
     <automated>pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget 2>&amp;1 | grep -E "pass|✔" | grep -c "resolve-pile-budget" | awk '{ if ($1 &gt;= 8) exit 0; else exit 1 }'</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget 2>&amp;1 | grep -E "pass|✔" | grep -c "resolve-pile-budget" | awk '{ if ($1 &gt;= 8) exit 0; else exit 1 }'`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 8 test cases pass under `pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget`; function is pure (no fs/path imports — confirmed by Plan 01's static no-fs test running on same package).
   </done>
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 3: mapSdkStopToPileFailure (Q-13) + tests + barrel re-export</name>
-  <files>packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.ts, packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.test.ts, packages/dogpile-adapter/src/index.ts</files>
+  <name>Task 3: mapSdkStopToPileFailure (Q-13) + tests</name>
+  <files>packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.ts, packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.test.ts</files>
   <read_first>
     - packages/dogpile-adapter/src/pile-failure-types.ts (Task 1)
     - .planning/phases/06-live-dogpile-piles/06-RESEARCH.md §"Example 3" + §"Pitfall 1" (NormalizedStopReason has no top-level RunResult.accounting field; this helper takes the stop reason as a direct argument supplied by Plan 04)
@@ -238,17 +247,24 @@ Per-field min semantics (Q-10):
 
     Run tests — RED. Implement `map-sdk-stop-to-pile-failure.ts` with exhaustive switch + `assertNever` default branch. Re-run — GREEN.
 
-    Then update `packages/dogpile-adapter/src/index.ts`:
-    - Re-export types: `export type { PileKind, PileFailure, JudgeDecisionRef, PresetBudget, EnvelopeBudget, ResolvedPileBudget, PileSourceOfTruth } from "./pile-failure-types.js";`.
-    - Re-export functions: `export { resolvePileBudget } from "./resolve-pile-budget.js";` and `export { mapSdkStopToPileFailure } from "./map-sdk-stop-to-pile-failure.js";`.
+    **Do NOT edit `packages/dogpile-adapter/src/index.ts` in this plan** — to keep Wave 1 file ownership disjoint, Plan 04 (`runFactoryPile`) owns the consolidated barrel re-export edit. Plan 04 will add:
+    - `export type { PileKind, PileFailure, JudgeDecisionRef, PresetBudget, EnvelopeBudget, ResolvedPileBudget, PileSourceOfTruth } from "./pile-failure-types.js";`
+    - `export { resolvePileBudget } from "./resolve-pile-budget.js";`
+    - `export { mapSdkStopToPileFailure } from "./map-sdk-stop-to-pile-failure.js";`
+    Downstream plans (05/06/07) import these symbols by their fully-qualified module path (`@protostar/dogpile-adapter/dist/pile-failure-types.js`-equivalent via the barrel after Plan 04 lands). For now, this task lands the source files only; the barrel update is Plan 04's responsibility.
 
     Per D-13 (Q-13): six-variant union is the wire format Phase 8 will branch on; fineness is intentional.
   </action>
   <verify>
-    <automated>pnpm --filter @protostar/dogpile-adapter test --grep map-sdk-stop &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const m=require('@protostar/dogpile-adapter'); if (typeof m.resolvePileBudget !== 'function') throw new Error('missing resolvePileBudget'); if (typeof m.mapSdkStopToPileFailure !== 'function') throw new Error('missing mapSdkStopToPileFailure'); console.log('barrel ok')"</automated>
+    <automated>pnpm --filter @protostar/dogpile-adapter test --grep map-sdk-stop &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; grep -q "export function mapSdkStopToPileFailure" packages/dogpile-adapter/src/map-sdk-stop-to-pile-failure.ts</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep map-sdk-stop &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const m=require('@protostar/dogpile-adapter'); if (typeof m.resolvePileBudget !== 'function') throw new Error('missing resolvePileBudget'); if (typeof m.mapSdkStopToPileFailure !== 'function') throw new Error('missing mapSdkStopToPileFailure'); console.log('barrel ok')"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
-    All 8 mapper tests pass; barrel re-exports both functions and the type bundle; package build passes; the dogpile-adapter no-fs static test (Plan 01 Task 3) still passes (no fs imports introduced).
+    All 8 mapper tests pass; both source files exist with the correct exports; package build passes; the dogpile-adapter no-fs static test (Plan 01 Task 3) still passes (no fs imports introduced); barrel update is deferred to Plan 04.
   </done>
 </task>
 

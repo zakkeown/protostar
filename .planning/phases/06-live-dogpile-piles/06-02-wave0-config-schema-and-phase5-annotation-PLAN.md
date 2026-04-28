@@ -8,7 +8,7 @@ files_modified:
   - packages/lmstudio-adapter/src/factory-config.schema.json
   - .planning/phases/05-review-repair-loop/05-CONTEXT.md
 autonomous: true
-requirements: []
+requirements: [PILE-04]
 tags: [factory-config, schema, phase5-retro, q-04, q-14]
 must_haves:
   truths:
@@ -73,6 +73,11 @@ Output: Schema declares the new piles block; Phase 5 Q-10 carries the explicit r
   <verify>
     <automated>node -e "const s=JSON.parse(require('fs').readFileSync('packages/lmstudio-adapter/src/factory-config.schema.json','utf8')); const p=s.properties.piles.properties; if (!p.planning||!p.review||!p.executionCoordination) throw new Error('missing pile sub-block'); for (const k of ['planning','review','executionCoordination']) { const m=p[k].properties.mode; if (m.enum[0]!=='fixture'||m.enum[1]!=='live') throw new Error('bad mode enum: '+k); if (m.default!=='fixture') throw new Error('default must be fixture: '+k); } if (!p.executionCoordination.properties.workSlicing) throw new Error('missing workSlicing'); console.log('schema ok');"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `node -e "const s=JSON.parse(require('fs').readFileSync('packages/lmstudio-adapter/src/factory-config.schema.json','utf8')); const p=s.properties.piles.properties; if (!p.planning||!p.review||!p.executionCoordination) throw new Error('missing pile sub-block'); for (const k of ['planning','review','executionCoordination']) { const m=p[k].properties.mode; if (m.enum[0]!=='fixture'||m.enum[1]!=='live') throw new Error('bad mode enum: '+k); if (m.default!=='fixture') throw new Error('default must be fixture: '+k); } if (!p.executionCoordination.properties.workSlicing) throw new Error('missing workSlicing'); console.log('schema ok');"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     Schema validates as JSON; the inline node assertion prints `schema ok`; existing `adapters` block intact (`grep -q '\"adapters\"' packages/lmstudio-adapter/src/factory-config.schema.json`).
   </done>
@@ -104,6 +109,11 @@ Output: Schema declares the new piles block; Phase 5 Q-10 carries the explicit r
   <verify>
     <automated>grep -q "Re-locked in Phase 6 Q-14" .planning/phases/05-review-repair-loop/05-CONTEXT.md &amp;&amp; grep -q "createReviewPileModelReviewer" .planning/phases/05-review-repair-loop/05-CONTEXT.md</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `grep -q "Re-locked in Phase 6 Q-14" .planning/phases/05-review-repair-loop/05-CONTEXT.md &amp;&amp; grep -q "createReviewPileModelReviewer" .planning/phases/05-review-repair-loop/05-CONTEXT.md`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     The annotation is present; both sentinel strings (`Re-locked in Phase 6 Q-14`, `createReviewPileModelReviewer`) grep-match. No other Phase 5 content modified (`git diff .planning/phases/05-review-repair-loop/05-CONTEXT.md` shows ONLY the inserted annotation block).
   </done>

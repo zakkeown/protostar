@@ -143,6 +143,11 @@ Per-agent provider routing (Q-03 fallback — VERIFIED at Plan 04 planning that 
   <verify>
     <automated>pnpm --filter protostar-factory test --grep "cli-args|load-factory-config|refusals-index" 2>&amp;1 | grep -E "✔|pass" | head -20 &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; grep -q "pile-planning" apps/factory-cli/src/refusals-index.ts &amp;&amp; grep -q "pile-review" apps/factory-cli/src/refusals-index.ts &amp;&amp; grep -q "pile-execution-coordination" apps/factory-cli/src/refusals-index.ts</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter protostar-factory test --grep "cli-args|load-factory-config|refusals-index" 2>&amp;1 | grep -E "✔|pass" | head -20 &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; grep -q "pile-planning" apps/factory-cli/src/refusals-index.ts &amp;&amp; grep -q "pile-review" apps/factory-cli/src/refusals-index.ts &amp;&amp; grep -q "pile-execution-coordination" apps/factory-cli/src/refusals-index.ts`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All extension tests pass; existing factory-cli tests still pass; RefusalStage extended.
   </done>
@@ -191,6 +196,11 @@ Per-agent provider routing (Q-03 fallback — VERIFIED at Plan 04 planning that 
   <verify>
     <automated>pnpm --filter protostar-factory test --grep "pile-mode-resolver|pile-persistence"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter protostar-factory test --grep "pile-mode-resolver|pile-persistence"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     9 tests pass across both files; both modules export their primary functions; build passes.
   </done>
@@ -237,6 +247,11 @@ Per-agent provider routing (Q-03 fallback — VERIFIED at Plan 04 planning that 
   <verify>
     <automated>pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 4 main.test extensions pass; full `pnpm run verify` is green; existing factory-cli tests remain passing; runtime no-fs contract on dogpile-adapter (Plan 01 Task 3) still passes (factory-cli owns all writes).
   </done>

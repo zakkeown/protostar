@@ -10,7 +10,6 @@ files_modified:
   - packages/review/src/review-pile-reviewer.ts
   - packages/review/src/review-pile-reviewer.test.ts
   - packages/review/src/index.ts
-  - packages/dogpile-adapter/src/index.ts
 autonomous: true
 requirements: [PILE-02]
 tags: [review, model-reviewer, q-14, q-17]
@@ -104,7 +103,7 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
 
 <task type="auto" tdd="true">
   <name>Task 1: ReviewPileResult shape + parseReviewPileResult + assertReviewPileResult (Q-17)</name>
-  <files>packages/review/src/review-pile-result.ts, packages/review/src/review-pile-result.test.ts, packages/review/src/index.ts, packages/dogpile-adapter/src/index.ts</files>
+  <files>packages/review/src/review-pile-result.ts, packages/review/src/review-pile-result.test.ts, packages/review/src/index.ts</files>
   <read_first>
     - packages/planning/src/index.ts (lines 206-212 for PlanningPileResult shape; lines 1102-1163 for assertPlanningPileResult / parsePlanningPileResult patterns to mirror)
     - packages/review/src/index.ts (existing review surface — confirm whether JudgeCritique / ReviewVerdict / ModelReviewResult types are already present from Phase 5; if absent, define minimal shapes here per Phase 5 CONTEXT.md)
@@ -133,25 +132,20 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
 
     Update `packages/review/src/index.ts`: re-export `ReviewPileResult`, `ReviewPileBody`, `PileSource`, `parseReviewPileResult`, `assertReviewPileResult`.
 
-    Update `packages/dogpile-adapter/src/index.ts`: ergonomic re-export per CONTEXT Q-17 — add at the end:
-    ```ts
-    export {
-      assertReviewPileResult,
-      parseReviewPileResult,
-      type ReviewPileResult,
-      type ReviewPileBody,
-      type PileSource as ReviewPileSource
-    } from "@protostar/review";
-    ```
-    (PileSource aliased to ReviewPileSource to avoid naming collision when Plan 06 re-exports its own PileSource shape.)
+    **Do NOT edit `packages/dogpile-adapter/src/index.ts` in this plan** — Plan 05 and Plan 06 are both Wave 2 and share the dogpile-adapter barrel; to keep Wave 2 file ownership disjoint, ergonomic re-exports from `@protostar/review` (Q-17) and `@protostar/repair` (Q-18) are deferred. Downstream consumers (Plan 07 factory-cli) import from the owning packages directly: `import { parseReviewPileResult, createReviewPileModelReviewer } from "@protostar/review"`. The dogpile-adapter barrel keeps its Wave 1 surface; ergonomic re-exports can be added in a future hardening pass without breaking the import path established here.
 
     Per D-17 (Q-17): each domain owns its pile-output contract; review-pile result lives in @protostar/review.
   </action>
   <verify>
-    <automated>pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const r=require('@protostar/review'); const a=require('@protostar/dogpile-adapter'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); if (typeof a[k] !== 'function') throw new Error('adapter re-export missing '+k); } console.log('ok')"</automated>
+    <automated>pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/review build &amp;&amp; node -e "const r=require('@protostar/review'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); } console.log('ok')"</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const r=require('@protostar/review'); const a=require('@protostar/dogpile-adapter'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); if (typeof a[k] !== 'function') throw new Error('adapter re-export missing '+k); } console.log('ok')"`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
-    All 6 tests pass; both packages build; review-pile-result symbols re-exported from both `@protostar/review` and `@protostar/dogpile-adapter`.
+    All 6 tests pass; @protostar/review builds and exports the new symbols. (Adapter ergonomic re-exports deferred — see action notes; consumers import from @protostar/review directly.)
   </done>
 </task>
 
@@ -200,6 +194,11 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
   <verify>
     <automated>pnpm --filter @protostar/review test --grep review-pile-reviewer &amp;&amp; pnpm --filter @protostar/review test --grep model-reviewer-conformance &amp;&amp; pnpm --filter @protostar/review build</automated>
   </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter @protostar/review test --grep review-pile-reviewer &amp;&amp; pnpm --filter @protostar/review test --grep model-reviewer-conformance &amp;&amp; pnpm --filter @protostar/review build`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
   <done>
     All 4 reviewer tests pass; `createReviewPileModelReviewer` exported; phase 5 ModelReviewer interface satisfied (compile-time assignment in Test 2).
   </done>
