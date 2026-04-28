@@ -130,6 +130,24 @@ Run against the sacrificial sibling repo repeatedly. Build the fixture matrix. T
 - [ ] **DOG-07**: Release scripts — `pnpm release` builds, tests, tags, and produces a publishable artifact set (or documents why packages stay private)
 - [ ] **DOG-08**: Security review — capability envelope enforcement audited; subprocess + filesystem + network paths reviewed; secret-handling reviewed
 
+### Phase 10.1 — Boundary Hygiene Pass (inserted)
+
+Align package manifests + dep-boundary enforcement with source-level architecture. Manifest/test-only — no source moves.
+
+- [ ] **BOUNDARY-01**: Add `protostar.tier: pure | fs | network | orchestration | test-only` field to every `packages/*/package.json` and `apps/factory-cli/package.json`
+- [ ] **BOUNDARY-02**: Rewrite AGENTS.md Authority Tiers table with complete tier assignment per package; document `protostar.tier` schema
+- [ ] **BOUNDARY-03**: Add `no-fs.contract.test.ts` to `@protostar/lmstudio-adapter` (network tier — closes primary boundary gap)
+- [ ] **BOUNDARY-04**: Preserve existing `no-fs.contract.test.ts` on `@protostar/evaluation-runner` (network tier — already present)
+- [ ] **BOUNDARY-05**: Add `no-net.contract.test.ts` to every pure-tier package asserting zero `node:net` / `node:http` / `node:https` / `fetch` references
+- [ ] **BOUNDARY-06**: Add `tier-conformance.contract.test.ts` to `@protostar/admission-e2e` (flat top of `src/`) asserting tier rules + dep-direction + tsconfig refs alignment + `no-fs` presence on network tier + `sideEffects:false` on pure tier + `engines.node` on published
+- [ ] **BOUNDARY-07**: Add `"sideEffects": false` to every pure-tier and test-only package; omit from fs/network tiers
+- [ ] **BOUNDARY-08**: Add `"engines": { "node": ">=22" }` to every published (`private !== true`) package
+- [ ] **BOUNDARY-09**: Install knip (or land `tools/check-subpath-exports.ts` fallback) and wire it into `pnpm verify` to enforce no import from a non-exported subpath
+- [ ] **BOUNDARY-10**: Wire `apps/factory-cli` for npm publish: flip `private:false`, add `publishConfig:{access:"public"}`, add `engines.node:">=22"`; ship `pnpm pack` smoke script
+- [ ] **BOUNDARY-11**: Audit four flagged back-edges; produce per-edge fix/flip/accept resolution. Phantom deps (`intent->authority`, `repo->authority`, `repo->paths`) removed; real edges (`review->delivery`, `review->repair`, `delivery-runtime->review`) accepted + documented in AGENTS.md
+- [ ] **BOUNDARY-12**: Fix tsconfig project-reference drift: remove phantom refs/deps on `intent` + `repo`; add `delivery` + `repair` refs to `@protostar/review/tsconfig.json`
+
+
 ## Deferred (post-v1)
 
 Tracked but out of the v1 roadmap.
@@ -244,10 +262,22 @@ Explicitly excluded. Documented to prevent scope creep.
 | DOG-06 | Phase 10 | Pending |
 | DOG-07 | Phase 10 | Pending |
 | DOG-08 | Phase 10 | Pending |
+| BOUNDARY-01 | Phase 10.1 | Pending |
+| BOUNDARY-02 | Phase 10.1 | Pending |
+| BOUNDARY-03 | Phase 10.1 | Pending |
+| BOUNDARY-04 | Phase 10.1 | Pending |
+| BOUNDARY-05 | Phase 10.1 | Pending |
+| BOUNDARY-06 | Phase 10.1 | Pending |
+| BOUNDARY-07 | Phase 10.1 | Pending |
+| BOUNDARY-08 | Phase 10.1 | Pending |
+| BOUNDARY-09 | Phase 10.1 | Pending |
+| BOUNDARY-10 | Phase 10.1 | Pending |
+| BOUNDARY-11 | Phase 10.1 | Pending |
+| BOUNDARY-12 | Phase 10.1 | Pending |
 
 **Coverage:**
-- v1 requirements: 65 total
-- Mapped to phases: 65
+- v1 requirements: 65 total + 12 Phase 10.1 (BOUNDARY-01..12)
+- Mapped to phases: 77
 - Unmapped: 0
 
 ---
