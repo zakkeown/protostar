@@ -20,3 +20,5 @@ export type {
   DeliveryRunOutcome,
   InitialCiSnapshot
 } from "./execute-delivery.js";
+export { computeCiVerdict } from "./compute-ci-verdict.js";
+export type { CiCheckRun, CiVerdict } from "./compute-ci-verdict.js";
