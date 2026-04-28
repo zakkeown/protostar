@@ -101,6 +101,9 @@ importers:
       '@protostar/artifacts':
         specifier: workspace:*
         version: link:../artifacts
+      '@protostar/intent':
+        specifier: workspace:*
+        version: link:../intent
       '@protostar/review':
         specifier: workspace:*
         version: link:../review
@@ -258,12 +261,12 @@ importers:
       '@protostar/planning':
         specifier: workspace:*
         version: link:../planning
-      '@protostar/repo':
-        specifier: workspace:*
-        version: link:../repo
       '@protostar/repair':
         specifier: workspace:*
         version: link:../repair
+      '@protostar/repo':
+        specifier: workspace:*
+        version: link:../repo
 
 packages:
 

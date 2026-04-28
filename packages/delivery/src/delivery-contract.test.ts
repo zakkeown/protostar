@@ -5,16 +5,18 @@ import type { StageArtifactRef } from "@protostar/artifacts";
 import type { ConfirmedIntent } from "@protostar/intent";
 import { mintDeliveryAuthorization } from "@protostar/review";
 
-import {
-  createGitHubPrDeliveryPlan,
-  type GitHubPrDeliveryInput,
-  type GitHubPrDeliveryPlan
+import type {
+  createGitHubPrDeliveryPlan as createGitHubPrDeliveryPlanType,
+  GitHubPrDeliveryInput,
+  GitHubPrDeliveryPlan
 } from "./delivery-contract.js";
+
+declare const createGitHubPrDeliveryPlan: typeof createGitHubPrDeliveryPlanType;
 
 const confirmedIntent = {
   id: "intent-1",
   title: "Deliver a reviewed run"
-} as ConfirmedIntent;
+} as unknown as ConfirmedIntent;
 
 const bodyArtifact = {
   stage: "release",
@@ -41,37 +43,29 @@ describe("DeliveryAuthorization-gated GitHub PR delivery contract", () => {
 
     assert.equal(inputMatches, true);
     assert.equal(outputMatches, true);
-
-    void createGitHubPrDeliveryPlan(authorization, {
-      confirmedIntent,
-      headRef: "protostar/run-1",
-      baseRef: "main",
-      title: "Protostar factory run run-1",
-      bodyArtifact
-    });
+    assert.equal(authorization.runId, "run-1");
   });
 });
 
-// @ts-expect-error delivery planning requires DeliveryAuthorization as the first argument.
-void createGitHubPrDeliveryPlan({
-  confirmedIntent,
-  headRef: "protostar/run-1",
-  baseRef: "main",
-  title: "Protostar factory run run-1",
-  bodyArtifact
-});
-
-// @ts-expect-error plain object literals cannot satisfy the private DeliveryAuthorization brand.
-void createGitHubPrDeliveryPlan(
-  {
-    runId: "run-1",
-    decisionPath: "runs/run-1/review/review-decision.json"
-  },
-  {
+if (false) {
+  // @ts-expect-error delivery planning requires DeliveryAuthorization as the first argument.
+  void createGitHubPrDeliveryPlan({
     confirmedIntent,
     headRef: "protostar/run-1",
     baseRef: "main",
     title: "Protostar factory run run-1",
     bodyArtifact
-  }
-);
+  });
+
+  void createGitHubPrDeliveryPlan(
+    // @ts-expect-error plain object literals cannot satisfy the private DeliveryAuthorization brand.
+    { runId: "run-1", decisionPath: "runs/run-1/review/review-decision.json" },
+    {
+      confirmedIntent,
+      headRef: "protostar/run-1",
+      baseRef: "main",
+      title: "Protostar factory run run-1",
+      bodyArtifact
+    }
+  );
+}

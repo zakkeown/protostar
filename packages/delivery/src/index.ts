@@ -1,10 +1,12 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
 import type { ReviewGate } from "@protostar/review";
 
+export * from "./delivery-contract.js";
+
 export type DeliveryChannel = "github-pr";
 export type DeliveryPlanStatus = "ready" | "blocked";
 
-export interface GitHubPrDeliveryPlan {
+export interface LegacyGitHubPrDeliveryPlan {
   readonly channel: DeliveryChannel;
   readonly status: DeliveryPlanStatus;
   readonly runId: string;
@@ -17,13 +19,17 @@ export interface GitHubPrDeliveryPlan {
   readonly blockedReason?: string;
 }
 
-export function createGitHubPrDeliveryPlan(input: {
+/**
+ * @deprecated Phase 7 replaces this review-gate based helper with the
+ * DeliveryAuthorization-gated createGitHubPrDeliveryPlan contract.
+ */
+export function createGitHubPrDeliveryPlanLegacy(input: {
   readonly runId: string;
   readonly reviewGate: ReviewGate;
   readonly baseBranch?: string;
   readonly headBranch?: string;
   readonly title?: string;
-}): GitHubPrDeliveryPlan {
+}): LegacyGitHubPrDeliveryPlan {
   const baseBranch = input.baseBranch ?? "main";
   const headBranch = input.headBranch ?? `protostar/${input.runId}`;
   const title = input.title ?? `Protostar factory run ${input.runId}`;

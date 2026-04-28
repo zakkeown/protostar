@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@protostar/artifacts": "workspace:*",
+    "@protostar/intent": "workspace:*",
     "@protostar/review": "workspace:*"
   },
   "sideEffects": false

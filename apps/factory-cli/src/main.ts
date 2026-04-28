@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } from "@protostar/artifacts";
-import { createGitHubPrDeliveryPlan } from "@protostar/delivery";
+import { createGitHubPrDeliveryPlanLegacy } from "@protostar/delivery";
 import {
   buildPlanningMission,
   buildReviewMission
@@ -705,7 +705,7 @@ export async function runFactory(
     previous: createIntentOntologySnapshot(intent),
     current: createPlanOntologySnapshot(admittedPlanHandoff.plan)
   });
-  const deliveryPlan = createGitHubPrDeliveryPlan({
+  const deliveryPlan = createGitHubPrDeliveryPlanLegacy({
     runId,
     reviewGate: review,
     title: intent.title
