@@ -5,6 +5,10 @@ export * from "./brands.js";
 export * from "./delivery-contract.js";
 export * from "./evidence-marker.js";
 export * from "./refusals.js";
+export { isValidGitHubTokenFormat, validateBranchName, validatePrBody, validatePrTitle } from "./brands.js";
+export type { BranchName, PrBody, PrTitle } from "./brands.js";
+export { buildEvidenceMarker, parseEvidenceMarker } from "./evidence-marker.js";
+export type { DeliveryRefusal } from "./refusals.js";
 
 export type DeliveryChannel = "github-pr";
 export type DeliveryPlanStatus = "ready" | "blocked";
@@ -18,13 +22,12 @@ export interface LegacyGitHubPrDeliveryPlan {
   readonly title: string;
   readonly body: string;
   readonly artifacts: readonly StageArtifactRef[];
-  readonly command?: readonly string[];
   readonly blockedReason?: string;
 }
 
 /**
  * @deprecated Phase 7 replaces this review-gate based helper with the
- * DeliveryAuthorization-gated createGitHubPrDeliveryPlan contract.
+ * DeliveryAuthorization-gated executeDelivery path from @protostar/delivery-runtime.
  */
 export function createGitHubPrDeliveryPlanLegacy(input: {
   readonly runId: string;
@@ -73,11 +76,13 @@ export function createGitHubPrDeliveryPlanLegacy(input: {
     headBranch,
     title,
     body: createPrBody(input.runId, input.reviewGate),
-    artifacts,
-    command: ["gh", "pr", "create", "--base", baseBranch, "--head", headBranch, "--title", title, "--body-file", "delivery/pr-body.md"]
+    artifacts
   };
 }
 
+/**
+ * @deprecated Plan 07-05 replaces this legacy body with section composers.
+ */
 function createPrBody(runId: string, reviewGate: ReviewGate): string {
   return [
     `Factory run: ${runId}`,
