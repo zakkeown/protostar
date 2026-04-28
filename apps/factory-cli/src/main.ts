@@ -80,7 +80,7 @@ import {
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
-import { runReviewRepairLoop, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
+import { runReviewRepairLoop, createReviewPileModelReviewer, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
@@ -811,6 +811,29 @@ export async function runFactory(
       executor: reviewExecutor,
       subprocess: createMechanicalSubprocessRunner({ runDir, resolvedEnvelope: precedenceDecision.resolvedEnvelope })
     });
+    // Phase 6 Plan 06-07 Task 3b — review seam (PILE-02). When mode=live, the
+    // ModelReviewer is the review pile (Q-14 retroactive lock); fixture mode
+    // continues to use the Phase 5 dry stub or reviewServices.modelReviewer.
+    const liveReviewModelReviewer: typeof reviewServices.modelReviewer | undefined =
+      pileModes.review === "live"
+        ? createReviewPileModelReviewer({
+            runPile: dependencies.runFactoryPile,
+            buildMission: () => buildReviewMission(intent, admittedPlanningOutput.planningAdmission),
+            buildContext: () => ({
+              provider: createOpenAICompatibleProvider({
+                baseURL: factoryConfig.config.adapters.coder.baseUrl,
+                apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+                model: factoryConfig.config.adapters.coder.model
+              }),
+              signal: runAbortController.signal,
+              budget: resolvePileBudget(
+                { maxTokens: 20000, timeoutMs: 120000 },
+                intent.capabilityEnvelope.budget
+              ),
+              now: () => Date.now()
+            })
+          })
+        : undefined;
     loop = await runReviewRepairLoop({
       runId,
       confirmedIntent: intent,
@@ -824,9 +847,10 @@ export async function runFactory(
             planId: admittedPlanHandoff.executionArtifact.planId,
             status: executionResult.status
           }),
-      modelReviewer: (options.executor ?? "dry-run") === "real"
-        ? reviewServices.modelReviewer
-        : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] }),
+      modelReviewer: liveReviewModelReviewer ??
+        ((options.executor ?? "dry-run") === "real"
+          ? reviewServices.modelReviewer
+          : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] })),
       persistence: reviewServices.persistence
     });
     review = reviewGateFromLoopResult({

@@ -600,6 +600,76 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
+  // Phase 6 Plan 06-07 Task 3b — review seam (PILE-02 / Q-14).
+  it("swaps the ModelReviewer for the review pile when --review-mode live is set", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "review-mode-live.draft.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_review_mode_live";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
+
+      // Stub runFactoryPile: return ok for both kinds. Review body matches the
+      // ReviewPileBody parser contract.
+      const reviewBody = JSON.stringify({
+        judgeCritiques: [
+          {
+            judgeId: "review-correctness",
+            model: "stub-model",
+            rubric: {},
+            verdict: "pass",
+            rationale: "stub",
+            taskRefs: []
+          }
+        ],
+        aggregateVerdict: "pass"
+      });
+      const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
+        async (mission) => ({
+          ok: true as const,
+          result: {
+            output: mission.preset.kind === "review" ? reviewBody : "{}",
+            eventLog: { events: [] }
+          } as never,
+          trace: { events: [] } as never,
+          accounting: { totalTokens: 0 } as never,
+          stopReason: null
+        })
+      );
+
+      // Successful trusted dry-run cosmetic-tweak path with reviewMode=live.
+      // We don't await success — we assert that runFactoryPile was called
+      // with kind === "review" at least once (the seam is wired). Whether the
+      // run itself completes depends on downstream plumbing not relevant here.
+      await runFactory(
+        {
+          intentDraftPath: draftPath,
+          outDir,
+          planningFixturePath,
+          failTaskIds: [],
+          intentMode: "brownfield",
+          runId,
+          trust: "trusted",
+          confirmedIntent: confirmedIntentPath,
+          reviewMode: "live"
+        },
+        { runFactoryPile: runFactoryPileSpy }
+      ).catch(() => {
+        /* downstream gates may legitimately refuse depending on env */
+      });
+
+      const reviewCalls = runFactoryPileSpy.mock.calls.filter(
+        (call) => (call.arguments[0] as { preset: { kind: string } }).preset.kind === "review"
+      );
+      assert.ok(reviewCalls.length >= 1, "review-mode live must invoke runFactoryPile with kind=review at least once");
+    });
+  });
+
   it("invokes runFactoryPile with the run-level AbortSignal (parent abort cascades)", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();
