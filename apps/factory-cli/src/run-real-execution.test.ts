@@ -237,6 +237,79 @@ describe("runRealExecution", () => {
     assert.ok((await stat(join(ctx.runDir, "execution", "snapshot.json"))).mtimeMs >= before);
   });
 
+  it("reruns repair subgraph tasks with repair context and repair attempt evidence", async () => {
+    const ctx = await testContext({ taskCount: 2 });
+    const firstWriter = await createJournalWriter({ runDir: ctx.runDir });
+    await runRealExecution({
+      ...ctx.input,
+      journalWriter: firstWriter,
+      adapter: finalAdapter(changeSetResult("src/file-1.ts")),
+      applyChangeSet: async () => [{ path: "src/file-1.ts", status: "applied" }]
+    });
+    await firstWriter.close();
+
+    const repairWriter = await createJournalWriter({ runDir: ctx.runDir });
+    const repairContexts: unknown[] = [];
+    const repairResult = await runRealExecution({
+      ...ctx.input,
+      journalWriter: repairWriter,
+      adapter: {
+        id: "repair-stub",
+        async *execute(task, adapterCtx) {
+          repairContexts.push({ taskId: task.planTaskId, repairContext: adapterCtx.repairContext });
+          yield { kind: "final", result: changeSetResult(task.targetFiles[0] ?? "src/file-1.ts") };
+        }
+      },
+      applyChangeSet: async (patches) => [{ path: patches[0]?.path ?? "unknown", status: "applied" }],
+      repair: {
+        attempt: 2,
+        repairPlan: {
+          runId: "run_real",
+          attempt: 1,
+          repairs: [
+            {
+              planTaskId: "task-1",
+              mechanicalCritiques: [
+                {
+                  ruleId: "execution-completed",
+                  severity: "major",
+                  summary: "Task 1 needs repair.",
+                  evidence: [],
+                  repairTaskId: "task-1"
+                }
+              ],
+              modelCritiques: [
+                {
+                  judgeId: "judge-1",
+                  model: "qwen3",
+                  rubric: { correctness: 0.5 },
+                  verdict: "repair",
+                  rationale: "Task 1 missed the target.",
+                  taskRefs: ["task-1"]
+                }
+              ]
+            }
+          ],
+          dependentTaskIds: ["task-1"]
+        }
+      }
+    });
+    await repairWriter.close();
+
+    assert.equal(repairResult.outcome, "complete");
+    assert.deepEqual(repairResult.events.map((event) => event.type), [
+      "task-pending",
+      "task-running",
+      "task-succeeded"
+    ]);
+    assert.deepEqual(repairResult.events.map((event) => event.planTaskId), ["task-1", "task-1", "task-1"]);
+    assert.deepEqual(repairResult.events.map((event) => event.attempt), [2, 2, 2]);
+    assert.equal((repairContexts[0] as any).repairContext.previousAttempt.attempt, 1);
+    assert.equal((repairContexts[0] as any).repairContext.mechanicalCritiques[0].message, "Task 1 needs repair.");
+    assert.equal((repairContexts[0] as any).repairContext.modelCritiques[0].rationale, "Task 1 missed the target.");
+    assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1-attempt-2", "evidence.json")), true);
+  });
+
   it("keeps real executor lifecycle event types within dry-run vocabulary", async () => {
     const ctx = await testContext();
     const writer = await createJournalWriter({ runDir: ctx.runDir });

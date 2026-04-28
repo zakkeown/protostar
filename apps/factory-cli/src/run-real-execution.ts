@@ -20,7 +20,9 @@ import {
   type TaskJournalEvent
 } from "@protostar/execution";
 import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
+import type { RepairContext } from "@protostar/planning";
 import type { applyChangeSet as defaultApplyChangeSet, ApplyResult, PatchRequest } from "@protostar/repo";
+import type { RepairPlan } from "@protostar/review";
 
 import type { JournalWriter } from "./journal-writer.js";
 import { writeSnapshotAtomic } from "./snapshot-writer.js";
@@ -39,6 +41,10 @@ export interface RunRealExecutionInput {
   readonly applyChangeSet: typeof defaultApplyChangeSet;
   readonly nowIso?: () => string;
   readonly checkSentinelBetweenTasks?: () => Promise<void>;
+  readonly repair?: {
+    readonly attempt: number;
+    readonly repairPlan: RepairPlan;
+  };
 }
 
 export interface RunRealExecutionResult {
@@ -105,10 +111,17 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
     generatedAt: nowIso(),
     events: allJournalEvents
   });
+  const repairTaskIds = input.repair === undefined
+    ? undefined
+    : new Set(input.repair.repairPlan.dependentTaskIds);
   const remainingTasks = input.runPlan.tasks.filter((task) => {
+    if (repairTaskIds !== undefined) {
+      return repairTaskIds.has(task.planTaskId);
+    }
     const status = completedAtStart.tasks[task.planTaskId]?.status;
     return status !== "succeeded" && status !== "failed" && status !== "timeout" && status !== "cancelled";
   });
+  const attempt = input.repair?.attempt ?? 1;
 
   for (const task of remainingTasks) {
     await input.checkSentinelBetweenTasks?.();
@@ -117,15 +130,15 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
         kind: "task-cancelled",
         planTaskId: task.planTaskId,
         at: nowIso(),
-        attempt: 1,
+        attempt,
         cause: cancelCause(input.rootSignal.reason)
       });
       outcome = "cancelled";
       break;
     }
 
-    await emit({ kind: "task-pending", planTaskId: task.planTaskId, at: nowIso(), attempt: 1 });
-    await emit({ kind: "task-running", planTaskId: task.planTaskId, at: nowIso(), attempt: 1 });
+    await emit({ kind: "task-pending", planTaskId: task.planTaskId, at: nowIso(), attempt });
+    await emit({ kind: "task-running", planTaskId: task.planTaskId, at: nowIso(), attempt });
 
     const taskController = new AbortController();
     const onRootAbort = () => taskController.abort(input.rootSignal.reason);
@@ -133,11 +146,12 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
     const timer = setTimeout(() => taskController.abort("timeout"), taskWallClockMs(input.resolvedEnvelope));
 
     try {
-      const final = await executeToFinal(input, task, taskController.signal);
+      const final = await executeToFinal(input, task, taskController.signal, attempt);
       perTaskEvidence.push({ taskId: task.planTaskId, evidence: final.evidence });
       const evidenceArtifact = await writeEvidenceFiles({
         runDir: input.runDir,
         taskId: task.planTaskId,
+        attempt,
         status: final.outcome,
         adapterId: input.adapter.id,
         evidence: final.evidence,
@@ -149,7 +163,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
           kind: "task-timeout",
           planTaskId: task.planTaskId,
           at: nowIso(),
-          attempt: 1,
+        attempt,
           evidenceArtifact
         });
         outcome = "block";
@@ -162,7 +176,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
           kind: "task-cancelled",
           planTaskId: task.planTaskId,
           at: nowIso(),
-          attempt: 1,
+          attempt,
           cause: cancelCause(input.rootSignal.reason),
           evidenceArtifact
         });
@@ -177,7 +191,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
             ? "task-cancelled"
             : "task-failed";
         if (terminal === "task-timeout") {
-          await emit({ kind: "task-timeout", planTaskId: task.planTaskId, at: nowIso(), attempt: 1, evidenceArtifact });
+          await emit({ kind: "task-timeout", planTaskId: task.planTaskId, at: nowIso(), attempt, evidenceArtifact });
           outcome = "block";
           blockReason = "task-timeout";
           break;
@@ -186,7 +200,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
             kind: "task-cancelled",
             planTaskId: task.planTaskId,
             at: nowIso(),
-            attempt: 1,
+            attempt,
             cause: cancelCause(input.rootSignal.reason),
             evidenceArtifact
           });
@@ -197,7 +211,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
             kind: "task-failed",
             planTaskId: task.planTaskId,
             at: nowIso(),
-            attempt: 1,
+            attempt,
             reason: final.reason,
             evidenceArtifact
           });
@@ -213,7 +227,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
           kind: "task-failed",
           planTaskId: task.planTaskId,
           at: nowIso(),
-          attempt: 1,
+          attempt,
           reason: "apply-failed",
           evidenceArtifact
         });
@@ -222,7 +236,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
         break;
       }
 
-      await emit({ kind: "task-succeeded", planTaskId: task.planTaskId, at: nowIso(), attempt: 1, evidenceArtifact });
+      await emit({ kind: "task-succeeded", planTaskId: task.planTaskId, at: nowIso(), attempt, evidenceArtifact });
     } finally {
       clearTimeout(timer);
       input.rootSignal.removeEventListener("abort", onRootAbort);
@@ -240,9 +254,11 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
 async function executeToFinal(
   input: RunRealExecutionInput,
   task: ExecutionRunPlan["tasks"][number],
-  signal: AbortSignal
+  signal: AbortSignal,
+  attempt: number
 ): Promise<AdapterResult> {
-  await initializeTaskEvidenceFiles(input.runDir, task.planTaskId);
+  await initializeTaskEvidenceFiles(input.runDir, task.planTaskId, attempt);
+  const repairContext = buildRepairContext(input, task.planTaskId);
   const ctx: AdapterContext = {
     signal,
     confirmedIntent: input.confirmedIntent,
@@ -250,7 +266,7 @@ async function executeToFinal(
     repoReader: input.repoReader,
     journal: {
       appendToken: async (_taskId, _attempt, text) => {
-        await appendFile(taskEvidencePath(input.runDir, task.planTaskId, "stdout.log"), text, "utf8");
+        await appendFile(taskEvidencePath(input.runDir, task.planTaskId, "stdout.log", attempt), text, "utf8");
       }
     },
     budget: {
@@ -262,7 +278,8 @@ async function executeToFinal(
       ...(input.resolvedEnvelope.network?.allowedHosts !== undefined
         ? { allowedHosts: input.resolvedEnvelope.network.allowedHosts }
         : {})
-    }
+    },
+    ...(repairContext !== undefined ? { repairContext } : {})
   };
 
   for await (const event of input.adapter.execute({
@@ -323,19 +340,22 @@ function readChangeEntries(changeSet: unknown): readonly { path: string; diff: s
 async function writeEvidenceFiles(input: {
   readonly runDir: string;
   readonly taskId: string;
+  readonly attempt?: number;
   readonly status: AdapterResult["outcome"];
   readonly adapterId: string;
   readonly evidence: AdapterEvidence;
   readonly reason?: string;
 }): Promise<StageArtifactRef> {
-  await initializeTaskEvidenceFiles(input.runDir, input.taskId);
+  const attempt = input.attempt ?? 1;
+  await initializeTaskEvidenceFiles(input.runDir, input.taskId, attempt);
   if (input.reason !== undefined) {
-    await appendFile(taskEvidencePath(input.runDir, input.taskId, "stderr.log"), `${input.reason}\n`, "utf8");
+    await appendFile(taskEvidencePath(input.runDir, input.taskId, "stderr.log", attempt), `${input.reason}\n`, "utf8");
   }
-  const dir = taskEvidenceDir(input.runDir, input.taskId);
-  const stdoutArtifact = `execution/task-${input.taskId}/stdout.log`;
-  const stderrArtifact = `execution/task-${input.taskId}/stderr.log`;
-  const transcriptArtifact = `execution/task-${input.taskId}/transcript.json`;
+  const dir = taskEvidenceDir(input.runDir, input.taskId, attempt);
+  const artifactDir = taskEvidenceArtifactDir(input.taskId, attempt);
+  const stdoutArtifact = `${artifactDir}/stdout.log`;
+  const stderrArtifact = `${artifactDir}/stderr.log`;
+  const transcriptArtifact = `${artifactDir}/transcript.json`;
   await writeFile(join(dir, "evidence.json"), `${JSON.stringify({
     schemaVersion: "1.0.0",
     adapter: input.adapterId,
@@ -359,24 +379,28 @@ async function writeEvidenceFiles(input: {
   return {
     stage: "execution",
     kind: "adapter-evidence",
-    uri: `execution/task-${input.taskId}/evidence.json`,
-    description: `Adapter evidence for task ${input.taskId}.`
+    uri: `${artifactDir}/evidence.json`,
+    description: `Adapter evidence for task ${input.taskId} attempt ${attempt}.`
   };
 }
 
-async function initializeTaskEvidenceFiles(runDir: string, taskId: string): Promise<void> {
-  const dir = taskEvidenceDir(runDir, taskId);
+async function initializeTaskEvidenceFiles(runDir: string, taskId: string, attempt = 1): Promise<void> {
+  const dir = taskEvidenceDir(runDir, taskId, attempt);
   await mkdir(dir, { recursive: true });
-  await writeFile(taskEvidencePath(runDir, taskId, "stdout.log"), "", { flag: "a" });
-  await writeFile(taskEvidencePath(runDir, taskId, "stderr.log"), "", { flag: "a" });
+  await writeFile(taskEvidencePath(runDir, taskId, "stdout.log", attempt), "", { flag: "a" });
+  await writeFile(taskEvidencePath(runDir, taskId, "stderr.log", attempt), "", { flag: "a" });
 }
 
-function taskEvidenceDir(runDir: string, taskId: string): string {
-  return join(runDir, "execution", `task-${taskId}`);
+function taskEvidenceDir(runDir: string, taskId: string, attempt = 1): string {
+  return join(runDir, taskEvidenceArtifactDir(taskId, attempt));
 }
 
-function taskEvidencePath(runDir: string, taskId: string, fileName: "stdout.log" | "stderr.log"): string {
-  return join(taskEvidenceDir(runDir, taskId), fileName);
+function taskEvidenceArtifactDir(taskId: string, attempt = 1): string {
+  return attempt === 1 ? `execution/task-${taskId}` : `execution/task-${taskId}-attempt-${attempt}`;
+}
+
+function taskEvidencePath(runDir: string, taskId: string, fileName: "stdout.log" | "stderr.log", attempt = 1): string {
+  return join(taskEvidenceDir(runDir, taskId, attempt), fileName);
 }
 
 async function readExistingJournalEvents(runDir: string): Promise<TaskJournalEvent[]> {
@@ -397,6 +421,7 @@ function lifecycleFromJournal(event: TaskJournalEvent): ExecutionLifecycleEvent 
     runId: event.runId,
     planTaskId: event.planTaskId,
     at: event.at,
+    attempt: event.attempt,
     status: statusFromKind(event.kind),
     ...("reason" in event && event.reason !== undefined ? { reason: event.reason } : {}),
     ...("evidenceArtifact" in event && event.evidenceArtifact !== undefined ? { evidence: [event.evidenceArtifact] } : {})
@@ -441,6 +466,39 @@ function cancelCause(reason: unknown): "sigint" | "sentinel" | "abort" {
 
 function emptyEvidence(): AdapterEvidence {
   return { model: "unknown", attempts: 0, durationMs: 0, auxReads: [], retries: [] };
+}
+
+function buildRepairContext(input: RunRealExecutionInput, planTaskId: string): RepairContext | undefined {
+  if (input.repair === undefined) {
+    return undefined;
+  }
+  const repair = input.repair.repairPlan.repairs.find((candidate) => candidate.planTaskId === planTaskId);
+  if (repair === undefined) {
+    return undefined;
+  }
+  return {
+    previousAttempt: {
+      planTaskId,
+      attempt: input.repair.attempt - 1
+    },
+    mechanicalCritiques: repair.mechanicalCritiques.map((critique) => ({
+      ruleId: critique.ruleId,
+      severity: critique.severity,
+      ...(critique.repairTaskId !== undefined ? { repairTaskId: critique.repairTaskId } : {}),
+      message: critique.summary,
+      evidence: { artifacts: critique.evidence }
+    })),
+    ...(repair.modelCritiques === undefined
+      ? {}
+      : {
+          modelCritiques: repair.modelCritiques.map((critique) => ({
+            judgeId: critique.judgeId,
+            verdict: critique.verdict,
+            rationale: critique.rationale,
+            taskRefs: critique.taskRefs
+          }))
+        })
+  };
 }
 
 export function dryRunLifecycleEventTypesForRealExecutorContract(runPlan: ExecutionRunPlan): ReadonlySet<string> {

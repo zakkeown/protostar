@@ -588,6 +588,7 @@ export async function runFactory(
   });
   const cancel = installCancelWiring({ runDir });
   let executionResult: ExecutionDryRunResult;
+  let realExecutionAdapter: ReturnType<typeof dependencies.createLmstudioCoderAdapter> | undefined;
   let loop: ReviewRepairLoopResult;
   let review: ReviewGate;
   try {
@@ -632,6 +633,7 @@ export async function runFactory(
             ? { topP: factoryConfig.config.adapters.coder.topP }
             : {})
         });
+        realExecutionAdapter = adapter;
         const realResult = await dependencies.runRealExecution({
           runPlan: execution,
           adapter,
@@ -655,9 +657,48 @@ export async function runFactory(
         failTaskIds: options.failTaskIds
       });
     }
+    let currentExecution = executionRunResultFromDry(executionResult);
     const reviewExecutor = createReviewTaskExecutor({
-      currentExecution: executionRunResultFromDry(executionResult),
-      executeRepairTasks: async () => executionRunResultFromDry(executionResult)
+      executeRepairTasks: async (repairInput) => {
+        if ((options.executor ?? "dry-run") !== "real" || realExecutionAdapter === undefined) {
+          return currentExecution;
+        }
+        const repairJournalWriter = await createJournalWriter({ runDir });
+        try {
+          const repairResult = await dependencies.runRealExecution({
+            runPlan: execution,
+            adapter: realExecutionAdapter,
+            repoReader: createFsRepoReader({ workspaceRoot: repoRuntime.cloneDir }),
+            resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+            confirmedIntent: intent,
+            journalWriter: repairJournalWriter,
+            runDir,
+            workspaceRoot: repoRuntime.cloneDir,
+            rootSignal: cancel.rootController.signal,
+            applyChangeSet: dependencies.applyChangeSet,
+            checkSentinelBetweenTasks: cancel.checkSentinelBetweenTasks,
+            repair: {
+              attempt: repairInput.attempt,
+              repairPlan: repairInput.repairPlan
+            }
+          });
+          const repairedDry = realExecutionAsDryRunResult(execution, repairResult);
+          currentExecution = mergeRepairExecutionResult({
+            previous: currentExecution,
+            repaired: executionRunResultFromDry(repairedDry, repairInput.attempt),
+            repairedTaskIds: repairInput.repairPlan.dependentTaskIds,
+            attempt: repairInput.attempt
+          });
+          executionResult = mergeRepairDryRunResult({
+            previous: executionResult,
+            repaired: repairedDry,
+            repairedTaskIds: repairInput.repairPlan.dependentTaskIds
+          });
+          return currentExecution;
+        } finally {
+          await repairJournalWriter.close();
+        }
+      }
     });
     const reviewServices = buildReviewRepairServices({
       fs: createNodeReviewFsAdapter(),
@@ -676,7 +717,7 @@ export async function runFactory(
       runId,
       confirmedIntent: intent,
       admittedPlan: admittedPlanHandoff.executionArtifact,
-      initialExecution: executionRunResultFromDry(executionResult),
+      initialExecution: currentExecution,
       executor: reviewExecutor,
       mechanicalChecker: (options.executor ?? "dry-run") === "real"
         ? reviewServices.mechanicalChecker
@@ -987,11 +1028,11 @@ function realExecutionAsDryRunResult(
   };
 }
 
-function executionRunResultFromDry(result: ExecutionDryRunResult): ExecutionRunResult {
+function executionRunResultFromDry(result: ExecutionDryRunResult, attempt = 0): ExecutionRunResult {
   return {
     schemaVersion: "1.0.0",
     runId: result.runId,
-    attempt: 0,
+    attempt,
     status: result.status === "succeeded" ? "completed" : "failed",
     journalArtifact: {
       stage: "execution",
@@ -1005,6 +1046,60 @@ function executionRunResultFromDry(result: ExecutionDryRunResult): ExecutionRunR
       ...(task.evidence[0] !== undefined ? { evidenceArtifact: task.evidence[0] } : {})
     })),
     ...(result.evidence[0] !== undefined ? { diffArtifact: result.evidence[0] } : {})
+  };
+}
+
+function mergeRepairExecutionResult(input: {
+  readonly previous: ExecutionRunResult;
+  readonly repaired: ExecutionRunResult;
+  readonly repairedTaskIds: readonly string[];
+  readonly attempt: number;
+}): ExecutionRunResult {
+  const repairedTaskIds = new Set(input.repairedTaskIds);
+  const repairedByTask = new Map(input.repaired.perTask.map((task) => [task.planTaskId, task]));
+  const previousByTask = new Map(input.previous.perTask.map((task) => [task.planTaskId, task]));
+  const perTask = input.previous.perTask.map((task) =>
+    repairedTaskIds.has(task.planTaskId) ? (repairedByTask.get(task.planTaskId) ?? task) : task
+  );
+  for (const task of input.repaired.perTask) {
+    if (repairedTaskIds.has(task.planTaskId) && !previousByTask.has(task.planTaskId)) {
+      perTask.push(task);
+    }
+  }
+  const firstEvidence = perTask.flatMap((task) => task.evidenceArtifact === undefined ? [] : [task.evidenceArtifact])[0];
+  return {
+    ...input.previous,
+    attempt: input.attempt,
+    status: perTask.every((task) => task.status === "ok") ? "completed" : "failed",
+    perTask,
+    ...(firstEvidence !== undefined ? { diffArtifact: firstEvidence } : {})
+  };
+}
+
+function mergeRepairDryRunResult(input: {
+  readonly previous: ExecutionDryRunResult;
+  readonly repaired: ExecutionDryRunResult;
+  readonly repairedTaskIds: readonly string[];
+}): ExecutionDryRunResult {
+  const repairedTaskIds = new Set(input.repairedTaskIds);
+  const repairedByTask = new Map(input.repaired.tasks.map((task) => [task.planTaskId, task]));
+  const previousByTask = new Map(input.previous.tasks.map((task) => [task.planTaskId, task]));
+  const tasks = input.previous.tasks.map((task) =>
+    repairedTaskIds.has(task.planTaskId) ? (repairedByTask.get(task.planTaskId) ?? task) : task
+  );
+  for (const task of input.repaired.tasks) {
+    if (repairedTaskIds.has(task.planTaskId) && !previousByTask.has(task.planTaskId)) {
+      tasks.push(task);
+    }
+  }
+  const events = [...input.previous.events, ...input.repaired.events];
+  const evidence = [...input.previous.evidence, ...input.repaired.evidence];
+  return {
+    ...input.previous,
+    status: tasks.every((task) => task.status === "succeeded") ? "succeeded" : "failed",
+    tasks,
+    events,
+    evidence
   };
 }
 
@@ -1045,7 +1140,6 @@ function dryMechanicalCheck(input: {
 }
 
 function createReviewTaskExecutor(input: {
-  readonly currentExecution: ExecutionRunResult;
   readonly executeRepairTasks: TaskExecutorService["executeRepairTasks"];
 }): TaskExecutorService {
   return {

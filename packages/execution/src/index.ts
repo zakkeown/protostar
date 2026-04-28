@@ -52,6 +52,7 @@ export interface ExecutionLifecycleEvent {
   readonly runId: string;
   readonly planTaskId: string;
   readonly at: string;
+  readonly attempt?: number;
   readonly status: ExecutionTaskStatus;
   readonly reason?: string;
   readonly blockedBy?: readonly string[];

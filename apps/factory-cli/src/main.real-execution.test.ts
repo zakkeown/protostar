@@ -49,6 +49,14 @@ describe("factory-cli real executor integration", () => {
     }
   });
 
+  it("merges partial repair execution results instead of replacing untouched tasks", async () => {
+    const source = await readFile(mainSourcePath, "utf8");
+
+    assert.match(source, /mergeRepairExecutionResult/);
+    assert.match(source, /mergeRepairDryRunResult/);
+    assert.match(source, /repairedTaskIds\.has\(task\.planTaskId\) \? \(repairedByTask\.get\(task\.planTaskId\) \?\? task\) : task/);
+  });
+
   it("records factoryConfigHash in the policy snapshot evidence", async () => {
     const source = await readFile(mainSourcePath, "utf8");
 
