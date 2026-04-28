@@ -266,7 +266,7 @@ Plans:
 **Plans:** 8 plans across 7 waves (0..6; parallel within wave).
 
 Plans:
-- [ ] 08-01-evaluation-runner-skeleton-PLAN.md — wave 0 — new @protostar/evaluation-runner workspace skeleton (Q-20)
+- [x] 08-01-evaluation-runner-skeleton-PLAN.md — wave 0 — new @protostar/evaluation-runner workspace skeleton (Q-20)
 - [ ] 08-02-types-and-schema-extensions-PLAN.md — wave 1 — EvaluationStageResult shape (Q-03 BREAKING) + EVALUATION_RUBRIC_DIMENSIONS (Q-06) + 6 threshold constants (Q-02/Q-05/Q-09) + MechanicalEvalResult/SemanticEvalResult/ConsensusEvalResult (Q-12) + ReviewGate.mechanicalScores (Q-01) + PileFailure 'eval-consensus-block' variant + 'EvaluationResult' sourceOfTruth + 'pile-evaluation' RefusalStage (Q-10) + factory-config evaluation/evolution blocks (Q-07/Q-08/Q-15/Q-17/Q-18) + 'skipped' literal removal (Q-11)
 - [ ] 08-03-evaluation-pure-helpers-PLAN.md — wave 2 — computeMechanicalScores + computeSemanticConfidence + shouldRunConsensus + evaluateConsensus (4-way truth table) + createSpecOntologySnapshot + computeLineageId (Q-01/Q-02/Q-05/Q-09/Q-12/Q-13/Q-15)
 - [ ] 08-04-mechanical-scores-producer-PLAN.md — wave 2 — mechanical-checks numeric score producer threading mechanicalScores into produced ReviewGate (Q-01)

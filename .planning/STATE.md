@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 6 Plan 08 complete; admission-e2e pile contract suite landed; phase implementation complete, ready for verification)
+**Last updated:** 2026-04-28 (Phase 8 Plan 01 complete; evaluation-runner skeleton landed; repo-wide verify currently blocked by unrelated dirty Phase 7 delivery-runtime edits)
 
 ## Project
 
@@ -24,15 +24,11 @@
 
 ## Current Phase
 
-**Phase 6 — Live Dogpile Piles** (in progress)
+**Phase 8 — Evaluation + Evolution** (in progress)
 
-Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
+Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-28. The new `@protostar/evaluation-runner` workspace skeleton exists, builds, and has a compiled placeholder rejection test; workspace metadata, root TypeScript references, lockfile importer, and root verify hook are registered.
 
-**Next action:** Phase 6 verification (2026-04-28) returned `gaps_found` (4/6). Two gap-closure plans drafted and plan-checked:
-- **06-09** (wave 5, requirements: PLAN-A-03) — diagnose `pnpm run verify` flake at apps/factory-cli (8 cancelled subtests in run-real-execution.test.ts; subtest 9 is the LOOP-04 closure test from Phase 5); harden async resource teardown; restore deterministic verify gate (≥5 consecutive exit-0 runs).
-- **06-10** (wave 6, requirements: PILE-03) — add `repairPlanRefiner` hook + `repair-plan-refined` lifecycle event to `runReviewRepairLoop`; new `exec-coord-trigger.ts` module with work-slicing heuristic; wire both triggers in factory-cli main.ts (hard-fail at work-slicing, soft-fallback at refinement per Q-15 + resolved policy 2026-04-28); flip negative-grep deferral pins in pile-integration-smoke.contract.test.ts to positive wiring assertions.
-
-Run `/gsd-execute-phase 6 --gaps-only` to land both. Plan 06-09 must complete before 06-10 (verify must be deterministic before adding more wiring).
+**Next action:** Continue Phase 8 wave 1 with `08-02-types-and-schema-extensions-PLAN.md` after the unrelated Phase 7 delivery-runtime dirty worktree errors are resolved enough for repo-wide `pnpm run verify` / `pnpm -r build` to complete.
 
 ## Phase Status
 
@@ -45,7 +41,7 @@ Run `/gsd-execute-phase 6 --gaps-only` to land both. Plan 06-09 must complete be
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | Pending |
-| 8 | Evaluation + Evolution | Pending |
+| 8 | Evaluation + Evolution | In progress — Plan 08-01 complete |
 | 9 | Operator Surface + Resumability | Pending |
 | 10 | V1 Hardening + Dogfood | Pending |
 
@@ -58,6 +54,8 @@ Run `/gsd-execute-phase 6 --gaps-only` to land both. Plan 06-09 must complete be
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`). Added the new `@protostar/evaluation-runner` workspace skeleton with ESM exports, strict composite TypeScript config, `tsconfig.build.json`, the placeholder `runEvaluationStages` export, and a compiled `node:test` case asserting the placeholder rejects until Plan 08-06 wires the real implementation. Registered the package in `pnpm-workspace.yaml`, root `tsconfig.json`, `pnpm-lock.yaml`, and root `verify`. Targeted gates passed: `pnpm install`, `pnpm --filter @protostar/evaluation-runner build`, `pnpm --filter @protostar/evaluation-runner test`, and the no-fs grep over `packages/evaluation-runner/src/`. Repo-wide `pnpm -r build` and `pnpm run verify` are blocked by unrelated dirty Phase 7 delivery-runtime TypeScript errors in `packages/delivery-runtime/src/push-branch.ts:195`. Commits: `7da35f5`, `c398c8e`.
 
 - **2026-04-28:** Completed Phase 6 Plan 08 (`06-08-admission-e2e-pile-contract-PLAN.md`). Three new admission-e2e contract tests close Phase 6's verification loop. Task 1: `dogpile-adapter-no-fs.contract.test.ts` (197 lines) — static walker on `dogpile-adapter/src` (excluding the package's self-walking `no-fs.contract.test.ts`) AND `dogpile-types/src`, plus a runtime exercise invoking `runFactoryPile` with a deps-injected fake stream that asserts `ok=true` end-to-end (Q-09 defense in depth on top of Plan 06-01's static walker). Task 2: `pile-refusal-byte-equality.contract.test.ts` (185 lines) — both fixture-parse (parsePlanningPileResult on `output: "not json"`) and live pile-schema-parse failures flow through `writePileArtifacts` with `PileFailure.class="pile-schema-parse"`; after erasing `failure.parseErrors` (the legitimate fixture-vs-live origin discriminator), the two refusal artifacts are deepEqual on every other field (PILE-04 / Q-12 evidence-uniformity). Task 3: `pile-integration-smoke.contract.test.ts` (147 lines) — six `it()` blocks containing literal grep tokens `planning-pile-live` (positive wiring assertions on main.ts; references the canonical end-to-end exercise in `apps/factory-cli/src/main.test.ts:505`), `work-slicing-trigger` and `repair-plan-trigger` (negative-grep deferral pins per Plan 06-07's exec-coord deferral), and two cross-cutting invariants on review-pile wiring + refusals-index pile stage enumeration. Infrastructure: added `@protostar/dogpile-adapter`, `@protostar/dogpile-types`, `@protostar/factory-cli` as workspace deps + tsconfig refs of admission-e2e; added `"exports"` field to `apps/factory-cli/package.json` exposing `./pile-persistence` and `./refusals-index` subpaths (Rule 3 unblocker — plan author's `key_links` documented these imports as expected, but factory-cli previously exposed only `bin`). 73/73 admission-e2e tests pass; `pnpm run verify` green. Commits: `157c5a2`, `a6fb460`, `867e8cf`.
 
