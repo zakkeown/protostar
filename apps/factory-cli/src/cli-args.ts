@@ -2,6 +2,10 @@ export type TrustLevel = "untrusted" | "trusted";
 
 export const TRUST_LEVELS: readonly TrustLevel[] = Object.freeze(["untrusted", "trusted"]);
 
+export type PileMode = "fixture" | "live";
+
+export const PILE_MODES: readonly PileMode[] = Object.freeze(["fixture", "live"]);
+
 export interface ParsedCliArgs {
   readonly trust: TrustLevel;
   readonly confirmedIntent?: string;
@@ -17,6 +21,10 @@ export interface ParsedCliArgs {
   readonly runId?: string;
   readonly executor?: string;
   readonly allowedAdapters?: string;
+  // Phase 6 Plan 06-07 Task 1 — pile-mode CLI overrides (Q-04).
+  readonly planningMode?: PileMode;
+  readonly reviewMode?: PileMode;
+  readonly execCoordMode?: PileMode;
 }
 
 const FLAG_NAMES = new Set([
@@ -24,6 +32,7 @@ const FLAG_NAMES = new Set([
   "--confirmed-intent-output",
   "--draft",
   "--allowed-adapters",
+  "--exec-coord-mode",
   "--executor",
   "--fail-task-ids",
   "--intent",
@@ -32,9 +41,13 @@ const FLAG_NAMES = new Set([
   "--intent-output",
   "--out",
   "--planning-fixture",
+  "--planning-mode",
+  "--review-mode",
   "--run-id",
   "--trust"
 ]);
+
+const PILE_MODE_FLAGS = new Set(["--planning-mode", "--review-mode", "--exec-coord-mode"]);
 
 export class ArgvError extends Error {
   constructor(
@@ -86,6 +99,12 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
       }
       trust = value;
       continue;
+    }
+
+    if (PILE_MODE_FLAGS.has(flag)) {
+      if (value !== "fixture" && value !== "live") {
+        throw new ArgvError(flag, `expected one of ${PILE_MODES.join("|")}, got "${value}"`);
+      }
     }
 
     setFlag(flags, flagName(flag), value);

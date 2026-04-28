@@ -56,6 +56,28 @@ describe("formatRefusalIndexLine", () => {
     assert.equal(a, b);
   });
 
+  // Phase 6 Plan 06-07 Task 1 — refusal-stage extension for pile failures (Q-12).
+  it("formats a pile-planning refusal entry as a single JSON line", () => {
+    const entry: RefusalIndexEntry = {
+      ...sampleEntry,
+      stage: "pile-planning",
+      reason: "pile-timeout: planning pile elapsed 120000ms",
+      artifactPath: ".protostar/runs/x/piles/planning/iter-0/refusal.json"
+    };
+    const parsed = JSON.parse(formatRefusalIndexLine(entry).slice(0, -1)) as Record<string, unknown>;
+    assert.equal(parsed["stage"], "pile-planning");
+  });
+
+  it("RefusalStage type accepts the three pile-* extensions", () => {
+    const stages: ReadonlyArray<RefusalIndexEntry["stage"]> = [
+      "pile-planning",
+      "pile-review",
+      "pile-execution-coordination"
+    ];
+    // Compile-time check — if the type doesn't include these, this assignment fails.
+    assert.equal(stages.length, 3);
+  });
+
   it("emits stage: planning correctly when the input stage is planning", () => {
     const planningEntry: RefusalIndexEntry = {
       ...sampleEntry,

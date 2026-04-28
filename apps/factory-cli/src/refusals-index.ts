@@ -6,7 +6,11 @@ export type RefusalStage =
   | "precedence"
   | "workspace-trust"
   | "repo-runtime"
-  | "coder-adapter-ready";
+  | "coder-adapter-ready"
+  // Phase 6 Plan 06-07 Task 1 — pile-failure refusal stages (Q-12 refusal symmetry).
+  | "pile-planning"
+  | "pile-review"
+  | "pile-execution-coordination";
 
 export const REFUSALS_INDEX_FILE_NAME = "refusals.jsonl" as const;
 export const TERMINAL_STATUS_ARTIFACT_NAME = "terminal-status.json" as const;

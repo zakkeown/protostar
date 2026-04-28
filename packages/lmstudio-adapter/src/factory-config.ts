@@ -7,6 +7,29 @@ export interface FactoryConfig {
     readonly coder: LmstudioAdapterConfig;
     readonly judge?: LmstudioAdapterConfig;
   };
+  // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
+  // means all piles default to mode="fixture" (Q-05).
+  readonly piles?: PilesConfig;
+}
+
+export type PileMode = "fixture" | "live";
+
+export interface PileKindConfig {
+  readonly mode?: PileMode;
+  readonly fixturePath?: string;
+}
+
+export interface ExecutionCoordinationPileConfig extends PileKindConfig {
+  readonly workSlicing?: {
+    readonly maxTargetFiles?: number;
+    readonly maxEstimatedTurns?: number;
+  };
+}
+
+export interface PilesConfig {
+  readonly planning?: PileKindConfig;
+  readonly review?: PileKindConfig;
+  readonly executionCoordination?: ExecutionCoordinationPileConfig;
 }
 
 export interface LmstudioAdapterConfig {
@@ -36,6 +59,7 @@ interface PartialFactoryConfig {
     readonly coder?: PartialLmstudioAdapterConfig;
     readonly judge?: PartialLmstudioAdapterConfig;
   };
+  readonly piles?: PilesConfig;
 }
 
 interface PartialLmstudioAdapterConfig {
@@ -66,9 +90,14 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   })
 });
 
-const TOP_LEVEL_KEYS = new Set(["adapters"]);
+const TOP_LEVEL_KEYS = new Set(["adapters", "piles"]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
+const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
+const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
+const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
+const WORK_SLICING_KEYS = new Set(["maxTargetFiles", "maxEstimatedTurns"]);
+const PILE_MODE_VALUES = new Set(["fixture", "live"]);
 
 export function resolveFactoryConfig(input: {
   readonly fileBytes?: string;
@@ -117,7 +146,8 @@ export function resolveFactoryConfig(input: {
     adapters: {
       coder,
       judge
-    }
+    },
+    ...(fileConfig.piles !== undefined ? { piles: fileConfig.piles } : {})
   };
 
   return {
@@ -165,7 +195,55 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
     }
   }
 
+  if (config.piles !== undefined) {
+    if (!isPlainRecord(config.piles)) {
+      errors.push("$.piles must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.piles", config.piles, PILES_KEYS));
+      validatePileKind("$.piles.planning", config.piles.planning, PILE_KIND_KEYS, errors);
+      validatePileKind("$.piles.review", config.piles.review, PILE_KIND_KEYS, errors);
+      validatePileKind("$.piles.executionCoordination", config.piles.executionCoordination, EXEC_COORD_KEYS, errors);
+      if (
+        config.piles.executionCoordination !== undefined &&
+        isPlainRecord(config.piles.executionCoordination) &&
+        config.piles.executionCoordination.workSlicing !== undefined
+      ) {
+        const ws = config.piles.executionCoordination.workSlicing;
+        if (!isPlainRecord(ws)) {
+          errors.push("$.piles.executionCoordination.workSlicing must be an object");
+        } else {
+          errors.push(...unknownKeyErrors("$.piles.executionCoordination.workSlicing", ws, WORK_SLICING_KEYS));
+          for (const key of ["maxTargetFiles", "maxEstimatedTurns"] as const) {
+            if (ws[key] !== undefined && typeof ws[key] !== "number") {
+              errors.push(`$.piles.executionCoordination.workSlicing.${key} must be a number`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return errors;
+}
+
+function validatePileKind(
+  path: string,
+  pileKind: unknown,
+  allowedKeys: ReadonlySet<string>,
+  errors: string[]
+): void {
+  if (pileKind === undefined) return;
+  if (!isPlainRecord(pileKind)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  errors.push(...unknownKeyErrors(path, pileKind, allowedKeys));
+  if (pileKind["mode"] !== undefined && !PILE_MODE_VALUES.has(pileKind["mode"] as string)) {
+    errors.push(`${path}.mode must be one of fixture|live`);
+  }
+  if (pileKind["fixturePath"] !== undefined && typeof pileKind["fixturePath"] !== "string") {
+    errors.push(`${path}.fixturePath must be a string`);
+  }
 }
 
 function validateLmstudioAdapter(path: string, adapter: unknown, errors: string[]): void {

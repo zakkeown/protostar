@@ -51,6 +51,53 @@ describe("loadFactoryConfig", () => {
     );
   });
 
+  // Phase 6 Plan 06-07 Task 1 — piles config block.
+  it("parses a valid piles block with planning.mode = live", async () => {
+    process.env = {};
+    const root = await mkdtemp(join(tmpdir(), "factory-config-"));
+    await mkdir(join(root, ".protostar"));
+    await writeFile(join(root, ".protostar", "factory-config.json"), JSON.stringify({
+      adapters: { coder: { provider: "lmstudio", baseUrl: "http://localhost:1234/v1", model: "m" } },
+      piles: {
+        planning: { mode: "live" },
+        review: { mode: "fixture" },
+        executionCoordination: { mode: "live", workSlicing: { maxTargetFiles: 4, maxEstimatedTurns: 6 } }
+      }
+    }));
+
+    const resolved = await loadFactoryConfig(root);
+
+    assert.equal(resolved.config.piles?.planning?.mode, "live");
+    assert.equal(resolved.config.piles?.review?.mode, "fixture");
+    assert.equal(resolved.config.piles?.executionCoordination?.mode, "live");
+    assert.equal(resolved.config.piles?.executionCoordination?.workSlicing?.maxTargetFiles, 4);
+  });
+
+  it("rejects an invalid piles.planning.mode value", async () => {
+    process.env = {};
+    const root = await mkdtemp(join(tmpdir(), "factory-config-"));
+    await mkdir(join(root, ".protostar"));
+    await writeFile(join(root, ".protostar", "factory-config.json"), JSON.stringify({
+      adapters: { coder: { provider: "lmstudio", baseUrl: "http://localhost:1234/v1", model: "m" } },
+      piles: { planning: { mode: "auto" } }
+    }));
+
+    await assert.rejects(() => loadFactoryConfig(root), /piles/);
+  });
+
+  it("returns piles === undefined when the block is absent", async () => {
+    process.env = {};
+    const root = await mkdtemp(join(tmpdir(), "factory-config-"));
+    await mkdir(join(root, ".protostar"));
+    await writeFile(join(root, ".protostar", "factory-config.json"), JSON.stringify({
+      adapters: { coder: { provider: "lmstudio", baseUrl: "http://localhost:1234/v1", model: "m" } }
+    }));
+
+    const resolved = await loadFactoryConfig(root);
+
+    assert.equal(resolved.config.piles, undefined);
+  });
+
   it("applies env overrides at the loader boundary", async () => {
     process.env = {
       LMSTUDIO_BASE_URL: "http://localhost:9999/v1",
