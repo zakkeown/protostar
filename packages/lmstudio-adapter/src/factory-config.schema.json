@@ -14,6 +14,78 @@
         "coder": { "$ref": "#/definitions/lmstudioAdapterConfig" },
         "judge": { "$ref": "#/definitions/lmstudioAdapterConfig" }
       }
+    },
+    "piles": {
+      "type": "object",
+      "description": "Phase 6 (Q-04) per-pile-kind mode selection. Precedence: CLI override (--planning-mode, --review-mode, --exec-coord-mode) > this config > built-in default. Built-in default mode is `fixture` per Q-05. Per Q-06, live failures NEVER auto-fall-back to fixture — they emit a no-admission refusal artifact and the run exits non-zero. Live mode is an explicit operator opt-in.",
+      "additionalProperties": false,
+      "properties": {
+        "planning": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Planning pile (Q-04). CLI override flag: --planning-mode.",
+          "properties": {
+            "mode": {
+              "enum": ["fixture", "live"],
+              "default": "fixture",
+              "description": "fixture (default per Q-05) or live. CLI flag --planning-mode overrides this value when explicitly provided. Live failure does NOT fall back to fixture (Q-06)."
+            },
+            "fixturePath": {
+              "type": "string",
+              "description": "Optional path to a fixture file used when mode=fixture."
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Review pile (Q-04, Q-14). When mode=live, the review pile replaces the Phase 5 single-judge passthrough as the ModelReviewer implementation. CLI override flag: --review-mode.",
+          "properties": {
+            "mode": {
+              "enum": ["fixture", "live"],
+              "default": "fixture",
+              "description": "fixture (default per Q-05) or live. CLI flag --review-mode overrides this value when explicitly provided. Live failure does NOT fall back to fixture (Q-06)."
+            },
+            "fixturePath": {
+              "type": "string",
+              "description": "Optional path to a fixture file used when mode=fixture."
+            }
+          }
+        },
+        "executionCoordination": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Execution-coordination pile (Q-04, Q-15). Both work-slicing and repair-plan triggers share this single preset/budget. CLI override flag: --exec-coord-mode. (JSON key uses camelCase to match TypeScript field names; the FactoryPileKind discriminator string is `execution-coordination`.)",
+          "properties": {
+            "mode": {
+              "enum": ["fixture", "live"],
+              "default": "fixture",
+              "description": "fixture (default per Q-05) or live. CLI flag --exec-coord-mode overrides this value when explicitly provided. Live failure does NOT fall back to fixture (Q-06)."
+            },
+            "fixturePath": {
+              "type": "string",
+              "description": "Optional path to a fixture file used when mode=fixture."
+            },
+            "workSlicing": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Heuristic thresholds for shouldInvokeWorkSlicing(admittedPlan) (Q-15). Defaults are 3 / 5 (Claude's discretion per RESEARCH); Phase 8 will calibrate from dogfood data.",
+              "properties": {
+                "maxTargetFiles": {
+                  "type": "number",
+                  "default": 3,
+                  "description": "If any task's targetFiles count exceeds this, work-slicing is invoked. Default 3."
+                },
+                "maxEstimatedTurns": {
+                  "type": "number",
+                  "default": 5,
+                  "description": "If any task's estimatedTurns exceeds this, work-slicing is invoked. Default 5."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
