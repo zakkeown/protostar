@@ -96,7 +96,7 @@ completed: 2026-04-28T00:44:54Z
 ## Issues Encountered
 
 - `node ./node_modules/@gsd-build/sdk/dist/cli.js query state.load` was unavailable because the SDK package is not installed in local `node_modules`.
-- `pnpm run verify` is blocked by unrelated shared-wave work: untracked `packages/repair/src/synthesize-repair-plan.test.ts` imports missing `./synthesize-repair-plan.js`.
+- `pnpm run verify` is blocked by unrelated shared-wave work: `packages/lmstudio-adapter/src/create-judge-adapter.test.ts` imports missing `./create-judge-adapter.js` and references judge config fields that are not wired yet.
 
 ## Verification
 
@@ -104,7 +104,7 @@ completed: 2026-04-28T00:44:54Z
 - `pnpm run typecheck` passed.
 - `grep -c 'cosmetic-archetype-multifile' packages/repo/src/apply-change-set.ts` returned `2`.
 - `grep -c 'archetype' packages/repo/src/apply-change-set.ts` returned `4`.
-- `pnpm run verify` failed on unrelated repair package WIP noted above.
+- `pnpm run verify` failed on unrelated lmstudio-adapter judge-adapter WIP noted above.
 
 ## User Setup Required
 

@@ -129,6 +129,21 @@ describe("resolveFactoryConfig", () => {
     assert.deepEqual(schema.required, ["adapters"]);
     assertConfigSatisfiesSchemaShape(resolved.config, schema);
   });
+
+  it("ships a schema requiring both coder and judge adapters", () => {
+    const schema = JSON.parse(
+      readFileSync(new URL("../../src/factory-config.schema.json", import.meta.url), "utf8")
+    ) as FactoryConfigSchema;
+
+    assert.deepEqual(schema.properties.adapters.required, ["coder", "judge"]);
+    assert.ok("judge" in schema.properties.adapters.properties);
+    assert.deepEqual(schema.properties.adapters.properties.judge.required, [
+      "provider",
+      "baseUrl",
+      "model",
+      "apiKeyEnv"
+    ]);
+  });
 });
 
 interface FactoryConfigSchema {
@@ -142,6 +157,11 @@ interface FactoryConfigSchema {
       readonly required: readonly string[];
       readonly properties: {
         readonly coder: {
+          readonly additionalProperties: boolean;
+          readonly required: readonly string[];
+          readonly properties: Record<string, unknown>;
+        };
+        readonly judge: {
           readonly additionalProperties: boolean;
           readonly required: readonly string[];
           readonly properties: Record<string, unknown>;
