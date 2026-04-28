@@ -4,6 +4,8 @@ dist/
 *.tsbuildinfo
 .protostar/runs/
 .protostar/workspaces/
+.protostar/calibration/
+.protostar/evolution/
 .env
 .env.*
 !.env.example
