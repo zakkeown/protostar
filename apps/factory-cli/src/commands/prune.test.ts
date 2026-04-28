@@ -151,6 +151,90 @@ describe("prune command", () => {
     assert.equal(await readFile(lineagePath, "utf8"), before);
   });
 
+  it("reports old dogfood sessions as dry-run prune candidates", async () => {
+    const workspace = await tempWorkspace();
+    await createDogfoodSession(workspace, {
+      sessionId: "dogfood_old",
+      ageMs: days(8),
+      completed: 1,
+      totalRuns: 1
+    });
+
+    const result = await runPrune(workspace, ["--older-than", "7d"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.deepEqual(output.candidates.map((candidate) => candidate.runId), ["dogfood_old"]);
+    await stat(join(workspace, ".protostar", "dogfood", "dogfood_old"));
+  });
+
+  it("deletes old completed dogfood sessions when confirmed", async () => {
+    const workspace = await tempWorkspace();
+    await createDogfoodSession(workspace, {
+      sessionId: "dogfood_done",
+      ageMs: days(8),
+      completed: 3,
+      totalRuns: 3
+    });
+
+    const result = await runPrune(workspace, ["--older-than", "7d", "--confirm"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.deepEqual(output.deleted, [{ runId: "dogfood_done" }]);
+    await assertMissing(join(workspace, ".protostar", "dogfood", "dogfood_done"));
+  });
+
+  it("preserves append-only refusal and lineage files while pruning dogfood sessions", async () => {
+    const workspace = await tempWorkspace();
+    await createDogfoodSession(workspace, {
+      sessionId: "dogfood_done",
+      ageMs: days(8),
+      completed: 2,
+      totalRuns: 2
+    });
+    const refusalsPath = join(workspace, ".protostar", "refusals.jsonl");
+    const lineagePath = join(workspace, ".protostar", "evolution", "lineage-X.jsonl");
+    await mkdir(join(workspace, ".protostar", "evolution"), { recursive: true });
+    await writeFile(refusalsPath, "{\"sessionId\":\"dogfood_done\"}\n", "utf8");
+    await writeFile(lineagePath, "{\"sessionId\":\"dogfood_done\"}\n", "utf8");
+    const before = {
+      refusals: await sha256(refusalsPath),
+      lineage: await sha256(lineagePath)
+    };
+
+    const result = await runPrune(workspace, ["--older-than", "7d", "--confirm"]);
+
+    assert.equal(result.exitCode, 0);
+    await assertMissing(join(workspace, ".protostar", "dogfood", "dogfood_done"));
+    assert.deepEqual(
+      {
+        refusals: await sha256(refusalsPath),
+        lineage: await sha256(lineagePath)
+      },
+      before
+    );
+  });
+
+  it("protects active dogfood sessions whose cursor has incomplete runs", async () => {
+    const workspace = await tempWorkspace();
+    await createDogfoodSession(workspace, {
+      sessionId: "dogfood_active",
+      ageMs: days(8),
+      completed: 1,
+      totalRuns: 3
+    });
+
+    const result = await runPrune(workspace, ["--older-than", "7d", "--confirm"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.deepEqual(output.candidates, []);
+    assert.deepEqual(output.deleted, []);
+    assert.deepEqual(output.protected, [{ reason: "active-dogfood-session", runId: "dogfood_active" }]);
+    await stat(join(workspace, ".protostar", "dogfood", "dogfood_active"));
+  });
+
   for (const status of ["created", "running", "cancelling", "repairing", "ready-to-release"] as const) {
     it(`protects active status ${status}`, async () => {
       const workspace = await tempWorkspace();
@@ -211,6 +295,7 @@ async function tempWorkspace(): Promise<string> {
   tempRoots.push(workspace);
   await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages: []\n", "utf8");
   await mkdir(join(workspace, ".protostar", "runs"), { recursive: true });
+  await mkdir(join(workspace, ".protostar", "dogfood"), { recursive: true });
   return workspace;
 }
 
@@ -260,4 +345,34 @@ async function sha256(filePath: string): Promise<string> {
 
 async function assertMissing(path: string): Promise<void> {
   await assert.rejects(access(path), /ENOENT/);
+}
+
+async function createDogfoodSession(
+  workspace: string,
+  input: {
+    readonly sessionId: string;
+    readonly ageMs: number;
+    readonly completed: number;
+    readonly totalRuns: number;
+  }
+): Promise<string> {
+  const sessionDir = join(workspace, ".protostar", "dogfood", input.sessionId);
+  await mkdir(sessionDir, { recursive: true });
+  await writeFile(
+    join(sessionDir, "cursor"),
+    `${JSON.stringify(
+      {
+        sessionId: input.sessionId,
+        totalRuns: input.totalRuns,
+        completed: input.completed,
+        runs: []
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  const mtime = new Date(Date.now() - input.ageMs);
+  await utimes(sessionDir, mtime, mtime);
+  return sessionDir;
 }
