@@ -112,9 +112,9 @@ CLI first. The product feel: walk away, come back, understand exactly what happe
 - [x] **OP-02**: `protostar-factory status [--run <runId>]` — current state of a run or all runs (last N)
 - [ ] **OP-03**: `protostar-factory resume <runId>` — pick up from the last persisted task journal entry
 - [ ] **OP-04**: `protostar-factory cancel <runId>` — cooperative cancel with cleanup
-- [ ] **OP-05**: `protostar-factory inspect <runId>` — pretty-print the run bundle (manifest, stage records, artifacts)
+- [x] **OP-05**: `protostar-factory inspect <runId>` — pretty-print the run bundle (manifest, stage records, artifacts)
 - [ ] **OP-06**: `protostar-factory deliver <runId>` — explicit delivery trigger (when delivery is gated to operator action)
-- [ ] **OP-07**: Status / inspect output is non-decorative — JSON-stable so it's pipeable
+- [x] **OP-07**: Status / inspect output is non-decorative — JSON-stable so it's pipeable
 - [ ] **OP-08**: Documented prune recipe (or `protostar-factory prune --older-than <duration>`) for `.protostar/runs/`
 
 ### Phase 10 — V1 Hardening + Dogfood
@@ -232,9 +232,9 @@ Explicitly excluded. Documented to prevent scope creep.
 | OP-02 | Phase 9 | Complete — 09-04 added status for recent runs and single-run lookup with human/JSON output |
 | OP-03 | Phase 9 | Pending |
 | OP-04 | Phase 9 | Pending |
-| OP-05 | Phase 9 | Pending |
+| OP-05 | Phase 9 | Complete — 09-05 added inspect with canonical {manifest, artifacts, summary}, path-indexed artifacts, sha256/bytes, stage filtering, and no trace inlining |
 | OP-06 | Phase 9 | Pending |
-| OP-07 | Phase 9 | Partial — 09-04 status output is canonical JSON-stable; inspect output remains pending in 09-05 |
+| OP-07 | Phase 9 | Complete — 09-04 status and 09-05 inspect both emit canonical JSON-stable output for automation |
 | OP-08 | Phase 9 | Pending |
 | DOG-01 | Phase 10 | Pending |
 | DOG-02 | Phase 10 | Pending |

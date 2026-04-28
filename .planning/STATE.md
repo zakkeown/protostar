@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 9 Plan 04 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 05 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-04 are complete; the commander dispatcher, canonical JSON helper, widened `FactoryRunStatus`, run discovery/liveness helpers, and `status` command are ready for follow-on resume/cancel/inspect command work. `pnpm run verify` is green.
+**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-05 are complete; inspect now emits canonical path-indexed run-bundle JSON with trace files referenced by path/hash only. Continue with cancel/resume/delivery/prune follow-on work. `pnpm run verify` is green.
 
 ## Phase Status
 
@@ -42,7 +42,7 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
-| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-04 complete; commander dispatcher, canonical JSON, widened status enum, and status command are ready |
+| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-05 complete; commander dispatcher, canonical JSON, widened status enum, status command, and inspect command are ready |
 | 10 | V1 Hardening + Dogfood | Pending |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
@@ -55,6 +55,8 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 9 Plan 05 (`09-05-inspect-command-PLAN.md`). Added `protostar-factory inspect <runId>` with canonical JSON output `{ manifest, artifacts, summary }`, fixed allowlist artifact indexing, sha256 + bytes for every artifact, `--stage` filtering over artifacts only, runId parse/confinement checks, and missing-run exit 3 diagnostics. Trace files are referenced by path/hash/bytes and are never inlined; tests assert a trace sentinel appears on disk but not in stdout. Verification passed: `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^inspect'`, `pnpm --filter @protostar/factory-cli test` (267 tests), and `pnpm run verify`. Commits: `1c03e3f`, `07ee317`.
 
 - **2026-04-28:** Completed Phase 9 Plan 04 (`09-04-status-command-PLAN.md`). Added `listRuns()` directory scanning, `computeRunLiveness()` journal/sentinel-based runtime state derivation, and `protostar-factory status` with human table, canonical JSON minimal/full rows, `--run`, `--since`, `--limit`, and `--all`. Added `operator.livenessThresholdMs` to factory config schema/types and wired the status command into the commander root without disrupting `run`. Verification passed: `pnpm --filter @protostar/factory-cli test` (261 tests), `pnpm --filter @protostar/lmstudio-adapter test` with loopback escalation (75 tests), and `pnpm run verify`. Commits: `4c7318b`, `ea17719`, `24a20fb`, `3e0822e`.
 
