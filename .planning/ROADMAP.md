@@ -303,8 +303,8 @@ Plans:
 
 Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07, 09, 10}; W5 = {11}):
 - [ ] 09-01-dispatcher-and-cli-primitives-PLAN.md — [W2; deps: 02] commander dispatcher + ExitCode + io.ts + run-id.ts + duration.ts + run command extraction
-- [ ] 09-02-canonical-json-lift-PLAN.md — [W1] lift sortJsonValue to @protostar/artifacts/canonical-json (Q-12)
-- [ ] 09-03-factory-run-status-enum-bump-PLAN.md — [W1] FactoryRunStatus += cancelling | cancelled | orphaned (Q-18)
+- [x] 09-02-canonical-json-lift-PLAN.md — [W1] lift sortJsonValue to @protostar/artifacts/canonical-json (Q-12)
+- [x] 09-03-factory-run-status-enum-bump-PLAN.md — [W1] FactoryRunStatus += cancelling | cancelled | orphaned (Q-18)
 - [ ] 09-04-status-command-PLAN.md — [W3; deps: 01, 02, 03] listRuns + computeRunLiveness + status command (human + JSON, tiered rows)
 - [ ] 09-05-inspect-command-PLAN.md — [W3; deps: 01, 02] inspect command, path-indexed artifacts, no trace inlining (Q-10/Q-11)
 - [ ] 09-06-cancel-command-PLAN.md — [W3; deps: 01, 03] cancel command (sentinel + manifest cancelling) + cancelled transition writer (Q-16/Q-17)
@@ -329,6 +329,20 @@ Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07
 - README + package docs are accurate; `pnpm release` produces shippable artifacts; security review is signed off
 
 **Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs.
+
+## Phase 11 — Headless Mode + E2E Stress
+
+**Goal:** Run the factory in fully headless CI mode and stress-test the full E2E pipeline against synthetic load until we can build and deliver a Tauri-based tic-tac-toe game in `../protostar-toy-ttt`.
+
+**Requirements:** *(to be derived from `11-CONTEXT.md`; tentative theme: STRESS-01..STRESS-N covering headless runner, archetype expansion beyond cosmetic-tweak, multi-step feature delivery, stress-load shape, exit criterion, observability)*
+
+**Success criteria:**
+- Factory runs end-to-end without an interactive operator (driven from CI / cron / detached runner) — no operator-attached terminal required for any successful path
+- Pipeline survives a sustained synthetic-load stress run with documented pass/recovery thresholds (specific shape decided in `11-CONTEXT.md`)
+- A working Tauri-based tic-tac-toe game is delivered to `../protostar-toy-ttt` via factory PRs (verification mode — playable build vs. test-pass vs. CI-green — locked in `11-CONTEXT.md`)
+- Phase 11 stress evidence is appended (extension of Phase 10 `report.json` or sibling artifact, decided in CONTEXT)
+
+**Notes:** Phase 11 lifts the v0.1 `cosmetic-tweak`-only archetype lock; expect updates to PROJECT.md Out-of-Scope and to `packages/policy/src/admission-paths.ts`. Phase 11 also revisits the v0.1 LM-Studio-only execution posture if "headless CI" requires a non-local LLM backend.
 
 ## Cross-Phase Constraints
 

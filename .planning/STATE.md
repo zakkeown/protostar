@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 9 Plan 02 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 03 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 9 operator-surface plans. Plan 09-02 completed the Q-12 canonical JSON lift; `pnpm run verify` is green.
+**Next action:** Continue Phase 9 operator-surface plans. Plan 09-03 completed the Q-18 `FactoryRunStatus` enum bump and admission-e2e lock; `pnpm run verify` is green.
 
 ## Phase Status
 
@@ -42,8 +42,9 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
-| 9 | Operator Surface + Resumability | Pending |
+| 9 | Operator Surface + Resumability | In progress — Plans 09-02 and 09-03 complete; public status schema and canonical JSON helper are ready for command work |
 | 10 | V1 Hardening + Dogfood | Pending |
+| 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
 ## Active Documents
 
@@ -54,6 +55,8 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 9 Plan 03 (`09-03-factory-run-status-enum-bump-PLAN.md`). Widened `FactoryRunStatus` to the locked Q-18 nine-member union (`created`, `running`, `cancelling`, `cancelled`, `orphaned`, `blocked`, `repairing`, `ready-to-release`, `completed`) while preserving the Plan 09-02 canonical-json barrel export. Added artifacts tests for `setFactoryRunStatus` across the new statuses plus `completed`, and added an admission-e2e contract pinning the exact status order and snapshot bytes with an explicit `@protostar/artifacts` workspace dependency/reference. No transition writers were added; `running -> cancelling` and `cancelling -> cancelled` remain Plan 09-06 work, and `orphaned` remains derived at status time for v0.1. Verification passed: `pnpm --filter @protostar/artifacts test`, `pnpm --filter @protostar/factory-cli build/test`, `pnpm --filter @protostar/admission-e2e build/test`, and `pnpm run verify`. Commits: `7bdf2fe`, `693f24c`, `9830f1c`.
 
 - **2026-04-28:** Completed Phase 9 Plan 02 (`09-02-canonical-json-lift-PLAN.md`). Lifted the execution-private `sortJsonValue` helper into `@protostar/artifacts/canonical-json`, added the package subpath export and workspace TypeScript path alias, re-exported from the artifacts barrel, and switched `packages/execution/src/snapshot.ts` to import the shared helper without changing serialized snapshot bytes. Added artifacts `node:test` coverage for recursive key sorting, array order preservation, primitives, idempotency, byte-stable stringify output, and a snapshot-like round-trip fixture. Verification passed: `pnpm install`, `pnpm --filter @protostar/artifacts build/test`, `pnpm --filter @protostar/execution build/test`, and `pnpm run verify`. Commits: `15d2e78`, `677e050`.
 
