@@ -11,8 +11,8 @@ import {
 import type { RepoChangeSet } from "@protostar/repo";
 
 import { parseDiffBlock } from "./diff-parser.js";
+import { callLmstudioChatStream } from "./lmstudio-client.js";
 import { buildCoderMessages, buildReformatNudgeMessages, type CoderMessages } from "./prompt-builder.js";
-import { parseSseStream } from "./sse-parser.js";
 
 export interface LmstudioAdapterConfig {
   readonly baseUrl: string;
@@ -87,7 +87,6 @@ async function* executeCoderTask(
   });
 
   const maxAttempts = Math.max(1, Math.floor(ctx.budget.adapterRetriesPerTask));
-  const fetchImpl = config.fetchImpl ?? fetch;
   const sleepImpl = config.sleepMs ?? sleep;
   let attempts = 0;
 
@@ -97,47 +96,53 @@ async function* executeCoderTask(
     const abort = chainAbortSignal(ctx.signal);
 
     try {
-      const res = await fetchImpl(`${trimTrailingSlash(config.baseUrl)}/chat/completions`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${config.apiKey}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages: messages.messages,
-          stream: true,
-          temperature: config.temperature ?? 0.2,
-          top_p: config.topP ?? 0.9
-        }),
-        signal: abort.signal
-      });
-
-      if (!res.ok || res.body === null) {
-        const transient = isTransientFailure({ kind: "http", status: res.status });
-        if (transient && attempt < maxAttempts) {
-          retries.push(retryEvidence(attempt, "transient", attemptStartedAt, `HTTP_${res.status}`));
-          await sleepImpl(nextBackoffMs(attempt, config.rng ?? Math.random), ctx.signal);
-          continue;
-        }
-        yield finalFailure(
-          transient ? "retries-exhausted" : "lmstudio-http-error",
-          config,
-          startedAt,
-          attempts,
-          retries
-        );
-        return;
-      }
-
       let assistantContent = "";
-      for await (const ev of parseSseStream(res.body)) {
-        if (ev.data === "[DONE]") break;
-        const delta = parseContentDelta(ev.data);
-        if (delta.length === 0) continue;
-        assistantContent += delta;
-        yield { kind: "token", text: delta };
-        await ctx.journal.appendToken(task.planTaskId, attempt, delta);
+      let streamErrored = false;
+      for await (const ev of callLmstudioChatStream({
+        baseUrl: config.baseUrl,
+        model: config.model,
+        apiKey: config.apiKey,
+        messages: messages.messages,
+        stream: true,
+        signal: abort.signal,
+        timeoutMs: ctx.budget.taskWallClockMs,
+        ...(config.fetchImpl !== undefined ? { fetchImpl: config.fetchImpl } : {}),
+        ...(config.temperature !== undefined ? { temperature: config.temperature } : {}),
+        ...(config.topP !== undefined ? { topP: config.topP } : {})
+      })) {
+        if (ev.kind === "done") break;
+        if (ev.kind === "error") {
+          streamErrored = true;
+          if (abort.signal.aborted || ctx.signal.aborted) {
+            yield finalFailure(abortReason(ctx.signal), config, startedAt, attempts, retries);
+            return;
+          }
+          const status = httpStatusFromErrorClass(ev.errorClass);
+          const transient =
+            status === undefined
+              ? isTransientFailure({ kind: "error", error: classifierErrorFromEvent(ev.errorClass, ev.message) })
+              : isTransientFailure({ kind: "http", status });
+          if (transient && attempt < maxAttempts) {
+            retries.push(retryEvidence(attempt, "transient", attemptStartedAt, ev.errorClass));
+            await sleepImpl(nextBackoffMs(attempt, config.rng ?? Math.random), ctx.signal);
+            break;
+          }
+          yield finalFailure(
+            transient ? "retries-exhausted" : status === undefined ? "lmstudio-unreachable" : "lmstudio-http-error",
+            config,
+            startedAt,
+            attempts,
+            retries
+          );
+          return;
+        }
+        if (ev.text.length === 0) continue;
+        assistantContent += ev.text;
+        yield { kind: "token", text: ev.text };
+        await ctx.journal.appendToken(task.planTaskId, attempt, ev.text);
+      }
+      if (streamErrored) {
+        continue;
       }
 
       const parsed = parseDiffBlock(assistantContent);
@@ -197,18 +202,6 @@ async function* executeCoderTask(
   }
 
   yield finalFailure("retries-exhausted", config, startedAt, attempts, retries);
-}
-
-function parseContentDelta(data: string): string {
-  try {
-    const chunk = JSON.parse(data) as {
-      readonly choices?: readonly { readonly delta?: { readonly content?: unknown } }[];
-    };
-    const content = chunk.choices?.[0]?.delta?.content;
-    return typeof content === "string" ? content : "";
-  } catch {
-    return "";
-  }
 }
 
 function buildChangeSet(
@@ -328,6 +321,26 @@ function errorClass(error: unknown): string {
   return typeof error;
 }
 
+function httpStatusFromErrorClass(errorClass: string): number | undefined {
+  if (!errorClass.startsWith("HTTP_")) {
+    return undefined;
+  }
+  const status = Number(errorClass.slice("HTTP_".length));
+  return Number.isInteger(status) ? status : undefined;
+}
+
+function classifierErrorFromEvent(errorClass: string, message: string): Error {
+  const error = new Error(message);
+  error.name = errorClass;
+  const code = ["ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "EAI_AGAIN", "EPIPE"].find((candidate) =>
+    message.includes(candidate)
+  );
+  if (code !== undefined) {
+    Object.assign(error, { code });
+  }
+  return error;
+}
+
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   if (signal.aborted) return Promise.reject(new DOMException("aborted", "AbortError"));
@@ -340,8 +353,4 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
     };
     signal.addEventListener("abort", onAbort, { once: true });
   });
-}
-
-function trimTrailingSlash(value: string): string {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
 }
