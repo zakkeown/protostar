@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 8 Plan 07 complete)
+**Last updated:** 2026-04-28 (Phase 8 Plan 08 complete)
 
 ## Project
 
@@ -26,9 +26,9 @@
 
 **Phase 8 — Evaluation + Evolution** (in progress)
 
-Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`) completed 2026-04-28. Factory CLI now resolves evaluation/evolution flags and config, runs `runEvaluationStages`, persists `runs/{id}/evolution/snapshot.json`, appends `.protostar/evolution/{lineage}.jsonl` and `.protostar/calibration/ontology-similarity.jsonl`, and feeds prior-generation summaries into Dogpile planning missions.
+Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`) completed 2026-04-28. Admission-e2e now pins the final high-risk evaluation/evolution invariants: no `"skipped"` evaluation verdicts, EvaluationResult refusal byte equality, evaluation-runner no-fs defense in depth, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 8 wave 6 with `08-08-admission-e2e-contracts-PLAN.md`. `pnpm run verify` is green; `pnpm run factory` builds and stops at the expected workspace-trust gate.
+**Next action:** Run Phase 8 verification/review. `pnpm --filter @protostar/admission-e2e test` and `pnpm run verify` are green.
 
 ## Phase Status
 
@@ -41,7 +41,7 @@ Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`) completed 2026-04-28. Facto
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
-| 8 | Evaluation + Evolution | In progress — Plans 08-01 through 08-07 complete; Plan 08-08 pending |
+| 8 | Evaluation + Evolution | All plans complete — verification-ready (Plans 08-01 through 08-08 complete) |
 | 9 | Operator Surface + Resumability | Pending |
 | 10 | V1 Hardening + Dogfood | Pending |
 
@@ -54,6 +54,8 @@ Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`) completed 2026-04-28. Facto
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 8 Plan 08 (`08-08-admission-e2e-contracts-PLAN.md`). Added five admission-e2e contracts: `no-skipped-evaluation.contract.test.ts` (static evaluation source scan + runtime report checks for all-pass, mechanical-fail, and consensus-not-required paths), `eval-refusal-byte-equality.contract.test.ts` (EvaluationResult/pile-evaluation schema-parse artifacts deepEqual after erasing parseErrors), `evaluation-runner-no-fs.contract.test.ts` (static scan plus runtime `runEvaluationStages` fake-pile exercise with Proxy sentinel; temporary fs import smoke failed as expected), `planning-mission-prior-summary.contract.test.ts` (Previous Generation Summary inclusion and Prior diff exclusion/inclusion based on `includePriorCodeHints`), and `calibration-log-append.contract.test.ts` (first/second-run JSONL append shape for `.protostar/calibration/ontology-similarity.jsonl`). Added admission-e2e dependencies/references for evaluation packages and ignored generated `.protostar/calibration/` + `.protostar/evolution/` runtime artifacts. Verification passed: focused admission-e2e filters for all five contracts, full `pnpm --filter @protostar/admission-e2e test` (103 tests), and `pnpm run verify`. Commits: `c86cf33`, `dcfe5ac`, `d884518`, `2e64945`, `db120e1`, support `f19a485`, `76d1ac3`.
 
 - **2026-04-28:** Completed Phase 8 Plan 07 (`08-07-factory-cli-wiring-PLAN.md`). Added evaluation/evolution CLI flags and resolvers (`--lineage`, `--evolve-code`, `--generation`, `--semantic-judge-model`, `--consensus-judge-model`), atomic evolution snapshot persistence, lineage JSONL chain indexing, calibration log appends, and factory-cli wiring from review output into `runEvaluationStages`. Dogpile planning missions now accept an optional `PriorGenerationSummary` that includes prior AC fields/reasons/verdicts while keeping prior code hints behind explicit code-evolution opt-in. Rule-driven fixes added factory-cli's evaluation-runner workspace dependency/reference, threaded the resolved convergence threshold into the runner, handled the new `eval-consensus-block` failure variant, and tolerated missing stale prior snapshots. Verification passed: `pnpm --filter @protostar/evaluation-runner test` (12), `pnpm --filter @protostar/dogpile-adapter test` (46), `pnpm --filter @protostar/factory-cli build`, `pnpm --filter @protostar/factory-cli test` (213), and `pnpm run verify`; `pnpm run factory` built then stopped at the expected workspace-trust gate. Commits: `7c50d85`, `1ba44d6`, `897a34e`.
 

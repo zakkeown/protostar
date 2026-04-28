@@ -275,7 +275,7 @@ Plans:
 - [x] 08-05-evaluation-pile-preset-PLAN.md — wave 3 — evaluationPilePreset (4th FactoryPilePreset) + buildEvaluationMission + EvaluationPileBody + parseEvaluationPileResult (Q-04/Q-06/Q-07/Q-08)
 - [x] 08-06-evaluation-runner-PLAN.md — wave 4 — runEvaluationStages orchestrator with injected snapshotReader + createEvaluationReport real implementation + static no-fs contract (Q-12/Q-20)
 - [x] 08-07-factory-cli-wiring-PLAN.md — wave 5 — 5 CLI flags (--lineage, --evolve-code, --generation, --semantic-judge-model, --consensus-judge-model) + 6 resolvers + atomic snapshot writer + JSONL chain index + calibration log stub + replace main.ts:889 stub call site + buildPlanningMission(intent, prior?) extension (Q-13/Q-14/Q-15/Q-16/Q-17/Q-18/Q-19)
-- [ ] 08-08-admission-e2e-contracts-PLAN.md — wave 6 — no-skipped-evaluation contract (EVAL-04 risk closure) + eval-refusal-byte-equality + runtime evaluation-runner-no-fs + planning-mission-prior-summary + calibration-log-append
+- [x] 08-08-admission-e2e-contracts-PLAN.md — wave 6 — no-skipped-evaluation contract (EVAL-04 risk closure) + eval-refusal-byte-equality + runtime evaluation-runner-no-fs + planning-mission-prior-summary + calibration-log-append
 
 **Success criteria:**
 - The `status: "skipped"` stubs in `createEvaluationReport` are gone; semantic + consensus produce real numeric scores
