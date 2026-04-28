@@ -2,6 +2,8 @@ import type { StageArtifactRef } from "@protostar/artifacts";
 import type { ReviewGate } from "@protostar/review";
 
 export * from "./delivery-contract.js";
+export * from "./evidence-marker.js";
+export * from "./refusals.js";
 
 export type DeliveryChannel = "github-pr";
 export type DeliveryPlanStatus = "ready" | "blocked";

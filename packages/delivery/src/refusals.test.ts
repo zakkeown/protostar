@@ -20,6 +20,14 @@ const allRefusals = [
   { kind: "cancelled", evidence: { reason: "timeout", phase: "poll" } }
 ] satisfies readonly DeliveryRefusal[];
 
+function refusalAt(index: number): DeliveryRefusal {
+  const refusal = allRefusals[index];
+  if (refusal === undefined) {
+    throw new Error(`Missing refusal at index ${index}`);
+  }
+  return refusal;
+}
+
 function describeRefusal(refusal: DeliveryRefusal): string {
   switch (refusal.kind) {
     case "invalid-branch":
@@ -76,7 +84,7 @@ describe("DeliveryRefusal", () => {
   });
 
   it("narrows evidence by kind", () => {
-    assert.equal(describeRefusal(allRefusals[0]), "^[a-zA-Z0-9._/-]+$");
-    assert.equal(describeRefusal(allRefusals[13]), "poll");
+    assert.equal(describeRefusal(refusalAt(0)), "^[a-zA-Z0-9._/-]+$");
+    assert.equal(describeRefusal(refusalAt(13)), "poll");
   });
 });
