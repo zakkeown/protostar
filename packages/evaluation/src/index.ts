@@ -1,5 +1,9 @@
 import type { ReviewGate, ReviewVerdict } from "@protostar/review";
 
+export * from "./compute-mechanical-scores.js";
+export * from "./compute-semantic-confidence.js";
+export * from "./should-run-consensus.js";
+
 /**
  * Phase 8 Q-03/Q-06/Q-09/Q-11/Q-12 evaluation contract surface.
  *
