@@ -10,6 +10,8 @@ export interface FactoryConfig {
   // Phase 7 Q-15: operator-named CI check allowlist; absence means the
   // delivery runtime reports ciVerdict="no-checks-configured".
   readonly delivery?: DeliveryConfig;
+  readonly evaluation?: EvaluationConfig;
+  readonly evolution?: EvolutionConfig;
   // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
   // means all piles default to mode="fixture" (Q-05).
   readonly piles?: PilesConfig;
@@ -17,6 +19,22 @@ export interface FactoryConfig {
 
 export interface DeliveryConfig {
   readonly requiredChecks: readonly string[];
+}
+
+export interface EvaluationJudgeConfig {
+  readonly model?: string;
+  readonly baseUrl?: string;
+}
+
+export interface EvaluationConfig {
+  readonly semanticJudge?: EvaluationJudgeConfig;
+  readonly consensusJudge?: EvaluationJudgeConfig;
+}
+
+export interface EvolutionConfig {
+  readonly lineage?: string;
+  readonly codeEvolution?: "opt-in" | "disabled";
+  readonly convergenceThreshold?: number;
 }
 
 export type PileMode = "fixture" | "live";
@@ -67,6 +85,8 @@ interface PartialFactoryConfig {
     readonly judge?: PartialLmstudioAdapterConfig;
   };
   readonly delivery?: PartialDeliveryConfig;
+  readonly evaluation?: EvaluationConfig;
+  readonly evolution?: EvolutionConfig;
   readonly piles?: PilesConfig;
 }
 
@@ -102,10 +122,13 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   })
 });
 
-const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "piles"]);
+const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "evaluation", "evolution", "piles"]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
 const DELIVERY_KEYS = new Set(["requiredChecks"]);
+const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
+const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
+const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshold"]);
 const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
 const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
 const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
@@ -163,6 +186,8 @@ export function resolveFactoryConfig(input: {
     ...(fileConfig.delivery !== undefined
       ? { delivery: { requiredChecks: fileConfig.delivery.requiredChecks ?? [] } }
       : {}),
+    ...(fileConfig.evaluation !== undefined ? { evaluation: fileConfig.evaluation } : {}),
+    ...(fileConfig.evolution !== undefined ? { evolution: fileConfig.evolution } : {}),
     ...(fileConfig.piles !== undefined ? { piles: fileConfig.piles } : {})
   };
 
@@ -230,6 +255,42 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
     }
   }
 
+  if (config.evaluation !== undefined) {
+    if (!isPlainRecord(config.evaluation)) {
+      errors.push("$.evaluation must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.evaluation", config.evaluation, EVALUATION_KEYS));
+      validateEvaluationJudge("$.evaluation.semanticJudge", config.evaluation.semanticJudge, errors);
+      validateEvaluationJudge("$.evaluation.consensusJudge", config.evaluation.consensusJudge, errors);
+    }
+  }
+
+  if (config.evolution !== undefined) {
+    if (!isPlainRecord(config.evolution)) {
+      errors.push("$.evolution must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.evolution", config.evolution, EVOLUTION_KEYS));
+      if (config.evolution.lineage !== undefined && !isNonEmptyString(config.evolution.lineage)) {
+        errors.push("$.evolution.lineage must be a non-empty string");
+      }
+      if (
+        config.evolution.codeEvolution !== undefined &&
+        config.evolution.codeEvolution !== "opt-in" &&
+        config.evolution.codeEvolution !== "disabled"
+      ) {
+        errors.push("$.evolution.codeEvolution must be one of opt-in|disabled");
+      }
+      if (
+        config.evolution.convergenceThreshold !== undefined &&
+        (typeof config.evolution.convergenceThreshold !== "number" ||
+          config.evolution.convergenceThreshold < 0 ||
+          config.evolution.convergenceThreshold > 1)
+      ) {
+        errors.push("$.evolution.convergenceThreshold must be a number between 0 and 1");
+      }
+    }
+  }
+
   if (config.piles !== undefined) {
     if (!isPlainRecord(config.piles)) {
       errors.push("$.piles must be an object");
@@ -259,6 +320,21 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
   }
 
   return errors;
+}
+
+function validateEvaluationJudge(path: string, judge: unknown, errors: string[]): void {
+  if (judge === undefined) return;
+  if (!isPlainRecord(judge)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  errors.push(...unknownKeyErrors(path, judge, EVALUATION_JUDGE_KEYS));
+  if (judge["model"] !== undefined && !isNonEmptyString(judge["model"])) {
+    errors.push(`${path}.model must be a non-empty string`);
+  }
+  if (judge["baseUrl"] !== undefined && !isNonEmptyString(judge["baseUrl"])) {
+    errors.push(`${path}.baseUrl must be a non-empty string`);
+  }
 }
 
 function validatePileKind(
@@ -348,6 +424,10 @@ function envValue(
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
 }
 
 function sha256Hex(value: string): string {

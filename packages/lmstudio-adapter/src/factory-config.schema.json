@@ -27,6 +27,46 @@
         }
       }
     },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Phase 8 Q-07/Q-08: heterogeneous-local judge model overrides. CLI flags --semantic-judge-model / --consensus-judge-model take precedence; Phase 6 Q-04 mode-resolution pattern.",
+      "properties": {
+        "semanticJudge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model": { "type": "string", "minLength": 1 },
+            "baseUrl": { "type": "string", "format": "uri" }
+          }
+        },
+        "consensusJudge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model": { "type": "string", "minLength": 1 },
+            "baseUrl": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    },
+    "evolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Phase 8 Q-15/Q-17/Q-18: lineage default, code-evolution opt-in, convergence threshold override. CLI flags --lineage / --evolve-code take precedence.",
+      "properties": {
+        "lineage": { "type": "string", "minLength": 1 },
+        "codeEvolution": {
+          "type": "string",
+          "enum": [
+            "opt-in",
+            "disabled"
+          ],
+          "default": "disabled"
+        },
+        "convergenceThreshold": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
     "piles": {
       "type": "object",
       "description": "Phase 6 (Q-04) per-pile-kind mode selection. Precedence: CLI override (--planning-mode, --review-mode, --exec-coord-mode) > this config > built-in default. Built-in default mode is `fixture` per Q-05. Per Q-06, live failures NEVER auto-fall-back to fixture — they emit a no-admission refusal artifact and the run exits non-zero. Live mode is an explicit operator opt-in.",
