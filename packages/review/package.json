@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@protostar/artifacts": "workspace:*",
+    "@protostar/dogpile-adapter": "workspace:*",
+    "@protostar/dogpile-types": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*",

@@ -252,6 +252,12 @@ importers:
       '@protostar/artifacts':
         specifier: workspace:*
         version: link:../artifacts
+      '@protostar/dogpile-adapter':
+        specifier: workspace:*
+        version: link:../dogpile-adapter
+      '@protostar/dogpile-types':
+        specifier: workspace:*
+        version: link:../dogpile-types
       '@protostar/execution':
         specifier: workspace:*
         version: link:../execution
