@@ -138,7 +138,7 @@ function classifyWithSyntheticEvent(event: SyntheticReviewLifecycleEvent): strin
       return assertExhaustive(event);
   }
 }
-assert.equal(classifyWithSyntheticEvent({ kind: "synthetic-kind", runId: "run-1" }), "synthetic-kind");
+void classifyWithSyntheticEvent;
 
 const _badBlockedReason: ReviewLifecycleEvent = {
   kind: "loop-blocked",

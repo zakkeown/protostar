@@ -11,6 +11,11 @@ import {
   type AdmittedPlanExecutionArtifact
 } from "@protostar/planning";
 
+export * from "./repair-types.js";
+export * from "./judge-types.js";
+export * from "./delivery-authorization.js";
+export * from "./lifecycle-events.js";
+
 export type ReviewVerdict = "pass" | "repair" | "block";
 export type ReviewSeverity = "info" | "minor" | "major" | "critical";
 export type ReviewRuleId =
