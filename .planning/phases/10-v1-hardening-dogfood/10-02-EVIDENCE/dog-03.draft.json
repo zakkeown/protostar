@@ -47,13 +47,19 @@
         "permissionLevel": "use",
         "reason": "Run package manager, git, and GitHub delivery commands for the dogfood PR.",
         "risk": "low"
+      },
+      {
+        "tool": "network",
+        "permissionLevel": "use",
+        "reason": "Call LM Studio over loopback and GitHub for dogfood PR delivery.",
+        "risk": "low"
       }
     ],
     "workspace": {
       "allowDirty": false
     },
     "network": {
-      "allow": "restricted",
+      "allow": "allowlist",
       "allowedHosts": ["github.com", "api.github.com", "127.0.0.1", "localhost"]
     },
     "delivery": {

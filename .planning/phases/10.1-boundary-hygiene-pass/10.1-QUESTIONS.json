@@ -1,0 +1,477 @@
+{
+  "phase": "10.1-boundary-hygiene-pass",
+  "generated_at": "2026-04-28T22:58:00Z",
+  "stats": {
+    "total": 18,
+    "answered": 18,
+    "chat_more": 1,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "trigger-scope",
+      "title": "Trigger & Scope",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "What surfaced during Phase 10 that triggered this insertion?",
+          "context": "Phase 10.1 was inserted into ROADMAP.md with no commit-trail context — the directory is empty (`.gitkeep` only). Goal text mentions 'accidental package sprawl' and manifest/boundary alignment, but recent commits are 10-02 dogfood work. This single answer narrows half the gray areas below; if you have a punch-list already (e.g. 'lmstudio-adapter has no no-fs gate; review depends on delivery; intent depends on authority'), drop it here verbatim.",
+          "options": [
+            {
+              "id": "free",
+              "label": "Describe in chat_more",
+              "description": "Open-ended — list the specific manifest/boundary issues you observed during Phase 10 that prompted carving 10.1 out."
+            }
+          ],
+          "answer": "free",
+          "chat_more": "The number of packages in the monorepo started to look hairy. This feels worth the time.",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Phase scope — manifests + enforcement only, or also source moves?",
+          "context": "Phase goal says 'package manifests and dependency-boundary enforcement.' Strict reading = package.json + contract tests + tsconfig refs only. Loose reading would include moving/merging/splitting packages (e.g. evaluation vs evaluation-runner, delivery vs delivery-runtime). The latter is a much bigger phase and should probably be its own thing.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strict — manifests + enforcement only",
+              "description": "package.json shape, dep declarations, no-fs/no-net contracts, tsconfig project references, AGENTS.md tier table updates. NO source moves, NO package merges/splits."
+            },
+            {
+              "id": "b",
+              "label": "Strict + AGENTS.md prose",
+              "description": "Above, plus rewrite AGENTS.md package-boundary section to reflect the new tier classifications and add explicit forbidden-edge documentation."
+            },
+            {
+              "id": "c",
+              "label": "Loose — also restructure where boundaries are wrong",
+              "description": "If the boundary problem is structural (e.g. review really does need to know about delivery), move/split/merge packages. Risk: phase blows up, dogfood loop on hold."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Commit granularity",
+          "context": "20 packages × manifest tweaks + ~6 new contract tests = ~30 atomic commits. Phase 1 used per-plan atomic commits in waves; Phase 10 has used larger feat/test pairs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Per-package atomic plans",
+              "description": "One PLAN per package being touched. Easy to revert, easy to review per-package, but plan count balloons."
+            },
+            {
+              "id": "b",
+              "label": "Per-concern plans",
+              "description": "Group by concern: 'tier classification + AGENTS table', 'no-fs contracts', 'tsconfig refs alignment', 'manifest hygiene sweep', 'back-edge fixes'. ~5–7 plans."
+            },
+            {
+              "id": "c",
+              "label": "Single sweep plan",
+              "description": "One plan that touches everything. Fast to land, hard to bisect, hard to review."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "tier-classification",
+      "title": "Tier Classification",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "Tier for `@protostar/lmstudio-adapter`",
+          "context": "Package depends on execution, intent, authority, repo, artifacts, review (heavy). Talks to LM Studio over HTTP — clearly network-permitted. Has NO `no-fs.contract.test.ts`. AGENTS.md tier table does NOT mention it. This is the most concrete boundary gap in the repo.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Domain network tier — add no-fs contract + AGENTS row",
+              "description": "Treat identically to dogpile-adapter / delivery-runtime. Add `no-fs.contract.test.ts`. Add to AGENTS.md tier table under 'network-permitted, fs-forbidden'."
+            },
+            {
+              "id": "b",
+              "label": "Domain network tier + audit dep list",
+              "description": "Above, plus audit the heavy dep list (intent, authority, repo, artifacts, review, execution) — `repo` in particular is suspect for a fs-forbidden package since `repo` IS the fs tier. Decide if any deps should be peerDeps or dropped."
+            },
+            {
+              "id": "c",
+              "label": "Promote `lmstudio-adapter` to fs-permitted",
+              "description": "If LM Studio adapter genuinely needs fs (e.g. to stream model output to disk), bless it. Risk: another package in the fs tier weakens the tier guarantee."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Tier for `@protostar/evaluation-runner`",
+          "context": "Already has `no-fs.contract.test.ts`. Depends on dogpile-adapter, dogpile-types, evaluation, intent, planning, review. Not in AGENTS.md tier table.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pure tier — add no-net contract too",
+              "description": "If it's pure (no fs proven by existing contract), prove no-net too. Add a `no-net.contract.test.ts` scanning for fetch/http imports. Add to AGENTS row under 'pure'."
+            },
+            {
+              "id": "b",
+              "label": "Domain network tier — runs piles via dogpile-adapter",
+              "description": "It coordinates judges via dogpile-adapter (which IS network-permitted), so transitively it's a network-using package. Add to AGENTS row under 'network-permitted, fs-forbidden'."
+            },
+            {
+              "id": "c",
+              "label": "Pure — leave as-is, just document",
+              "description": "It's pure-orchestration: it composes pile presets but the network call lives in dogpile-adapter. Add an AGENTS row under 'pure' with a note that network exits via dogpile-adapter."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Tiers for `mechanical-checks`, `repair`, `fixtures`, `admission-e2e`",
+          "context": "None are in the AGENTS.md tier table. mechanical-checks depends on execution/repo/intent/review (heavy, but presumably pure). repair depends on planning/intent. fixtures has no deps. admission-e2e is test-only (devDep'd everywhere; aggregates contract tests).",
+          "options": [
+            {
+              "id": "a",
+              "label": "All four = pure tier; admission-e2e = test-only sub-tier",
+              "description": "Add four AGENTS rows. Introduce a 'test-only' sub-tier explicitly so admission-e2e's coupling-to-everything is sanctioned, not accidental. test-only packages can depend on any tier but nothing depends on them."
+            },
+            {
+              "id": "b",
+              "label": "Skip the test-only distinction",
+              "description": "List admission-e2e under 'pure' with a note. Less ceremony, but blurs the conceptual line between 'production code that's pure' and 'aggregator of contract tests'."
+            },
+            {
+              "id": "c",
+              "label": "Don't classify in AGENTS — only add no-fs/no-net contracts where missing",
+              "description": "Keep AGENTS table minimal (only domain-network and fs tiers). Add contracts to the pure ones. Risk: tier table stays incomplete and a future package slips through unclassified."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Declare tier in `package.json` (custom field)?",
+          "context": "Currently tier is documented only in AGENTS.md prose. A `protostar.tier` field in each package.json would make tier machine-readable and drive a single workspace-wide conformance test (Q-11).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — add `protostar.tier: 'pure' | 'fs' | 'network' | 'orchestration' | 'test-only'`",
+              "description": "Single source of truth; conformance test reads manifests and validates contract presence + dep direction. Manifest hygiene + enforcement co-located."
+            },
+            {
+              "id": "b",
+              "label": "No — keep tier in AGENTS.md prose, derive from contract presence",
+              "description": "A package's tier is implied by which contract tests it ships. Less ceremony, but tier is invisible to humans reading package.json."
+            },
+            {
+              "id": "c",
+              "label": "Yes, but in a single workspace-root file",
+              "description": "`.planning/package-tiers.json` or `tools/tiers.json` lists every package and its tier. One file to edit when adding a package, no per-package.json drift."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "back-edges",
+      "title": "Dependency Back-Edges",
+      "questions": [
+        {
+          "id": "Q-08",
+          "title": "`@protostar/intent` → `@protostar/authority` back-edge",
+          "context": "intent's package.json declares `@protostar/authority` as a dep. Conceptually intent is the front door (admission), authority is the governance kernel that runs LATER. authority already depends on intent. This forms a cycle in concept, even if TypeScript accepts it.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Flip — move whatever intent uses from authority into intent (or a shared types pkg)",
+              "description": "Identify the symbol(s) intent imports from authority, move them upstream. Likely a shared 'authority-types' that both can depend on, or just lift into intent."
+            },
+            {
+              "id": "b",
+              "label": "Accept — authority types are needed at intent-confirmation time",
+              "description": "If `ConfirmedIntent` carries an authority envelope, intent legitimately needs authority's type definitions. Document the edge as deliberate in AGENTS.md."
+            },
+            {
+              "id": "c",
+              "label": "Investigate first — add a Q for the planner",
+              "description": "Defer the decision: the planner's first task is to grep the actual import and decide a/b based on what's imported."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "`@protostar/review` → `@protostar/delivery` and `@protostar/repair` back-edges",
+          "context": "review depends on delivery, dogpile-adapter, dogpile-types, execution, repair, repo. Review is the central control loop, but review depending on delivery (which is downstream) and repair (which review TRIGGERS) is suspect. If review imports delivery only for refusal-shape types, that's a smell pointing at a missing shared types package.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extract shared refusal/verdict types into a thin types package",
+              "description": "Create `@protostar/review-types` (or similar) that both review and delivery depend on. Eliminates the back-edge cleanly."
+            },
+            {
+              "id": "b",
+              "label": "Flip — delivery and repair depend on review, not vice versa",
+              "description": "Move whatever review imports from delivery/repair into review itself. delivery's PR-readiness check would import review's verdict type, not the reverse."
+            },
+            {
+              "id": "c",
+              "label": "Accept and document — review is the orchestration spine",
+              "description": "If review legitimately needs to know delivery+repair shapes to drive the loop, document it in AGENTS.md as 'review is the orchestration package; back-edges expected.'"
+            },
+            {
+              "id": "d",
+              "label": "Defer to planner — grep imports first",
+              "description": "Same as Q-08(c): planner inspects actual imports and picks a/b/c per back-edge."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-10",
+          "title": "`@protostar/delivery-runtime` → `@protostar/review` back-edge",
+          "context": "delivery-runtime depends on review (probably for `ReviewVerdict` to gate PR opening). delivery-runtime is the network-tier executor; review is upstream. Same shape as Q-09.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Same fix as Q-09",
+              "description": "If Q-09 extracts a types package, this back-edge collapses too. Treat as same decision."
+            },
+            {
+              "id": "b",
+              "label": "Accept — delivery-runtime gates on review verdict, must import its type",
+              "description": "PR delivery is conditional on review pass; importing the verdict type is the right shape."
+            },
+            {
+              "id": "c",
+              "label": "Flip — review imports a delivery-readiness predicate",
+              "description": "Review knows whether a result is 'pr-ready'; that predicate lives in review, not in delivery-runtime checking review's verdict."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "enforcement",
+      "title": "Enforcement Mechanism",
+      "questions": [
+        {
+          "id": "Q-11",
+          "title": "Workspace-wide tier-conformance test vs per-package contracts",
+          "context": "Existing pattern: each network-tier package ships its own `no-fs.contract.test.ts`. Phase 10 Q-21 puts a single `authority-boundary.contract.test.ts` in admission-e2e. Two coexisting patterns; 10.1 should pick one.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Per-package contracts (current pattern, expanded)",
+              "description": "Every pure package ships `no-fs.contract.test.ts` + `no-net.contract.test.ts`. Every network-tier ships `no-fs.contract.test.ts`. Tests live next to source. Pattern is already established for 4 packages."
+            },
+            {
+              "id": "b",
+              "label": "Single workspace-wide conformance test in admission-e2e",
+              "description": "One test reads `pnpm-workspace.yaml` (or the tier manifest from Q-07), iterates packages, asserts each one's tier rules. Same shape as Phase 10's authority-boundary contract. One file to maintain."
+            },
+            {
+              "id": "c",
+              "label": "Both — workspace-wide is the gate, per-package contracts stay as defense-in-depth",
+              "description": "Workspace-wide test is authoritative; per-package contracts catch local edits without running the e2e suite. More files but tighter feedback loop."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Dependency-direction enforcement tool",
+          "context": "Today: ad-hoc. Options: (a) write a custom workspace-wide test that reads each package.json's `@protostar/*` deps and asserts a layered DAG, (b) adopt `dependency-cruiser` (mature, configurable), (c) `eslint-plugin-import/no-restricted-paths`, (d) skip — rely on code review.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Custom workspace-wide test (matches Q-11b shape)",
+              "description": "Read manifests, build dep graph, assert no cycles + assert tier-respecting edges. Pure TS, no new dev-dep, matches existing contract-test pattern."
+            },
+            {
+              "id": "b",
+              "label": "`dependency-cruiser`",
+              "description": "Industry-standard, rich rule DSL, JSON config. New dev-dep (mind the runtime-deps lock posture; this would be dev-only). Best ergonomics; weakest 'we own this' story."
+            },
+            {
+              "id": "c",
+              "label": "Skip — rely on Q-11 contracts + review",
+              "description": "no-fs/no-net contracts are the load-bearing invariant; full DAG enforcement might be overkill for 20 packages."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "tsconfig project-references alignment with package.json deps",
+          "context": "When a package.json adds/drops a `@protostar/*` dep, its `tsconfig.json` `references` array must match or `tsc -b` silently uses stale dist. Easy to drift. A simple workspace test could assert `package.json @protostar/* deps == tsconfig references`.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add a workspace test asserting tsconfig refs == package.json deps",
+              "description": "Roll into the same workspace-wide conformance test from Q-11/Q-12. Pure read of two files per package."
+            },
+            {
+              "id": "b",
+              "label": "Defer — only fix observed drift",
+              "description": "Audit current state, fix what's drifted, but don't add an enforcement test. Risk: drifts again silently."
+            },
+            {
+              "id": "c",
+              "label": "Skip — `tsc -b` failure modes are visible enough",
+              "description": "Modern pnpm + tsc -b surfaces missing refs as build errors fast. Don't add tooling for an invariant the compiler enforces."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "manifest-hygiene",
+      "title": "Manifest Hygiene",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "`exports` field shape across packages",
+          "context": "Phase 10 Q-17 locks all packages public. That means npm consumers see `exports`. Some packages declare subpath exports (`./schema`, `./artifacts`); some only have `.`. Public-package consumers benefit from a uniform shape.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Uniform — every package exports `.` + `./package.json`, subpaths only when explicitly justified",
+              "description": "Minimal surface; subpath exports are explicit feature decisions. Reduces accidental coupling on internal modules."
+            },
+            {
+              "id": "b",
+              "label": "Uniform — every package documents allowed subpaths in its README; knip enforces",
+              "description": "Phase 10 Q-19 already runs knip; extend to enforce 'no import from a non-exported subpath.' Tied to per-package READMEs from Phase 10 Q-13."
+            },
+            {
+              "id": "c",
+              "label": "Audit current state, no uniform rule",
+              "description": "Document what each package exports, fix obvious mistakes, don't enforce a shape."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "`sideEffects: false` declarations",
+          "context": "Public ESM packages benefit from `\"sideEffects\": false` for tree-shaking by downstream bundlers. Currently inconsistent across packages.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add `sideEffects: false` to every pure package; omit for fs/network tiers",
+              "description": "Pure packages are by definition side-effect-free at import time. Tier table from Q-04..Q-07 makes this mechanical."
+            },
+            {
+              "id": "b",
+              "label": "Skip — node consumers don't tree-shake; we have no browser surface",
+              "description": "Tauri toy doesn't import @protostar/* packages; node consumers don't benefit. Don't add fields with no current consumer."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "`engines` and `packageManager` field consistency",
+          "context": "Project locks Node >=22 (PROJECT.md) and pnpm via root package.json. Per-package `engines.node` declarations would enforce at install time for npm consumers; currently inconsistent.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add `engines.node: '>=22'` to every published package; root keeps `packageManager`",
+              "description": "Makes the Node-22 floor visible to npm consumers; consistent with public-package posture."
+            },
+            {
+              "id": "b",
+              "label": "Root only — packages inherit",
+              "description": "Less drift surface; downside is npm consumers don't see the Node floor in the package they install."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-17",
+          "title": "`peerDependencies` for cross-package types",
+          "context": "Currently `@protostar/*` cross-deps are all hard `dependencies: workspace:*`. For published packages, this means installing one package pulls every transitive @protostar dep. Some shared-type packages might be more naturally `peerDependencies`.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Keep all cross-deps as `dependencies`",
+              "description": "Simplest; npm consumers get a working install. Cost: heavier install footprint."
+            },
+            {
+              "id": "b",
+              "label": "Make pure types-only packages `peerDependencies`",
+              "description": "If `@protostar/intent` is consumed primarily for its types, peerDep avoids version-skew issues. More install ceremony for consumers."
+            },
+            {
+              "id": "c",
+              "label": "Defer — revisit when first external consumer reports a problem",
+              "description": "Speculative optimization; v0.1 has no external consumers yet. Lock simpler shape now, optimize later."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "`apps/factory-cli` published as `@protostar/factory-cli`?",
+          "context": "Phase 10 Q-17 note says 'apps/factory-cli publishes as @protostar/factory-cli with a bin entry.' But `apps/*` is conventionally non-publishable in monorepos. Decide whether 10.1 actually wires this and confirms the bin entry shape.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — confirm and wire per Phase 10 Q-17 note",
+              "description": "Add `publishConfig`, `bin`, validate the binary works post-install. CLI becomes `npx @protostar/factory-cli` for external users."
+            },
+            {
+              "id": "b",
+              "label": "Defer — CLI publish is an operator-surface decision belonging to Phase 11+",
+              "description": "Phase 11 is headless mode; CLI distribution may change shape. Don't lock the bin contract here."
+            },
+            {
+              "id": "c",
+              "label": "No — apps/* stay private; only packages/* publish",
+              "description": "Reverses the Phase 10 Q-17 note. Only library consumers get @protostar/* packages; CLI distribution is via repo clone for v0.1."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}

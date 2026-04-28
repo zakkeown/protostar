@@ -40,13 +40,20 @@
         "permissionLevel": "use",
         "reason": "Run package manager, git, and GitHub delivery commands for the dogfood PR.",
         "risk": "low"
+      },
+      {
+        "tool": "network",
+        "permissionLevel": "use",
+        "reason": "Call LM Studio over loopback and GitHub for dogfood PR delivery.",
+        "risk": "low"
       }
     ],
     "workspace": {
       "allowDirty": false
     },
     "network": {
-      "allow": "loopback"
+      "allow": "allowlist",
+      "allowedHosts": ["github.com", "api.github.com", "127.0.0.1", "localhost"]
     },
     "budget": {
       "timeoutMs": 300000,
@@ -77,9 +84,9 @@
   "signature": {
     "algorithm": "sha256",
     "canonicalForm": "json-c14n@1.0",
-    "value": "6eb42694fde39a924d13780d5155e35c215b4474c188e32168b43f592520a514",
-    "intentHash": "3fa80cf4ce41cf1dcbebc4fc1fc1eab752b432cd8c624a78d40091398bd78fa7",
-    "envelopeHash": "bb5bb012cc5e5e427dab1225a5dbc94e0975d10fec876a29a87d48d2c9483288",
-    "policySnapshotHash": "874c698c6b54f82972538e60f57b4fb3b2c1fe95f12859d8c52daae8ff7e5277"
+    "value": "0fd6415857135221c0c1bf7e6311e7d786e236e2ca2f540c8819057d8fa69df4",
+    "intentHash": "5ce29be930d9bda794ba71b1c942b4d62613efb05fd89a8879db54734e47133a",
+    "envelopeHash": "0126125d9992247d37803532b2f0a1155e96ec10a35ffd24b0247dc70c584417",
+    "policySnapshotHash": "419825b574abce5e5f77a1cf19d58af7f0a86cd3659938a5eb07ec274fe32b30"
   }
 }

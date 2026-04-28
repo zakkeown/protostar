@@ -1,0 +1,725 @@
+{
+  "phase": "11-headless-mode-e2e-stress",
+  "generated_at": "2026-04-28T00:00:00Z",
+  "stats": {
+    "total": 21,
+    "answered": 21,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "scope-and-exit",
+      "title": "Scope & Exit Criteria",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "What does \"deliver a tic-tac-toe game\" mean precisely?",
+          "context": "Phase 10 already ships the cosmetic-tweak loop against `../protostar-toy-ttt`. The toy is currently a Tauri+React+TypeScript scaffold with intentional rough-edge components for cosmetic seeds — there is no game logic yet. \"Deliver TTT\" is the new bar; need to define it concretely so the planner knows what verification is satisfied. The PROJECT.md `cosmetic-tweak`-only archetype lock applies through Phase 10 only.",
+          "options": [
+            {
+              "id": "a",
+              "label": "PR opened with all game files + CI green",
+              "description": "Same bar as Phase 10's `pr-ready` (Q-10 there): factory opens a PR that adds board.tsx, win-detection, state mgmt, etc.; the toy repo's CI (pnpm test + tauri build) goes green. No human play required. Cheapest verification; consistent with dark autonomy."
+            },
+            {
+              "id": "b",
+              "label": "PR + CI green + Playwright E2E asserts a full game can be played",
+              "description": "Toy repo's CI runs a Playwright spec that opens the Tauri webview (or web build), clicks 9 cells in a winning sequence, asserts a winner banner. Higher confidence; adds a new toolchain (Playwright) to the toy repo."
+            },
+            {
+              "id": "c",
+              "label": "PR + CI green + a `tauri build` produces a launchable native binary that opens to the game",
+              "description": "Strictest functional bar — actual desktop app starts and renders. No automated UI assertion; a headless smoke (binary exits 0 on a `--smoke-quit` flag, or screenshot capture). Closest to the user-facing definition of \"delivered.\""
+            },
+            {
+              "id": "d",
+              "label": "PR merged to main and tagged release on the toy repo",
+              "description": "Goes one step further than (a)–(c): the factory or a follow-up step actually merges and tags. Requires a merge-automation surface that Phase 10 deliberately avoided (Q-03 there: branch-per-run, never merge)."
+            },
+            {
+              "id": "e",
+              "label": "Custom — describe in chat-more",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "What is Phase 11's hard exit criterion?",
+          "context": "Phase 10's exit gate is DOG-04: ≥10 consecutive runs at ≥80% pr-ready on cosmetic seeds. Phase 11 needs an equivalent gate so we know when we are done. The phase goal says \"until we can build and deliver\" — that is a yes/no, but a single one-shot success is brittle.",
+          "options": [
+            {
+              "id": "a",
+              "label": "One end-to-end successful TTT delivery from a fresh seed",
+              "description": "Single happy path. Smallest target; honors the literal phase wording. Risk: a single success could be luck — the stress test is then just decoration around the proof point."
+            },
+            {
+              "id": "b",
+              "label": "≥3 consecutive successful TTT deliveries from the same seed (regenerated against fresh main)",
+              "description": "Modest reproducibility bar. Catches \"the factory got lucky once\" failures without committing to a high-bar pass-rate."
+            },
+            {
+              "id": "c",
+              "label": "≥N successful deliveries / total runs at ≥X% pass rate (N and X to be locked in chat-more)",
+              "description": "Mirrors Phase 10's empirical gate shape. Requires picking N and X numerically — say 5 of 7, 3 of 5, etc."
+            },
+            {
+              "id": "d",
+              "label": "Successful TTT delivery PLUS the stress run survives a documented load shape (Q-10) without crash/wedge",
+              "description": "Conjunction of correctness AND resilience. Highest bar; matches the phase name (`headless-mode-e2e-stress`) most literally."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Wall-clock / run budget cap before declaring failure",
+          "context": "If the factory cannot deliver TTT, Phase 11 must not run forever. Need a documented stop condition. LM Studio local execution is the bottleneck (Q-08); a single TTT run could span many planning + execution + repair iterations.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hard run-count cap (e.g., 50 attempts) — abort and re-discuss the phase",
+              "description": "Numeric ceiling; predictable failure mode. Pick the number in chat-more."
+            },
+            {
+              "id": "b",
+              "label": "Hard wall-clock cap (e.g., 7 calendar days of stress runs) — abort and re-discuss",
+              "description": "Time-boxed; aligns with how dogfood actually gets done (operator nights/weekends). LM Studio throughput dictates how many runs fit."
+            },
+            {
+              "id": "c",
+              "label": "Both — whichever fires first",
+              "description": "Belt-and-suspenders. Most explicit failure boundary."
+            },
+            {
+              "id": "d",
+              "label": "No hard cap — operator decides ad-hoc",
+              "description": "Soft. Risk: phase drags. Honest if the timeline is genuinely open-ended."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "headless-and-ci",
+      "title": "Headless Execution & CI Backend",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "What does \"fully headless CI mode\" mean for the factory itself?",
+          "context": "Phase 9 ships a CLI surface (commander dispatcher, run/status/inspect/cancel/resume/deliver/prune) under strict `stdout=data` discipline. Phase 10's `scripts/dogfood.sh` already runs without operator interaction during the loop. \"Headless CI mode\" must mean something stricter than what already exists.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Factory runs from a GitHub Actions workflow on the protostar repo (cron + workflow_dispatch)",
+              "description": "Public CI as the host. Forces solving the LM Studio constraint (Q-08) — GH-hosted runners cannot run LM Studio. Highest visibility; failures are public. Aligns with DOG-08's public security posture."
+            },
+            {
+              "id": "b",
+              "label": "Factory runs on a self-hosted runner (your laptop or a dedicated box) attached to a GitHub Actions workflow",
+              "description": "GH-Actions UX with local LM Studio. Solves the LLM-backend question by keeping execution local. Self-hosted runners have well-known security caveats (esp. for public repos) — see GitHub docs."
+            },
+            {
+              "id": "c",
+              "label": "Factory runs as a long-lived local daemon driven by `launchd`/`systemd` cron, no GitHub Actions surface",
+              "description": "Truly headless = detached background process. No CI surface. Simplest; loses the shared-team-visibility that CI provides."
+            },
+            {
+              "id": "d",
+              "label": "All three modes supported — config flag selects backend",
+              "description": "Maximum flexibility; maximum surface area. Risk: \"headless\" becomes whatever each runner happens to support."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "LLM execution backend during headless runs",
+          "context": "v0.1 lock: LM Studio local with Qwen3-Coder exec + Qwen3-80B judge (PROJECT.md, 2026-04-24 dark-factory locks). Cloud judges are in Out-of-Scope. Phase 11's headless posture may force revisiting this — depends on Q-04.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Keep LM Studio local; constrain Q-04 to self-hosted/daemon mode",
+              "description": "Cleanest — no v0.1 lock change. Forecloses GH-hosted-runner option. Likely correct if you are not ready to give Anthropic/OpenAI a budget-eating contract."
+            },
+            {
+              "id": "b",
+              "label": "Add a hosted LLM backend (Anthropic or OpenAI compatible) behind an `LLM_BACKEND=hosted|lmstudio` flag",
+              "description": "Lifts the v0.1 lock; opens GH-hosted-runner mode. Cost + new failure modes (rate limits, hosted-LLM determinism differences). Touches `packages/lmstudio-adapter` (or rename to `packages/llm-adapter`) and `factory-config.schema.json`."
+            },
+            {
+              "id": "c",
+              "label": "Add a deterministic mock backend for stress-shape testing only; real runs stay LM Studio",
+              "description": "Mock injects canned plans/judge outputs; tests the orchestration layer under load without LLM cost. Stress proves resilience of the *factory*, not the LLM. Real \"deliver TTT\" runs still use LM Studio."
+            },
+            {
+              "id": "d",
+              "label": "Combination — (b) for hosted real runs + (c) for the stress dimension",
+              "description": "Most coverage. Highest implementation cost; biggest spec change."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Operator-attachment / interactive-prompt audit",
+          "context": "Headless is not just \"runs without a TTY\" — it must produce no path that blocks waiting for a human. Phase 1 ambiguity gate refuses ambiguous intent today (it does not prompt). Phase 2 workspace-trust gate requires `--trust`/`--confirmed-intent` flags. Need to verify nothing else blocks.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add a contract test that no production code path reads from stdin or calls a prompt API",
+              "description": "Static AST scan in `packages/admission-e2e/` — bans `process.stdin`, `readline`, `prompts`, `inquirer`, `enquirer` imports across `apps/*` and `packages/*` source. Cheap; load-bearing. Mirrors the existing `authority-no-fs.contract.test.ts` pattern."
+            },
+            {
+              "id": "b",
+              "label": "Document the audit in SECURITY-REVIEW.md but no automated check",
+              "description": "Prose only. Drifts. Phase 10 Q-21 already chose programmatic enforcement for similar concerns."
+            },
+            {
+              "id": "c",
+              "label": "Both — contract test + SECURITY-REVIEW.md narrative entry",
+              "description": "Belt-and-suspenders. Recommended."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "archetype-and-spec",
+      "title": "Archetype Lift & TTT Spec Authoring",
+      "questions": [
+        {
+          "id": "Q-07",
+          "title": "How is the archetype lock lifted for Phase 11?",
+          "context": "Hard lock: `packages/policy/src/admission-paths.ts` only wires `cosmetic-tweak`. PROJECT.md Out-of-Scope explicitly excludes non-cosmetic archetypes. Phase 10 inherits and reaffirms this lock. TTT is not a cosmetic tweak.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add a single new archetype `feature-add` and wire it through admission-paths + AC normalization + capability-envelope defaults",
+              "description": "Minimum new surface. `feature-add` covers TTT. PROJECT.md Out-of-Scope updated; admission rules expanded; envelope defaults bumped (multi-file write budget, more turns). Cleanest path."
+            },
+            {
+              "id": "b",
+              "label": "Add multiple archetypes (`feature-add`, `bugfix`, `refactor`) in one go",
+              "description": "Matches the original deferred-ideas list. More code; only `feature-add` is needed for TTT. Risk: scope creep."
+            },
+            {
+              "id": "c",
+              "label": "Add a `green-field-feature` archetype distinct from `feature-add` (greenfield = file creation dominant)",
+              "description": "Naming carries semantics. Greenfield TTT is mostly *new file creation*, not in-place edits — different review heuristics. Possibly worth a discrete archetype."
+            },
+            {
+              "id": "d",
+              "label": "Don't add an archetype — make TTT fit `cosmetic-tweak` by relaxing its rules",
+              "description": "Subverts the policy boundary; cosmetic-tweak is meaningful precisely because it is constrained. Avoid."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "How is the TTT game specified to the factory?",
+          "context": "INTENT-01 gates ambiguity at ≤0.2. \"Build a tic-tac-toe game\" is high-level and almost certainly above that threshold; the gate would refuse it as ambiguous. Need a path for multi-component features.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single high-level intent + invest in lowering ambiguity score via richer acceptance criteria up-front",
+              "description": "Operator authors a thorough intent draft with explicit AC list (board renders 3x3, win-detection diagonal/row/column/draw, restart button, score persistence?, etc.). Ambiguity scorer should drop below 0.2 once AC fully specified."
+            },
+            {
+              "id": "b",
+              "label": "Decomposed seed sequence: 1) scaffold board UI, 2) add cell click + state, 3) add win detection, 4) add restart, 5) add Tauri build polish",
+              "description": "Each sub-seed is small enough to be unambiguous on its own; the factory builds TTT incrementally over N runs. Requires a cumulative branch model (Q-12). Closer to how a human engineer would work."
+            },
+            {
+              "id": "c",
+              "label": "Pre-admitted PRD: operator writes a `ttt-prd.md`, the factory's planner uses it as ground truth",
+              "description": "PRD-as-input — maybe a new admission path that takes a PRD instead of a one-line intent. Bigger spec change; introduces a doc-driven workflow. Most ambitious."
+            },
+            {
+              "id": "d",
+              "label": "Custom — describe the spec mechanism",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Where do TTT seeds live and who maintains them?",
+          "context": "Phase 10 introduces `packages/fixtures/src/seeds/` as the seed library home (3 cosmetic seeds, round-robin in DOG-04). Phase 11 needs a place for the TTT seed(s) and any `feature-add` archetype seeds.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extend `packages/fixtures/src/seeds/` with a `feature-add/` subfolder; TTT lives there alongside cosmetic seeds",
+              "description": "One seed library, two archetype subfolders. Reuses Phase 10's package surface; uniform import path. Recommended."
+            },
+            {
+              "id": "b",
+              "label": "New package `packages/feature-seeds/` separate from cosmetic fixtures",
+              "description": "Sharper boundary; harder to find. Likely overkill for one new archetype."
+            },
+            {
+              "id": "c",
+              "label": "Inline in the toy repo (`../protostar-toy-ttt/.protostar-seeds/`) so seeds live next to their target",
+              "description": "Couples seed authorship to the toy repo. Survives toy-repo renames; loses uniform discovery from the factory side."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "stress-shape",
+      "title": "Stress Test Shape",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "What is the stress-test load shape?",
+          "context": "\"Stress-test the full E2E pipeline against synthetic load\" — the dimension is open. Phase 10's DOG-04 is sustained 10× sequential, no concurrency, no fault injection. Phase 11 must be more.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Sustained run-count: 100+ consecutive runs across mixed seeds (cosmetic + feature-add), measure pass rate + latency drift over time",
+              "description": "Pure endurance. Tests memory leaks, log accumulation, prune correctness, lineage chain length. Cheapest to define."
+            },
+            {
+              "id": "b",
+              "label": "Concurrency: K parallel runs against the same toy (or distinct branches), measure resource contention, pile-budget interactions, fs lock collisions",
+              "description": "Real concurrency. Phase 10 Q-11 explicitly chose sequential-only; Phase 11 lifts that for stress purposes only. Reveals fs/lock/process bugs Phase 10 cannot see."
+            },
+            {
+              "id": "c",
+              "label": "Fault injection: chaos-style — inject network drops, LLM timeouts, disk-full, OOM, abort signals at random points; measure refusal correctness + recovery",
+              "description": "Targets the refusal-path / cancellation-path correctness Phase 9 introduced (cancelling/cancelled/orphaned). Highest bug-finding power; biggest tooling investment (chaos harness)."
+            },
+            {
+              "id": "d",
+              "label": "All three (load + concurrency + fault) sequenced as three separate stress runs each with its own pass criterion",
+              "description": "Most thorough. Three stress shapes = three plans. Largest scope."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Failure isolation policy during stress",
+          "context": "Phase 9 ships cancel/resume/orphan transitions. Phase 11 stress will produce wedged or zombie runs. Need a documented \"what happens when one run misbehaves\" rule.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hard-isolate: any run that exceeds a stress-mode timeout is killed via Phase 9 cancel + marked orphaned; the loop continues with the next seed",
+              "description": "Bulldozer — favors throughput. Uses existing Phase 9 surface. Risk of killing legit-but-slow runs."
+            },
+            {
+              "id": "b",
+              "label": "Quarantine: wedged runs are paused (no further state writes); the loop continues; operator triages quarantined runs after the stress session ends",
+              "description": "Surgical; preserves evidence for forensics. Requires a new `paused` lifecycle state Phase 9 does not have. Spec change."
+            },
+            {
+              "id": "c",
+              "label": "Stop-the-world: the whole stress session aborts on first wedge; full debugging pass before the next stress session",
+              "description": "Highest signal per failure; lowest throughput. Aligns with the dark-factory `dark-except-hard-failures` posture."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Toy repo state model across stress runs (cumulative vs branch-per-run)",
+          "context": "Phase 10 Q-03 locked branch-per-run + never-merge for cosmetic dogfood (clean signal, no merge surface). Phase 11 needs to reconsider for two reasons: (1) Q-08(b) decomposed-seed TTT requires earlier seeds' work to land before later seeds can build on it; (2) stress runs may want to test merge/rebase paths.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Keep branch-per-run-no-merge for cosmetic + stress; for TTT only, use a single long-running `protostar/ttt` branch the factory keeps committing into across runs",
+              "description": "Two state models in one phase, but each is internally consistent. TTT branch accumulates seeds → game; stress runs stay clean-signal. Recommended if Q-08(b) is chosen."
+            },
+            {
+              "id": "b",
+              "label": "Switch to merge-on-pass for everything: when a run reaches `pr-ready`, the factory (or a follow-up step) auto-merges and the next run starts from new main",
+              "description": "Real-world drift mode. Tests merge automation. Conflicts with Phase 10 Q-03 — the cosmetic fixtures matrix would then be running on a moving baseline. Decouple by phase: Phase 10 = no-merge, Phase 11 = merge-on-pass."
+            },
+            {
+              "id": "c",
+              "label": "Keep branch-per-run-no-merge for everything; force the TTT seed (Q-08) to be single-shot (a) — no decomposed sequence",
+              "description": "Simplest state model; constrains Q-08 to option (a). If single-shot TTT is feasible in one run, this is the right call."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "verification",
+      "title": "Pass / Verification Criteria",
+      "questions": [
+        {
+          "id": "Q-13",
+          "title": "How is \"the game works\" verified per run?",
+          "context": "Phase 10 Q-10 chose PR + CI green as the cosmetic pass criterion. TTT raises the bar — CI green can pass while the game is logically broken (button does nothing, win-detect off-by-one, etc.). Tied to Q-01.",
+          "options": [
+            {
+              "id": "a",
+              "label": "CI green is sufficient (toy repo's CI runs the test suite the factory itself wrote)",
+              "description": "Trusts the factory to write valid tests. Self-graded — risky but elegant; if AC includes \"tests cover win conditions,\" CI green = AC met."
+            },
+            {
+              "id": "b",
+              "label": "CI green + a fixed operator-authored E2E spec the factory cannot edit asserts core gameplay",
+              "description": "Toy repo carries `e2e/ttt.spec.ts` (Playwright or vitest+jsdom) authored once by the operator; factory PRs that break it get blocked. Strongest behavioral guarantee. Adds a toolchain to the toy."
+            },
+            {
+              "id": "c",
+              "label": "CI green + a property-based / fuzz test the operator wrote against the game state machine",
+              "description": "Stronger than (b) for game logic correctness. Probably overkill for v0.1."
+            },
+            {
+              "id": "d",
+              "label": "CI green + a manual operator screenshot/video review per delivered PR",
+              "description": "Human-in-the-loop. Violates dark-autonomy spirit but honest about TTT's UX layer being hard to test."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Per-run pass-rate target during stress (the Phase 10 80% analog)",
+          "context": "Phase 10 DOG-04 = ≥80% pr-ready over 10 runs. Phase 11 mixes archetypes and adds stress dimensions; the Phase 10 number is unlikely to transfer 1:1.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Cosmetic seeds ≥80% (unchanged from Phase 10), feature-add seeds ≥50%, stress-fault seeds ≥30%",
+              "description": "Tiered by difficulty. Concrete numbers; reflects honest expectations. Each tier needs its own bucket in the report."
+            },
+            {
+              "id": "b",
+              "label": "Single overall ≥X% across all archetypes; pick X in chat-more",
+              "description": "Single number; simpler to talk about. Loses signal — a pass rate dominated by easy seeds masks feature-add failures."
+            },
+            {
+              "id": "c",
+              "label": "No pass-rate target — report it but the exit gate is Q-02 (deliver TTT) only",
+              "description": "Phase 10 already covers cosmetic regression. Phase 11's exit is the TTT deliverable; pass rate is informational."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Repair-iteration cap per run for feature-add work",
+          "context": "Today `capabilityEnvelope.budget.maxRepairLoops` defaults to a small number (per Phase 5 schema bump 1.4.0). Cosmetic tweaks often converge in 1 repair; greenfield game code may need many.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Lift `maxRepairLoops` default for the `feature-add` archetype (e.g., from N to 3N), keep cosmetic-tweak default",
+              "description": "Per-archetype default. Cleanest."
+            },
+            {
+              "id": "b",
+              "label": "Make `maxRepairLoops` mandatory in the seed (no default); operator must set it per seed",
+              "description": "Forces explicit choice. More friction; less drift."
+            },
+            {
+              "id": "c",
+              "label": "Replace iteration cap with a token-budget cap per run",
+              "description": "PROJECT.md explicitly defers token-budget unit to v1.0+. Don't open this in Phase 11."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "envelope",
+      "title": "Capability Envelope Expansion",
+      "questions": [
+        {
+          "id": "Q-16",
+          "title": "Envelope changes for `feature-add` archetype",
+          "context": "Cosmetic-tweak envelope is small (single-file write, low write budget; Phase 5 added the multi-file refusal `cosmetic-archetype-multifile`). Feature-add must allow multi-file writes, possibly dependency installs (TTT might want a state-mgmt lib).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Multi-file writes allowed, no new package installs (factory works within existing dependency set of the toy repo)",
+              "description": "Conservative; the toy repo's `create-tauri-app` template already includes React + state-via-hooks, no new lib needed for TTT. Recommended unless TTT spec demands a state-mgmt lib."
+            },
+            {
+              "id": "b",
+              "label": "Multi-file writes + bounded `pnpm add` (allowlist of pre-approved packages)",
+              "description": "Adds a new authority surface — package install. Allowlist enforced at `packages/repo` subprocess layer (already gates argv per Phase 3 Q-08). Bigger spec change."
+            },
+            {
+              "id": "c",
+              "label": "Multi-file writes + arbitrary `pnpm add` (subject only to subprocess allowlist for `pnpm`)",
+              "description": "Most permissive; biggest blast radius. Probably wrong for v0.1."
+            },
+            {
+              "id": "d",
+              "label": "Custom — describe envelope shape",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "operator-surface",
+      "title": "Operator Surface During Stress",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "Live observability during stress runs",
+          "context": "PROJECT.md `dark-except-hard-failures` lock is a strong constraint. Phase 10 Q-12 chose end-of-session stderr summary only. Stress runs may be long (hours, days); operators may want a way to peek without breaking dark autonomy.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strict dark-mode — no live signal; operator polls Phase 9 `protostar-factory status` if curious",
+              "description": "Reuses Phase 9's surface. No new code. Likely correct — `status` already exists for exactly this."
+            },
+            {
+              "id": "b",
+              "label": "JSONL append to `.protostar/stress/<sessionId>/events.jsonl` — passive log, no terminal noise; consumable by external tools",
+              "description": "Append-only log; matches the project's append-only artifact pattern (`refusals.jsonl`, evolution chain). Operator can `tail -f` voluntarily — no progress logs forced on the terminal."
+            },
+            {
+              "id": "c",
+              "label": "Optional live HTML dashboard served from `.protostar/stress/<sessionId>/dashboard.html` on a local port",
+              "description": "Real-time UI. New surface (HTTP server inside factory-cli — violates authority boundary unless lifted into a separate process). PROJECT.md TUI deferral suggests no."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Stress-report artifact shape",
+          "context": "Phase 10 Q-12 defined `report.json` for dogfood loops. Phase 11 stress sessions need a similar artifact. Question: extend or new?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extend Phase 10's `report.json` with optional fields (`stressShape`, `concurrencyLevel`, `faultsInjected`, `faultRecoveryRate`); same path family",
+              "description": "One artifact type to maintain. Phase 10 admission-e2e snapshot test grows. Path becomes `.protostar/stress/<sessionId>/report.json` (sibling to `.protostar/dogfood/`)."
+            },
+            {
+              "id": "b",
+              "label": "New artifact type `stress-report.json` with its own Zod schema in `packages/artifacts`",
+              "description": "Cleanest separation. Dogfood vs stress are conceptually different. Two snapshot tests, two doc entries."
+            },
+            {
+              "id": "c",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "title": "Evidence, Driver & Plan Numbering",
+      "questions": [
+        {
+          "id": "Q-19",
+          "title": "Stress driver — extend `scripts/dogfood.sh` or new script?",
+          "context": "Phase 10 Q-09 chose a shell driver. Stress dimensions (concurrency Q-10b, fault injection Q-10c) likely outgrow bash quickly.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extend `scripts/dogfood.sh` with `--mode stress|dogfood` flag",
+              "description": "One driver. Bash gets ugly fast for concurrency and fault injection."
+            },
+            {
+              "id": "b",
+              "label": "New `scripts/stress.sh` separate from dogfood; stays bash for sequential stress (Q-10a) only",
+              "description": "Two drivers, each simple. Forces Q-10b/c into a TS script (next option) if chosen."
+            },
+            {
+              "id": "c",
+              "label": "New TS script under `apps/factory-cli/src/scripts/stress.ts` (or a new `scripts/stress/` package)",
+              "description": "TS for control flow; can do real concurrency and chaos cleanly. New code surface lives inside the authority boundary (factory-cli already does fs)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-20",
+          "title": "Phase 11 plan ordering",
+          "context": "Phase 10 Q-22 ordered: smoke-gate (DOG-01+DOG-03) → parallel hardening (DOG-02/05/06/07/08) → exit gate (DOG-04). Phase 11 has analogous structure: lift → enable → stress → deliver.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Wave 1: archetype lift (Q-07) + envelope expansion (Q-16) + headless audit (Q-06). Wave 2 parallel: TTT spec (Q-08) + stress driver (Q-19) + observability (Q-17). Wave 3: stress shape execution (Q-10). Wave 4 exit gate: TTT delivery (Q-01).",
+              "description": "Standard lift-enable-stress-deliver cascade. Recommended."
+            },
+            {
+              "id": "b",
+              "label": "TTT delivery first (smallest end-to-end proof), then stress around the working pipeline",
+              "description": "Inverts (a). Risk: archetype lift is a precondition for TTT — cannot deliver TTT before lifting cosmetic-only lock."
+            },
+            {
+              "id": "c",
+              "label": "Stress first (with mock LLM), then real archetype lift + TTT delivery",
+              "description": "Mock-led; tests orchestration before real LLM cost. Only makes sense if Q-05 includes (c)/(d) mock."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-21",
+          "title": "Requirement labeling for Phase 11",
+          "context": "ROADMAP currently lists Phase 11 requirements as TBD. Other phases use stable prefixes (INTENT-, GOV-, REPO-, EXEC-, LOOP-, PILE-, DELIVER-, EVAL-, EVOL-, OP-, DOG-). Phase 11 needs its own.",
+          "options": [
+            {
+              "id": "a",
+              "label": "STRESS-01..STRESS-N",
+              "description": "Matches the phase title. Captures the dominant theme."
+            },
+            {
+              "id": "b",
+              "label": "Mixed: HEADLESS-01..N for CI/headless requirements, STRESS-01..N for stress shape, FEAT-01..N for archetype lift",
+              "description": "More precise but multi-prefix phases are unusual in the project."
+            },
+            {
+              "id": "c",
+              "label": "HEADLESS-01..N covers everything (since headless is the umbrella of the phase title)",
+              "description": "One prefix; loses the stress emphasis from labels."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
