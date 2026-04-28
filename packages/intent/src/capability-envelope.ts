@@ -493,12 +493,13 @@ function parseBudget(value: unknown, errors: string[]): FactoryBudget {
       1_800_000,
       errors
     ),
-    maxRepairLoops: readRequiredInteger(
+    maxRepairLoops: readIntegerWithDefault(
       value,
       "maxRepairLoops",
       "capabilityEnvelope.budget.maxRepairLoops",
-      0,
+      1,
       10,
+      3,
       errors
     )
   };
@@ -537,10 +538,30 @@ function readRequiredInteger(
   return value;
 }
 
+function readIntegerWithDefault(
+  record: Record<string, unknown>,
+  key: keyof Pick<FactoryBudget, "adapterRetriesPerTask" | "taskWallClockMs" | "maxRepairLoops">,
+  path: string,
+  minimum: number,
+  maximum: number,
+  defaultValue: number,
+  errors: string[]
+): number {
+  const value = record[key];
+  if (value === undefined) {
+    return defaultValue;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) {
+    errors.push(`${path} must be an integer from ${minimum} to ${maximum}.`);
+    return defaultValue;
+  }
+  return value;
+}
+
 function defaultExecutionBudget(): FactoryBudget {
   return {
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
-    maxRepairLoops: 0
+    maxRepairLoops: 3
   };
 }

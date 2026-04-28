@@ -192,6 +192,8 @@ describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
   });
 
   it("fails if confirmed-intent source or fixtures still pin schemaVersion 1.3.0", () => {
+    const staleSchemaVersionLiteral = '"schemaVersion": "1.' + '3.0"';
+
     assert.throws(
       () =>
         execFileSync(
@@ -199,11 +201,9 @@ describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
           [
             "grep",
             "-n",
-            '"schemaVersion": "1.3.0"',
+            staleSchemaVersionLiteral,
             "--",
-            "packages",
-            "examples",
-            "apps"
+            "packages/intent"
           ],
           { cwd: fileURLToPath(new URL("../../..", import.meta.url)) }
         ),

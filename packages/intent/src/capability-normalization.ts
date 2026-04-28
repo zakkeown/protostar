@@ -161,7 +161,7 @@ function normalizeBudget(budget: DraftBudget | undefined): CapabilityEnvelope["b
     ...numberField("timeoutMs", budget.timeoutMs),
     adapterRetriesPerTask: integerField(budget.adapterRetriesPerTask, 4),
     taskWallClockMs: integerField(budget.taskWallClockMs, 180_000),
-    maxRepairLoops: integerField(budget.maxRepairLoops, 0)
+    maxRepairLoops: integerField(budget.maxRepairLoops, 3)
   } satisfies CapabilityEnvelope["budget"];
 }
 
@@ -186,7 +186,7 @@ function defaultBudget(): CapabilityEnvelope["budget"] {
   return {
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
-    maxRepairLoops: 0
+    maxRepairLoops: 3
   };
 }
 
