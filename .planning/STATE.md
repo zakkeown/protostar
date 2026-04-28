@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 6 Plan 01 complete)
+**Last updated:** 2026-04-28 (Phase 6 Plan 02 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
 
-**Next action:** Execute Phase 6 — 8 plans across 5 waves (W0: 06-01, 06-02 → W1: 06-03, 06-04 → W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08).
+**Next action:** Wave 0 complete (06-01, 06-02). Execute Phase 6 Wave 1 — 06-03, 06-04 in parallel; then W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08.
 
 ## Phase Status
 
@@ -55,6 +55,7 @@ Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan s
 
 ## Recent Sessions
 
+- **2026-04-28:** Completed Phase 6 Plan 02 (`06-02-wave0-config-schema-and-phase5-annotation-PLAN.md`): extended `packages/lmstudio-adapter/src/factory-config.schema.json` with a top-level optional `piles` block (Q-04) — `planning`, `review`, `executionCoordination` sub-objects each with `mode: enum [fixture, live] default fixture` (Q-05) and optional `fixturePath`; `executionCoordination` adds `workSlicing.{maxTargetFiles=3, maxEstimatedTurns=5}` per Q-15 / RESEARCH defaults; `additionalProperties: false` everywhere; description fields call out CLI override precedence and Q-06 no-auto-fallback rule. Landed the highest-risk doc artifact in Phase 6: a blockquote on Phase 5 CONTEXT Q-10 carrying the literal sentinel `Re-locked in Phase 6 Q-14 (2026-04-27)` directing implementers to ship `ModelReviewer` interface + fixture passthrough only and pointing at `createReviewPileModelReviewer()` in Phase 6 Plan 05. `pnpm --filter @protostar/lmstudio-adapter build/test` (66/66 pass) and root `pnpm run verify` green. Wave 0 closed; Wave 1 (06-03, 06-04) unblocked.
 - **2026-04-28:** Completed Phase 6 Plan 01 (`06-01-wave0-types-and-rename-PLAN.md`): widened `@protostar/dogpile-types` to re-export SDK runtime (`run`, `stream`, `createOpenAICompatibleProvider`) and types (`RunEvent`, `RunResult`, `Trace`, `RunAccounting`, `NormalizedStopReason`, `ConfiguredModelProvider`, `StreamHandle`); renamed `executionCoordinatorPilePreset → executionCoordinationPilePreset` per Q-16 with no deprecated alias (zero stale refs repo-wide); added static `packages/dogpile-adapter/src/no-fs.contract.test.ts` mirroring `authority-no-fs.contract.test.ts` (walks src/, bans `node:fs`/`node:fs/promises`/`fs`/`node:path`/`path` imports, excludes itself by basename). `pnpm --filter @protostar/dogpile-types build`, `pnpm --filter @protostar/dogpile-adapter build`, and `pnpm --filter @protostar/dogpile-adapter test` (4/4 pass) green. Wave 1 unblocked.
 - **2026-04-28:** Completed Phase 5 Plan 13 (`05-13-delivery-contract-pin-PLAN.md`): added `packages/delivery/src/delivery-contract.ts` with `createGitHubPrDeliveryPlan(authorization: DeliveryAuthorization, input: GitHubPrDeliveryInput)`, added positive and negative type tests for the branded delivery boundary, preserved the old review-gate helper as deprecated `createGitHubPrDeliveryPlanLegacy`, and updated the remaining factory-cli compatibility callsite. `pnpm --filter @protostar/delivery test`, `pnpm --filter @protostar/delivery build`, and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-28:** Completed Phase 5 Plan 12 (`05-12-factory-cli-wiring-PLAN.md`): added factory-cli wiring for concrete mechanical checker, LM Studio model reviewer, review persistence, and executor services; replaced the old mechanical-only loop callsite with `runReviewRepairLoop`; added coder-and-judge LM Studio preflight; and documented `LMSTUDIO_JUDGE_MODEL`. `pnpm --filter @protostar/factory-cli build`, explicit wiring tests (`node --test apps/factory-cli/dist/wiring/*.test.js`), and `pnpm run verify:full` passed after approved loopback escalation for local test servers; `pnpm run factory` built then stopped at the expected workspace-trust gate.
