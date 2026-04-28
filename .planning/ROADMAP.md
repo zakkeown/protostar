@@ -311,7 +311,7 @@ Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07
 - [x] 09-07-resume-command-PLAN.md — [W4; deps: 01, 03, 04] stage-aware resume with replayOrphanedTasks + sentinel handling (Q-13/Q-14/Q-15)
 - [x] 09-08-gated-delivery-and-authorization-writer-PLAN.md — [W3; deps: 01, 03] delivery.mode + authorization.json write site + reAuthorizeFromPayload validator (Q-20/Q-21)
 - [x] 09-09-deliver-command-PLAN.md — [W4; deps: 01, 03, 08] deliver command with idempotent retry + gated first delivery (Q-20/Q-21)
-- [ ] 09-10-prune-command-PLAN.md — [W4; deps: 01, 03, 04] prune --older-than with active-guard + JSONL preservation (Q-22)
+- [x] 09-10-prune-command-PLAN.md — [W4; deps: 01, 03, 04] prune --older-than with active-guard + JSONL preservation (Q-22)
 - [ ] 09-11-admission-e2e-cli-contracts-PLAN.md — [W5; deps: 01–10] 7 admission-e2e contract tests + 8 --help fixtures locking the public CLI surface
 
 **Notes:** TUI is deferred. The product feel is "boring CLI you trust."

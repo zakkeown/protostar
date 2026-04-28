@@ -115,7 +115,7 @@ CLI first. The product feel: walk away, come back, understand exactly what happe
 - [x] **OP-05**: `protostar-factory inspect <runId>` — pretty-print the run bundle (manifest, stage records, artifacts)
 - [x] **OP-06**: `protostar-factory deliver <runId>` — explicit delivery trigger (when delivery is gated to operator action)
 - [x] **OP-07**: Status / inspect output is non-decorative — JSON-stable so it's pipeable
-- [ ] **OP-08**: Documented prune recipe (or `protostar-factory prune --older-than <duration>`) for `.protostar/runs/`
+- [x] **OP-08**: Documented prune recipe (or `protostar-factory prune --older-than <duration>`) for `.protostar/runs/`
 
 ### Phase 10 — V1 Hardening + Dogfood
 
@@ -235,7 +235,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | OP-05 | Phase 9 | Complete — 09-05 added inspect with canonical {manifest, artifacts, summary}, path-indexed artifacts, sha256/bytes, stage filtering, and no trace inlining |
 | OP-06 | Phase 9 | Complete — 09-09 added deliver with gated first delivery, idempotent noop, retry, conflict branches, and reAuthorizeFromPayload before delivery-runtime |
 | OP-07 | Phase 9 | Complete — 09-04 status and 09-05 inspect both emit canonical JSON-stable output for automation |
-| OP-08 | Phase 9 | Pending |
+| OP-08 | Phase 9 | Complete — 09-10 added prune with dry-run default, --confirm deletion, active-run protection, archetype filtering, and append-only JSONL preservation |
 | DOG-01 | Phase 10 | Pending |
 | DOG-02 | Phase 10 | Pending |
 | DOG-03 | Phase 10 | Pending |

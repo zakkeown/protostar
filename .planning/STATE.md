@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 9 Plan 09 complete)
+**Last updated:** 2026-04-28 (Phase 9 Plan 10 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, semantic, and consensus stages, failed evaluations block release, evolution snapshots/chain/calibration logs are persisted by `factory-cli`, and Phase 8 contracts pin no `"skipped"` verdicts, structured evaluation refusals, no-fs evaluation-runner behavior, prior-generation planning mission text/gating, and calibration JSONL append shape.
 
-**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-09 are complete; deliver now reauthorizes persisted authorization payloads before delivery, supports gated first delivery, retries incomplete completed runs, and noops already-delivered runs. Phase 10.1 boundary hygiene is inserted after Phase 10 and must be planned with `$gsd-plan-phase 10.1` before Phase 11 stress work.
+**Next action:** Continue Phase 9 operator-surface plans. Plans 09-01 through 09-10 are complete; prune now provides dry-run-default run retention, confirmed deletion, active-status protection, archetype filtering, and append-only JSONL preservation. Phase 10.1 boundary hygiene is inserted after Phase 10 and must be planned with `$gsd-plan-phase 10.1` before Phase 11 stress work.
 
 ## Phase Status
 
@@ -42,7 +42,7 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
-| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-09 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, and deliver commands are ready |
+| 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-10 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, and prune commands are ready |
 | 10 | V1 Hardening + Dogfood | Pending |
 | 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
@@ -56,6 +56,8 @@ Phase 8 completed 2026-04-28. Evaluation/evolution now has real mechanical, sema
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 9 Plan 10 (`09-10-prune-command-PLAN.md`). Added `protostar-factory prune --older-than <duration>` with dry-run default, explicit `--confirm` deletion, optional case-sensitive `--archetype`, active-status protection for `created`, `running`, `cancelling`, `repairing`, and `ready-to-release` (plus `orphaned` defense-in-depth), scoped `fs.rm({ recursive: true, force: true })` to `.protostar/runs/<id>/`, and byte-identical preservation tests for `.protostar/refusals.jsonl` and `.protostar/evolution/{lineageId}.jsonl`. Documented lineage snapshot `ENOENT` tolerance in CONCERNS.md. Verification passed: RED build failed on missing prune module as expected, `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^prune'` (script ran 312 tests), `pnpm --filter @protostar/factory-cli test` (312 tests), `pnpm run verify`, and a manual dry-run fixture smoke. Commits: `412bfa9`, `a73ca42`.
 
 - **2026-04-28:** Completed Phase 9 Plan 09 (`09-09-deliver-command-PLAN.md`). Added `protostar-factory deliver <runId>` with parseRunId/path confinement, deliverable-state branching, idempotent noop for completed runs with PR URL + CI capture, retry for completed runs with missing delivery result, gated ready-to-release delivery with atomic manifest transition to `completed`, missing-authorization and validator-reject exit 4 JSON, and no direct `mintDeliveryAuthorization` usage. Verification passed: `pnpm --filter @protostar/factory-cli test -- --test-name-pattern '^deliver'` (script ran 300 tests), `pnpm --filter @protostar/factory-cli test` (300 tests), and `pnpm run verify`. Commits: `cdd77b6`, `7163121`.
 
