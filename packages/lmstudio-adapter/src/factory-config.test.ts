@@ -159,6 +159,33 @@ describe("resolveFactoryConfig", () => {
     assert.equal(resolved.config.delivery, undefined);
   });
 
+  it("accepts operator.livenessThresholdMs from file config", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        operator: { livenessThresholdMs: 30_000 }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.equal(resolved.config.operator?.livenessThresholdMs, 30_000);
+  });
+
+  it("rejects non-number operator.livenessThresholdMs values", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        operator: { livenessThresholdMs: "soon" }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /operator\.livenessThresholdMs/);
+  });
+
   it("preserves evaluation judge overrides and evolution config from file config", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({
