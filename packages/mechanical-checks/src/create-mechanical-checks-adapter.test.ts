@@ -37,6 +37,7 @@ describe("createMechanicalChecksAdapter", () => {
       attempt: 0,
       plan: planWithTask("task-x", "a.test.ts", "renders"),
       readFile: async () => "ok 1 - renders",
+      gitFs: fs,
       subprocess
     });
 
@@ -159,6 +160,7 @@ function baseConfig(repo: { readonly dir: string; readonly baseRef: string }) {
     attempt: 0,
     plan: planWithTask("task-x", "a.test.ts", "renders"),
     readFile: async () => "",
+    gitFs: fs,
     subprocess: subprocessStub([subprocessResult("verify", 0, "/tmp/verify.stdout.log")])
   };
 }

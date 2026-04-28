@@ -25,7 +25,7 @@ describe("computeDiffNameOnly", () => {
     await commitFiles(repo.dir, [{ path: "src/foo.ts", content: "export const foo = 1;\n" }]);
 
     assert.deepEqual(
-      await computeDiffNameOnly({ workspaceRoot: repo.dir, baseRef: repo.headSha }),
+      await computeDiffNameOnly({ fs, workspaceRoot: repo.dir, baseRef: repo.headSha }),
       ["src/foo.ts"]
     );
   });
@@ -35,7 +35,7 @@ describe("computeDiffNameOnly", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
 
     assert.deepEqual(
-      await computeDiffNameOnly({ workspaceRoot: repo.dir, baseRef: repo.headSha }),
+      await computeDiffNameOnly({ fs, workspaceRoot: repo.dir, baseRef: repo.headSha }),
       []
     );
   });
@@ -51,7 +51,7 @@ describe("computeDiffNameOnly", () => {
     ]);
 
     assert.deepEqual(
-      await computeDiffNameOnly({ workspaceRoot: repo.dir, baseRef: repo.headSha }),
+      await computeDiffNameOnly({ fs, workspaceRoot: repo.dir, baseRef: repo.headSha }),
       ["src/alpha.ts", "src/mid.ts", "src/zeta.ts"]
     );
   });
@@ -66,7 +66,7 @@ describe("computeDiffNameOnly", () => {
     ]);
 
     assert.equal(
-      (await computeDiffNameOnly({ workspaceRoot: repo.dir, baseRef: repo.headSha })).length,
+      (await computeDiffNameOnly({ fs, workspaceRoot: repo.dir, baseRef: repo.headSha })).length,
       2
     );
   });
@@ -90,7 +90,7 @@ describe("computeDiffNameOnly", () => {
     });
 
     assert.deepEqual(
-      await computeDiffNameOnly({ workspaceRoot: repo.dir, baseRef }),
+      await computeDiffNameOnly({ fs, workspaceRoot: repo.dir, baseRef }),
       ["src/new-name.ts", "src/old-name.ts"]
     );
   });
