@@ -319,6 +319,74 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
+  it("blocks release when evaluation report verdict is fail", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "clear-cosmetic.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_evaluation_fail_blocks_release";
+      const runDir = resolve(outDir, runId);
+      const runEvaluationStages = mock.fn<FactoryCompositionDependencies["runEvaluationStages"]>(
+        async (input) => ({
+          report: {
+            runId: input.runId,
+            verdict: "fail",
+            stages: [
+              {
+                stage: "mechanical",
+                verdict: "pass",
+                score: 1,
+                scores: { build: 1, lint: 1, diffSize: 1, acCoverage: 1 },
+                summary: "mechanical pass"
+              },
+              {
+                stage: "semantic",
+                verdict: "fail",
+                score: 0.2,
+                summary: "semantic fail"
+              }
+            ]
+          },
+          evolutionDecision: { action: "continue", generation: input.generation, reason: "test" },
+          snapshot: { generation: input.generation, fields: [] },
+          mechanical: { verdict: "pass", score: 1, scores: { build: 1, lint: 1, diffSize: 1, acCoverage: 1 } },
+          semantic: { verdict: "fail", score: 0.2, confidence: 1, judges: [] }
+        })
+      );
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
+
+      await assert.rejects(
+        async () => {
+          await runFactory(
+            {
+              intentDraftPath: draftPath,
+              outDir,
+              planningFixturePath,
+              runId,
+              failTaskIds: [],
+              intentMode: "brownfield",
+              trust: "trusted",
+              confirmedIntent: confirmedIntentPath
+            },
+            { runEvaluationStages }
+          );
+        },
+        /Evaluation failed; release is blocked\./
+      );
+
+      assert.equal(runEvaluationStages.mock.callCount(), 1);
+      const evaluationReport = await readJsonObject(resolve(runDir, "evaluation-report.json"));
+      assert.equal(evaluationReport["verdict"], "fail");
+      assert.equal(await pathExists(resolve(runDir, "evolution-decision.json")), false);
+      assert.equal(await pathExists(resolve(runDir, "terminal-status.json")), false);
+    });
+  });
+
   it("serializes only the normalized ConfirmedIntent JSON on successful draft admission", async () => {
     await withTempDir(async (tempDir) => {
       const draft = clearCosmeticDraft();

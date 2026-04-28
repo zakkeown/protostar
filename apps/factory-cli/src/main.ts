@@ -1007,11 +1007,7 @@ export async function runFactory(
       }
       throw error;
     }
-    review = reviewGateFromLoopResult({
-      runId,
-      planId: admittedPlanHandoff.executionArtifact.planId,
-      status: loop.status
-    });
+    review = reviewGateFromLoopResult(loop);
   } finally {
     cancel.dispose();
   }
@@ -1084,6 +1080,10 @@ export async function runFactory(
     throw new CliExitError(reason, 1);
   }
   const evaluationReport = evaluationResult.report;
+  if (evaluationReport.verdict !== "pass") {
+    await writeJson(resolve(runDir, "evaluation-report.json"), evaluationReport);
+    throw new CliExitError("Evaluation failed; release is blocked.", 1);
+  }
   const evolutionDecision = evaluationResult.evolutionDecision;
   const snapshotWriteResult = await writeEvolutionSnapshot({
     runDir,
@@ -1636,17 +1636,12 @@ function mergeRepairDryRunResult(input: {
   };
 }
 
-function reviewGateFromLoopResult(input: {
-  readonly runId: string;
-  readonly planId: string;
-  readonly status: ReviewRepairLoopResult["status"];
-}): ReviewGate {
-  return {
-    runId: input.runId,
-    planId: input.planId,
-    verdict: input.status === "approved" ? "pass" : "block",
-    findings: []
-  };
+function reviewGateFromLoopResult(loop: ReviewRepairLoopResult): ReviewGate {
+  const last = loop.iterations.at(-1);
+  if (last === undefined) {
+    throw new Error("review loop produced no iterations");
+  }
+  return last.mechanicalGate;
 }
 
 function critiquesFromLoop(loop: ReviewRepairLoopResult): readonly JudgeCritique[] {
@@ -1674,11 +1669,12 @@ function dryMechanicalCheck(input: {
   readonly planId: string;
   readonly status: ExecutionDryRunResult["status"];
 }) {
-  const gate = reviewGateFromLoopResult({
+  const gate: ReviewGate = {
     runId: input.runId,
     planId: input.planId,
-    status: input.status === "succeeded" ? "approved" : "blocked"
-  });
+    verdict: input.status === "succeeded" ? "pass" : "block",
+    findings: []
+  };
   return {
     gate,
     result: {

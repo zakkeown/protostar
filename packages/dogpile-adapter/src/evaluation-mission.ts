@@ -37,7 +37,7 @@ const EVALUATION_RUBRIC_DIMENSIONS = [
 
 function truncateStdoutTail(stdoutTail: string | undefined): string | undefined {
   if (stdoutTail === undefined) return undefined;
-  return stdoutTail.length <= STDOUT_TAIL_LIMIT ? stdoutTail : stdoutTail.slice(0, STDOUT_TAIL_LIMIT);
+  return stdoutTail.length <= STDOUT_TAIL_LIMIT ? stdoutTail : stdoutTail.slice(-STDOUT_TAIL_LIMIT);
 }
 
 export function buildEvaluationMission(input: EvaluationMissionInput): FactoryPileMission {

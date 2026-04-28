@@ -23,6 +23,10 @@ import {
   parseEvaluationPileResult,
   shouldRunConsensus,
   T_CONF,
+  T_MEAN_DIMS,
+  T_MEAN_JUDGES,
+  T_MIN_DIMS,
+  T_MIN_JUDGES,
   type ConsensusEvalResult,
   type EvaluationJudgeCritique,
   type EvaluationReport,
@@ -109,6 +113,17 @@ export async function runEvaluationStages(
       refusal
     };
   }
+  if (semanticParsed.body.judgeCritiques.length === 0) {
+    const semantic = syntheticSemanticFailure();
+    return {
+      report: createEvaluationReport({ runId: input.runId, mechanical, semantic }),
+      evolutionDecision,
+      snapshot,
+      mechanical,
+      semantic,
+      refusal: schemaParseFailure(["judgeCritiques must contain at least one critique"])
+    };
+  }
 
   const semantic = buildSemanticResult(semanticParsed.body.judgeCritiques);
   if (!shouldRunConsensus(semantic)) {
@@ -124,25 +139,41 @@ export async function runEvaluationStages(
   const consensusMission = withConsensusAgent(semanticMission);
   const consensusOutcome = await callPile(runPile, consensusMission, input.providers.consensus, input);
   if (!consensusOutcome.ok) {
+    const consensus = syntheticConsensusFailure();
     return {
-      report: createEvaluationReport({ runId: input.runId, mechanical, semantic }),
+      report: createEvaluationReport({ runId: input.runId, mechanical, semantic, consensus }),
       evolutionDecision,
       snapshot,
       mechanical,
       semantic,
+      consensus,
       refusal: consensusOutcome.failure
     };
   }
 
   const consensusParsed = parseEvaluationPileResult(consensusOutcome.result.output);
   if (!consensusParsed.ok) {
+    const consensus = syntheticConsensusFailure();
     return {
-      report: createEvaluationReport({ runId: input.runId, mechanical, semantic }),
+      report: createEvaluationReport({ runId: input.runId, mechanical, semantic, consensus }),
       evolutionDecision,
       snapshot,
       mechanical,
       semantic,
+      consensus,
       refusal: schemaParseFailure(consensusParsed.errors)
+    };
+  }
+  if (consensusParsed.body.judgeCritiques.length === 0) {
+    const consensus = syntheticConsensusFailure();
+    return {
+      report: createEvaluationReport({ runId: input.runId, mechanical, semantic, consensus }),
+      evolutionDecision,
+      snapshot,
+      mechanical,
+      semantic,
+      consensus,
+      refusal: schemaParseFailure(["judgeCritiques must contain at least one critique"])
     };
   }
 
@@ -241,6 +272,35 @@ function syntheticSemanticFailure(): SemanticEvalResult {
     verdict: "fail",
     score: 0,
     confidence: 0,
+    judges: []
+  };
+}
+
+function syntheticConsensusFailure(): ConsensusEvalResult {
+  return {
+    verdict: "fail",
+    score: 0,
+    breakdown: {
+      judgeMeans: [],
+      dimMeans: {
+        acMet: 0,
+        codeQuality: 0,
+        security: 0,
+        regressionRisk: 0,
+        releaseReadiness: 0
+      },
+      meanOfJudgeMeans: 0,
+      minOfJudgeMeans: 0,
+      meanOfDimMeans: 0,
+      minOfDimMeans: 0,
+      thresholds: {
+        tMeanJudges: T_MEAN_JUDGES,
+        tMinJudges: T_MIN_JUDGES,
+        tMeanDims: T_MEAN_DIMS,
+        tMinDims: T_MIN_DIMS
+      },
+      thresholdsHit: ["meanJudges", "minJudges", "meanDims", "minDims"]
+    },
     judges: []
   };
 }

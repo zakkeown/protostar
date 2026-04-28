@@ -106,4 +106,19 @@ describe("buildEvaluationMission", () => {
     assert.match(text, /build: 0/);
     assert.match(text, /lint: 1/);
   });
+
+  it("keeps the newest stdout tail when truncating long output", () => {
+    const text = buildEvaluationMission({
+      intent,
+      plan,
+      diffNameOnly: [],
+      executionEvidence: {
+        buildExitCode: 1,
+        stdoutTail: `${"a".repeat(2100)}RECENT_FAILURE_CONTEXT`
+      }
+    }).intent;
+
+    assert.equal(text.includes("RECENT_FAILURE_CONTEXT"), true);
+    assert.equal(text.includes("a".repeat(2100)), false);
+  });
 });

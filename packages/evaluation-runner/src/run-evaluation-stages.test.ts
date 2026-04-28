@@ -171,6 +171,17 @@ describe("runEvaluationStages", () => {
     assert.equal(result.report.verdict, "fail");
   });
 
+  it("returns empty semantic judge output as an EvaluationResult parse refusal", async () => {
+    const fake = fakeRunner([okOutcome(JSON.stringify({ judgeCritiques: [] }))]);
+
+    const result = await runEvaluationStages(baseInput(), { runFactoryPile: fake.runFactoryPile });
+
+    assert.equal(result.refusal?.class, "pile-schema-parse");
+    assert.equal(result.refusal?.kind, "evaluation");
+    assert.deepEqual(result.refusal?.parseErrors, ["judgeCritiques must contain at least one critique"]);
+    assert.equal(result.report.verdict, "fail");
+  });
+
   it("returns eval-consensus-block when harsh consensus thresholds fail", async () => {
     const fake = fakeRunner([okOutcome(pileJson([1, 0.2])), okOutcome(pileJson([0.7, 0.7]))]);
 
@@ -178,6 +189,17 @@ describe("runEvaluationStages", () => {
 
     assert.equal(result.refusal?.class, "eval-consensus-block");
     assert.deepEqual(result.refusal?.thresholdsHit, ["meanJudges", "minJudges", "meanDims", "minDims"]);
+    assert.equal(result.report.verdict, "fail");
+  });
+
+  it("returns empty consensus judge output as an EvaluationResult parse refusal", async () => {
+    const fake = fakeRunner([okOutcome(pileJson([1, 0.2])), okOutcome(JSON.stringify({ judgeCritiques: [] }))]);
+
+    const result = await runEvaluationStages(baseInput(), { runFactoryPile: fake.runFactoryPile });
+
+    assert.equal(result.refusal?.class, "pile-schema-parse");
+    assert.equal(result.refusal?.kind, "evaluation");
+    assert.deepEqual(result.refusal?.parseErrors, ["judgeCritiques must contain at least one critique"]);
     assert.equal(result.report.verdict, "fail");
   });
 
