@@ -6,7 +6,8 @@ import { preflightCoderAndJudge } from "./preflight.js";
 describe("preflightCoderAndJudge", () => {
   it("returns ready when both coder and judge models are loaded", async () => {
     const result = await preflightCoderAndJudge({
-      baseUrl: "http://example.local/v1",
+      coderBaseUrl: "http://coder.example.local/v1",
+      judgeBaseUrl: "http://judge.example.local/v1",
       coderModel: "coder",
       judgeModel: "judge",
       timeoutMs: 1_000,
@@ -19,7 +20,8 @@ describe("preflightCoderAndJudge", () => {
   it("returns coder-model-not-loaded and short-circuits judge checks", async () => {
     let calls = 0;
     const result = await preflightCoderAndJudge({
-      baseUrl: "http://example.local/v1",
+      coderBaseUrl: "http://coder.example.local/v1",
+      judgeBaseUrl: "http://judge.example.local/v1",
       coderModel: "coder",
       judgeModel: "judge",
       timeoutMs: 1_000,
@@ -35,7 +37,8 @@ describe("preflightCoderAndJudge", () => {
 
   it("returns judge-model-not-loaded when the coder is loaded but judge is missing", async () => {
     const result = await preflightCoderAndJudge({
-      baseUrl: "http://example.local/v1",
+      coderBaseUrl: "http://coder.example.local/v1",
+      judgeBaseUrl: "http://judge.example.local/v1",
       coderModel: "coder",
       judgeModel: "judge",
       timeoutMs: 1_000,
@@ -47,13 +50,36 @@ describe("preflightCoderAndJudge", () => {
 
   it("returns unreachable when LM Studio cannot be reached", async () => {
     const result = await preflightCoderAndJudge({
-      baseUrl: "http://127.0.0.1:9/v1",
+      coderBaseUrl: "http://127.0.0.1:9/v1",
+      judgeBaseUrl: "http://127.0.0.1:9/v1",
       coderModel: "coder",
       judgeModel: "judge",
       timeoutMs: 20
     });
 
     assert.equal(result.status, "unreachable");
+  });
+
+  it("checks coder and judge models against their configured base URLs", async () => {
+    const urls: string[] = [];
+
+    const result = await preflightCoderAndJudge({
+      coderBaseUrl: "http://coder.example.local/v1",
+      judgeBaseUrl: "http://judge.example.local/v1",
+      coderModel: "coder",
+      judgeModel: "judge",
+      timeoutMs: 1_000,
+      fetchImpl: (async (url) => {
+        urls.push(String(url));
+        return Response.json({ data: [{ id: urls.length === 1 ? "coder" : "judge" }] });
+      }) as typeof fetch
+    });
+
+    assert.deepEqual(result, { status: "ready" });
+    assert.deepEqual(urls, [
+      "http://coder.example.local/v1/models",
+      "http://judge.example.local/v1/models"
+    ]);
   });
 });
 

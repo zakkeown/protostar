@@ -6,14 +6,15 @@ export interface PreflightOutcome {
 }
 
 export async function preflightCoderAndJudge(input: {
-  readonly baseUrl: string;
+  readonly coderBaseUrl: string;
+  readonly judgeBaseUrl: string;
   readonly coderModel: string;
   readonly judgeModel: string;
   readonly timeoutMs: number;
   readonly fetchImpl?: typeof fetch;
 }): Promise<PreflightOutcome> {
   const coder = await preflightLmstudioModel({
-    baseUrl: input.baseUrl,
+    baseUrl: input.coderBaseUrl,
     model: input.coderModel,
     timeoutMs: input.timeoutMs,
     ...(input.fetchImpl !== undefined ? { fetchImpl: input.fetchImpl } : {})
@@ -26,7 +27,7 @@ export async function preflightCoderAndJudge(input: {
   }
 
   const judge = await preflightLmstudioModel({
-    baseUrl: input.baseUrl,
+    baseUrl: input.judgeBaseUrl,
     model: input.judgeModel,
     timeoutMs: input.timeoutMs,
     ...(input.fetchImpl !== undefined ? { fetchImpl: input.fetchImpl } : {})

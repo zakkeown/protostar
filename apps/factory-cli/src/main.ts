@@ -610,7 +610,8 @@ export async function runFactory(
         throw new Error("factoryConfig.adapters.judge is required for review preflight.");
       }
       const preflight = await preflightCoderAndJudge({
-        baseUrl: factoryConfig.config.adapters.coder.baseUrl,
+        coderBaseUrl: factoryConfig.config.adapters.coder.baseUrl,
+        judgeBaseUrl: judge.baseUrl,
         coderModel: factoryConfig.config.adapters.coder.model,
         judgeModel: judge.model,
         timeoutMs: intent.capabilityEnvelope.budget.taskWallClockMs ?? 60_000

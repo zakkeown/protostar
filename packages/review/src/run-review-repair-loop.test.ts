@@ -122,6 +122,58 @@ describe("runReviewRepairLoop", () => {
     assert.equal((persistence.blocks[0]?.artifact as any).iterations.length, 3);
   });
 
+  it("blocks durably when a repair verdict has no attributed repair task", async () => {
+    const persistence = recordingPersistence();
+
+    const result = await runReviewRepairLoop({
+      runId: "run-1",
+      confirmedIntent: confirmedIntent(1),
+      admittedPlan: admittedPlan(["task-a"]),
+      initialExecution: executionResult(0),
+      executor: executorStub(),
+      mechanicalChecker: checkerSequence([mechanical("repair", 0, [unattributedFinding("lint failed")])]),
+      modelReviewer: async () => model("pass"),
+      persistence,
+      now: fixedClock()
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.reason, "mechanical-block");
+    assert.equal(result.finalAttempt, 0);
+    assert.equal(persistence.iterations.length, 1);
+    assert.equal(persistence.blocks.length, 1);
+    assert.equal(persistence.events.at(-1)?.kind, "loop-blocked");
+  });
+
+  it("turns model reviewer failures into durable model-block artifacts", async () => {
+    const persistence = recordingPersistence();
+
+    const result = await runReviewRepairLoop({
+      runId: "run-1",
+      confirmedIntent: confirmedIntent(1),
+      admittedPlan: admittedPlan(["task-a"]),
+      initialExecution: executionResult(0),
+      executor: executorStub(),
+      mechanicalChecker: checkerSequence([mechanical("pass", 0, [])]),
+      modelReviewer: async () => {
+        throw new Error("judge returned malformed JSON");
+      },
+      persistence,
+      now: fixedClock()
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.equal(result.reason, "model-block");
+    assert.equal(result.finalAttempt, 0);
+    assert.equal(persistence.iterations.length, 1);
+    assert.equal(persistence.blocks.length, 1);
+    assert.equal((persistence.iterations[0] as any).model.critiques[0].rationale, "judge returned malformed JSON");
+    assert.deepEqual(
+      persistence.callOrder.slice(-3),
+      ["writeIterationDir", "writeReviewBlock", "append:loop-blocked"]
+    );
+  });
+
   it("keeps model review strictly serial after mechanical pass", async () => {
     let modelCalls = 0;
 
@@ -336,6 +388,15 @@ function finding(repairTaskId: string, summary: string): ReviewFinding {
     summary,
     evidence: [artifact("review", "finding", `runs/run-1/review/${repairTaskId}.json`)],
     repairTaskId
+  };
+}
+
+function unattributedFinding(summary: string): ReviewFinding {
+  return {
+    ruleId: "execution-completed",
+    severity: "major",
+    summary,
+    evidence: [artifact("review", "finding", "runs/run-1/review/lint.json")]
   };
 }
 

@@ -143,15 +143,19 @@ export async function runReviewRepairLoop(
 
     let model: ModelReviewResult | undefined;
     if (mechanical.gate.verdict === "pass") {
-      model = await input.modelReviewer({
-        admittedPlan: input.admittedPlan,
-        executionResult: execution,
-        mechanicalGate: mechanical.gate,
-        diff: {
-          nameOnly: mechanical.result.diffNameOnly,
-          unifiedDiff: ""
-        }
-      });
+      try {
+        model = await input.modelReviewer({
+          admittedPlan: input.admittedPlan,
+          executionResult: execution,
+          mechanicalGate: mechanical.gate,
+          diff: {
+            nameOnly: mechanical.result.diffNameOnly,
+            unifiedDiff: ""
+          }
+        });
+      } catch (error) {
+        model = modelBlockFromError(error, input.admittedPlan.tasks.map((task) => task.planTaskId));
+      }
 
       await append(input, {
         kind: "model-verdict",
@@ -253,6 +257,29 @@ export async function runReviewRepairLoop(
     }
 
     const repairTaskIds = uniqueRepairTaskIds(mechanical.gate, model);
+    if (repairTaskIds.length === 0) {
+      const iteration = recordIteration({
+        attempt,
+        mechanical: mechanical.result,
+        mechanicalGate: mechanical.gate,
+        ...(model !== undefined ? { model } : {})
+      });
+      iterations.push(iteration);
+      await input.persistence.writeIterationDir({
+        runId: input.runId,
+        attempt,
+        mechanical: mechanical.result,
+        ...(model !== undefined ? { model } : {})
+      });
+      return block(input, {
+        reason: mechanical.gate.verdict === "repair" ? "mechanical-block" : "model-block",
+        attempt,
+        iterations,
+        maxRepairLoops,
+        execution,
+        now
+      });
+    }
     const dependentTaskIds = computeRepairSubgraph({
       plan: input.admittedPlan,
       repairTaskIds
@@ -441,6 +468,22 @@ function uniqueRepairTaskIds(
       ...(model?.critiques.flatMap((critique) => critique.taskRefs) ?? [])
     ])
   ];
+}
+
+function modelBlockFromError(error: unknown, taskRefs: readonly string[]): ModelReviewResult {
+  return {
+    verdict: "block",
+    critiques: [
+      {
+        judgeId: "model-reviewer",
+        model: "unknown",
+        rubric: { adapter: 0 },
+        verdict: "block",
+        rationale: error instanceof Error ? error.message : "Model reviewer failed.",
+        taskRefs
+      }
+    ]
+  };
 }
 
 function finalDiffArtifact(execution: ExecutionRunResult) {
