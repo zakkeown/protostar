@@ -215,6 +215,12 @@ An in-flight HTTP pack upload cannot be interrupted from outside the callbacks.
 Recovery: Q-18 idempotency - next delivery attempt finds the partial push and
 reconciles via remote-SHA check (Pitfall 5).
 
+## Phase 9 Prune Note (Q-22 / Pitfall 7)
+
+`protostar-factory prune` removes `.protostar/runs/<id>/` directories whose manifest.status is terminal AND mtime older than the configured threshold. It does NOT consult `.protostar/evolution/{lineageId}.jsonl`; lineage JSONL lines may reference `runs/<id>/evolution/snapshot.json` paths that no longer exist on disk after a prune. Readers of the lineage chain MUST tolerate `ENOENT` on these snapshot paths. The append-only invariant (Phase 8 Q-14) means the JSONL line itself survives byte-identical.
+
+Same applies to `.protostar/refusals.jsonl` (Phase 6 Q-12 sourceOfTruth discriminator); refusals continue to reference pruned runs by runId.
+
 **`diff.applyPatch` is text-only (binary-not-supported):**
 - Issue: Cosmetic-tweak loop touching a `.png` icon will hit the
   `Binary files ... differ` patch placeholder. `applyChangeSet` records
