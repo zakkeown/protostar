@@ -20,7 +20,8 @@
     "@protostar/artifacts": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",
-    "@protostar/planning": "workspace:*"
+    "@protostar/planning": "workspace:*",
+    "@protostar/repair": "workspace:*"
   },
   "sideEffects": false
 }

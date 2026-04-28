@@ -221,9 +221,6 @@ importers:
       '@protostar/planning':
         specifier: workspace:*
         version: link:../planning
-      '@protostar/review':
-        specifier: workspace:*
-        version: link:../review
     devDependencies:
       typescript:
         specifier: ^6.0.3
@@ -258,6 +255,9 @@ importers:
       '@protostar/planning':
         specifier: workspace:*
         version: link:../planning
+      '@protostar/repair':
+        specifier: workspace:*
+        version: link:../repair
 
 packages:
 

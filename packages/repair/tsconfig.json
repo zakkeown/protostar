@@ -7,7 +7,6 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../review" },
     { "path": "../planning" },
     { "path": "../intent" }
   ]

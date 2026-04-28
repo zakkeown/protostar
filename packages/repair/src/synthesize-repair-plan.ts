@@ -1,24 +1,62 @@
 import type { AdmittedPlanExecutionArtifact } from "@protostar/planning";
-import type {
-  JudgeCritique,
-  ModelReviewResult,
-  RepairPlan,
-  ReviewFinding,
-  ReviewGate
-} from "@protostar/review";
 
-export interface SynthesizeRepairPlanInput {
+export interface RepairFindingInput {
+  readonly repairTaskId?: string;
+}
+
+export interface RepairGateInput {
+  readonly findings: readonly RepairFindingInput[];
+}
+
+export interface RepairJudgeCritiqueInput {
+  readonly taskRefs: readonly string[];
+}
+
+export interface RepairModelReviewInput {
+  readonly critiques: readonly RepairJudgeCritiqueInput[];
+}
+
+export interface SynthesizedRepairTask<
+  Finding extends RepairFindingInput = RepairFindingInput,
+  Critique extends RepairJudgeCritiqueInput = RepairJudgeCritiqueInput
+> {
+  readonly planTaskId: string;
+  readonly mechanicalCritiques: readonly Finding[];
+  readonly modelCritiques?: readonly Critique[];
+}
+
+export interface SynthesizedRepairPlan<
+  Finding extends RepairFindingInput = RepairFindingInput,
+  Critique extends RepairJudgeCritiqueInput = RepairJudgeCritiqueInput
+> {
   readonly runId: string;
   readonly attempt: number;
-  readonly plan: AdmittedPlanExecutionArtifact;
-  readonly mechanical: ReviewGate;
-  readonly model?: ModelReviewResult;
+  readonly repairs: readonly SynthesizedRepairTask<Finding, Critique>[];
   readonly dependentTaskIds: readonly string[];
 }
 
-interface RepairCritiqueGroup {
-  readonly mechanicalCritiques: ReviewFinding[];
-  readonly modelCritiques: JudgeCritique[];
+export interface SynthesizeRepairPlanInput<
+  Finding extends RepairFindingInput = RepairFindingInput,
+  Critique extends RepairJudgeCritiqueInput = RepairJudgeCritiqueInput
+> {
+  readonly runId: string;
+  readonly attempt: number;
+  readonly plan: AdmittedPlanExecutionArtifact;
+  readonly mechanical: {
+    readonly findings: readonly Finding[];
+  };
+  readonly model?: {
+    readonly critiques: readonly Critique[];
+  };
+  readonly dependentTaskIds: readonly string[];
+}
+
+interface RepairCritiqueGroup<
+  Finding extends RepairFindingInput,
+  Critique extends RepairJudgeCritiqueInput
+> {
+  readonly mechanicalCritiques: Finding[];
+  readonly modelCritiques: Critique[];
 }
 
 export class EmptyRepairSynthesisError extends Error {
@@ -28,8 +66,11 @@ export class EmptyRepairSynthesisError extends Error {
   }
 }
 
-export function synthesizeRepairPlan(input: SynthesizeRepairPlanInput): RepairPlan {
-  const critiquesByTaskId = new Map<string, RepairCritiqueGroup>();
+export function synthesizeRepairPlan<
+  Finding extends RepairFindingInput,
+  Critique extends RepairJudgeCritiqueInput
+>(input: SynthesizeRepairPlanInput<Finding, Critique>): SynthesizedRepairPlan<Finding, Critique> {
+  const critiquesByTaskId = new Map<string, RepairCritiqueGroup<Finding, Critique>>();
 
   for (const finding of input.mechanical.findings) {
     if (finding.repairTaskId === undefined) {
@@ -76,13 +117,16 @@ export function synthesizeRepairPlan(input: SynthesizeRepairPlanInput): RepairPl
   };
 }
 
-function groupFor(groups: Map<string, RepairCritiqueGroup>, taskId: string): RepairCritiqueGroup {
+function groupFor<Finding extends RepairFindingInput, Critique extends RepairJudgeCritiqueInput>(
+  groups: Map<string, RepairCritiqueGroup<Finding, Critique>>,
+  taskId: string
+): RepairCritiqueGroup<Finding, Critique> {
   const existing = groups.get(taskId);
   if (existing !== undefined) {
     return existing;
   }
 
-  const group: RepairCritiqueGroup = {
+  const group: RepairCritiqueGroup<Finding, Critique> = {
     mechanicalCritiques: [],
     modelCritiques: []
   };

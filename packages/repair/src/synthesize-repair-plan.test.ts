@@ -5,17 +5,31 @@ import { describe, it } from "node:test";
 
 import type { StageArtifactRef } from "@protostar/artifacts";
 import type { AdmittedPlanExecutionArtifact } from "@protostar/planning";
-import type {
-  JudgeCritique,
-  ModelReviewResult,
-  ReviewFinding,
-  ReviewGate
-} from "@protostar/review";
 
 import {
   EmptyRepairSynthesisError,
+  type RepairFindingInput,
+  type RepairGateInput,
+  type RepairJudgeCritiqueInput,
+  type RepairModelReviewInput,
   synthesizeRepairPlan
 } from "./synthesize-repair-plan.js";
+
+interface ReviewFinding extends RepairFindingInput {
+  readonly ruleId: "execution-completed";
+  readonly severity: "major";
+  readonly summary: string;
+  readonly evidence: readonly StageArtifactRef[];
+  readonly repairTaskId: string;
+}
+
+interface JudgeCritique extends RepairJudgeCritiqueInput {
+  readonly judgeId: string;
+  readonly model: string;
+  readonly rubric: Readonly<Record<string, number>>;
+  readonly verdict: "repair";
+  readonly rationale: string;
+}
 
 describe("synthesizeRepairPlan", () => {
   it("groups mechanical-only findings by repairTaskId", () => {
@@ -178,11 +192,8 @@ function planTaskIds(repairs: readonly { readonly planTaskId: string }[]): reado
   return repairs.map((repair) => repair.planTaskId);
 }
 
-function reviewGate(findings: readonly ReviewFinding[]): ReviewGate {
+function reviewGate(findings: readonly ReviewFinding[]): RepairGateInput {
   return {
-    planId: "plan-1",
-    runId: "run-1",
-    verdict: findings.length === 0 ? "pass" : "repair",
     findings
   };
 }
@@ -197,9 +208,8 @@ function reviewFinding(repairTaskId: string, summary: string): ReviewFinding {
   };
 }
 
-function modelResult(critiques: readonly JudgeCritique[]): ModelReviewResult {
+function modelResult(critiques: readonly JudgeCritique[]): RepairModelReviewInput {
   return {
-    verdict: critiques.length === 0 ? "pass" : "repair",
     critiques
   };
 }

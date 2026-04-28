@@ -15,6 +15,7 @@ export * from "./repair-types.js";
 export * from "./judge-types.js";
 export * from "./delivery-authorization.js";
 export * from "./lifecycle-events.js";
+export * from "./run-review-repair-loop.js";
 
 export type ReviewVerdict = "pass" | "repair" | "block";
 export type ReviewSeverity = "info" | "minor" | "major" | "critical";
@@ -151,6 +152,9 @@ export function createReviewGate(input: {
   };
 }
 
+/**
+ * @deprecated Use runReviewRepairLoop for strict mechanical-to-model review and repair.
+ */
 export function runMechanicalReviewExecutionLoop(input: ReviewExecutionLoopInput): ReviewExecutionLoopResult {
   assertReviewAdmittedPlanArtifact(input.admittedPlan);
   const maxRepairLoops = Math.max(0, input.maxRepairLoops ?? 0);
