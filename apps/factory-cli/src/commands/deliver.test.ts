@@ -83,11 +83,13 @@ describe("deliver command", () => {
       ok: true,
       authorization: mintDeliveryAuthorization({ runId: "run_gated", decisionPath: "review-gate.json" })
     }));
+    const executeDelivery = mock.fn(async (): Promise<DeliveryRunOutcome> => deliveredOutcome());
 
-    const result = await runDeliver(workspace, ["run_gated"], { reAuthorizeFromPayload });
+    const result = await runDeliver(workspace, ["run_gated"], { reAuthorizeFromPayload, executeDelivery });
 
     assert.equal(result.exitCode, 0);
     assert.equal(JSON.parse(result.stdout)["action"], "delivered");
+    assert.equal(executeDelivery.mock.callCount(), 1);
     assert.equal((await readManifest(runDir)).status, "completed");
     await assertRejectsStat(join(runDir, "manifest.json.tmp"));
   });

@@ -117,6 +117,7 @@ import { buildStatusCommand } from "./commands/status.js";
 import { buildInspectCommand } from "./commands/inspect.js";
 import { buildCancelCommand } from "./commands/cancel.js";
 import { buildResumeCommand } from "./commands/resume.js";
+import { buildDeliverCommand } from "./commands/deliver.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
 import { assembleDeliveryBody, type DeliveryBodyInput } from "./assemble-delivery-body.js";
@@ -264,6 +265,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   program.addCommand(buildInspectCommand());
   program.addCommand(buildCancelCommand());
   program.addCommand(buildResumeCommand());
+  program.addCommand(buildDeliverCommand());
 
   const rawArgv = argv[0] === "--" ? argv.slice(1) : argv;
   const normalizedArgv =
