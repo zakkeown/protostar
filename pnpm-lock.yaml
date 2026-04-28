@@ -143,9 +143,6 @@ importers:
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent
-      '@protostar/review':
-        specifier: workspace:*
-        version: link:../review
 
   packages/delivery-runtime:
     dependencies:
@@ -353,6 +350,9 @@ importers:
       '@protostar/artifacts':
         specifier: workspace:*
         version: link:../artifacts
+      '@protostar/delivery':
+        specifier: workspace:*
+        version: link:../delivery
       '@protostar/dogpile-adapter':
         specifier: workspace:*
         version: link:../dogpile-adapter

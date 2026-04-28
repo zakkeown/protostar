@@ -1,4 +1,13 @@
-import type { JudgeCritique, ReviewVerdict } from "@protostar/review";
+export type ReviewVerdict = "pass" | "repair" | "block";
+
+export interface JudgePanelCritique {
+  readonly judgeId: string;
+  readonly model: string;
+  readonly verdict: ReviewVerdict;
+  readonly rationale: string;
+  readonly rubric: Readonly<Record<string, number>>;
+  readonly taskRefs: readonly string[];
+}
 
 const VERDICT_ORDER: Readonly<Record<ReviewVerdict, number>> = {
   block: 0,
@@ -6,7 +15,7 @@ const VERDICT_ORDER: Readonly<Record<ReviewVerdict, number>> = {
   pass: 2
 };
 
-export function composeScoreSheet(critiques: readonly JudgeCritique[]): string {
+export function composeScoreSheet(critiques: readonly JudgePanelCritique[]): string {
   if (critiques.length === 0) {
     return "## Judge Panel\n\n_No judge critiques._\n";
   }
@@ -28,11 +37,11 @@ ${details}
 `;
 }
 
-function formatTableRow(critique: JudgeCritique): string {
+function formatTableRow(critique: JudgePanelCritique): string {
   return `| ${critique.judgeId} | ${critique.model} | ${critique.verdict} | ${meanRubricScore(critique).toFixed(2)} |`;
 }
 
-function formatDetails(critique: JudgeCritique): string {
+function formatDetails(critique: JudgePanelCritique): string {
   const rubricLines = Object.entries(critique.rubric)
     .map(([name, score]) => `- ${name}: ${score}`)
     .join("\n");
@@ -47,7 +56,7 @@ ${rubricLines}
 </details>`;
 }
 
-function meanRubricScore(critique: JudgeCritique): number {
+function meanRubricScore(critique: JudgePanelCritique): number {
   const scores = Object.values(critique.rubric);
   if (scores.length === 0) {
     return 0;

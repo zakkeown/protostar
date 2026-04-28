@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ReviewFinding } from "@protostar/review";
-
-import { composeMechanicalSummary } from "./compose-mechanical-summary.js";
+import { composeMechanicalSummary, type MechanicalSummaryFinding } from "./compose-mechanical-summary.js";
 
 describe("composeMechanicalSummary", () => {
   it("renders the pass empty state", () => {
@@ -31,7 +29,7 @@ describe("composeMechanicalSummary", () => {
         summary: "Missing evidence",
         evidence: []
       }
-    ] satisfies readonly ReviewFinding[];
+    ] satisfies readonly MechanicalSummaryFinding[];
 
     assert.equal(
       composeMechanicalSummary({ verdict: "fail", findings }),

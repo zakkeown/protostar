@@ -1,6 +1,13 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
-import type { DeliveryAuthorization } from "@protostar/review";
 import type { BranchName, PrBody, PrTitle } from "./brands.js";
+
+declare const DeliveryAuthorizationContractBrand: unique symbol;
+
+export interface DeliveryAuthorization {
+  readonly [DeliveryAuthorizationContractBrand]: true;
+  readonly runId: string;
+  readonly decisionPath: string;
+}
 
 // Phase 5 type-pin for Phase 7, tightened by Q-02/Q-08: no gh argv emission,
 // and delivery entry data is brand-minted before any outbound I/O.

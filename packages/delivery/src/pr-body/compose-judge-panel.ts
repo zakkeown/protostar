@@ -1,9 +1,7 @@
-import type { JudgeCritique } from "@protostar/review";
-
-import { composeScoreSheet } from "./compose-score-sheet.js";
+import { composeScoreSheet, type JudgePanelCritique } from "./compose-score-sheet.js";
 
 export interface ComposeJudgePanelInput {
-  readonly critiques: readonly JudgeCritique[];
+  readonly critiques: readonly JudgePanelCritique[];
 }
 
 export function composeJudgePanel(input: ComposeJudgePanelInput): string {

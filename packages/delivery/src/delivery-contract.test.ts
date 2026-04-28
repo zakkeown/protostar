@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { StageArtifactRef } from "@protostar/artifacts";
-import { mintDeliveryAuthorization } from "@protostar/review";
 
 import type { BranchName, PrBody, PrTitle } from "./brands.js";
 import type {
   createGitHubPrDeliveryPlan as createGitHubPrDeliveryPlanType,
+  DeliveryAuthorization,
   GitHubPrDeliveryInput,
   GitHubPrDeliveryPlan
 } from "./delivery-contract.js";
@@ -26,10 +26,10 @@ const body = "Factory run body" as PrBody;
 
 describe("DeliveryAuthorization-gated GitHub PR delivery contract", () => {
   it("accepts a minted DeliveryAuthorization as the required first argument", () => {
-    const authorization = mintDeliveryAuthorization({
+    const authorization = {
       runId: "run-1",
       decisionPath: "runs/run-1/review/review-decision.json"
-    });
+    } as DeliveryAuthorization;
 
     type InputMatchesContract = Parameters<typeof createGitHubPrDeliveryPlan>[1] extends GitHubPrDeliveryInput
       ? true
@@ -67,7 +67,7 @@ if (false) {
     }
   );
 
-  void createGitHubPrDeliveryPlan(mintDeliveryAuthorization({ runId: "run-1", decisionPath: "decision.json" }), {
+  void createGitHubPrDeliveryPlan({ runId: "run-1", decisionPath: "decision.json" } as DeliveryAuthorization, {
     // @ts-expect-error raw strings cannot satisfy the delivery branch brand.
     branch: "protostar/run-1",
     // @ts-expect-error raw strings cannot satisfy the delivery title brand.

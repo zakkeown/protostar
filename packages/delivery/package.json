@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./authorization-payload": {
+      "types": "./dist/authorization-payload.d.ts",
+      "import": "./dist/authorization-payload.js"
     }
   },
   "scripts": {
@@ -18,8 +22,7 @@
   },
   "dependencies": {
     "@protostar/artifacts": "workspace:*",
-    "@protostar/intent": "workspace:*",
-    "@protostar/review": "workspace:*"
+    "@protostar/intent": "workspace:*"
   },
   "sideEffects": false
 }

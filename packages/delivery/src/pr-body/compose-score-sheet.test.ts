@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { JudgeCritique } from "@protostar/review";
-
-import { composeScoreSheet } from "./compose-score-sheet.js";
+import { composeScoreSheet, type JudgePanelCritique } from "./compose-score-sheet.js";
 
 const passCritique = {
   judgeId: "zeta",
@@ -12,7 +10,7 @@ const passCritique = {
   rationale: "Looks good.",
   rubric: { coherence: 4, correctness: 5 },
   taskRefs: ["task-1"]
-} satisfies JudgeCritique;
+} satisfies JudgePanelCritique;
 
 describe("composeScoreSheet", () => {
   it("renders the empty judge critique state", () => {
@@ -55,7 +53,7 @@ describe("composeScoreSheet", () => {
         rubric: { coherence: 5, correctness: 3 },
         taskRefs: ["task-4"]
       }
-    ] satisfies readonly JudgeCritique[];
+    ] satisfies readonly JudgePanelCritique[];
 
     const out = composeScoreSheet(critiques);
 

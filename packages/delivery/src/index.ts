@@ -1,7 +1,7 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
-import type { ReviewGate } from "@protostar/review";
 
 export * from "./brands.js";
+export * from "./authorization-payload.js";
 export * from "./delivery-contract.js";
 export * from "./evidence-marker.js";
 export * from "./pr-body/compose-artifact-list.js";
@@ -39,13 +39,21 @@ export interface LegacyGitHubPrDeliveryPlan {
   readonly blockedReason?: string;
 }
 
+export interface LegacyReviewGate {
+  readonly planId: string;
+  readonly verdict: "pass" | "repair" | "block";
+  readonly findings: readonly {
+    readonly summary: string;
+  }[];
+}
+
 /**
  * @deprecated Phase 7 replaces this review-gate based helper with the
  * DeliveryAuthorization-gated executeDelivery path from @protostar/delivery-runtime.
  */
 export function createGitHubPrDeliveryPlanLegacy(input: {
   readonly runId: string;
-  readonly reviewGate: ReviewGate;
+  readonly reviewGate: LegacyReviewGate;
   readonly baseBranch?: string;
   readonly headBranch?: string;
   readonly title?: string;
@@ -97,7 +105,7 @@ export function createGitHubPrDeliveryPlanLegacy(input: {
 /**
  * @deprecated Plan 07-05 replaces this legacy body with section composers.
  */
-function createPrBody(runId: string, reviewGate: ReviewGate): string {
+function createPrBody(runId: string, reviewGate: LegacyReviewGate): string {
   return [
     `Factory run: ${runId}`,
     "",

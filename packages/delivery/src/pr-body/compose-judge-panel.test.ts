@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { JudgeCritique } from "@protostar/review";
-
 import { composeJudgePanel } from "./compose-judge-panel.js";
-import { composeScoreSheet } from "./compose-score-sheet.js";
+import { composeScoreSheet, type JudgePanelCritique } from "./compose-score-sheet.js";
 
 describe("composeJudgePanel", () => {
   it("returns the score sheet for the public judge panel composer", () => {
@@ -17,7 +15,7 @@ describe("composeJudgePanel", () => {
         rubric: { coherence: 4, correctness: 5 },
         taskRefs: ["task-1"]
       }
-    ] satisfies readonly JudgeCritique[];
+    ] satisfies readonly JudgePanelCritique[];
 
     assert.equal(composeJudgePanel({ critiques }), composeScoreSheet(critiques));
   });
