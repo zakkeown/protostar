@@ -79,7 +79,7 @@ export const reviewPilePreset: FactoryPilePreset = {
   )
 };
 
-export const executionCoordinatorPilePreset: FactoryPilePreset = {
+export const executionCoordinationPilePreset: FactoryPilePreset = {
   kind: "execution-coordination",
   description: "A coordinator decomposes ready work, assigns worker slices, and synthesizes repair requests.",
   protocol: { kind: "coordinator", maxTurns: 3 },
