@@ -4,12 +4,18 @@ import * as nodeFs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { appendFile, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { Command } from "@commander-js/extra-typings";
 import { CommanderError } from "commander";
-import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus, type StageArtifactRef } from "@protostar/artifacts";
+import {
+  createFactoryRunManifest,
+  recordStageArtifacts,
+  setFactoryRunStatus,
+  type FactoryRunManifest,
+  type StageArtifactRef
+} from "@protostar/artifacts";
 import {
   buildPlanningMission,
   buildReviewMission,
@@ -103,6 +109,7 @@ import type { PileMode } from "./cli-args.js";
 import { buildRunCommand } from "./commands/run.js";
 import { buildStatusCommand } from "./commands/status.js";
 import { buildInspectCommand } from "./commands/inspect.js";
+import { buildCancelCommand } from "./commands/cancel.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
@@ -245,6 +252,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   program.addCommand(buildRunCommand());
   program.addCommand(buildStatusCommand());
   program.addCommand(buildInspectCommand());
+  program.addCommand(buildCancelCommand());
 
   const rawArgv = argv[0] === "--" ? argv.slice(1) : argv;
   const normalizedArgv =
@@ -813,6 +821,10 @@ export async function runFactory(
           applyChangeSet: dependencies.applyChangeSet,
           checkSentinelBetweenTasks: cancel.checkSentinelBetweenTasks
         });
+        if (realResult.outcome === "cancelled" && cancel.rootController.signal.reason === "sentinel") {
+          await writeCancelledManifestForSentinelAbort({ runDir, abortReason: cancel.rootController.signal.reason });
+          throw new CliExitError("cancelled by operator sentinel", ExitCode.CancelledByOperator);
+        }
         executionResult = realExecutionAsDryRunResult(execution, realResult);
       } finally {
         await journalWriter.close();
@@ -848,6 +860,10 @@ export async function runFactory(
               repairPlan: repairInput.repairPlan
             }
           });
+          if (repairResult.outcome === "cancelled" && cancel.rootController.signal.reason === "sentinel") {
+            await writeCancelledManifestForSentinelAbort({ runDir, abortReason: cancel.rootController.signal.reason });
+            throw new CliExitError("cancelled by operator sentinel", ExitCode.CancelledByOperator);
+          }
           const repairedDry = realExecutionAsDryRunResult(execution, repairResult);
           currentExecution = mergeRepairExecutionResult({
             previous: currentExecution,
@@ -1835,6 +1851,47 @@ async function runSpawnedCommand(input: {
 
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+export async function writeCancelledManifestForSentinelAbort(input: {
+  readonly runDir: string;
+  readonly abortReason: unknown;
+}): Promise<void> {
+  if (input.abortReason !== "sentinel") {
+    return;
+  }
+
+  const manifestPath = resolve(input.runDir, "manifest.json");
+  let manifest: FactoryRunManifest;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, "utf8")) as FactoryRunManifest;
+  } catch (error: unknown) {
+    if (isNodeErrno(error) && error.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+  if (manifest.status !== "cancelling") {
+    return;
+  }
+
+  await writeJsonAtomic(manifestPath, setFactoryRunStatus(manifest, 'cancelled'));
+}
+
+async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  const dir = dirname(path);
+  await mkdir(dir, { recursive: true });
+  const tmpPath = join(dir, `${basename(path)}.${process.pid}.tmp`);
+  await writeFile(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+
+  const fileHandle = await open(tmpPath, "r");
+  try {
+    await fileHandle.datasync();
+  } finally {
+    await fileHandle.close();
+  }
+
+  await rename(tmpPath, path);
 }
 
 function resolveRefusalsIndexPath(outDir: string): string {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -44,9 +44,11 @@ describe("cancel command", () => {
     assert.equal(output["runId"], "run_cancel");
     assert.equal(output["action"], "cancelling-requested");
     assert.equal(output["manifestStatus"], "cancelling");
-    assert.equal(output["sentinelPath"], join(runDir, "CANCEL"));
+    assert.equal(typeof output["sentinelPath"], "string");
+    assert.equal(isAbsolute(output["sentinelPath"] as string), true);
+    assert.equal((output["sentinelPath"] as string).endsWith("/.protostar/runs/run_cancel/CANCEL"), true);
     assert.equal((await readManifest(runDir)).status, "cancelling");
-    await stat(join(runDir, "CANCEL"));
+    await stat(output["sentinelPath"] as string);
   });
 
   for (const status of ["completed", "blocked", "cancelled"] as const) {
