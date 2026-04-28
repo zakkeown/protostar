@@ -18,7 +18,6 @@ must_haves:
     - "ReviewPileResult is defined in @protostar/review with shape `{ output: string, source?: PileSource }` (Q-17)"
     - "parseReviewPileResult validates structure and returns either parsed JudgeCritique[] + aggregateVerdict OR ParseError[] (Q-17)"
     - "createReviewPileModelReviewer() returns a ModelReviewer (Phase 5 Q-10 interface) whose review() method invokes runFactoryPile with reviewPilePreset and translates ReviewPileResult → ModelReviewResult (Q-14)"
-    - "@protostar/dogpile-adapter re-exports ReviewPileResult parsers and createReviewPileModelReviewer for ergonomic factory-cli import"
   artifacts:
     - path: "packages/review/src/review-pile-result.ts"
       provides: "Wire format + parser for review-pile output (Q-17)"
@@ -31,10 +30,6 @@ must_haves:
       to: "@protostar/dogpile-adapter runFactoryPile"
       via: "import"
       pattern: "runFactoryPile.*from \\\"@protostar/dogpile-adapter\\\""
-    - from: "packages/dogpile-adapter/src/index.ts"
-      to: "packages/review/src/index.ts (re-exports)"
-      via: "ergonomic re-export"
-      pattern: "from \\\"@protostar/review\\\""
 ---
 
 <objective>
@@ -99,6 +94,10 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
 </interfaces>
 </context>
 
+## Notes
+
+Adapter ergonomic re-exports are deferred for v0.1 — factory-cli imports directly from owning packages.
+
 <tasks>
 
 <task type="auto" tdd="true">
@@ -140,9 +139,10 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
     <automated>pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/review build &amp;&amp; node -e "const r=require('@protostar/review'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); } console.log('ok')"</automated>
   </verify>
   <acceptance_criteria>
-    - Command exits 0: `pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const r=require('@protostar/review'); const a=require('@protostar/dogpile-adapter'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); if (typeof a[k] !== 'function') throw new Error('adapter re-export missing '+k); } console.log('ok')"`
+    - Command exits 0: `pnpm --filter @protostar/review test --grep review-pile-result &amp;&amp; pnpm --filter @protostar/review build &amp;&amp; node -e "const r=require('@protostar/review'); for (const k of ['assertReviewPileResult','parseReviewPileResult']) { if (typeof r[k] !== 'function') throw new Error('review missing '+k); } console.log('ok')"`
     - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
     - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+    - Note: dogpile-adapter ergonomic re-export is intentionally deferred (see action body — Wave 2 file-ownership disjointness rule); acceptance tests @protostar/review surface only.
   </acceptance_criteria>
   <done>
     All 6 tests pass; @protostar/review builds and exports the new symbols. (Adapter ergonomic re-exports deferred — see action notes; consumers import from @protostar/review directly.)
@@ -237,4 +237,5 @@ NOTE on Phase 5 dependency: Phase 5 ships the `ModelReviewer` interface + ModelR
 
 <output>
 After completion, create `.planning/phases/06-live-dogpile-piles/06-05-SUMMARY.md` recording: ReviewPileResult shape, reviewer test counts, Phase 5 ModelReviewer conformance proof.
+</output>
 </output>

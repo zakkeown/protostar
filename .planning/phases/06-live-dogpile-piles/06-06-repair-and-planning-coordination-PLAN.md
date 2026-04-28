@@ -37,10 +37,6 @@ must_haves:
       to: "packages/planning/src (TaskSlice / AdmittedPlan types)"
       via: "import type"
       pattern: "from \\\"@protostar/planning\\\""
-    - from: "packages/dogpile-adapter/src/index.ts"
-      to: "packages/repair/src (ExecutionCoordinationPileResult re-export)"
-      via: "ergonomic re-export"
-      pattern: "from \\\"@protostar/repair\\\""
 ---
 
 <objective>
@@ -88,10 +84,13 @@ PILE-03 dual-trigger flow (Q-15):
 Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
 - @protostar/repair currently a 4-line skeleton (per RESEARCH).
 - The full RepairPlanProposal/RepairPlan shapes are defined by Phase 5 Plan 05-05 (synthesizeRepairPlan).
-- Executor reads the latest packages/repair/src/index.ts at execution time. If Phase 5's RepairPlan shape is not yet present, the executor MAY define a minimal forward-compatible RepairPlanProposal shape here matching Phase 5 CONTEXT.md Q-04 documentation (the structure is committed, not the code).
-- Do NOT block Phase 6 on Phase 5 implementation completeness; Phase 6's parser only needs the shape contract, not the runtime synthesis.
+- **HARD DEPENDENCY:** Executor reads the latest packages/repair/src/index.ts at execution time. If @protostar/repair does NOT export RepairPlan / RepairPlanProposal (Phase 5 Plan 05-05 has not landed), the executor MUST HALT this plan and escalate to the operator. **Do NOT invent a parallel shape** — silent shape divergence between Phase 5 and Phase 6 is the failure mode this rule prevents. Operator decides: (a) land Phase 5 Plan 05-05 first, or (b) explicitly authorize Phase 6 to define the shape with a forward-compatibility commitment recorded in this plan's SUMMARY.
 </interfaces>
 </context>
+
+## Notes
+
+Adapter ergonomic re-exports are deferred for v0.1 — factory-cli imports directly from owning packages.
 
 <tasks>
 
@@ -134,9 +133,10 @@ Phase 5 dependency note (RepairPlan shape from Phase 5 Q-04):
     <automated>pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/repair build &amp;&amp; node -e "const r=require('@protostar/repair'); if (typeof r.parseExecutionCoordinationPileResult !== 'function') throw new Error('repair missing parseExecutionCoordinationPileResult'); console.log('ok')"</automated>
   </verify>
   <acceptance_criteria>
-    - Command exits 0: `pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/dogpile-adapter build &amp;&amp; node -e "const a=require('@protostar/dogpile-adapter'); if (typeof a.parseExecutionCoordinationPileResult !== 'function') throw new Error('adapter re-export missing'); console.log('ok')"`
+    - Command exits 0: `pnpm --filter @protostar/repair test --grep exec-coord-parser &amp;&amp; pnpm --filter @protostar/repair build &amp;&amp; node -e "const r=require('@protostar/repair'); if (typeof r.parseExecutionCoordinationPileResult !== 'function') throw new Error('repair missing parseExecutionCoordinationPileResult'); console.log('ok')"`
     - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
     - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+    - Note: dogpile-adapter ergonomic re-export is intentionally deferred (see action body — Wave 2 file-ownership disjointness rule); acceptance tests @protostar/repair surface only.
   </acceptance_criteria>
   <done>
     All 5 parser tests pass; @protostar/repair builds and exports parseExecutionCoordinationPileResult; static no-fs test for dogpile-adapter still green. (Adapter re-export deferred per Wave 2 disjointness.)

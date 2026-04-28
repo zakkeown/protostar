@@ -16,6 +16,7 @@ files_modified:
   - apps/factory-cli/src/pile-persistence.ts
   - apps/factory-cli/src/pile-persistence.test.ts
   - apps/factory-cli/src/main.ts
+  - apps/factory-cli/src/main.test.ts
 autonomous: true
 requirements: [PILE-01, PILE-04, PILE-05]
 tags: [factory-cli, cli, persistence, abort-hierarchy, q-04, q-07, q-12]
@@ -207,53 +208,90 @@ Per-agent provider routing (Q-03 fallback — VERIFIED at Plan 04 planning that 
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 3: main.ts pile invocation flow + run-level AbortController</name>
+  <name>Task 3a: main.ts planning seam + run-level AbortController + provider routing helper</name>
   <files>apps/factory-cli/src/main.ts, apps/factory-cli/src/main.test.ts (extend existing)</files>
   <read_first>
-    - apps/factory-cli/src/main.ts (full file — current run flow; identify the planning admission seam, review seam, execution seam)
+    - apps/factory-cli/src/main.ts (full file — current run flow; identify the planning admission seam)
     - apps/factory-cli/src/main.test.ts (existing test patterns)
     - apps/factory-cli/src/main.real-execution.test.ts (Phase 4 SIGINT/sentinel pattern — reuse the parent AbortController)
     - apps/factory-cli/src/run-real-execution.ts (Phase 4 invocation pattern to mirror at the pile invocation site)
     - .planning/phases/06-live-dogpile-piles/06-CONTEXT.md §"Q-03" (per-agent provider routing fallback)
   </read_first>
   <behavior>
-    main.ts modifications:
+    main.ts modifications (planning-seam slice only):
     1. After parsing CLI args + factory-config, build the `pileMode` map via `resolvePileMode` for each pile kind.
-    2. Construct the run-level `AbortController` (`runAbortController`) — REUSE Phase 4's existing one if already present; otherwise create. Its signal is the parent for all pile invocations.
-    3. **Planning seam (PILE-01):** if `pileMode.planning === "live"`:
-        a. Resolve provider (default LM Studio + per-agent overrides per Q-03 fallback).
+    2. Construct the run-level `AbortController` (`runAbortController`) — REUSE Phase 4's existing one if already present; otherwise create. Its signal is the parent for ALL pile invocations (planning + review + exec-coord — Tasks 3a and 3b share the same controller).
+    3. Build the per-agent provider routing helper `buildPileProvider(kind, presetAgents, configPilesProviders)`. Default path: single `createOpenAICompatibleProvider({ baseUrl: factoryConfig.adapters.coder.baseUrl })`. Per-agent overrides: when `factory-config.json: piles.<kind>.providers` declares `{ <agentId>: { baseUrl, model } }` entries, build one ConfiguredModelProvider per unique baseUrl/model. For v0.1 cosmetic-tweak archetype the single-provider path is exercised; the helper is unit-tested inline so per-agent paths are covered without requiring the cosmetic loop to use them.
+    4. **Planning seam (PILE-01):** if `pileMode.planning === "live"`:
+        a. Resolve provider via `buildPileProvider("planning", planningPilePreset.agents, factoryConfig.piles?.planning?.providers)`.
         b. Build mission via `buildPlanningMission(intent)`.
         c. Build PileRunContext: `{ provider, signal: runAbortController.signal, budget: resolvePileBudget(planningPilePreset.budget, intent.capabilityEnvelope.budget), now: () => Date.now(), onEvent: (ev) => emitLifecycleEvent(ev) }`.
         d. `outcome = await runFactoryPile(mission, ctx)`.
         e. Persist via `writePileArtifacts({ runId, kind: "planning", iteration: 0, outcome, refusal? })`.
         f. On ok=true: parse via `parsePlanningPileResult` → `admitCandidatePlans` (existing path). On parse failure: write refusal.json + append .protostar/refusals.jsonl with stage `"pile-planning"` + sourceOfTruth `"PlanningPileResult"`. On outcome.ok=false: same refusal path with PileFailure as evidence.
-    4. **Review seam (PILE-02):** when Phase 5's review-repair loop is invoked AND `pileMode.review === "live"`, factory-cli constructs the ModelReviewer via `createReviewPileModelReviewer({ runPile: runFactoryPile, buildContext: (input) => ({ provider, signal: runAbortController.signal, budget: resolvePileBudget(reviewPilePreset.budget, intent.capabilityEnvelope.budget), now: Date.now, onEvent: ... }) })` and passes it into the loop where Phase 5's fixture passthrough was used.
-    5. **Exec-coord seam (PILE-03):** at the work-slicing trigger AND at the post-`synthesizeRepairPlan` trigger, factory-cli (gated by `pileMode.executionCoordination === "live"`) builds the mission via `buildExecutionCoordinationMission(intent, mode, input)`, calls runFactoryPile, parses via `parseExecutionCoordinationPileResult`, and feeds the output to `admitWorkSlicing` or `admitRepairPlanProposal` respectively.
-    6. **Auto-fallback prohibition (D-06):** on any pile failure (ok=false OR parse error), factory-cli writes the refusal artifact, exits non-zero, and DOES NOT silently switch to fixture.
+    5. **Auto-fallback prohibition (D-06):** on any pile failure (ok=false OR parse error), factory-cli writes the refusal artifact, exits non-zero, and DOES NOT silently switch to fixture.
   </behavior>
   <action>
     Tests (4 cases) extending `main.test.ts`:
     1. **pile-mode-precedence** — CLI `--planning-mode live`, config `piles.planning.mode = "fixture"` → resolved mode `"live"`; assert runFactoryPile invoked.
     2. **planning-pile fixture mode (default)** — no flags, no config piles block → planning seam takes the fixture path; runFactoryPile NOT invoked. (Use a stubbed runFactoryPile to confirm zero invocations.)
     3. **planning-pile live failure → refusal** — stub runFactoryPile to return `{ ok: false, failure: pile-timeout }`; assert main.ts writes refusal.json AND appends `.protostar/refusals.jsonl` with stage `"pile-planning"`; exit code non-zero. **No auto-fallback to fixture.**
-    4. **abort cascade** — caller aborts `runAbortController`; assert all open pile invocations receive the abort signal (via the stubbed runFactoryPile capturing ctx.signal.aborted).
+    4. **abort cascade (planning)** — caller aborts `runAbortController`; assert open planning pile invocation receives the abort signal (via the stubbed runFactoryPile capturing ctx.signal.aborted).
 
-    Run RED. Implement minimal main.ts diff to thread the new flow. GREEN.
+    `buildPileProvider` is unit-tested inline (2 cases): default single-provider path; per-agent override map produces one provider per unique baseUrl.
 
-    Build the per-agent provider routing function (`buildPileProvider(kind, presetAgents, configPilesProviders)`) and unit-test it inline. Default path: single `createOpenAICompatibleProvider({ baseUrl: factoryConfig.adapters.coder.baseUrl })`.
+    Run RED. Implement minimal main.ts diff to thread the planning-seam flow. GREEN.
 
-    Per D-01/D-02 (Q-01/Q-02): single SDK seam via runFactoryPile. Per D-06 (Q-06): no auto-fallback. Per D-11 (Q-11): runAbortController is parent; pile timeouts are children. Per D-14 (Q-14): review seam uses createReviewPileModelReviewer.
+    Per D-01/D-02 (Q-01/Q-02): single SDK seam via runFactoryPile. Per D-06 (Q-06): no auto-fallback. Per D-11 (Q-11): runAbortController is parent; pile timeouts are children.
   </action>
   <verify>
-    <automated>pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify</automated>
+    <automated>pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade|buildPileProvider" &amp;&amp; pnpm --filter protostar-factory build</automated>
   </verify>
   <acceptance_criteria>
-    - Command exits 0: `pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify`
+    - Command exits 0: `pnpm --filter protostar-factory test --grep "pile-mode-precedence|planning-pile|abort cascade|buildPileProvider" &amp;&amp; pnpm --filter protostar-factory build`
     - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
     - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
   </acceptance_criteria>
   <done>
-    All 4 main.test extensions pass; full `pnpm run verify` is green; existing factory-cli tests remain passing; runtime no-fs contract on dogpile-adapter (Plan 01 Task 3) still passes (factory-cli owns all writes).
+    All 6 main.test extensions pass (4 planning-seam + 2 buildPileProvider); existing factory-cli tests remain passing; runtime no-fs contract on dogpile-adapter (Plan 01 Task 3) still passes (factory-cli owns all writes). Run-level AbortController is wired and ready for Task 3b to consume.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task 3b: main.ts review seam + exec-coord seams (sharing the run-level AbortController + provider helper from 3a)</name>
+  <files>apps/factory-cli/src/main.ts, apps/factory-cli/src/main.test.ts (extend existing)</files>
+  <read_first>
+    - apps/factory-cli/src/main.ts (after Task 3a — confirm runAbortController + buildPileProvider are in place)
+    - packages/review/src/index.ts (after Plan 05 — confirm createReviewPileModelReviewer exported)
+    - packages/repair/src/index.ts (after Plan 06 — confirm parseExecutionCoordinationPileResult + admitRepairPlanProposal exported)
+    - packages/planning/src/index.ts (after Plan 06 — confirm admitWorkSlicing exported)
+  </read_first>
+  <behavior>
+    main.ts modifications (review + exec-coord slices):
+    1. **Review seam (PILE-02):** when Phase 5's review-repair loop is invoked AND `pileMode.review === "live"`, factory-cli constructs the ModelReviewer via `createReviewPileModelReviewer({ runPile: runFactoryPile, buildContext: (input) => ({ provider: buildPileProvider("review", reviewPilePreset.agents, factoryConfig.piles?.review?.providers), signal: runAbortController.signal, budget: resolvePileBudget(reviewPilePreset.budget, intent.capabilityEnvelope.budget), now: Date.now, onEvent: ... }) })` and passes it into the loop where Phase 5's fixture passthrough was used. Persist outcomes via `writePileArtifacts({ runId, kind: "review", iteration, outcome })` at each iteration.
+    2. **Exec-coord seam (PILE-03):** at BOTH the work-slicing trigger AND the post-`synthesizeRepairPlan` trigger, factory-cli (gated by `pileMode.executionCoordination === "live"`) builds the mission via `buildExecutionCoordinationMission(intent, mode, input)`, calls runFactoryPile with ctx referencing `runAbortController.signal` and `buildPileProvider("execution-coordination", ...)`, parses via `parseExecutionCoordinationPileResult`, and feeds the output to `admitWorkSlicing` (work-slicing trigger) or `admitRepairPlanProposal` (repair-plan trigger). Persist via `writePileArtifacts({ runId, kind: "execution-coordination", iteration, outcome })`.
+    3. **Auto-fallback prohibition (D-06)** continues to apply: any pile failure (ok=false OR parse error OR admission rejection at the seams) writes refusal.json + refusals.jsonl entry with the appropriate stage (`pile-review` / `pile-execution-coordination`) and exits non-zero. No silent fallback.
+  </behavior>
+  <action>
+    Tests (3 cases) extending `main.test.ts`:
+    1. **review-pile-seam** — `--review-mode live`; stub createReviewPileModelReviewer's runPile to return ok=true with valid ReviewPileBody; assert review-repair loop receives the live ModelReviewer (NOT the fixture passthrough); pile artifacts persisted at `runs/{id}/piles/review/iter-0/`.
+    2. **exec-coord work-slicing trigger** — `--exec-coord-mode live`; admittedPlan triggers the work-slicing heuristic (targetFiles>3); stub runFactoryPile to return ok=true with a work-slicing proposal; assert admitWorkSlicing called and the re-admitted plan replaces the original; artifacts at `runs/{id}/piles/execution-coordination/iter-0/`.
+    3. **exec-coord repair-plan failure → refusal** — `--exec-coord-mode live`; stub runFactoryPile post-synthesizeRepairPlan to return ok=false with a pile-timeout; assert refusal.json written with stage `"pile-execution-coordination"`; deterministic RepairPlan path NOT silently substituted (D-06 — explicit refusal, operator decides).
+
+    Run RED. Implement minimal main.ts diff threading both seams through the existing runAbortController + buildPileProvider. GREEN.
+
+    Per D-14 (Q-14): review seam uses createReviewPileModelReviewer. Per D-15 (Q-15): exec-coord pile is invoked at both work-slicing and repair-plan triggers; admission helpers gate both. Per D-06 (Q-06): no auto-fallback at any seam.
+  </action>
+  <verify>
+    <automated>pnpm --filter protostar-factory test --grep "review-pile-seam|exec-coord" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify</automated>
+  </verify>
+  <acceptance_criteria>
+    - Command exits 0: `pnpm --filter protostar-factory test --grep "review-pile-seam|exec-coord" &amp;&amp; pnpm --filter protostar-factory build &amp;&amp; pnpm run verify`
+    - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
+    - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
+  </acceptance_criteria>
+  <done>
+    All 3 main.test extensions pass; full `pnpm run verify` is green; existing factory-cli tests remain passing; runtime no-fs contract on dogpile-adapter (Plan 01 Task 3) still passes. All three pile seams (planning from 3a, review + exec-coord from 3b) share the same runAbortController and the same buildPileProvider helper.
   </done>
 </task>
 

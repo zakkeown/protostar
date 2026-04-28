@@ -203,10 +203,10 @@ Per-field min semantics (Q-10):
     Per D-10 (Q-10): mirrors `intersectEnvelopes` from Phase 2 precedence kernel; preset is the proposal, envelope is the cap.
   </action>
   <verify>
-    <automated>pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget 2>&amp;1 | grep -E "pass|✔" | grep -c "resolve-pile-budget" | awk '{ if ($1 &gt;= 8) exit 0; else exit 1 }'</automated>
+    <automated>pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget</automated>
   </verify>
   <acceptance_criteria>
-    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget 2>&amp;1 | grep -E "pass|✔" | grep -c "resolve-pile-budget" | awk '{ if ($1 &gt;= 8) exit 0; else exit 1 }'`
+    - Command exits 0: `pnpm --filter @protostar/dogpile-adapter test --grep resolve-pile-budget` (relies on suite exit code; the 8 test cases enumerated in the action body must all pass for the suite to exit 0)
     - All grep/test invocations inside the command match (the command's `&&` chain enforces this — any failed step fails the whole gate).
     - No subjective judgment used; verification is binary on the shell exit status of the automated command above.
   </acceptance_criteria>
