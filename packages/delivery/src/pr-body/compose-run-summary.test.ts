@@ -16,14 +16,16 @@ describe("composeRunSummary", () => {
     );
   });
 
-  it("omits PR URL even when the caller has one", () => {
+  it("renders PR URL when the caller has one", () => {
     const out = composeRunSummary({
       runId: "run_with_pr",
       prUrl: "https://github.com/acme/widget/pull/1",
       target: { owner: "acme", repo: "widget", baseBranch: "release/v1" }
     });
 
-    assert.equal(out.includes("pull/1"), false);
-    assert.equal(out, "# Protostar Factory Run\n\n- Run: `run_with_pr`\n- Target: `acme/widget@release/v1`\n");
+    assert.equal(
+      out,
+      "# Protostar Factory Run\n\n- Run: `run_with_pr`\n- Target: `acme/widget@release/v1`\n- PR: https://github.com/acme/widget/pull/1\n"
+    );
   });
 });

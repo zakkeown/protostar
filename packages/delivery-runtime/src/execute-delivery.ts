@@ -3,7 +3,7 @@ import type { BranchName, DeliveryRefusal, EvidenceCommentKind, PrBody, PrTitle 
 import type { DeliveryAuthorization } from "@protostar/review";
 
 import { findExistingPr } from "./find-existing-pr.js";
-import { mapOctokitErrorToRefusal } from "./map-octokit-error.js";
+import { mapOctokitErrorToRefusal, sanitizeDeliveryErrorMessage } from "./map-octokit-error.js";
 import type { ProtostarOctokit } from "./octokit-client.js";
 import { postEvidenceComment } from "./post-evidence-comment.js";
 import type { DeliveryTarget } from "./preflight-full.js";
@@ -16,6 +16,7 @@ export interface DeliveryExecutionPlan {
   readonly target: DeliveryTarget;
   readonly artifacts: readonly StageArtifactRef[];
   readonly evidenceComments: readonly { readonly kind: EvidenceCommentKind; readonly body: PrBody }[];
+  readonly finalizeBodyWithPrUrl?: (prUrl: string) => PrBody;
 }
 
 export interface DeliveryRunContext {
@@ -32,6 +33,7 @@ export interface DeliveryRunContext {
 export interface InitialCiSnapshot {
   readonly at: string;
   readonly checks: readonly { readonly name: string; readonly status: string; readonly conclusion: string | null }[];
+  readonly captureError?: string;
 }
 
 export type DeliveryRunOutcome =
@@ -59,7 +61,12 @@ export async function executeDelivery(
   plan: DeliveryExecutionPlan,
   ctx: DeliveryRunContext
 ): Promise<DeliveryRunOutcome> {
-  void authorization;
+  if (authorization.runId !== ctx.runId) {
+    return blocked({
+      kind: "delivery-authorization-mismatch",
+      evidence: { expectedRunId: authorization.runId, actualRunId: ctx.runId }
+    });
+  }
 
   if (ctx.signal.aborted) {
     return blocked(cancelled("push", ctx.signal));
@@ -75,8 +82,19 @@ export async function executeDelivery(
     return blocked(pr.refusal);
   }
 
+  if (plan.finalizeBodyWithPrUrl !== undefined) {
+    const finalized = await prBodyUpdateStep(plan, ctx, pr.prNumber, plan.finalizeBodyWithPrUrl(pr.prUrl));
+    if (!finalized.ok) {
+      return blocked(finalized.refusal);
+    }
+  }
+
   const comments = await commentsStep(plan, ctx, pr.prNumber);
-  const initialCiSnapshot = await initialSnapshotStep(plan.target, ctx.octokit, pr.headSha, ctx.signal);
+  const initialCiSnapshot = await initialSnapshotStep(plan.target, ctx.octokit, pr.headSha, ctx.signal).catch((error: unknown) => ({
+    at: new Date().toISOString(),
+    checks: [],
+    captureError: sanitizeDeliveryErrorMessage(error)
+  }));
 
   return {
     status: "delivered",
@@ -88,6 +106,26 @@ export async function executeDelivery(
     evidenceComments: comments.evidenceComments,
     commentFailures: comments.commentFailures
   };
+}
+
+async function prBodyUpdateStep(
+  plan: DeliveryExecutionPlan,
+  ctx: DeliveryRunContext,
+  prNumber: number,
+  body: PrBody
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly refusal: DeliveryRefusal }> {
+  try {
+    await ctx.octokit.rest.pulls.update({
+      owner: plan.target.owner,
+      repo: plan.target.repo,
+      pull_number: prNumber,
+      body,
+      request: { signal: ctx.signal }
+    });
+    return { ok: true };
+  } catch (error: unknown) {
+    return { ok: false, refusal: mapOctokitErrorToRefusal(error, { phase: "pr-create", target: plan.target }) };
+  }
 }
 
 async function pushStep(plan: DeliveryExecutionPlan, ctx: DeliveryRunContext): Promise<Awaited<ReturnType<typeof pushBranch>>> {

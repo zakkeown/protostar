@@ -39,7 +39,18 @@ export function mapOctokitErrorToRefusal(
     return { kind: "invalid-body", evidence: { input: error.message } };
   }
 
-  return { kind: "cancelled", evidence: { reason: "parent-abort", phase: context.phase } };
+  return {
+    kind: "github-api-error",
+    evidence: {
+      phase: context.phase,
+      ...(error.status !== undefined ? { status: error.status } : {}),
+      message: boundedMessage(error.message)
+    }
+  };
+}
+
+export function sanitizeDeliveryErrorMessage(err: unknown): string {
+  return boundedMessage(sanitizeError(err).message);
 }
 
 function sanitizeError(err: unknown): { readonly name?: string; readonly status?: number; readonly message: string } {
@@ -76,6 +87,10 @@ function scrubSensitiveHeaders(headers: Record<string, unknown>): void {
 
 function redact(value: string): string {
   return value.replace(TOKEN_PATTERN, "***");
+}
+
+function boundedMessage(value: string): string {
+  return value.slice(0, 500);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

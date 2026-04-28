@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { MAX_EVOLUTION_GENERATIONS } from "@protostar/evaluation";
+
 import { ArgvError, parseCliArgs } from "./cli-args.js";
 
 describe("factory CLI argv parser", () => {
@@ -72,6 +74,76 @@ describe("factory CLI argv parser", () => {
     assert.throws(
       () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--planning-mode", "auto"]),
       (error: unknown) => error instanceof ArgvError && error.flag === "--planning-mode"
+    );
+  });
+
+  // Phase 8 Plan 08-07 Task 1 — evaluation/evolution CLI flags.
+  it("parses --lineage id", () => {
+    assert.equal(parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--lineage", "cosmetic-1"]).lineage, "cosmetic-1");
+  });
+
+  it("rejects --lineage with an empty inline value", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--lineage="]),
+      (error: unknown) => error instanceof ArgvError && error.flag === "--lineage"
+    );
+  });
+
+  it("parses --evolve-code as a boolean flag without a value", () => {
+    const parsed = parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--evolve-code"]);
+
+    assert.equal(parsed.evolveCode, true);
+  });
+
+  it("parses --generation within the evolution generation cap", () => {
+    assert.equal(parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--generation", "0"]).generation, 0);
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--generation", String(MAX_EVOLUTION_GENERATIONS)]).generation,
+      MAX_EVOLUTION_GENERATIONS
+    );
+  });
+
+  it("rejects negative --generation values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--generation", "-1"]),
+      (error: unknown) =>
+        error instanceof ArgvError &&
+        error.flag === "--generation" &&
+        /integer >= 0/.test(error.reason)
+    );
+  });
+
+  it("rejects non-integer --generation values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--generation", "abc"]),
+      (error: unknown) =>
+        error instanceof ArgvError &&
+        error.flag === "--generation" &&
+        /integer/.test(error.reason)
+    );
+  });
+
+  it("rejects over-cap --generation values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--generation", "31"]),
+      (error: unknown) =>
+        error instanceof ArgvError &&
+        error.flag === "--generation" &&
+        error.reason.includes(String(MAX_EVOLUTION_GENERATIONS))
+    );
+  });
+
+  it("parses --semantic-judge-model", () => {
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--semantic-judge-model", "qwen-custom"]).semanticJudgeModel,
+      "qwen-custom"
+    );
+  });
+
+  it("parses --consensus-judge-model", () => {
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--consensus-judge-model", "deepseek-custom"]).consensusJudgeModel,
+      "deepseek-custom"
     );
   });
 });

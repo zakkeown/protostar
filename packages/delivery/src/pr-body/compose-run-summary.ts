@@ -11,9 +11,11 @@ export interface ComposeRunSummaryInput {
 }
 
 export function composeRunSummary(input: ComposeRunSummaryInput): string {
+  const prLine = input.prUrl === undefined ? "" : `- PR: ${input.prUrl}\n`;
+
   return `# Protostar Factory Run
 
 - Run: \`${input.runId}\`
 - Target: \`${input.target.owner}/${input.target.repo}@${input.target.baseBranch}\`
-`;
+${prLine}`;
 }

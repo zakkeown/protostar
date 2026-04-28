@@ -1,6 +1,7 @@
 import type { EvidenceCommentKind, PrBody } from "@protostar/delivery";
 import { buildEvidenceMarker, parseEvidenceMarker } from "@protostar/delivery";
 
+import { sanitizeDeliveryErrorMessage } from "./map-octokit-error.js";
 import type { ProtostarOctokit } from "./octokit-client.js";
 import type { DeliveryTarget } from "./preflight-full.js";
 
@@ -51,7 +52,7 @@ export async function postEvidenceComment(input: EvidenceCommentInput): Promise<
 
     return { ok: true, commentId: created.data.id, url: created.data.html_url };
   } catch (error: unknown) {
-    return { ok: false, reason: errorMessage(error) };
+    return { ok: false, reason: sanitizeDeliveryErrorMessage(error) };
   }
 }
 
@@ -99,11 +100,4 @@ function firstNonEmptyLine(body: string): string | null {
   }
 
   return null;
-}
-
-function errorMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  return String(error);
 }

@@ -2,6 +2,7 @@ import git, { type AuthCallback } from "isomorphic-git";
 import defaultHttp from "isomorphic-git/http/node";
 
 import type { BranchName, DeliveryRefusal } from "@protostar/delivery";
+import { sanitizeDeliveryErrorMessage } from "./map-octokit-error.js";
 
 /**
  * Phase 7 push boundary:
@@ -105,8 +106,11 @@ export async function pushBranch(input: PushBranchInput): Promise<PushResult> {
 
     const newSha = await dependencies.resolveRef({ fs, dir: input.workspaceDir, ref: input.branchName });
     return { ok: true, newSha };
-  } catch {
-    return cancelled(input.signal);
+  } catch (error: unknown) {
+    if (input.signal.aborted || isAbortLike(error)) {
+      return cancelled(input.signal);
+    }
+    return pushFailed("push", error);
   }
 }
 
@@ -152,7 +156,10 @@ async function readRemoteSha(input: {
     if (isRefNotFound(error)) {
       return { ok: true, remoteSha: null };
     }
-    return cancelled(input.input.signal);
+    if (input.input.signal.aborted || isAbortLike(error)) {
+      return cancelled(input.input.signal);
+    }
+    return pushFailed("fetch", error);
   }
 }
 
@@ -171,6 +178,23 @@ function cancelled(signal: AbortSignal): { readonly ok: false; readonly refusal:
   return { ok: false, refusal: { kind: "cancelled", evidence: { reason: signalReason(signal), phase: "push" } } };
 }
 
+function pushFailed(phase: "fetch" | "push", error: unknown): { readonly ok: false; readonly refusal: DeliveryRefusal } {
+  return {
+    ok: false,
+    refusal: {
+      kind: "push-failed",
+      evidence: { phase, message: sanitizeDeliveryErrorMessage(error) }
+    }
+  };
+}
+
+function isAbortLike(error: unknown): boolean {
+  if (!isRecord(error)) {
+    return false;
+  }
+  return error.name === "AbortError" || error.name === "TimeoutError";
+}
+
 function signalReason(signal: AbortSignal): "sigint" | "timeout" | "sentinel" | "parent-abort" {
   if (signal.reason === "sigint" || signal.reason === "timeout" || signal.reason === "sentinel") {
     return signal.reason;
@@ -185,6 +209,6 @@ function isRefNotFound(error: unknown): boolean {
   return error.code === "NotFoundError" || (typeof error.message === "string" && /not found/i.test(error.message));
 }
 
-function isRecord(value: unknown): value is { readonly code?: unknown; readonly message?: unknown } {
+function isRecord(value: unknown): value is { readonly code?: unknown; readonly message?: unknown; readonly name?: unknown } {
   return typeof value === "object" && value !== null;
 }

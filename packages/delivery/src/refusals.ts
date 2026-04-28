@@ -34,6 +34,19 @@ export type DeliveryRefusal =
       readonly kind: "remote-diverged";
       readonly evidence: { readonly branch: string; readonly expectedSha: string | null; readonly remoteSha: string };
     }
+  | { readonly kind: "push-failed"; readonly evidence: { readonly phase: "fetch" | "push"; readonly message: string } }
+  | {
+      readonly kind: "github-api-error";
+      readonly evidence: {
+        readonly phase: "preflight" | "push" | "pr-create" | "comment" | "poll";
+        readonly status?: number;
+        readonly message: string;
+      };
+    }
+  | {
+      readonly kind: "delivery-authorization-mismatch";
+      readonly evidence: { readonly expectedRunId: string; readonly actualRunId: string };
+    }
   | {
       readonly kind: "cancelled";
       readonly evidence: {

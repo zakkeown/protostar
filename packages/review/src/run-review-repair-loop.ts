@@ -85,12 +85,14 @@ export type ReviewRepairLoopResult =
       readonly authorization: DeliveryAuthorization;
       readonly finalAttempt: number;
       readonly decisionPath: string;
+      readonly iterations: readonly ReviewIterationRecord[];
     }
   | {
       readonly status: "blocked";
       readonly reason: "budget-exhausted" | "critical-finding" | "mechanical-block" | "model-block";
       readonly finalAttempt: number;
       readonly blockPath: string;
+      readonly iterations: readonly ReviewIterationRecord[];
     };
 
 export class MissingMaxRepairLoopsError extends Error {
@@ -100,7 +102,7 @@ export class MissingMaxRepairLoopsError extends Error {
   }
 }
 
-interface ReviewIterationRecord {
+export interface ReviewIterationRecord {
   readonly attempt: number;
   readonly mechanical: unknown;
   readonly mechanicalGate: ReviewGate;
@@ -225,7 +227,8 @@ export async function runReviewRepairLoop(
           status: "approved",
           authorization,
           finalAttempt: attempt,
-          decisionPath
+          decisionPath,
+          iterations
         };
       }
 
@@ -401,7 +404,8 @@ async function block(
     status: "blocked",
     reason: details.reason,
     finalAttempt: details.attempt,
-    blockPath
+    blockPath,
+    iterations: details.iterations
   };
 }
 
@@ -442,7 +446,8 @@ async function budgetExhausted(
     status: "blocked",
     reason: "budget-exhausted",
     finalAttempt: details.attempt,
-    blockPath
+    blockPath,
+    iterations: details.iterations
   };
 }
 

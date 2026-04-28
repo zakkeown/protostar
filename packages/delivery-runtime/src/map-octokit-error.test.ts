@@ -67,7 +67,7 @@ describe("mapOctokitErrorToRefusal", () => {
     assert.equal(JSON.stringify(refusal).includes(fineGrainedToken), false);
   });
 
-  it("falls back to a cancelled refusal without serializing the raw Octokit error", () => {
+  it("falls back to a github-api-error refusal without serializing the raw Octokit error", () => {
     const refusal = mapOctokitErrorToRefusal(
       {
         status: 500,
@@ -77,7 +77,10 @@ describe("mapOctokitErrorToRefusal", () => {
       { phase: "poll" }
     );
 
-    assert.deepEqual(refusal, { kind: "cancelled", evidence: { reason: "parent-abort", phase: "poll" } });
+    assert.deepEqual(refusal, {
+      kind: "github-api-error",
+      evidence: { phase: "poll", status: 500, message: "Server error for ***" }
+    });
     assert.equal(JSON.stringify(refusal).includes(token), false);
   });
 });

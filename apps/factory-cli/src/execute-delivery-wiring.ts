@@ -66,6 +66,7 @@ export async function wireExecuteDelivery(
   }
 
   const assembled = assembleDeliveryBody(input.bodyInput);
+  const finalizeBodyWithPrUrl = (prUrl: string) => assembleDeliveryBody({ ...input.bodyInput, prUrl }).body;
   const executeDelivery = deps.executeDelivery ?? defaultExecuteDelivery;
   const outcome = await executeDelivery(
     input.authorization,
@@ -75,7 +76,8 @@ export async function wireExecuteDelivery(
       body: assembled.body,
       target: input.target,
       artifacts: input.bodyInput.artifacts,
-      evidenceComments: assembled.evidenceComments
+      evidenceComments: assembled.evidenceComments,
+      finalizeBodyWithPrUrl
     },
     {
       runId: input.runId,

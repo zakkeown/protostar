@@ -229,6 +229,8 @@ Plans:
 
 ## Phase 7 — Delivery
 
+**Status:** Verified complete (2026-04-28). `07-VERIFICATION.md` passed 10/11 active must-haves with Phase 10 deferrals for real toy-repo PR and screenshots; `07-REVIEW.md` unblocked with one warning; `07-SECURITY.md` secured 43/43 threats.
+
 **Goal:** Real GitHub PR delivery via Octokit + PAT, evidence bundle in the PR body, CI status capture. No auto-merge.
 
 **Requirements:** DELIVER-01, DELIVER-02, DELIVER-03, DELIVER-04, DELIVER-05, DELIVER-06, DELIVER-07
@@ -244,18 +246,18 @@ Plans:
 **Plans:** 12 plans across 7 waves (parallel within wave).
 
 Plans:
-- [ ] 07-01-schema-cascade-PLAN.md — wave 0 — confirmedIntent 1.4.0 → 1.5.0 + delivery.target + budget.deliveryWallClockMs + 19-file cascade + 2 fixture re-signs (Q-05, Q-14)
-- [ ] 07-02-delivery-runtime-skeleton-PLAN.md — wave 0 — `@protostar/delivery-runtime` workspace + no-fs/no-merge static contracts + nock-vs-Octokit-22 smoke (Pitfall 6 gate; Q-01)
-- [ ] 07-03-wiring-config-PLAN.md — wave 0 — AGENTS.md tier table + .env.example PAT docs + factory-config.requiredChecks + computeDeliveryAllowedHosts helper (Q-04, Q-05, Q-15)
-- [ ] 07-04-brands-and-refusals-PLAN.md — wave 1 — BranchName/PrTitle/PrBody brands + DeliveryRefusal 14-variant union + evidence-marker (runId-extended per Pitfall 9) + drop gh argv (Q-02, Q-08, Q-09, Q-10, Q-20, Pitfall 2, Pitfall 3)
-- [ ] 07-05-pr-body-composers-PLAN.md — wave 1 — 7 per-section composers + drift-by-construction contract (DELIVER-06) + Pitfall 8 mitigation (Q-12, Q-13, Q-11)
-- [ ] 07-06-octokit-and-preflight-PLAN.md — wave 2 — buildOctokit + retry/throttling plugins + preflightDeliveryFast/Full (6 outcomes) + mapOctokitErrorToRefusal token redaction (Q-06, Q-20, Pitfall 4)
-- [ ] 07-07-push-branch-PLAN.md — wave 2 — pushBranch with Q-03 verbatim onAuth + force-with-lease emulation (Pitfall 5) + two-layer cancel (Pitfall 11) + branch-template (Q-07, Pitfall 10)
-- [ ] 07-08-execute-delivery-PLAN.md — wave 3 — executeDelivery 5-brand stack + findExistingPr + postEvidenceComment + idempotency contract + secret-leak contract (Q-08, Q-10, Q-16, Q-18, Q-19)
-- [ ] 07-09-poll-ci-status-PLAN.md — wave 4 — computeCiVerdict + pollCiStatus async generator + DeliveryResult/CiEvent schema (Q-14, Q-15, Q-16, Q-17)
-- [ ] 07-10-factory-cli-preflight-wiring-PLAN.md — wave 5 — fast preflight at run start + full preflight at delivery boundary + hierarchical AbortSignal composition (Q-06, Q-19)
-- [ ] 07-11-factory-cli-execute-delivery-wiring-PLAN.md — wave 5 — assembleDeliveryBody (composer ordering + spillover) + drivePollCiStatus + wireExecuteDelivery + main.ts replaces FIXME (Q-08, Q-10, Q-13, Q-16, Q-17)
-- [ ] 07-12-admission-e2e-contracts-PLAN.md — wave 6 — repo-wide no-merge contract (strongest DELIVER-07 invariant) + delivery-result schema + preflight refusal taxonomy contracts
+- [x] 07-01-schema-cascade-PLAN.md — wave 0 — confirmedIntent 1.4.0 → 1.5.0 + delivery.target + budget.deliveryWallClockMs + 19-file cascade + 2 fixture re-signs (Q-05, Q-14)
+- [x] 07-02-delivery-runtime-skeleton-PLAN.md — wave 0 — `@protostar/delivery-runtime` workspace + no-fs/no-merge static contracts + nock-vs-Octokit-22 smoke (Pitfall 6 gate; Q-01)
+- [x] 07-03-wiring-config-PLAN.md — wave 0 — AGENTS.md tier table + .env.example PAT docs + factory-config.requiredChecks + computeDeliveryAllowedHosts helper (Q-04, Q-05, Q-15)
+- [x] 07-04-brands-and-refusals-PLAN.md — wave 1 — BranchName/PrTitle/PrBody brands + DeliveryRefusal 14-variant union + evidence-marker (runId-extended per Pitfall 9) + drop gh argv (Q-02, Q-08, Q-09, Q-10, Q-20, Pitfall 2, Pitfall 3)
+- [x] 07-05-pr-body-composers-PLAN.md — wave 1 — 7 per-section composers + drift-by-construction contract (DELIVER-06) + Pitfall 8 mitigation (Q-12, Q-13, Q-11)
+- [x] 07-06-octokit-and-preflight-PLAN.md — wave 2 — buildOctokit + retry/throttling plugins + preflightDeliveryFast/Full (6 outcomes) + mapOctokitErrorToRefusal token redaction (Q-06, Q-20, Pitfall 4)
+- [x] 07-07-push-branch-PLAN.md — wave 2 — pushBranch with Q-03 verbatim onAuth + force-with-lease emulation (Pitfall 5) + two-layer cancel (Pitfall 11) + branch-template (Q-07, Pitfall 10)
+- [x] 07-08-execute-delivery-PLAN.md — wave 3 — executeDelivery 5-brand stack + findExistingPr + postEvidenceComment + idempotency contract + secret-leak contract (Q-08, Q-10, Q-16, Q-18, Q-19)
+- [x] 07-09-poll-ci-status-PLAN.md — wave 4 — computeCiVerdict + pollCiStatus async generator + DeliveryResult/CiEvent schema (Q-14, Q-15, Q-16, Q-17)
+- [x] 07-10-factory-cli-preflight-wiring-PLAN.md — wave 5 — fast preflight at run start + full preflight at delivery boundary + hierarchical AbortSignal composition (Q-06, Q-19)
+- [x] 07-11-factory-cli-execute-delivery-wiring-PLAN.md — wave 5 — assembleDeliveryBody (composer ordering + spillover) + drivePollCiStatus + wireExecuteDelivery + main.ts replaces FIXME (Q-08, Q-10, Q-13, Q-16, Q-17)
+- [x] 07-12-admission-e2e-contracts-PLAN.md — wave 6 — repo-wide no-merge contract (strongest DELIVER-07 invariant) + delivery-result schema + preflight refusal taxonomy contracts
 
 ## Phase 8 — Evaluation + Evolution
 

@@ -124,7 +124,7 @@ describe("pushBranch", () => {
     });
   });
 
-  it("maps empty-token auth cancellation to a push cancellation refusal", async (t) => {
+  it("maps empty-token auth failure to a push-failed refusal", async (t) => {
     __setPushBranchDependenciesForTests({
       fetch: async (options) => {
         const auth = await options.onAuth?.("https://github.com/owner/repo.git", {});
@@ -148,10 +148,9 @@ describe("pushBranch", () => {
       fs: {}
     });
 
-    assert.deepEqual(result, {
-      ok: false,
-      refusal: { kind: "cancelled", evidence: { reason: "parent-abort", phase: "push" } }
-    });
+    assert.equal(result.ok, false);
+    assert.equal(result.refusal.kind, "push-failed");
+    assert.equal(result.refusal.evidence.phase, "fetch");
   });
 
   it("maps auth-loop abort during push to a cancellation refusal", async (t) => {
@@ -186,5 +185,34 @@ describe("pushBranch", () => {
       ok: false,
       refusal: { kind: "cancelled", evidence: { reason: "sentinel", phase: "push" } }
     });
+  });
+
+  it("maps non-abort push throws to a push-failed refusal", async (t) => {
+    __setPushBranchDependenciesForTests({
+      fetch: async () => {
+        const error = new Error("not found");
+        Object.assign(error, { code: "NotFoundError" });
+        throw error;
+      },
+      push: async () => {
+        throw new Error("remote rejected ghp_123456789012345678901234567890123456");
+      },
+      resolveRef: async () => "unused"
+    });
+    t.after(() => __resetPushBranchDependenciesForTests());
+
+    const result = await pushBranch({
+      workspaceDir: "/workspace",
+      branchName,
+      remoteUrl: "https://github.com/owner/repo.git",
+      token: "ghp_valid_token",
+      expectedRemoteSha: null,
+      signal: new AbortController().signal,
+      fs: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.refusal.kind, "push-failed");
+    assert.deepEqual(result.refusal.evidence, { phase: "push", message: "remote rejected ***" });
   });
 });

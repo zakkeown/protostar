@@ -13,6 +13,7 @@ import type { JudgeCritique, ReviewFinding } from "@protostar/review";
 
 export interface DeliveryBodyInput {
   readonly runId: string;
+  readonly prUrl?: string;
   readonly target: { readonly owner: string; readonly repo: string; readonly baseBranch: string };
   readonly mechanical: { readonly verdict: "pass" | "fail"; readonly findings: readonly ReviewFinding[] };
   readonly critiques: readonly JudgeCritique[];
@@ -91,7 +92,7 @@ function buildSections(input: DeliveryBodyInput): {
   readonly footer: string;
 } {
   return {
-    runSummary: composeRunSummary({ runId: input.runId, target: input.target }),
+    runSummary: composeRunSummary({ runId: input.runId, target: input.target, ...(input.prUrl !== undefined ? { prUrl: input.prUrl } : {}) }),
     mechanical: composeMechanicalSummary(input.mechanical),
     judgePanel: composeJudgePanel({ critiques: input.critiques }),
     repairHistory: composeRepairHistory({ iterations: input.iterations }),

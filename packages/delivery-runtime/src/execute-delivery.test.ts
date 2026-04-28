@@ -88,7 +88,9 @@ describe("executeDelivery", () => {
     nockFindExisting([]);
     nockCreatePr({ number: 20, htmlUrl: "https://github.com/octo/repo/pull/20", headSha: "head-comment", baseSha: "base-comment" });
     nock("https://api.github.com").get("/repos/octo/repo/issues/20/comments").query(true).reply(200, []);
-    nock("https://api.github.com").post("/repos/octo/repo/issues/20/comments").reply(422, { message: "Validation Failed" });
+    nock("https://api.github.com")
+      .post("/repos/octo/repo/issues/20/comments")
+      .reply(422, { message: `Validation Failed for ${token}` });
     nockChecks("head-comment", []);
 
     const result = await executeDelivery(authorization, {
@@ -100,6 +102,7 @@ describe("executeDelivery", () => {
     assert.deepEqual(result.evidenceComments, []);
     assert.equal(result.commentFailures.length, 1);
     assert.equal(result.commentFailures[0]?.kind, "mechanical-full");
+    assert.equal(result.commentFailures[0]?.reason.includes(token), false);
   });
 
   it("returns delivery-blocked when push refuses the branch", async (t) => {
@@ -116,6 +119,57 @@ describe("executeDelivery", () => {
 
     assert.equal(result.status, "delivery-blocked");
     assert.equal(result.refusal.kind, "remote-diverged");
+  });
+
+  it("blocks delivery when authorization belongs to another run", async () => {
+    const result = await executeDelivery(
+      mintDeliveryAuthorization({ runId: "run_other", decisionPath: "runs/run_other/review/decision.json" }),
+      plan(),
+      ctx()
+    );
+
+    assert.deepEqual(result, {
+      status: "delivery-blocked",
+      refusal: {
+        kind: "delivery-authorization-mismatch",
+        evidence: { expectedRunId: "run_other", actualRunId: "run_123" }
+      }
+    });
+  });
+
+  it("updates the PR body with its assigned URL when a finalizer is provided", async (t) => {
+    mockPushSuccess(t);
+    nockFindExisting([]);
+    nockCreatePr({ number: 21, htmlUrl: "https://github.com/octo/repo/pull/21", headSha: "head-final", baseSha: "base-final" });
+    nock("https://api.github.com")
+      .patch("/repos/octo/repo/pulls/21", { body: "Delivery body\nPR: https://github.com/octo/repo/pull/21" })
+      .reply(200, { number: 21, html_url: "https://github.com/octo/repo/pull/21", head: { sha: "head-final" }, base: { sha: "base-final" } });
+    nockChecks("head-final", []);
+
+    const result = await executeDelivery(
+      authorization,
+      { ...plan(), evidenceComments: [], finalizeBodyWithPrUrl: (prUrl) => `Delivery body\nPR: ${prUrl}` as PrBody },
+      ctx()
+    );
+
+    assert.equal(result.status, "delivered");
+    assert.equal(result.prUrl, "https://github.com/octo/repo/pull/21");
+  });
+
+  it("keeps a delivered result when initial CI capture fails after PR creation", async (t) => {
+    mockPushSuccess(t);
+    nockFindExisting([]);
+    nockCreatePr({ number: 22, htmlUrl: "https://github.com/octo/repo/pull/22", headSha: "head-ci-fail", baseSha: "base-ci-fail" });
+    nock("https://api.github.com").get("/repos/octo/repo/commits/head-ci-fail/check-runs").query(true).reply(500, {
+      message: `Server error ${token}`
+    });
+
+    const result = await executeDelivery(authorization, { ...plan(), evidenceComments: [] }, ctx());
+
+    assert.equal(result.status, "delivered");
+    assert.equal(result.prNumber, 22);
+    assert.deepEqual(result.initialCiSnapshot.checks, []);
+    assert.equal(result.initialCiSnapshot.captureError?.includes(token), false);
   });
 });
 

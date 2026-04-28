@@ -128,6 +128,16 @@ _Screenshots: deferred until Phase 10 dogfood (toy repo not yet scaffolded)._
     assert.equal(assembled.evidenceComments.length, 3);
   });
 
+  it("includes the assigned PR URL when provided for final body update", () => {
+    const assembled = assembleDeliveryBody(
+      representativeInput({
+        prUrl: "https://github.com/protostar/factory/pull/123"
+      })
+    );
+
+    assert.match(assembled.body, /- PR: https:\/\/github.com\/protostar\/factory\/pull\/123/);
+  });
+
   it("returns branded PrBody values for body and every evidence comment", () => {
     const assembled = assembleDeliveryBody(representativeInput());
 

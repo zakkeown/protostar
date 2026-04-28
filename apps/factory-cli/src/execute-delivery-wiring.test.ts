@@ -31,10 +31,11 @@ describe("wireExecuteDelivery", () => {
     assert.equal(executeDelivery.mock.callCount(), 1);
     assert.equal(pollCiStatus.mock.callCount(), 1);
     const plan = (executeDelivery.mock.calls as readonly { readonly arguments: readonly unknown[] }[])[0]?.arguments[1] as
-      | { readonly branch: string; readonly title: string }
+      | { readonly branch: string; readonly title: string; readonly finalizeBodyWithPrUrl?: (prUrl: string) => unknown }
       | undefined;
     assert.equal(plan?.branch.startsWith("protostar/cosmetic-tweak/run-wire-abcdef12"), true);
     assert.equal(String(plan?.title), "Deliver the factory run");
+    assert.match(String(plan?.finalizeBodyWithPrUrl?.("https://github.com/protostar/factory/pull/7")), /pull\/7/);
     const deliveryResult = await readResult(runDir);
     assert.equal(deliveryResult["schemaVersion"], DELIVERY_RESULT_SCHEMA_VERSION);
     assert.equal(deliveryResult["status"], "delivered");

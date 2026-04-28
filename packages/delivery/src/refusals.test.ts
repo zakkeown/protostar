@@ -17,6 +17,12 @@ const allRefusals = [
   { kind: "pr-already-closed", evidence: { prUrl: "https://github.com/o/r/pull/1", prNumber: 1 } },
   { kind: "pr-ambiguous", evidence: { prs: ["https://github.com/o/r/pull/1"] } },
   { kind: "remote-diverged", evidence: { branch: "feature/a", expectedSha: null, remoteSha: "abc123" } },
+  { kind: "push-failed", evidence: { phase: "push", message: "Authentication failed" } },
+  { kind: "github-api-error", evidence: { phase: "poll", status: 500, message: "Server error" } },
+  {
+    kind: "delivery-authorization-mismatch",
+    evidence: { expectedRunId: "run_expected", actualRunId: "run_actual" }
+  },
   { kind: "cancelled", evidence: { reason: "timeout", phase: "poll" } }
 ] satisfies readonly DeliveryRefusal[];
 
@@ -55,13 +61,18 @@ function describeRefusal(refusal: DeliveryRefusal): string {
       return String(refusal.evidence.prs.length);
     case "remote-diverged":
       return refusal.evidence.remoteSha;
+    case "push-failed":
+    case "github-api-error":
+      return refusal.evidence.message;
+    case "delivery-authorization-mismatch":
+      return refusal.evidence.actualRunId;
     case "cancelled":
       return refusal.evidence.phase;
   }
 }
 
 describe("DeliveryRefusal", () => {
-  it("defines all 14 named discriminator variants with variant evidence", () => {
+  it("defines all named discriminator variants with variant evidence", () => {
     assert.deepEqual(
       allRefusals.map((refusal) => refusal.kind),
       [
@@ -78,6 +89,9 @@ describe("DeliveryRefusal", () => {
         "pr-already-closed",
         "pr-ambiguous",
         "remote-diverged",
+        "push-failed",
+        "github-api-error",
+        "delivery-authorization-mismatch",
         "cancelled"
       ]
     );
@@ -85,6 +99,6 @@ describe("DeliveryRefusal", () => {
 
   it("narrows evidence by kind", () => {
     assert.equal(describeRefusal(refusalAt(0)), "^[a-zA-Z0-9._/-]+$");
-    assert.equal(describeRefusal(refusalAt(13)), "poll");
+    assert.equal(describeRefusal(refusalAt(16)), "poll");
   });
 });

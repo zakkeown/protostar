@@ -90,7 +90,7 @@ import {
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
-import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthorization, type ReviewGate, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
+import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthorization, type JudgeCritique, type ReviewGate, type ReviewIterationRecord, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
@@ -1037,8 +1037,8 @@ export async function runFactory(
           verdict: review.verdict === "pass" ? "pass" : "fail",
           findings: review.findings
         },
-        critiques: [],
-        iterations: [],
+        critiques: critiquesFromLoop(loop),
+        iterations: deliveryIterationsFromLoop(loop),
         artifacts: deliveryArtifacts
       },
       token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
@@ -1431,6 +1431,26 @@ function reviewGateFromLoopResult(input: {
     verdict: input.status === "approved" ? "pass" : "block",
     findings: []
   };
+}
+
+function critiquesFromLoop(loop: ReviewRepairLoopResult): readonly JudgeCritique[] {
+  return loop.iterations.flatMap((iteration) => iteration.model?.critiques ?? []);
+}
+
+function deliveryIterationsFromLoop(loop: ReviewRepairLoopResult): readonly {
+  readonly iteration: number;
+  readonly mechanicalVerdict: "pass" | "repair" | "block" | "fail";
+  readonly modelVerdict: "pass" | "repair" | "block" | "fail";
+}[] {
+  return loop.iterations.map((iteration: ReviewIterationRecord) => ({
+    iteration: iteration.attempt,
+    mechanicalVerdict: deliveryVerdict(iteration.mechanicalGate.verdict),
+    modelVerdict: deliveryVerdict(iteration.model?.verdict ?? iteration.mechanicalGate.verdict)
+  }));
+}
+
+function deliveryVerdict(verdict: ReviewVerdict): "pass" | "repair" | "block" {
+  return verdict;
 }
 
 function dryMechanicalCheck(input: {

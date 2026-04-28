@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 8 Plan 01 complete; evaluation-runner skeleton landed; repo-wide verify currently blocked by unrelated dirty Phase 7 delivery-runtime edits)
+**Last updated:** 2026-04-28 (Phase 7 delivery verified; Phase 8 Plan 01 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-28. The new `@protostar/evaluation-runner` workspace skeleton exists, builds, and has a compiled placeholder rejection test; workspace metadata, root TypeScript references, lockfile importer, and root verify hook are registered.
 
-**Next action:** Continue Phase 8 wave 1 with `08-02-types-and-schema-extensions-PLAN.md` after the unrelated Phase 7 delivery-runtime dirty worktree errors are resolved enough for repo-wide `pnpm run verify` / `pnpm -r build` to complete.
+**Next action:** Continue Phase 8 wave 1 with `08-02-types-and-schema-extensions-PLAN.md`. Phase 7 delivery closure restored repo-wide `pnpm run verify` and the factory smoke build path.
 
 ## Phase Status
 
@@ -40,7 +40,7 @@ Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-2
 | 4 | Execution Engine | Automated verification passed — human LM Studio smoke pending |
 | 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
 | 6 | Live Dogpile Piles | Verification: gaps_found (4/6) 2026-04-28 — 8 plans landed, 2 gaps (PILE-03 runtime, PLAN-A-03 flake) closed by Plans 06-09 + 06-10 (planned, awaiting `--gaps-only` execution) |
-| 7 | Delivery | Pending |
+| 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | In progress — Plan 08-01 complete |
 | 9 | Operator Surface + Resumability | Pending |
 | 10 | V1 Hardening + Dogfood | Pending |
@@ -55,7 +55,9 @@ Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`) completed 2026-04-2
 
 ## Recent Sessions
 
-- **2026-04-28:** Completed Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`). Added the new `@protostar/evaluation-runner` workspace skeleton with ESM exports, strict composite TypeScript config, `tsconfig.build.json`, the placeholder `runEvaluationStages` export, and a compiled `node:test` case asserting the placeholder rejects until Plan 08-06 wires the real implementation. Registered the package in `pnpm-workspace.yaml`, root `tsconfig.json`, `pnpm-lock.yaml`, and root `verify`. Targeted gates passed: `pnpm install`, `pnpm --filter @protostar/evaluation-runner build`, `pnpm --filter @protostar/evaluation-runner test`, and the no-fs grep over `packages/evaluation-runner/src/`. Repo-wide `pnpm -r build` and `pnpm run verify` are blocked by unrelated dirty Phase 7 delivery-runtime TypeScript errors in `packages/delivery-runtime/src/push-branch.ts:195`. Commits: `7da35f5`, `c398c8e`.
+- **2026-04-28:** Closed Phase 7 (`07-delivery`) after all 12 plans plus advisory gates. Gap closure fixed five delivery review blockers and the DELIVER-03 evidence-flow gap: push/auth/API failures now use non-cancelled redacted refusal variants (`push-failed`, `github-api-error`), comment and CI-capture errors share the redaction sanitizer, `executeDelivery` enforces `DeliveryAuthorization.runId === ctx.runId`, post-PR initial CI capture failure still returns a durable delivered outcome, and factory-cli now feeds real review-loop critiques/iterations into the PR body while finalizing the body with the assigned PR URL. `07-REVIEW.md` is unblocked with one warning (oversized individual evidence comments still throw before typed delivery result), `07-SECURITY.md` remains secured (43/43 threats closed), and `07-VERIFICATION.md` passed (10/11 active must-haves, Phase 10 deferrals for real toy-repo PR and screenshots). `pnpm run verify` passed with 187 factory-cli tests; `pnpm run factory` built then stopped at the expected workspace-trust gate (exit 2).
+
+- **2026-04-28:** Completed Phase 8 Plan 01 (`08-01-evaluation-runner-skeleton-PLAN.md`). Added the new `@protostar/evaluation-runner` workspace skeleton with ESM exports, strict composite TypeScript config, `tsconfig.build.json`, the placeholder `runEvaluationStages` export, and a compiled `node:test` case asserting the placeholder rejects until Plan 08-06 wires the real implementation. Registered the package in `pnpm-workspace.yaml`, root `tsconfig.json`, `pnpm-lock.yaml`, and root `verify`. Targeted gates passed: `pnpm install`, `pnpm --filter @protostar/evaluation-runner build`, `pnpm --filter @protostar/evaluation-runner test`, and the no-fs grep over `packages/evaluation-runner/src/`. The temporary repo-wide verify block from dirty Phase 7 delivery-runtime edits was resolved during Phase 7 closure; `pnpm run verify` is green again. Commits: `7da35f5`, `c398c8e`.
 
 - **2026-04-28:** Completed Phase 6 Plan 08 (`06-08-admission-e2e-pile-contract-PLAN.md`). Three new admission-e2e contract tests close Phase 6's verification loop. Task 1: `dogpile-adapter-no-fs.contract.test.ts` (197 lines) — static walker on `dogpile-adapter/src` (excluding the package's self-walking `no-fs.contract.test.ts`) AND `dogpile-types/src`, plus a runtime exercise invoking `runFactoryPile` with a deps-injected fake stream that asserts `ok=true` end-to-end (Q-09 defense in depth on top of Plan 06-01's static walker). Task 2: `pile-refusal-byte-equality.contract.test.ts` (185 lines) — both fixture-parse (parsePlanningPileResult on `output: "not json"`) and live pile-schema-parse failures flow through `writePileArtifacts` with `PileFailure.class="pile-schema-parse"`; after erasing `failure.parseErrors` (the legitimate fixture-vs-live origin discriminator), the two refusal artifacts are deepEqual on every other field (PILE-04 / Q-12 evidence-uniformity). Task 3: `pile-integration-smoke.contract.test.ts` (147 lines) — six `it()` blocks containing literal grep tokens `planning-pile-live` (positive wiring assertions on main.ts; references the canonical end-to-end exercise in `apps/factory-cli/src/main.test.ts:505`), `work-slicing-trigger` and `repair-plan-trigger` (negative-grep deferral pins per Plan 06-07's exec-coord deferral), and two cross-cutting invariants on review-pile wiring + refusals-index pile stage enumeration. Infrastructure: added `@protostar/dogpile-adapter`, `@protostar/dogpile-types`, `@protostar/factory-cli` as workspace deps + tsconfig refs of admission-e2e; added `"exports"` field to `apps/factory-cli/package.json` exposing `./pile-persistence` and `./refusals-index` subpaths (Rule 3 unblocker — plan author's `key_links` documented these imports as expected, but factory-cli previously exposed only `bin`). 73/73 admission-e2e tests pass; `pnpm run verify` green. Commits: `157c5a2`, `a6fb460`, `867e8cf`.
 
