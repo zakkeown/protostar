@@ -38,7 +38,7 @@ describe("buildReviewRepairServices", () => {
   });
 
   it("drives the mechanical-checks adapter and extracts final evidence into a review gate", async () => {
-    const finding = findingForTask("task_1");
+    const finding = findingForTask("task-1");
     const services = buildReviewRepairServices({
       fs: memoryFs(),
       gitFs: {} as never,
@@ -255,23 +255,27 @@ function admittedPlan(): AdmittedPlanExecutionArtifact {
   return {
     planId: "plan_1",
     intentId: "intent_1",
-    admissionRef: {
-      uri: "planning-admission.json",
-      sha256: "abc"
+    admittedPlan: {
+      planId: "plan_1",
+      uri: "plan.json",
+      pointer: "#",
+      sourceOfTruth: "PlanGraph"
     },
     evidence: {
+      planId: "plan_1",
+      intentId: "intent_1",
       planGraphUri: "plan.json",
+      planningAdmissionArtifact: "planning-admission.json",
       planningAdmissionUri: "planning-admission.json",
-      admissionDecision: "allow"
+      validationSource: "planning-admission.json",
+      proofSource: "PlanGraph"
     },
     tasks: [
       {
-        planTaskId: "task_1",
+        planTaskId: "task-1",
         title: "Task 1",
-        kind: "edit",
         dependsOn: [],
-        covers: ["AC-1"],
-        acceptanceTestRefs: [{ acId: "AC-1", testFile: "x.test.ts", testName: "works" }]
+        targetFiles: ["README.md"]
       }
     ]
   } as unknown as AdmittedPlanExecutionArtifact;
