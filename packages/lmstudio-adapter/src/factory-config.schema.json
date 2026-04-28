@@ -17,9 +17,15 @@
     },
     "delivery": {
       "type": "object",
-      "description": "Phase 7 Q-15: operator-named CI check allowlist; empty/absent -> 'no-checks-configured' verdict.",
+      "description": "Phase 7 Q-15: operator-named CI check allowlist; empty/absent -> 'no-checks-configured' verdict. Phase 9 Q-20: delivery.mode controls ready-to-release delivery behavior.",
       "additionalProperties": false,
       "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["auto", "gated"],
+          "default": "auto",
+          "description": "Phase 9 Q-20: 'auto' (default, preserves Phase 7) auto-delivers at ready-to-release. 'gated' pauses after writing delivery/authorization.json so an operator must invoke `protostar-factory deliver`."
+        },
         "requiredChecks": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },

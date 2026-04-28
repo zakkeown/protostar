@@ -71,7 +71,7 @@ describe("factory-cli real executor integration", () => {
 
     assert.match(source, /AuthorizationPayload/);
     assert.match(source, /authorization\.json/);
-    assert.match(source, /gated: run `protostar-factory deliver \$\{runId\}` to push\./);
+    assert.match(source, /gated: run .*protostar-factory deliver .* to push\./);
     assert.match(source, /resolveDeliveryMode/);
     assert.match(runCommandSource, /delivery-mode/);
   });

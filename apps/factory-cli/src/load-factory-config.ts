@@ -9,6 +9,12 @@ import type { ConfirmedIntent } from "@protostar/intent";
 import { resolveFactoryConfig, type ResolvedFactoryConfig } from "@protostar/lmstudio-adapter";
 
 export type CodeEvolutionMode = "opt-in" | "disabled";
+export type DeliveryMode = "auto" | "gated";
+export interface FactoryConfigDeliverySource {
+  readonly delivery?: {
+    readonly mode?: DeliveryMode;
+  };
+}
 export interface ChainGenerationSource {
   readonly generation: number;
 }
@@ -93,4 +99,11 @@ export function resolveLivenessThresholdMs(
   builtInDefault = 60_000
 ): number {
   return configValue ?? builtInDefault;
+}
+
+export function resolveDeliveryMode(
+  config: FactoryConfigDeliverySource,
+  cliOverride: DeliveryMode | undefined
+): DeliveryMode {
+  return cliOverride ?? config.delivery?.mode ?? "auto";
 }

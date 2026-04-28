@@ -19,6 +19,7 @@ export interface FactoryConfig {
 }
 
 export interface DeliveryConfig {
+  readonly mode?: "auto" | "gated";
   readonly requiredChecks: readonly string[];
 }
 
@@ -97,6 +98,7 @@ interface PartialFactoryConfig {
 }
 
 interface PartialDeliveryConfig {
+  readonly mode?: "auto" | "gated";
   readonly requiredChecks?: readonly string[];
 }
 
@@ -131,7 +133,7 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
 const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "evaluation", "evolution", "operator", "piles"]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
-const DELIVERY_KEYS = new Set(["requiredChecks"]);
+const DELIVERY_KEYS = new Set(["mode", "requiredChecks"]);
 const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
 const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
 const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshold"]);
@@ -191,7 +193,12 @@ export function resolveFactoryConfig(input: {
       judge
     },
     ...(fileConfig.delivery !== undefined
-      ? { delivery: { requiredChecks: fileConfig.delivery.requiredChecks ?? [] } }
+      ? {
+          delivery: {
+            ...(fileConfig.delivery.mode !== undefined ? { mode: fileConfig.delivery.mode } : {}),
+            requiredChecks: fileConfig.delivery.requiredChecks ?? []
+          }
+        }
       : {}),
     ...(fileConfig.evaluation !== undefined ? { evaluation: fileConfig.evaluation } : {}),
     ...(fileConfig.evolution !== undefined ? { evolution: fileConfig.evolution } : {}),
@@ -249,6 +256,13 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
       errors.push("$.delivery must be an object");
     } else {
       errors.push(...unknownKeyErrors("$.delivery", config.delivery, DELIVERY_KEYS));
+      if (
+        config.delivery.mode !== undefined &&
+        config.delivery.mode !== "auto" &&
+        config.delivery.mode !== "gated"
+      ) {
+        errors.push("$.delivery.mode must be one of auto|gated");
+      }
       if (config.delivery.requiredChecks !== undefined) {
         if (!Array.isArray(config.delivery.requiredChecks)) {
           errors.push("$.delivery.requiredChecks must be an array");

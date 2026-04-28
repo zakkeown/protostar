@@ -1,6 +1,7 @@
 import { basename, resolve } from "node:path";
 
 import { Command } from "@commander-js/extra-typings";
+import { InvalidArgumentError } from "commander";
 import type { IntentAmbiguityMode } from "@protostar/intent/ambiguity";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
@@ -14,6 +15,7 @@ import {
   type RunCommandOptions
 } from "../main.js";
 import { validateTwoKeyLaunch } from "../two-key-launch.js";
+import type { DeliveryMode } from "../load-factory-config.js";
 
 interface CommanderRunOptions {
   readonly allowedAdapters?: string;
@@ -21,6 +23,7 @@ interface CommanderRunOptions {
   readonly confirmedIntentOutput?: string;
   readonly consensusJudgeModel?: string;
   readonly draft?: string;
+  readonly deliveryMode?: DeliveryMode;
   readonly evolveCode?: boolean;
   readonly execCoordMode?: string;
   readonly executor?: string;
@@ -48,6 +51,7 @@ export function buildRunCommand(): Command {
     .option("--confirmed-intent-output <path>", "write normalized confirmed intent to confirmed-intent.json or intent.json")
     .option("--consensus-judge-model <model>", "override the consensus judge model")
     .option("--draft <path>", "intent draft JSON file")
+    .option("--delivery-mode <mode>", "auto | gated (Phase 9 Q-20)", parseDeliveryModeOption)
     .option("--evolve-code", "include prior code hints in evolution context")
     .option("--exec-coord-mode <mode>", "execution-coordination pile mode: fixture or live")
     .option("--executor <mode>", "executor mode: dry-run or real")
@@ -176,6 +180,7 @@ function buildRunOptions(opts: CommanderRunOptions):
       ...(planningMode.value !== undefined ? { planningMode: planningMode.value } : {}),
       ...(reviewMode.value !== undefined ? { reviewMode: reviewMode.value } : {}),
       ...(execCoordMode.value !== undefined ? { execCoordMode: execCoordMode.value } : {}),
+      ...(opts.deliveryMode !== undefined ? { deliveryMode: opts.deliveryMode } : {}),
       ...(opts.lineage !== undefined ? { lineage: opts.lineage } : {}),
       ...(opts.evolveCode !== undefined ? { evolveCode: opts.evolveCode } : {}),
       ...(generation.value !== undefined ? { generation: generation.value } : {}),
@@ -183,6 +188,13 @@ function buildRunOptions(opts: CommanderRunOptions):
       ...(opts.consensusJudgeModel !== undefined ? { consensusJudgeModel: opts.consensusJudgeModel } : {})
     }
   };
+}
+
+function parseDeliveryModeOption(value: string): DeliveryMode {
+  if (value === "auto" || value === "gated") {
+    return value;
+  }
+  throw new InvalidArgumentError("--delivery-mode must be auto or gated.");
 }
 
 function validateConfirmedIntentOutputPath(value: string | undefined):

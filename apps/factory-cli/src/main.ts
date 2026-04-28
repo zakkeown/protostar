@@ -11,11 +11,16 @@ import { Command } from "@commander-js/extra-typings";
 import { CommanderError } from "commander";
 import {
   createFactoryRunManifest,
+  sortJsonValue,
   recordStageArtifacts,
   setFactoryRunStatus,
   type FactoryRunManifest,
   type StageArtifactRef
 } from "@protostar/artifacts";
+import {
+  isAuthorizationPayload,
+  type AuthorizationPayload
+} from "@protostar/delivery/authorization-payload";
 import {
   buildPlanningMission,
   buildReviewMission,
@@ -37,6 +42,7 @@ import {
   type ExecutionDryRunResult
 } from "@protostar/execution";
 import { createLmstudioCoderAdapter } from "@protostar/lmstudio-adapter";
+import { buildBranchName } from "@protostar/delivery-runtime";
 import {
   type IntentAmbiguityAssessment,
   type IntentAmbiguityMode
@@ -112,6 +118,7 @@ import { buildInspectCommand } from "./commands/inspect.js";
 import { buildCancelCommand } from "./commands/cancel.js";
 import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
+import { assembleDeliveryBody, type DeliveryBodyInput } from "./assemble-delivery-body.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
@@ -123,6 +130,7 @@ import {
   resolveCodeEvolutionMode,
   resolveConsensusJudgeModel,
   resolveConvergenceThreshold,
+  resolveDeliveryMode,
   resolveGeneration,
   resolveLineageId,
   resolveSemanticJudgeModel
@@ -173,6 +181,7 @@ export interface RunCommandOptions {
   readonly planningMode?: PileMode;
   readonly reviewMode?: PileMode;
   readonly execCoordMode?: PileMode;
+  readonly deliveryMode?: "auto" | "gated";
   readonly lineage?: string;
   readonly evolveCode?: boolean;
   readonly generation?: number;
@@ -412,6 +421,7 @@ export async function runFactory(
     review: resolvePileMode("review", pileModeCli, factoryConfig.config.piles),
     executionCoordination: resolvePileMode("executionCoordination", pileModeCli, factoryConfig.config.piles)
   };
+  const deliveryMode = resolveDeliveryMode(factoryConfig.config, options.deliveryMode);
   const runAbortController = new AbortController();
   const policySnapshot = buildPolicySnapshot({
     policy: {
@@ -1128,6 +1138,7 @@ export async function runFactory(
     timestamp: evaluationTimestamp
   });
   let deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
+  let deliveryAuthorizationPayloadWritten = false;
   if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
     const authorization = await loadDeliveryAuthorization({
       decisionPath: loop.decisionPath,
@@ -1136,57 +1147,92 @@ export async function runFactory(
     if (authorization === null) {
       throw new CliExitError("Delivery authorization could not be loaded from approved review decision.", 1);
     }
-    const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
-    const deliverySignal = AbortSignal.any([
-      runAbortController.signal,
-      AbortSignal.timeout(deliveryWallClockMs)
-    ]);
-    const fullResult = await runFullDeliveryPreflight({
-      token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
-      target: intent.capabilityEnvelope.delivery.target,
-      runDir,
-      fs: fsPromises,
-      signal: deliverySignal
-    });
-    if (!fullResult.proceed) {
-      throw new CliExitError(`Delivery full preflight refused: ${fullResult.result.outcome}`, 1);
-    }
-    const { octokit, baseSha } = fullResult;
-    if (octokit === undefined || baseSha === undefined) {
-      throw new CliExitError("Delivery full preflight did not return Octokit and base SHA.", 1);
-    }
     const deliveryArtifacts = buildDeliveryArtifactList(executionResult.evidence);
-    const wireResult = await wireExecuteDelivery({
+    const deliveryBodyInput = buildDeliveryBodyInput({
       runId,
-      runDir,
-      authorization,
-      intent: {
-        title: intent.title,
-        archetype: intent.goalArchetype ?? "cosmetic-tweak"
-      },
       target: intent.capabilityEnvelope.delivery.target,
-      bodyInput: {
-        runId,
-        target: intent.capabilityEnvelope.delivery.target,
-        mechanical: {
-          verdict: review.verdict === "pass" ? "pass" : "fail",
-          findings: review.findings
-        },
-        critiques: critiquesFromLoop(loop),
-        iterations: deliveryIterationsFromLoop(loop),
-        artifacts: deliveryArtifacts
-      },
-      token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
-      octokit,
-      baseSha,
-      workspaceDir: repoRuntime.cloneDir,
-      fs: fsPromises,
-      signal: deliverySignal,
-      requiredChecks: factoryConfig.config.delivery?.requiredChecks ?? []
+      review,
+      loop,
+      artifacts: deliveryArtifacts
     });
-    deliveryWireStatus = wireResult.status;
-    if (wireResult.status === "delivery-blocked") {
-      throw new CliExitError("Delivery execution was blocked; see delivery/delivery-result.json.", 1);
+    const branchName = buildBranchName({
+      archetype: intent.goalArchetype ?? "cosmetic-tweak",
+      runId
+    });
+    if (deliveryMode === 'gated') {
+      await writeDeliveryAuthorizationPayloadAtomic({
+        runDir,
+        payload: buildAuthorizationPayload({
+          runId,
+          decisionPath: loop.decisionPath,
+          target: intent.capabilityEnvelope.delivery.target,
+          branchName,
+          title: intent.title || runId,
+          body: assembleDeliveryBody(deliveryBodyInput).body,
+          headSha: repoRuntime.headSha,
+          baseSha: repoRuntime.headSha
+        })
+      });
+      deliveryAuthorizationPayloadWritten = true;
+      writeStderr(`gated: run \`protostar-factory deliver ${runId}\` to push.`);
+    } else {
+      const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
+      const deliverySignal = AbortSignal.any([
+        runAbortController.signal,
+        AbortSignal.timeout(deliveryWallClockMs)
+      ]);
+      const fullResult = await runFullDeliveryPreflight({
+        token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
+        target: intent.capabilityEnvelope.delivery.target,
+        runDir,
+        fs: fsPromises,
+        signal: deliverySignal
+      });
+      if (!fullResult.proceed) {
+        throw new CliExitError(`Delivery full preflight refused: ${fullResult.result.outcome}`, 1);
+      }
+      const { octokit, baseSha } = fullResult;
+      if (octokit === undefined || baseSha === undefined) {
+        throw new CliExitError("Delivery full preflight did not return Octokit and base SHA.", 1);
+      }
+      await writeDeliveryAuthorizationPayloadAtomic({
+        runDir,
+        payload: buildAuthorizationPayload({
+          runId,
+          decisionPath: loop.decisionPath,
+          target: intent.capabilityEnvelope.delivery.target,
+          branchName,
+          title: intent.title || runId,
+          body: assembleDeliveryBody(deliveryBodyInput).body,
+          headSha: repoRuntime.headSha,
+          baseSha
+        })
+      });
+      deliveryAuthorizationPayloadWritten = true;
+      const wireResult = await wireExecuteDelivery({
+        runId,
+        runDir,
+        authorization,
+        intent: {
+          title: intent.title,
+          archetype: intent.goalArchetype ?? "cosmetic-tweak"
+        },
+        target: intent.capabilityEnvelope.delivery.target,
+        bodyInput: {
+          ...deliveryBodyInput
+        },
+        token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
+        octokit,
+        baseSha,
+        workspaceDir: repoRuntime.cloneDir,
+        fs: fsPromises,
+        signal: deliverySignal,
+        requiredChecks: factoryConfig.config.delivery?.requiredChecks ?? []
+      });
+      deliveryWireStatus = wireResult.status;
+      if (wireResult.status === "delivery-blocked") {
+        throw new CliExitError("Delivery execution was blocked; see delivery/delivery-result.json.", 1);
+      }
     }
   }
   const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);
@@ -1290,12 +1336,24 @@ export async function runFactory(
     {
       stage: "release" as const,
       status: deliveryWireStatus === "delivered" ? ("passed" as const) : ("skipped" as const),
-      artifacts: deliveryWireStatus === "delivered"
-        ? [
-            artifact("release", "delivery-result", "delivery/delivery-result.json", "GitHub PR delivery result and latest CI verdict."),
-            artifact("release", "ci-events", "delivery/ci-events.jsonl", "Append-only CI capture and delivery event stream.")
-          ]
-        : []
+      artifacts: [
+        ...(deliveryAuthorizationPayloadWritten
+          ? [
+              artifact(
+                "release",
+                "delivery-authorization",
+                "delivery/authorization.json",
+                "Validator input payload for re-minting DeliveryAuthorization."
+              )
+            ]
+          : []),
+        ...(deliveryWireStatus === "delivered"
+          ? [
+              artifact("release", "delivery-result", "delivery/delivery-result.json", "GitHub PR delivery result and latest CI verdict."),
+              artifact("release", "ci-events", "delivery/ci-events.jsonl", "Append-only CI capture and delivery event stream.")
+            ]
+          : [])
+      ]
     }
   ].reduce(
     (current, stage) =>
@@ -1374,6 +1432,7 @@ export async function runFactory(
       "evaluation-report.json",
       "evolution-decision.json",
       "evolution/snapshot.json",
+      ...(deliveryAuthorizationPayloadWritten ? ["delivery/authorization.json"] : []),
       ...(deliveryWireStatus === "delivered" ? ["delivery/delivery-result.json", "delivery/ci-events.jsonl"] : [])
     ]
   };
@@ -1894,6 +1953,47 @@ async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
   await rename(tmpPath, path);
 }
 
+function buildDeliveryBodyInput(input: {
+  readonly runId: string;
+  readonly target: { readonly owner: string; readonly repo: string; readonly baseBranch: string };
+  readonly review: ReviewGate;
+  readonly loop: ReviewRepairLoopResult;
+  readonly artifacts: readonly StageArtifactRef[];
+}): DeliveryBodyInput {
+  return {
+    runId: input.runId,
+    target: input.target,
+    mechanical: {
+      verdict: input.review.verdict === "pass" ? "pass" : "fail",
+      findings: input.review.findings
+    },
+    critiques: critiquesFromLoop(input.loop),
+    iterations: deliveryIterationsFromLoop(input.loop),
+    artifacts: input.artifacts
+  };
+}
+
+function buildAuthorizationPayload(input: Omit<AuthorizationPayload, "schemaVersion" | "mintedAt">): AuthorizationPayload {
+  return {
+    schemaVersion: "1.0.0",
+    ...input,
+    mintedAt: new Date().toISOString()
+  };
+}
+
+async function writeDeliveryAuthorizationPayloadAtomic(input: {
+  readonly runDir: string;
+  readonly payload: AuthorizationPayload;
+}): Promise<void> {
+  if (!isAuthorizationPayload(input.payload)) {
+    throw new CliExitError("Delivery authorization payload failed schema validation.", 1);
+  }
+  await writeJsonAtomic(
+    resolve(input.runDir, "delivery", "authorization.json"),
+    sortJsonValue(input.payload)
+  );
+}
+
 function resolveRefusalsIndexPath(outDir: string): string {
   // refusals.jsonl sits alongside the runs/ directory so a single workspace
   // accumulates one index regardless of which run dir produced the entry. In
@@ -2076,6 +2176,7 @@ async function writeIntentAdmissionDecision(input: {
 
 interface RepoRuntimeAdmission {
   readonly cloneDir: string;
+  readonly headSha: string;
   readonly policy: RepoRuntimePolicy;
 }
 
@@ -2246,7 +2347,7 @@ async function admitRepoRuntime(input: {
     })
   });
 
-  return { cloneDir, policy };
+  return { cloneDir, headSha: cloneResult.headSha, policy };
 }
 
 function repoRuntimeEvidence(input: {
