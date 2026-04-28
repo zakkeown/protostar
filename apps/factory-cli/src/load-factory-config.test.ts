@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 
 import { computeLineageId, ONTOLOGY_CONVERGENCE_THRESHOLD } from "@protostar/evaluation";
+import type { ConfirmedIntent } from "@protostar/intent";
 
 import {
   loadFactoryConfig,
@@ -182,17 +183,24 @@ describe("loadFactoryConfig", () => {
 
 describe("evaluation/evolution config resolvers", () => {
   const intent = {
+    id: "intent_cfg",
+    title: "Button color",
     problem: "Make the primary button green",
+    requester: "operator",
+    confirmedAt: "2026-04-28T00:00:00Z",
     acceptanceCriteria: [
       { id: "AC-1", statement: "Button is green", verification: "Inspect CSS" }
     ],
     constraints: [],
+    stopConditions: [],
+    schemaVersion: "1.5.0",
+    signature: null,
     capabilityEnvelope: {
       filesystem: { readable: [], writable: [] },
       network: { allowedHosts: [] },
       tools: { allowed: [] }
     }
-  };
+  } as unknown as ConfirmedIntent;
 
   it("resolves semantic judge model with CLI > config > built-in precedence", () => {
     assert.equal(resolveSemanticJudgeModel("cli", "config"), "cli");

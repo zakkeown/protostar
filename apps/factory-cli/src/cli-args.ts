@@ -1,3 +1,5 @@
+import { MAX_EVOLUTION_GENERATIONS } from "@protostar/evaluation";
+
 export type TrustLevel = "untrusted" | "trusted";
 
 export const TRUST_LEVELS: readonly TrustLevel[] = Object.freeze(["untrusted", "trusted"]);
@@ -25,29 +27,40 @@ export interface ParsedCliArgs {
   readonly planningMode?: PileMode;
   readonly reviewMode?: PileMode;
   readonly execCoordMode?: PileMode;
+  readonly lineage?: string;
+  readonly evolveCode?: boolean;
+  readonly generation?: number;
+  readonly semanticJudgeModel?: string;
+  readonly consensusJudgeModel?: string;
 }
 
 const FLAG_NAMES = new Set([
+  "--consensus-judge-model",
   "--confirmed-intent",
   "--confirmed-intent-output",
   "--draft",
+  "--evolve-code",
   "--allowed-adapters",
   "--exec-coord-mode",
   "--executor",
   "--fail-task-ids",
+  "--generation",
   "--intent",
   "--intent-draft",
   "--intent-mode",
   "--intent-output",
+  "--lineage",
   "--out",
   "--planning-fixture",
   "--planning-mode",
   "--review-mode",
   "--run-id",
+  "--semantic-judge-model",
   "--trust"
 ]);
 
 const PILE_MODE_FLAGS = new Set(["--planning-mode", "--review-mode", "--exec-coord-mode"]);
+const BOOLEAN_FLAGS = new Set(["--evolve-code"]);
 
 export class ArgvError extends Error {
   constructor(
@@ -85,6 +98,14 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
       throw new ArgvError(flag, "unknown flag");
     }
 
+    if (BOOLEAN_FLAGS.has(flag)) {
+      if (inlineValue !== undefined) {
+        throw new ArgvError(flag, "does not accept a value");
+      }
+      setFlag(flags, flagName(flag), true);
+      continue;
+    }
+
     const value = inlineValue ?? args[index + 1];
     if (value === undefined || value.startsWith("--") || value.length === 0) {
       throw new ArgvError(flag, "expected a value");
@@ -105,6 +126,11 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
       if (value !== "fixture" && value !== "live") {
         throw new ArgvError(flag, `expected one of ${PILE_MODES.join("|")}, got "${value}"`);
       }
+    }
+
+    if (flag === "--generation") {
+      setFlag(flags, "generation", parseGenerationArg(value));
+      continue;
     }
 
     setFlag(flags, flagName(flag), value);
@@ -136,6 +162,21 @@ type WritableParsedCliArgs = {
   -readonly [K in keyof ParsedCliArgs]?: ParsedCliArgs[K];
 };
 
-function setFlag(flags: WritableParsedCliArgs, name: keyof ParsedCliArgs, value: string): void {
+export function parseGenerationArg(value: string): number {
+  const generation = Number(value);
+  if (!Number.isInteger(generation) || generation < 0) {
+    throw new ArgvError("--generation", `expected an integer >= 0 and <= ${MAX_EVOLUTION_GENERATIONS}, got "${value}"`);
+  }
+  if (generation > MAX_EVOLUTION_GENERATIONS) {
+    throw new ArgvError("--generation", `expected <= ${MAX_EVOLUTION_GENERATIONS}, got "${value}"`);
+  }
+  return generation;
+}
+
+function setFlag(
+  flags: WritableParsedCliArgs,
+  name: keyof ParsedCliArgs,
+  value: string | number | boolean
+): void {
   flags[name] = value as never;
 }
