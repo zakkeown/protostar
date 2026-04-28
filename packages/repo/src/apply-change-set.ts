@@ -19,7 +19,6 @@ export interface PatchRequest {
 export type ChangeSetArchetype = "cosmetic-tweak" | "feature-add" | "refactor" | "bugfix";
 
 export interface ApplyChangeSetInput {
-  readonly patches: readonly PatchRequest[];
   readonly archetype?: ChangeSetArchetype;
 }
 
@@ -42,36 +41,31 @@ export interface ApplyResult {
 }
 
 export async function applyChangeSet(
-  changeSet: readonly PatchRequest[] | ApplyChangeSetInput
+  patches: readonly PatchRequest[],
+  input: ApplyChangeSetInput = {}
 ): Promise<readonly ApplyResult[]> {
-  const input = normalizeChangeSet(changeSet);
-  const cosmeticRefusal = refuseCosmeticMultifile(input);
+  const cosmeticRefusal = refuseCosmeticMultifile(patches, input);
   if (cosmeticRefusal !== null) return cosmeticRefusal;
 
   const results: ApplyResult[] = [];
 
-  for (const patch of input.patches) {
+  for (const patch of patches) {
     results.push(await applyOnePatch(patch));
   }
 
   return results;
 }
 
-function normalizeChangeSet(
-  changeSet: readonly PatchRequest[] | ApplyChangeSetInput
-): ApplyChangeSetInput {
-  if (!("patches" in changeSet)) return { patches: changeSet };
-
-  return changeSet;
-}
-
-function refuseCosmeticMultifile(input: ApplyChangeSetInput): readonly ApplyResult[] | null {
+function refuseCosmeticMultifile(
+  patches: readonly PatchRequest[],
+  input: ApplyChangeSetInput
+): readonly ApplyResult[] | null {
   if (input.archetype !== "cosmetic-tweak") return null;
 
-  const touchedFiles = Array.from(new Set(input.patches.map(({ path }) => path))).sort();
+  const touchedFiles = Array.from(new Set(patches.map(({ path }) => path))).sort();
   if (touchedFiles.length <= 1) return null;
 
-  const firstPatch = input.patches[0];
+  const firstPatch = patches[0];
   return [
     {
       path: firstPatch?.path ?? touchedFiles[0] ?? "",

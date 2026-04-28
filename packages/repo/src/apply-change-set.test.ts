@@ -191,10 +191,10 @@ describe("applyChangeSet", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const op = opFor(repo.dir, "copy.txt");
 
-    const results = await applyChangeSet({
-      archetype: "cosmetic-tweak",
-      patches: [patchFor(op, "copy.txt", Buffer.from("old copy\n"), "new copy\n")]
-    });
+    const results = await applyChangeSet(
+      [patchFor(op, "copy.txt", Buffer.from("old copy\n"), "new copy\n")],
+      { archetype: "cosmetic-tweak" }
+    );
 
     assert.deepEqual(results, [{ path: "copy.txt", status: "applied" }]);
     assert.deepEqual(await readFile(op), Buffer.from("new copy\n"));
@@ -213,13 +213,13 @@ describe("applyChangeSet", () => {
     const firstStat = await stat(firstOp.path);
     const secondStat = await stat(secondOp.path);
 
-    const results = await applyChangeSet({
-      archetype: "cosmetic-tweak",
-      patches: [
+    const results = await applyChangeSet(
+      [
         patchFor(firstOp, "first.txt", Buffer.from("first before\n"), "first after\n"),
         patchFor(secondOp, "second.txt", Buffer.from("second before\n"), "second after\n")
-      ]
-    });
+      ],
+      { archetype: "cosmetic-tweak" }
+    );
 
     assert.deepEqual(results, [
       {
@@ -244,10 +244,10 @@ describe("applyChangeSet", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const op = opFor(repo.dir, "multi-hunk.txt");
 
-    const results = await applyChangeSet({
-      archetype: "cosmetic-tweak",
-      patches: [patchFor(op, "multi-hunk.txt", original, modified)]
-    });
+    const results = await applyChangeSet(
+      [patchFor(op, "multi-hunk.txt", original, modified)],
+      { archetype: "cosmetic-tweak" }
+    );
 
     assert.deepEqual(results, [{ path: "multi-hunk.txt", status: "applied" }]);
     assert.deepEqual(await readFile(op), Buffer.from(modified));
@@ -264,7 +264,7 @@ describe("applyChangeSet", () => {
       patchFor(opFor(repo.dir, file.path), file.path, Buffer.from(file.content), `feature after ${index + 1}\n`)
     );
 
-    const results = await applyChangeSet({ archetype: "feature-add", patches });
+    const results = await applyChangeSet(patches, { archetype: "feature-add" });
 
     assert.deepEqual(statusesOf(results), ["applied", "applied", "applied", "applied", "applied"]);
     for (const [index, file] of files.entries()) {
@@ -281,12 +281,13 @@ describe("applyChangeSet", () => {
     });
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
 
-    const results = await applyChangeSet({
-      patches: [
+    const results = await applyChangeSet(
+      [
         patchFor(opFor(repo.dir, "legacy-a.txt"), "legacy-a.txt", Buffer.from("a before\n"), "a after\n"),
         patchFor(opFor(repo.dir, "legacy-b.txt"), "legacy-b.txt", Buffer.from("b before\n"), "b after\n")
-      ]
-    });
+      ],
+      {}
+    );
 
     assert.deepEqual(statusesOf(results), ["applied", "applied"]);
     assert.deepEqual(await readFile(opFor(repo.dir, "legacy-a.txt")), Buffer.from("a after\n"));
@@ -304,13 +305,13 @@ describe("applyChangeSet", () => {
     const firstOp = opFor(repo.dir, "atomic-first.txt");
     const secondOp = opFor(repo.dir, "atomic-second.txt");
 
-    const results = await applyChangeSet({
-      archetype: "cosmetic-tweak",
-      patches: [
+    const results = await applyChangeSet(
+      [
         patchFor(firstOp, "atomic-first.txt", Buffer.from("first original\n"), "first would write\n"),
         patchFor(secondOp, "atomic-second.txt", Buffer.from("second original\n"), "second would write\n")
-      ]
-    });
+      ],
+      { archetype: "cosmetic-tweak" }
+    );
 
     assert.deepEqual(results, [
       {
