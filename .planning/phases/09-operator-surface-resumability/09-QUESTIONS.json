@@ -1,0 +1,638 @@
+{
+  "phase": "09-operator-surface-resumability",
+  "generated_at": "2026-04-28T00:00:00Z",
+  "stats": {
+    "total": 22,
+    "answered": 22,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "prior_decisions": {
+    "phase_6_run_layout_q07": "runs/{id}/piles/{kind}/iter-{N}/{result.json,trace.json,refusal.json}; runs/{id}/manifest.json; runs/{id}/execution/journal.jsonl + snapshot.json",
+    "phase_6_refusal_q12_q13": "Refusals indexed in .protostar/refusals.jsonl (append-only, sourceOfTruth discriminator). Phase 8 added EvaluationResult variant.",
+    "phase_6_cancel_wiring": "apps/factory-cli/src/cancel.ts already installs SIGINT + CANCEL-sentinel cooperative cancel for an in-flight run. OP-04 needs the OUT-OF-PROCESS surface.",
+    "phase_4_journal": "packages/execution exposes TaskJournalEvent stream + reduceJournalToSnapshot. Snapshot.json is the deterministic projection of the journal. OP-03 resume must rebuild from these.",
+    "phase_5_authority_brand": "DeliveryAuthorization is a Phase 5 brand minted only when both mechanical and model review pass. OP-06 deliver must consume an existing authorization; cannot mint one.",
+    "phase_7_delivery_runtime": "packages/delivery-runtime owns Octokit + push (network-only). apps/factory-cli persists ci-events.jsonl. OP-06 reuses that runtime entrypoint.",
+    "phase_8_evolution_chain": ".protostar/evolution/{lineageId}.jsonl is append-only and MUST survive run pruning (Phase 8 Q-14 lock).",
+    "constraint_authority": "Only apps/factory-cli and packages/repo do filesystem I/O. Subcommand modules live in apps/factory-cli/src/.",
+    "constraint_runtime_deps": "Minimal external runtime deps (PROJECT.md). Adding a CLI argument-parser library requires an explicit lock note. Current parseArgs is hand-rolled.",
+    "constraint_archetype": "Only cosmetic-tweak archetype is wired for v0.1.",
+    "code_landmarks": [
+      "apps/factory-cli/src/main.ts:2517 — parseArgs (single 'run' command today; needs subcommand router)",
+      "apps/factory-cli/src/main.ts:2780 — bin/help wiring",
+      "apps/factory-cli/src/cancel.ts — installCancelWiring + CANCEL sentinel (in-process side)",
+      "apps/factory-cli/src/journal-writer.ts — task journal append-only writer (Phase 4)",
+      "packages/execution/src/snapshot.ts — reduceJournalToSnapshot + serializeSnapshot (deterministic JSON via sortJsonValue)",
+      "packages/execution/src/orphan-replay.ts — replayOrphanedTasks (Phase 4 — already exists for resume)",
+      "packages/artifacts/src/index.ts — FactoryRunManifest { runId, intentId, status, createdAt, stages }; status enum lacks 'cancelled' today",
+      ".protostar/runs/<runId>/{manifest.json, intent.json, plan.json, execution-plan.json, planning-mission.txt, review-mission.txt, review-gate.json, piles/<kind>/iter-<N>/, execution/{journal.jsonl,snapshot.json}, evolution/snapshot.json, ci-events.jsonl} — observed shape",
+      ".protostar/refusals.jsonl + .protostar/evolution/{lineageId}.jsonl — workspace-level append-only indexes that must survive prune"
+    ]
+  },
+  "sections": [
+    {
+      "id": "cli-architecture",
+      "title": "CLI Architecture (router, parser, exit codes)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Subcommand router refactor",
+          "context": "Today parseArgs (apps/factory-cli/src/main.ts:2517) accepts only `run`. OP-01..OP-08 introduce 6+ new subcommands (status, resume, cancel, inspect, deliver, prune). Where does the dispatch live?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extend parseArgs in-place",
+              "description": "Add cases to the existing switch in main.ts. Lowest churn; main.ts continues to grow (~3000 LoC already) and command handlers stay co-located with run-loop code."
+            },
+            {
+              "id": "b",
+              "label": "Per-command modules under apps/factory-cli/src/commands/",
+              "description": "New folder commands/{run,status,resume,cancel,inspect,deliver,prune}.ts. Each exports `parse(rest)` and `execute(opts)`. main.ts becomes a thin dispatcher. Slightly more files, much smaller blast radius per command, easier to test in isolation."
+            },
+            {
+              "id": "c",
+              "label": "Single commands.ts with a registry table",
+              "description": "One new file that exports `{ name, parse, execute }` records; main.ts iterates the table. Middle ground."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Argument parser: hand-rolled vs library",
+          "context": "Current parseArgs is hand-rolled and works fine for one command. Six more subcommands each with their own flags is more surface. PROJECT.md Constraints say minimal runtime deps; adding a parser library needs an explicit lock note.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Stay hand-rolled, share a parseFlags helper",
+              "description": "Extract the flag-parser already in main.ts into a shared util; per-command parse functions call it then validate. No new dep. More boilerplate; auditable."
+            },
+            {
+              "id": "b",
+              "label": "Add `commander` (or `@commander-js/extra-typings`)",
+              "description": "Mature, types-friendly, ~80KB. Subcommand DSL eliminates router boilerplate. New runtime dep — must be added to PROJECT.md Constraints lock revision."
+            },
+            {
+              "id": "c",
+              "label": "Add a tiny purpose-built parser (e.g., `mri` or `arg`)",
+              "description": "<10KB; no subcommand DSL but clean flag parsing. Same lock note required."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Exit-code taxonomy",
+          "context": "OP-07 says output must be pipeable. Pipeable in shell = predictable exit codes. Today the `run` command uses 0 for ok and 1 for any error.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Binary 0/1",
+              "description": "Keep current behavior across all subcommands. Simplest; consumer scripts can't distinguish 'not found' from 'arg error' from 'cancelled'."
+            },
+            {
+              "id": "b",
+              "label": "Curated taxonomy",
+              "description": "0 success, 1 generic error, 2 usage/arg error, 3 not-found, 4 conflict, 5 cancelled-by-operator, 6 not-resumable. Exit codes are part of OP-07's stable contract; document in --help."
+            },
+            {
+              "id": "c",
+              "label": "Exit code via JSON only",
+              "description": "Always exit 0; signal outcome via `{ ok: false, code }` in stdout JSON. Hostile to shell pipelines (`set -e`). Probably wrong for operator surface."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-04",
+          "title": "stdout vs stderr discipline",
+          "context": "OP-07 says output is JSON-stable so it's pipeable. That implies a clean `cmd ... | jq` story. Anything chatty must not pollute stdout.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strict: stdout = data only; stderr = everything else",
+              "description": "Progress, banners, warnings → stderr. stdout always parses as a single JSON value. Diagnostic logging behind --verbose to stderr. Cleanest pipe story."
+            },
+            {
+              "id": "b",
+              "label": "Strict for new subcommands; leave `run` as-is",
+              "description": "`run` already logs progress to stdout. Touching it risks regressing v0.1. New subcommands adopt strict discipline; `run` cleaned up later."
+            },
+            {
+              "id": "c",
+              "label": "Loose: stdout for both, JSON one-line-per-event",
+              "description": "ndjson on stdout. Friendlier for streaming `status --watch` later but kills the simple `cmd | jq .` story."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "status-command",
+      "title": "Status Command (OP-02, OP-07)",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "Default output mode for status",
+          "context": "OP-02 lists last N runs with verdict + archetype + duration; --run <id> prints manifest summary. OP-07 says JSON-stable. What does a bare `protostar-factory status` print?",
+          "options": [
+            {
+              "id": "a",
+              "label": "JSON by default",
+              "description": "`status` always emits a JSON object. Human readability is a `--human` flag. Maximally pipeable; hostile to first-time CLI users."
+            },
+            {
+              "id": "b",
+              "label": "Human by default, --json flag",
+              "description": "Bare `status` prints a fixed-width text table; `--json` emits the stable JSON shape. TTY-friendly default; opt-in for scripting."
+            },
+            {
+              "id": "c",
+              "label": "TTY-aware auto-switch",
+              "description": "If stdout is a TTY → human; else → JSON. Magical (same command, two shapes — surprises CI)."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Default N for `status` (no --run)",
+          "context": "OP-02: 'last N runs'. Today `.protostar/runs/` for this project already has dozens of run dirs. We need a default cap.",
+          "options": [
+            {
+              "id": "a",
+              "label": "10",
+              "description": "Fits a typical terminal screen. Use `--limit N` (default 10) and `--all` to disable cap."
+            },
+            {
+              "id": "b",
+              "label": "25",
+              "description": "Bigger window for active dogfood loops (Phase 10 wants ≥10 consecutive runs)."
+            },
+            {
+              "id": "c",
+              "label": "Cap by duration, not count",
+              "description": "Default `--since 24h`; `--limit` overrides. Better matches operator mental model. More code; needs duration parser shared with prune."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Status row schema",
+          "context": "What columns/fields make up one row of `status`? Each must be derivable from the manifest + on-disk artifacts; the schema is a public OP-07 contract.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Minimal — just OP-02's literal asks",
+              "description": "{ runId, archetype, verdict, durationMs }. Smallest surface to lock. Operator must inspect for anything else."
+            },
+            {
+              "id": "b",
+              "label": "Full operator dashboard",
+              "description": "{ runId, archetype, status, reviewVerdict, evaluationVerdict, lineageId, generation, prUrl?, durationMs, createdAt }. Everything an operator usually wants in one shot. Bigger schema-stability commitment."
+            },
+            {
+              "id": "c",
+              "label": "Tiered — minimal default, --full opt-in",
+              "description": "Bare `status` returns (a). `status --full` returns (b). Two schemas to lock but each smaller."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Run discovery: scan vs index",
+          "context": "How does `status` enumerate runs? Today there is no top-level index; runs live under `.protostar/runs/<runId>/`. Scanning works at v0.1 scale; degrades at scale.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Directory scan, sorted by mtime",
+              "description": "`readdir` + `stat`; sort by mtime desc; read each manifest.json lazily for the requested page. Trivial; O(n) per status call."
+            },
+            {
+              "id": "b",
+              "label": "Append-only `.protostar/runs.jsonl` index",
+              "description": "Symmetric with refusals.jsonl + evolution/{lineage}.jsonl. One line per run-create. Adds a write-side surface to the run loop."
+            },
+            {
+              "id": "c",
+              "label": "Scan now, indexed in Phase 10 if needed",
+              "description": "Ship (a) for v0.1; revisit if dogfood (≥10 runs) shows latency. Document as a scaling concern."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Mid-run / corrupted manifest handling",
+          "context": "A killed run leaves manifest.json non-terminal ('running'). A crashed-mid-write run may have partial JSON. status must not crash on either.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Best-effort row with `state: 'unknown'`",
+              "description": "Wrap each manifest read in try/catch; on parse failure emit `{ runId, state: 'unknown', error }` and continue. Soft-fail; operator notices."
+            },
+            {
+              "id": "b",
+              "label": "Compute liveness from journal + sentinel",
+              "description": "manifest 'running' AND no recent journal append AND no CANCEL → mark `state: 'orphaned'`. Communicates more truth. Resume command needs the same logic — share a helper."
+            },
+            {
+              "id": "c",
+              "label": "Hard-fail on first corrupt row",
+              "description": "Surface the bug. Punishes the operator for v0.1 crashes. Probably wrong."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "inspect-command",
+      "title": "Inspect Command (OP-05, OP-07)",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Default inspect view",
+          "context": "OP-05: 'pretty-print the run bundle (manifest, stage records, artifacts)'. A run bundle includes manifest.json, plan.json, review-gate.json, evaluation-report.json, evolution/snapshot.json, ci-events.jsonl tail, refusals — that's a lot of JSON.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Composite JSON: full bundle inlined",
+              "description": "`inspect <id>` emits a single JSON object with every artifact inlined under stable keys ({ manifest, planning, execution, review, evaluation, delivery, refusals }). Largest payload; one-shot for jq."
+            },
+            {
+              "id": "b",
+              "label": "Manifest + index of artifact paths",
+              "description": "`inspect <id>` emits manifest + `{ artifacts: [{ stage, kind, path, sha256? }] }`. Operator follows up with `cat`/`jq` on individual files. Smaller surface."
+            },
+            {
+              "id": "c",
+              "label": "Composite, but stage-sliceable",
+              "description": "Default = (a). `inspect <id> --stage execution` returns just the execution slice. Same keys/sub-shape regardless of slice."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Trace inclusion (pile traces are big)",
+          "context": "Phase 6 Q-08 locked always-on trace.json per pile invocation. These can be 10s of MB across iterations. Including by default in inspect blows up the JSON.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Exclude traces by default; include via --full or --include-traces",
+              "description": "Default inspect references traces by path under `artifacts[]`; flag inlines them. Keeps default output bounded; opt-in for deep audits."
+            },
+            {
+              "id": "b",
+              "label": "Always reference, never inline",
+              "description": "Traces NEVER inlined; only referenced by path + sha256. `cat <path> | jq` is the way to read them. Smallest, most predictable."
+            },
+            {
+              "id": "c",
+              "label": "Always inline",
+              "description": "Operator gets one JSON. Pathological at scale."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Field ordering / canonicalization",
+          "context": "OP-07 'JSON-stable so pipeable'. Two things stability could mean: schema (keys exist) vs serialization (byte-identical for identical inputs).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Sorted keys (sortJsonValue pattern from snapshot.ts)",
+              "description": "Reuse packages/execution/src/snapshot.ts's sortJsonValue to alphabetize keys recursively. Byte-stable across machines. Same approach Phase 4 already uses for snapshot.json."
+            },
+            {
+              "id": "b",
+              "label": "Schema-fixed insertion order",
+              "description": "Hand-author serialization to a documented field order. Reads more naturally to humans but harder to keep stable across refactors."
+            },
+            {
+              "id": "c",
+              "label": "JSON.stringify default (insertion order)",
+              "description": "No canonicalization. Stability depends on construction order. Easy to regress."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "resume-command",
+      "title": "Resume Command (OP-03)",
+      "questions": [
+        {
+          "id": "Q-13",
+          "title": "What stages can resume from?",
+          "context": "Phase 4 task journal supports re-deriving execution state via reduceJournalToSnapshot + replayOrphanedTasks. Other stages (planning pile, review pile, evaluation pile) write iter-N folders but have no journal — they're effectively idempotent re-runs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Execution-only resume",
+              "description": "`resume <id>` ONLY for runs killed mid-execution. Other states refuse with exit code 6. Scope-minimal; matches OP-03 literal text ('from its task journal')."
+            },
+            {
+              "id": "b",
+              "label": "Stage-aware resume",
+              "description": "Resume jumps to the latest non-terminal stage. Mid-execution → replay journal. Mid-review → re-invoke review pile from latest iter. Mid-evaluation → re-invoke evaluation pile. More logic; more failure modes; closer to operator expectation."
+            },
+            {
+              "id": "c",
+              "label": "(a) for v0.1 + clear refusal message pointing at re-run",
+              "description": "Execution-only; non-execution states exit 6 with a message: 'this run can be re-driven by `protostar-factory run --intent-draft <path> --run-id <id>` (idempotent on completed stages)'. Phase 10 may upgrade to (b)."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Re-execution semantics for a partial journal",
+          "context": "Journal has events for tasks T1,T2,T3 with T2 stuck in 'running' (no terminal event). What does resume do?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Replay only orphaned tasks (replayOrphanedTasks)",
+              "description": "Phase 4 already exposes replayOrphanedTasks. Re-execute T2 (and any later tasks) from its last seq. Preserves successful T1/T3."
+            },
+            {
+              "id": "b",
+              "label": "Re-run the whole plan",
+              "description": "Discard journal; start fresh task graph. Simpler but loses successful work. Probably wrong given Phase 4's existing replay helper."
+            },
+            {
+              "id": "c",
+              "label": "Operator chooses: --from <taskId> or default to (a)",
+              "description": "Default = (a); escape hatch lets operator force re-run from a specific task."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Cancel sentinel on resume",
+          "context": "If runs/{id}/CANCEL exists, the run was either explicitly cancelled or sentinel-tripped. installCancelWiring already exposes unlinkSentinelOnResume.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Auto-unlink on resume",
+              "description": "Use unlinkSentinelOnResume helper. Cancel was a transient signal; resume implies operator wants forward motion. Simplest."
+            },
+            {
+              "id": "b",
+              "label": "Refuse if sentinel present unless --force",
+              "description": "Cancel may have been deliberate; require explicit override. Safer. Adds an exit code (4: conflict)."
+            },
+            {
+              "id": "c",
+              "label": "Refuse if manifest.status === 'cancelled'; auto-unlink otherwise",
+              "description": "Distinguish operator-cancel (terminal — refuse) from in-flight-sentinel-trip (transient — auto-unlink). Requires Q-18's manifest-status decision."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "cancel-command",
+      "title": "Cancel Command (OP-04)",
+      "questions": [
+        {
+          "id": "Q-16",
+          "title": "Out-of-process cancel mechanism",
+          "context": "installCancelWiring (apps/factory-cli/src/cancel.ts) handles in-process SIGINT and reads the CANCEL sentinel between tasks. OP-04's `protostar-factory cancel <runId>` runs in a SEPARATE process and must signal the running one.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Sentinel-only",
+              "description": "`cancel <runId>` writes runs/<id>/CANCEL and exits. The in-flight process picks it up between tasks. Simplest; latency = current-task duration. Existing cancel wiring already supports this."
+            },
+            {
+              "id": "b",
+              "label": "PID file + SIGTERM, fall back to sentinel",
+              "description": "run loop writes runs/<id>/run.pid at start; cancel sends SIGTERM to PID, then writes sentinel as belt-and-suspenders. Lower latency. Adds PID lifecycle complexity (stale PID, cross-host invalid)."
+            },
+            {
+              "id": "c",
+              "label": "Sentinel + manifest mark",
+              "description": "Write CANCEL sentinel AND mark manifest status='cancelling'. status command shows 'cancelling' until run loop confirms 'cancelled'. Better operator visibility."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-17",
+          "title": "Cancel against an already-finished run",
+          "context": "`cancel <runId>` against a run whose manifest.status is 'completed' or 'blocked' — what happens?",
+          "options": [
+            {
+              "id": "a",
+              "label": "No-op success (exit 0)",
+              "description": "Cancel is idempotent; already-terminal = nothing to do. Operator-friendly."
+            },
+            {
+              "id": "b",
+              "label": "Refuse with exit code 4 (conflict)",
+              "description": "Surface the truth: there was nothing to cancel. Forces operator to re-read state. Stricter."
+            },
+            {
+              "id": "c",
+              "label": "Refuse for completed; no-op for blocked",
+              "description": "Differentiate by terminality. Probably more conceptual overhead than it's worth."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "manifest-status",
+      "title": "Manifest Status & Authority",
+      "questions": [
+        {
+          "id": "Q-18",
+          "title": "FactoryRunStatus enum extension",
+          "context": "packages/artifacts/src/index.ts FactoryRunStatus is currently 'created' | 'running' | 'blocked' | 'repairing' | 'ready-to-release' | 'completed'. Phase 9 introduces cancel + resume + delivery-gated states.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Add 'cancelled' only",
+              "description": "Minimum to land OP-04. Resume keeps 'running'; deliver-gating reuses 'ready-to-release'. Cleanest schema bump."
+            },
+            {
+              "id": "b",
+              "label": "Add 'cancelled' + 'cancelling'",
+              "description": "Two-step cancel (sentinel set → loop confirms) gives status visibility into in-flight cancels. Pairs with Q-16(c)."
+            },
+            {
+              "id": "c",
+              "label": "Add 'cancelled' + 'orphaned'",
+              "description": "'orphaned' for runs whose journal stalled and process is gone (Q-09 needs this notion). status surfaces it; resume picks it up."
+            },
+            {
+              "id": "d",
+              "label": "Add 'cancelled' + 'cancelling' + 'orphaned'",
+              "description": "Full set. Largest schema bump; clearest operator surface. Schema-stability cost is real (admission-e2e contract test must lock)."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-19",
+          "title": "runId validation on operator surfaces",
+          "context": "All new commands take a <runId>. Today runIds look like `run_20260425200234_dark_factory_scaffold`. Phase 9 must reject path-traversal and shell-injection attempts.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Strict regex `^[a-zA-Z0-9_-]{1,128}$`",
+              "description": "Same shape as the existing branch-name validator. Reject anything else with exit 2. Validate at the parse layer; planner/inspect/etc. take a branded `RunId` type."
+            },
+            {
+              "id": "b",
+              "label": "Path-relative check only",
+              "description": "Resolve runs/<id> and ensure it stays inside .protostar/runs/. Catches traversal but allows weird characters that may break shell pipes."
+            },
+            {
+              "id": "c",
+              "label": "Both: regex + path-confinement",
+              "description": "Belt-and-suspenders; cheap. Matches Phase 5 mint-brand-validator pattern."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "deliver-command",
+      "title": "Deliver Command (OP-06)",
+      "questions": [
+        {
+          "id": "Q-20",
+          "title": "When does `deliver <runId>` apply?",
+          "context": "Phase 7 delivery runs INSIDE the loop when DeliveryAuthorization is minted. OP-06 'explicit delivery trigger when delivery is gated to operator action' implies a config-gated mode where the loop stops at ready-to-release without auto-delivering.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Config flag: factory-config.json `delivery.mode: 'auto' | 'gated'`",
+              "description": "Default 'auto' (existing Phase 7 behavior). 'gated' makes the loop pause at 'ready-to-release'; operator runs `deliver <runId>` to push. CLI override `--delivery-mode <auto|gated>` per Phase 6 Q-04."
+            },
+            {
+              "id": "b",
+              "label": "deliver is idempotent and works regardless of mode",
+              "description": "deliver works even after auto-delivery succeeded — no-op success. Useful for retry-after-failure too. v0.1 stays auto-only and OP-06 just exposes a retry surface."
+            },
+            {
+              "id": "c",
+              "label": "Both: gated mode + retry idempotency",
+              "description": "Gated mode + `deliver` works for retry too. Largest scope; cleanest operator story."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-21",
+          "title": "Authority loading for `deliver`",
+          "context": "Phase 5 DeliveryAuthorization is a runtime-minted brand. To re-execute delivery from a separate process, the brand must be reconstituted from disk artifacts.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Persist serialized authorization at runs/<id>/delivery/authorization.json; deliver re-mints via the validator",
+              "description": "On mint, factory-cli writes the authorization payload. deliver reads, runs the same brand-mint validator, gets a fresh brand. No 'trust the disk' shortcut."
+            },
+            {
+              "id": "b",
+              "label": "Refuse if loop didn't pre-mint",
+              "description": "deliver only works for runs whose loop reached ready-to-release. No re-mint logic; just a filesystem flag check. Smaller surface; loses some retry stories."
+            },
+            {
+              "id": "c",
+              "label": "Re-derive authorization from review-gate.json on demand",
+              "description": "deliver re-runs Phase 5's validator over the persisted ReviewGate. Same as (a) but no separate authorization.json — review-gate.json is the source of truth."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "prune-command",
+      "title": "Prune Command (OP-08)",
+      "questions": [
+        {
+          "id": "Q-22",
+          "title": "Prune surface and safety",
+          "context": ".protostar/refusals.jsonl + .protostar/evolution/{lineageId}.jsonl MUST survive prune (Phase 8 Q-14 lock). Active runs must not be deleted. OP-08 phrasing: 'documented prune recipe (or `prune --older-than <duration>`)'.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Documented `find` recipe in README; no command",
+              "description": "README ships a copy-pasteable `find .protostar/runs -mtime +N -type d ... -exec rm -rf` snippet. Zero new code; relies on operator discipline. OP-08 'or' reading."
+            },
+            {
+              "id": "b",
+              "label": "`protostar-factory prune --older-than <duration> [--dry-run] [--archetype X]`",
+              "description": "Full subcommand: parses duration (1d, 7d, 24h), enumerates run dirs, filters by mtime + active-status guard (refuses to delete non-terminal), preserves workspace-level append-only files. --dry-run by default; --confirm to actually delete. Most code; safest."
+            },
+            {
+              "id": "c",
+              "label": "Recipe + a thin `prune --dry-run-only` lister",
+              "description": "Subcommand only LISTS prune candidates as JSON; actual deletion is the documented `find` recipe operator pipes the JSON into. Splits responsibility: factory owns 'what is safe to prune', operator owns 'rm'."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
