@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
 import { authorizeWorkspaceOp } from "@protostar/authority";
@@ -242,12 +242,17 @@ async function executeToFinal(
   task: ExecutionRunPlan["tasks"][number],
   signal: AbortSignal
 ): Promise<AdapterResult> {
+  await initializeTaskEvidenceFiles(input.runDir, task.planTaskId);
   const ctx: AdapterContext = {
     signal,
     confirmedIntent: input.confirmedIntent,
     resolvedEnvelope: input.resolvedEnvelope,
     repoReader: input.repoReader,
-    journal: { appendToken: async () => undefined },
+    journal: {
+      appendToken: async (_taskId, _attempt, text) => {
+        await appendFile(taskEvidencePath(input.runDir, task.planTaskId, "stdout.log"), text, "utf8");
+      }
+    },
     budget: {
       taskWallClockMs: taskWallClockMs(input.resolvedEnvelope),
       adapterRetriesPerTask: input.resolvedEnvelope.budget.adapterRetriesPerTask ?? 4
@@ -323,8 +328,13 @@ async function writeEvidenceFiles(input: {
   readonly evidence: AdapterEvidence;
   readonly reason?: string;
 }): Promise<StageArtifactRef> {
-  const dir = join(input.runDir, "execution", `task-${input.taskId}`);
-  await mkdir(dir, { recursive: true });
+  await initializeTaskEvidenceFiles(input.runDir, input.taskId);
+  if (input.reason !== undefined) {
+    await appendFile(taskEvidencePath(input.runDir, input.taskId, "stderr.log"), `${input.reason}\n`, "utf8");
+  }
+  const dir = taskEvidenceDir(input.runDir, input.taskId);
+  const stdoutArtifact = `execution/task-${input.taskId}/stdout.log`;
+  const stderrArtifact = `execution/task-${input.taskId}/stderr.log`;
   const transcriptArtifact = `execution/task-${input.taskId}/transcript.json`;
   await writeFile(join(dir, "evidence.json"), `${JSON.stringify({
     schemaVersion: "1.0.0",
@@ -334,6 +344,8 @@ async function writeEvidenceFiles(input: {
     status: input.status,
     attempts: input.evidence.attempts,
     durationMs: input.evidence.durationMs,
+    stdoutArtifact,
+    stderrArtifact,
     transcriptArtifact,
     auxReads: input.evidence.auxReads,
     retries: input.evidence.retries,
@@ -350,6 +362,21 @@ async function writeEvidenceFiles(input: {
     uri: `execution/task-${input.taskId}/evidence.json`,
     description: `Adapter evidence for task ${input.taskId}.`
   };
+}
+
+async function initializeTaskEvidenceFiles(runDir: string, taskId: string): Promise<void> {
+  const dir = taskEvidenceDir(runDir, taskId);
+  await mkdir(dir, { recursive: true });
+  await writeFile(taskEvidencePath(runDir, taskId, "stdout.log"), "", { flag: "a" });
+  await writeFile(taskEvidencePath(runDir, taskId, "stderr.log"), "", { flag: "a" });
+}
+
+function taskEvidenceDir(runDir: string, taskId: string): string {
+  return join(runDir, "execution", `task-${taskId}`);
+}
+
+function taskEvidencePath(runDir: string, taskId: string, fileName: "stdout.log" | "stderr.log"): string {
+  return join(taskEvidenceDir(runDir, taskId), fileName);
 }
 
 async function readExistingJournalEvents(runDir: string): Promise<TaskJournalEvent[]> {

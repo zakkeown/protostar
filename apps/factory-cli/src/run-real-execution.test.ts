@@ -29,7 +29,7 @@ describe("runRealExecution", () => {
     const result = await runRealExecution({
       ...ctx.input,
       journalWriter: writer,
-      adapter: finalAdapter(changeSetResult("src/a.ts")),
+      adapter: tokenAdapter("hello from adapter\n", changeSetResult("src/a.ts")),
       applyChangeSet: async () => [{ path: "src/a.ts", status: "applied" }]
     });
     await writer.close();
@@ -40,6 +40,16 @@ describe("runRealExecution", () => {
     assert.match(await readFile(join(ctx.runDir, "execution", "snapshot.json"), "utf8"), /"status":"succeeded"/);
     assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1", "evidence.json")), true);
     assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1", "transcript.json")), true);
+    assert.equal(await readFile(join(ctx.runDir, "execution", "task-task-1", "stdout.log"), "utf8"), "hello from adapter\n");
+    assert.equal(await readFile(join(ctx.runDir, "execution", "task-task-1", "stderr.log"), "utf8"), "");
+    const evidence = JSON.parse(await readFile(join(ctx.runDir, "execution", "task-task-1", "evidence.json"), "utf8")) as {
+      readonly stdoutArtifact?: string;
+      readonly stderrArtifact?: string;
+      readonly transcriptArtifact?: string;
+    };
+    assert.equal(evidence.stdoutArtifact, "execution/task-task-1/stdout.log");
+    assert.equal(evidence.stderrArtifact, "execution/task-task-1/stderr.log");
+    assert.equal(evidence.transcriptArtifact, "execution/task-task-1/transcript.json");
   });
 
   it("authorizes patch writes before applying a change set", async () => {
@@ -149,6 +159,7 @@ describe("runRealExecution", () => {
     assert.equal(result.blockReason, "retries-exhausted");
     assert.equal(adapterCalls, 1);
     assert.equal(result.events.at(-1)?.type, "task-failed");
+    assert.equal(await readFile(join(ctx.runDir, "execution", "task-task-1", "stderr.log"), "utf8"), "retries-exhausted\n");
   });
 
   it("emits task-cancelled when a sentinel aborts between tasks", async () => {
@@ -310,6 +321,17 @@ function finalAdapter(result: AdapterResult): ExecutionAdapter {
   return {
     id: "stub",
     async *execute() {
+      yield { kind: "final", result };
+    }
+  };
+}
+
+function tokenAdapter(text: string, result: AdapterResult): ExecutionAdapter {
+  return {
+    id: "stub",
+    async *execute(task, ctx) {
+      await ctx.journal.appendToken(task.planTaskId, 1, text);
+      yield { kind: "token", text };
       yield { kind: "final", result };
     }
   };
