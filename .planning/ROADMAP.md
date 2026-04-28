@@ -331,7 +331,7 @@ Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07
 **Plans:** 8 plans
 
 Plans (wave structure: W1 = {01, 02}; W2 = {03, 04, 05, 06, 07}; W3 = {08}):
-- [ ] 10-01-PLAN.md — [W1] DOG-01: toy repo scaffold + CI on `../protostar-toy-ttt` + dedicated PAT (autonomous: false)
+- [x] 10-01-PLAN.md — [W1] DOG-01: toy repo scaffold + CI on `../protostar-toy-ttt` + dedicated PAT (autonomous: false)
 - [ ] 10-02-PLAN.md — [W1; deps: 01] DOG-03: 3-seed library + single end-to-end run + Phase 7 deferred PR catch-up + prune scope to `.protostar/dogfood/` (autonomous: false)
 - [ ] 10-03-PLAN.md — [W2; deps: 02] DOG-02: 7-row fixture matrix + `regen-matrix.sh` + coverage/age contracts
 - [ ] 10-04-PLAN.md — [W2; deps: 02] DOG-05: root README + lifecycle mermaid + run-bundle appendix + CLI snapshots + drift contract + PROJECT.md lock-revision (owns full Phase 10 dev-dep entry)
