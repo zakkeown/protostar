@@ -26,9 +26,9 @@
 
 **Phase 5 — Review → Repair → Review Loop** (in progress)
 
-Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@protostar/repair` and `@protostar/mechanical-checks` now exist as workspace skeletons, confirmed-intent is bumped to schema `1.4.0` with `budget.maxRepairLoops`, and `PlanTask.acceptanceTestRefs` is available for downstream AC coverage work.
+Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@protostar/repair` and `@protostar/mechanical-checks` now exist as workspace skeletons, confirmed-intent is bumped to schema `1.4.0` with `budget.maxRepairLoops`, and `PlanTask.acceptanceTestRefs` is available for downstream AC coverage work. Wave 1 has begun: Plan 05-04 pinned the shared repair/review/delivery/lifecycle contracts, with cycle-neutral `RepairContext` and `ExecutionRunResult` in `@protostar/planning`.
 
-**Next action:** Start Wave 1 with 05-04 review types and brands.
+**Next action:** Continue Wave 2 with 05-05 repair plan authoring.
 
 ## Phase Status
 
@@ -56,6 +56,7 @@ Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@pr
 ## Recent Sessions
 
 - **2026-04-28:** Completed Phase 5 Plan 03 (`05-03-schema-bumps-PLAN.md`): bumped confirmed-intent to schema `1.4.0`, added `capabilityEnvelope.budget.maxRepairLoops` default/range handling, added `PlanTask.acceptanceTestRefs`, cascaded signed/test fixtures, and verified with `pnpm run verify:full`. `pnpm run factory` built then stopped at the expected workspace-trust gate.
+- **2026-04-28:** Completed Phase 5 Plan 04 (`05-04-review-types-and-brands-PLAN.md`): added planning-owned `RepairContext`/`ExecutionRunResult`, review-owned repair/model/judge contracts, private-symbol `DeliveryAuthorization`, strict pass/pass `ReviewDecisionArtifact`, seven-kind `ReviewLifecycleEvent`, and review barrel exports. `pnpm --filter @protostar/review test` and `pnpm -w exec tsc --build packages/planning packages/execution packages/review` passed; root `pnpm run verify` still hits the known factory-cli `runRealExecution` cancellation cluster.
 - **2026-04-28:** Executed Phase 4 (`execution-engine`): completed all 10 plans across waves 0-4, fixed review blockers in real-executor authority/outcome handling, added stdout/stderr evidence streams, refreshed code review with zero findings, and re-verified 12/12 automated must-haves. `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate. Remaining: live LM Studio real-executor operator smoke with `qwen3-coder-next-mlx-4bit`.
 - **2026-04-28:** Completed Phase 5 Plan 01 (`05-01-repair-package-skeleton-PLAN.md`): added the `@protostar/repair` workspace skeleton, declared pure-transform dependencies on review/planning/intent, registered the package in pnpm workspace metadata and root TypeScript references, and added the repair zero-test hook to root `pnpm run verify`. `pnpm install`, `pnpm --filter @protostar/repair build`, and `pnpm run verify` passed.
 - **2026-04-28:** Completed Phase 5 Plan 02 (`05-02-mechanical-checks-package-skeleton-PLAN.md`): added the `@protostar/mechanical-checks` workspace skeleton, declared execution/repo/intent/review dependencies, registered the package in pnpm and TypeScript project references, and added a throwing `createMechanicalChecksAdapter` placeholder for downstream imports. `pnpm install`, `pnpm install --filter @protostar/mechanical-checks...`, and `pnpm --filter @protostar/mechanical-checks build` passed; repo-wide `pnpm run verify` reached an unrelated factory-cli `runRealExecution` cancellation failure.
