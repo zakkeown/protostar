@@ -65,7 +65,7 @@ const PERMISSIVE_ENVELOPE: CapabilityEnvelope = {
     timeoutMs: 60000,
     adapterRetriesPerTask: 4,
     taskWallClockMs: 180_000,
-    maxRepairLoops: 0
+    maxRepairLoops: 3
   }
 };
 
@@ -231,7 +231,7 @@ describe("Phase 2 - verified two-key launch: confirmedIntent()", () => {
     const intent = await reader.confirmedIntent();
 
     assert.equal(intent.id, signedIntent.id);
-    assert.equal(intent.schemaVersion, "1.3.0");
+    assert.equal(intent.schemaVersion, "1.4.0");
   });
 
   it("confirmedIntent() fails when the persisted intent body is mutated", async () => {

@@ -112,7 +112,7 @@ describe("runRealExecution", () => {
   it("blocks on timeout and does not execute downstream tasks", async () => {
     const ctx = await testContext({
       taskCount: 2,
-      envelope: { ...envelope(), budget: { adapterRetriesPerTask: 4, taskWallClockMs: 1, maxRepairLoops: 0 } }
+      envelope: { ...envelope(), budget: { adapterRetriesPerTask: 4, taskWallClockMs: 1, maxRepairLoops: 3 } }
     });
     const writer = await createJournalWriter({ runDir: ctx.runDir });
     let adapterCalls = 0;
@@ -376,14 +376,14 @@ function envelope(): CapabilityEnvelope {
     repoScopes: [{ workspace: "main", path: "src", access: "write" }],
     workspace: { allowDirty: false },
     network: { allow: "loopback" },
-    budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, maxRepairLoops: 0 },
+    budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, maxRepairLoops: 3 },
     toolPermissions: []
   };
 }
 
 function confirmedIntent(capabilityEnvelope: CapabilityEnvelope): ConfirmedIntent {
   return {
-    schemaVersion: "1.3.0",
+    schemaVersion: "1.4.0",
     id: "intent_real",
     title: "Real execution",
     problem: "Run real execution",

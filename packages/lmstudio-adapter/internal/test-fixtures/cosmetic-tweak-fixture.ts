@@ -1,7 +1,7 @@
 import type { ConfirmedIntent } from "@protostar/intent";
 import type { AdmittedPlanExecutionArtifact } from "@protostar/planning";
 
-interface CapabilityEnvelope13 {
+interface CapabilityEnvelope14 {
   readonly repoScopes: readonly unknown[];
   readonly toolPermissions: readonly unknown[];
   readonly workspace: { readonly allowDirty: boolean };
@@ -9,7 +9,7 @@ interface CapabilityEnvelope13 {
   readonly budget: {
     readonly taskWallClockMs: 180000;
     readonly adapterRetriesPerTask: 4;
-    readonly maxRepairLoops: 0;
+    readonly maxRepairLoops: 3;
   };
 }
 
@@ -22,7 +22,7 @@ export interface ExecutionAdapterTaskInput {
 }
 
 export interface CosmeticTweakFixture {
-  readonly intent: ConfirmedIntent & { readonly capabilityEnvelope: CapabilityEnvelope13 };
+  readonly intent: ConfirmedIntent & { readonly capabilityEnvelope: CapabilityEnvelope14 };
   readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly task: ExecutionAdapterTaskInput;
   readonly preImageBytes: Record<string, Uint8Array>;
@@ -49,8 +49,7 @@ const expectedDiffSample = [
 ].join("\n");
 
 export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
-  // TODO(Plan 07): re-canonicalize through the signed 1.3.0 intent schema once
-  // the envelope bump lands. This fixture deliberately carries the future shape.
+  // Adapter tests exercise intent shape only; signature verification is covered by authority/admission.
   intent: Object.freeze({
     id: "intent_cosmetic_tweak_fixture",
     sourceDraftId: "draft_cosmetic_tweak_fixture",
@@ -95,12 +94,12 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
       budget: Object.freeze({
         taskWallClockMs: 180_000,
         adapterRetriesPerTask: 4,
-        maxRepairLoops: 0
+        maxRepairLoops: 3
       })
     }),
     constraints: Object.freeze(["Only change src/Button.tsx.", "Return one fenced unified diff."]),
     stopConditions: Object.freeze([]),
-    schemaVersion: "1.3.0",
+    schemaVersion: "1.4.0",
     signature: Object.freeze({
       algorithm: "sha256",
       canonicalForm: "json-c14n@1.0",

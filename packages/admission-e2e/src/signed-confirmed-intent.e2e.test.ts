@@ -141,7 +141,7 @@ function setupHappyRun() {
         adapterRetriesPerTask: 4,
         timeoutMs: 1000,
         taskWallClockMs: 180_000,
-        maxRepairLoops: 0
+        maxRepairLoops: 3
       }
     },
     constraints: ["no filesystem authority in @protostar/authority"],
