@@ -5,6 +5,7 @@
     { "path": "packages/authority" },
     { "path": "packages/admission-e2e" },
     { "path": "packages/artifacts" },
+    { "path": "packages/fixtures" },
     { "path": "packages/policy" },
     { "path": "packages/paths" },
     { "path": "packages/planning" },

@@ -251,6 +251,8 @@ importers:
         specifier: workspace:*
         version: link:../repo
 
+  packages/fixtures: {}
+
   packages/intent:
     dependencies:
       '@protostar/authority':
