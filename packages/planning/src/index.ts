@@ -5691,3 +5691,11 @@ function hasDependencyCycle(graph: PlanTaskDependencyGraph): boolean {
 
   return graph.nodes.some((node) => visit(node.taskId));
 }
+
+export {
+  admitWorkSlicing,
+  type AdmitWorkSlicingContext,
+  type AdmitWorkSlicingResult,
+  type TaskSlice,
+  type WorkSlicingProposal
+} from "./admit-work-slicing.js";
