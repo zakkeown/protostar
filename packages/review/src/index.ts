@@ -38,11 +38,25 @@ export interface ReviewFinding {
   readonly repairTaskId?: string;
 }
 
+/**
+ * Phase 8 Q-01 mechanical evaluation source scores.
+ *
+ * Optional on ReviewGate so existing review producers remain backward
+ * compatible until @protostar/mechanical-checks starts producing them.
+ */
+export interface MechanicalScores {
+  readonly build: number;
+  readonly lint: number;
+  readonly diffSize: number;
+  readonly acCoverage: number;
+}
+
 export interface ReviewGate {
   readonly planId: string;
   readonly runId: string;
   readonly verdict: ReviewVerdict;
   readonly findings: readonly ReviewFinding[];
+  readonly mechanicalScores?: MechanicalScores;
 }
 
 export interface MechanicalReviewGateInput {
@@ -139,6 +153,7 @@ export function createReviewGate(input: {
   readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly execution: ExecutionRunPlan;
   readonly findings?: readonly ReviewFinding[];
+  readonly mechanicalScores?: MechanicalScores;
 }): ReviewGate {
   assertReviewAdmittedPlanArtifact(input.admittedPlan);
   const findings = input.findings ?? [];
@@ -152,7 +167,8 @@ export function createReviewGate(input: {
     planId: input.admittedPlan.planId,
     runId: input.execution.runId,
     verdict,
-    findings
+    findings,
+    ...(input.mechanicalScores !== undefined ? { mechanicalScores: input.mechanicalScores } : {})
   };
 }
 
