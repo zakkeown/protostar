@@ -7,10 +7,6 @@
     "protostar-factory": "./dist/main.js"
   },
   "exports": {
-    "./main": {
-      "types": "./dist/main.d.ts",
-      "import": "./dist/main.js"
-    },
     "./pile-persistence": {
       "types": "./dist/pile-persistence.d.ts",
       "import": "./dist/pile-persistence.js"
