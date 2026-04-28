@@ -159,6 +159,72 @@ describe("resolveFactoryConfig", () => {
     assert.equal(resolved.config.delivery, undefined);
   });
 
+  it("preserves evaluation judge overrides and evolution config from file config", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        evaluation: {
+          semanticJudge: {
+            model: "Qwen3-Next-80B-A3B-MLX-4bit",
+            baseUrl: "http://localhost:1234/v1"
+          },
+          consensusJudge: {
+            model: "DeepSeek-Coder-V2-Lite-Instruct"
+          }
+        },
+        evolution: {
+          lineage: "cosmetic-tweak-button-color",
+          codeEvolution: "opt-in",
+          convergenceThreshold: 0.9
+        }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.deepEqual(resolved.config.evaluation, {
+      semanticJudge: {
+        model: "Qwen3-Next-80B-A3B-MLX-4bit",
+        baseUrl: "http://localhost:1234/v1"
+      },
+      consensusJudge: {
+        model: "DeepSeek-Coder-V2-Lite-Instruct"
+      }
+    });
+    assert.deepEqual(resolved.config.evolution, {
+      lineage: "cosmetic-tweak-button-color",
+      codeEvolution: "opt-in",
+      convergenceThreshold: 0.9
+    });
+  });
+
+  it("leaves evaluation and evolution undefined when omitted", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({}),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.equal(resolved.config.evaluation, undefined);
+    assert.equal(resolved.config.evolution, undefined);
+  });
+
+  it("rejects invalid evolution codeEvolution values", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        evolution: { codeEvolution: "invalid" }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /codeEvolution/);
+    assert.match(result.errors.join("\n"), /opt-in\|disabled/);
+  });
+
   it("rejects unknown delivery keys with an additionalProperties error", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({
