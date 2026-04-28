@@ -24,6 +24,23 @@ export type {
   PlanningPileResult
 };
 
+// Phase 6 Plan 06-03: failure taxonomy + budget reconciliation surface.
+// Plan 06-04 (`runFactoryPile`) consumes these via the barrel.
+export type {
+  EnvelopeBudget,
+  JudgeDecisionRef,
+  PileFailure,
+  PileKind,
+  PileSourceOfTruth,
+  PresetBudget,
+  ResolvedPileBudget
+} from "./pile-failure-types.js";
+export { resolvePileBudget } from "./resolve-pile-budget.js";
+export {
+  mapSdkStopToPileFailure,
+  type MapSdkStopContext
+} from "./map-sdk-stop-to-pile-failure.js";
+
 export interface FactoryPilePreset {
   readonly kind: FactoryPileKind;
   readonly description: string;
