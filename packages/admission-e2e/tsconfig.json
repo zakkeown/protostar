@@ -15,6 +15,7 @@
     { "path": "../policy" },
     { "path": "../planning" },
     { "path": "../execution" },
+    { "path": "../delivery-runtime" },
     { "path": "../dogpile-adapter" },
     { "path": "../dogpile-types" },
     { "path": "../../apps/factory-cli" }

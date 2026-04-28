@@ -23,6 +23,7 @@
     "@protostar/policy": "workspace:*",
     "@protostar/planning": "workspace:*",
     "@protostar/execution": "workspace:*",
+    "@protostar/delivery-runtime": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
     "@protostar/dogpile-types": "workspace:*",
     "@protostar/factory-cli": "workspace:*"

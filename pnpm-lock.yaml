@@ -74,6 +74,9 @@ importers:
       '@protostar/authority':
         specifier: workspace:*
         version: link:../authority
+      '@protostar/delivery-runtime':
+        specifier: workspace:*
+        version: link:../delivery-runtime
       '@protostar/dogpile-adapter':
         specifier: workspace:*
         version: link:../dogpile-adapter
