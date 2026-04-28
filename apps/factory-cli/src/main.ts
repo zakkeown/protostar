@@ -10,8 +10,13 @@ import { createFactoryRunManifest, recordStageArtifacts, setFactoryRunStatus } f
 import { createGitHubPrDeliveryPlanLegacy } from "@protostar/delivery";
 import {
   buildPlanningMission,
-  buildReviewMission
+  buildReviewMission,
+  resolvePileBudget,
+  runFactoryPile as defaultRunFactoryPile,
+  type PileRunOutcome,
+  type PileFailure
 } from "@protostar/dogpile-adapter";
+import { createOpenAICompatibleProvider } from "@protostar/dogpile-types";
 import { createEvaluationReport, decideEvolution, type OntologySnapshot } from "@protostar/evaluation";
 import {
   prepareExecutionRun as defaultPrepareExecutionRun,
@@ -79,7 +84,9 @@ import { runReviewRepairLoop, type ReviewGate, type ReviewVerdict, type ReviewRe
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
-import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
+import { ArgvError, parseCliArgs, type ParsedCliArgs, type PileMode } from "./cli-args.js";
+import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
+import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
 import { coderAdapterReadyAdmission } from "./coder-adapter-admission.js";
 import { writeEscalationMarker } from "./escalation-marker.js";
@@ -120,6 +127,12 @@ export interface RunCommandOptions {
   readonly trust?: "untrusted" | "trusted";
   readonly executor?: "dry-run" | "real";
   readonly allowedAdapters?: readonly string[];
+  // Phase 6 Plan 06-07 — pile-mode CLI overrides (Q-04). When undefined,
+  // factory-config.json piles[kind].mode (or built-in "fixture" default per
+  // Q-05) is used.
+  readonly planningMode?: PileMode;
+  readonly reviewMode?: PileMode;
+  readonly execCoordMode?: PileMode;
 }
 
 export interface RunCommandResult {
@@ -135,6 +148,10 @@ export interface FactoryCompositionDependencies {
   readonly applyChangeSet: typeof defaultApplyChangeSet;
   readonly createLmstudioCoderAdapter: typeof createLmstudioCoderAdapter;
   readonly coderAdapterReadyAdmission: typeof coderAdapterReadyAdmission;
+  // Phase 6 Plan 06-07 Task 3 — pile invocation seam. Default = the real
+  // adapter from @protostar/dogpile-adapter; tests override with a stub that
+  // returns either ok=true or ok=false synchronously.
+  readonly runFactoryPile: typeof defaultRunFactoryPile;
 }
 
 interface AdmittedPlanningOutput {
@@ -174,7 +191,8 @@ const defaultFactoryCompositionDependencies = {
   runRealExecution: defaultRunRealExecution,
   applyChangeSet: defaultApplyChangeSet,
   createLmstudioCoderAdapter,
-  coderAdapterReadyAdmission
+  coderAdapterReadyAdmission,
+  runFactoryPile: defaultRunFactoryPile
 } as const satisfies FactoryCompositionDependencies;
 
 const CONFIRMED_INTENT_OUTPUT_FILE_NAMES = ["confirmed-intent.json", "intent.json"] as const;
@@ -338,6 +356,22 @@ export async function runFactory(
     throw new CliExitError(reason, 1);
   }
   const factoryConfig = await loadFactoryConfig(workspaceRoot);
+  // Phase 6 Plan 06-07 Task 3 — pile-mode resolution (Q-04 precedence) and
+  // run-level AbortController construction (Q-11). The controller is created
+  // here, BEFORE the planning seam, so pile invocations and downstream
+  // execution share the same parent signal. installCancelWiring (lower
+  // down) consumes this controller via its `rootController` option.
+  const pileModeCli = {
+    ...(options.planningMode !== undefined ? { planningMode: options.planningMode } : {}),
+    ...(options.reviewMode !== undefined ? { reviewMode: options.reviewMode } : {}),
+    ...(options.execCoordMode !== undefined ? { execCoordMode: options.execCoordMode } : {})
+  };
+  const pileModes: Readonly<Record<FactoryCliPileKind, PileMode>> = {
+    planning: resolvePileMode("planning", pileModeCli, factoryConfig.config.piles),
+    review: resolvePileMode("review", pileModeCli, factoryConfig.config.piles),
+    executionCoordination: resolvePileMode("executionCoordination", pileModeCli, factoryConfig.config.piles)
+  };
+  const runAbortController = new AbortController();
   const policySnapshot = buildPolicySnapshot({
     policy: {
       allowDarkRun: true,
@@ -428,19 +462,83 @@ export async function runFactory(
   });
   const planningMission = buildPlanningMission(intent);
   const candidatePlanId = `plan_${runId}`;
-  const planningFixtureInput = await readPlanningFixtureInput(planningFixturePath);
-  if (!planningFixtureInput.ok) {
-    return await blockPlanningPreAdmission({
-      runDir,
-      outDir,
-      runId,
-      intent,
-      candidatePlanId,
-      errors: [planningFixtureInput.error],
-      planningMission: planningMission.intent
+  // Phase 6 Plan 06-07 Task 3a — planning seam (PILE-01).
+  // Fixture mode: read fixture from disk (existing path).
+  // Live mode: invoke runFactoryPile, persist outcome via writePileArtifacts,
+  // route success → existing parsePlanningPileResultInputs path; route any
+  // failure → pile-planning refusal (Q-06 no auto-fallback).
+  let planningPileResultInput: unknown;
+  if (pileModes.planning === "fixture") {
+    const planningFixtureInput = await readPlanningFixtureInput(planningFixturePath);
+    if (!planningFixtureInput.ok) {
+      return await blockPlanningPreAdmission({
+        runDir,
+        outDir,
+        runId,
+        intent,
+        candidatePlanId,
+        errors: [planningFixtureInput.error],
+        planningMission: planningMission.intent
+      });
+    }
+    planningPileResultInput = planningFixtureInput.value;
+  } else {
+    const livePlanningOutcome = await dependencies.runFactoryPile(planningMission, {
+      provider: createOpenAICompatibleProvider({
+        baseURL: factoryConfig.config.adapters.coder.baseUrl,
+        apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+        model: factoryConfig.config.adapters.coder.model
+      }),
+      signal: runAbortController.signal,
+      budget: resolvePileBudget(planningMission.preset.budget, intent.capabilityEnvelope.budget),
+      now: () => Date.now()
     });
+    await writePileArtifacts({
+      // Per-run pile layout = {runDir}/piles/{kind}/iter-{N}/. runDir is the
+      // canonical per-run directory where intent.json, planning-admission.json,
+      // etc. already live; pile artifacts join the same tree.
+      runDir,
+      runId,
+      kind: "planning",
+      iteration: 0,
+      outcome: livePlanningOutcome,
+      ...(livePlanningOutcome.ok
+        ? {}
+        : {
+            refusal: {
+              reason: formatPileFailureReason(livePlanningOutcome.failure),
+              stage: "pile-planning",
+              sourceOfTruth: "PlanningPileResult"
+            }
+          })
+    });
+    if (!livePlanningOutcome.ok) {
+      const reason = `Planning pile refused (${livePlanningOutcome.failure.class}): ${formatPileFailureReason(livePlanningOutcome.failure)}`;
+      await writeRefusalArtifacts({
+        runDir,
+        outDir,
+        runId,
+        stage: "pile-planning",
+        reason,
+        refusalArtifact: `piles/planning/iter-0/refusal.json`
+      });
+      throw new CliExitError(reason, 1);
+    }
+    try {
+      planningPileResultInput = JSON.parse(livePlanningOutcome.result.output ?? "");
+    } catch (err) {
+      const reason = `Planning pile output is not valid JSON: ${formatUnknownError(err)}`;
+      await writeRefusalArtifacts({
+        runDir,
+        outDir,
+        runId,
+        stage: "pile-planning",
+        reason,
+        refusalArtifact: `piles/planning/iter-0/refusal.json`
+      });
+      throw new CliExitError(reason, 1);
+    }
   }
-  const planningPileResultInput = planningFixtureInput.value;
   const planningPileResultAdmission = parsePlanningPileResultInputs(planningPileResultInput);
   if (!planningPileResultAdmission.ok) {
     return await blockPlanningPreAdmission({
@@ -586,7 +684,7 @@ export async function runFactory(
     admittedPlan: admittedPlanHandoff.executionArtifact,
     workspace
   });
-  const cancel = installCancelWiring({ runDir });
+  const cancel = installCancelWiring({ runDir, rootController: runAbortController });
   let executionResult: ExecutionDryRunResult;
   let realExecutionAdapter: ReturnType<typeof dependencies.createLmstudioCoderAdapter> | undefined;
   let loop: ReviewRepairLoopResult;
@@ -2057,6 +2155,25 @@ function formatUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// Phase 6 Plan 06-07 — turn a PileFailure into a one-line operator-readable
+// reason for refusal artifacts and CLI stderr (Q-12 evidence-bearing refusals).
+function formatPileFailureReason(failure: PileFailure): string {
+  switch (failure.class) {
+    case "pile-timeout":
+      return `pile-timeout: ${failure.kind} pile elapsed ${failure.elapsedMs}ms (configured timeout ${failure.configuredTimeoutMs}ms)`;
+    case "pile-budget-exhausted":
+      return `pile-budget-exhausted: ${failure.kind} consumed ${failure.consumed}/${failure.cap} ${failure.dimension}`;
+    case "pile-schema-parse":
+      return `pile-schema-parse: ${failure.sourceOfTruth} parse errors: ${failure.parseErrors.join("; ")}`;
+    case "pile-all-rejected":
+      return `pile-all-rejected: ${failure.kind} evaluated ${failure.candidatesEvaluated} candidates`;
+    case "pile-network":
+      return `pile-network: ${failure.lastError.code} ${failure.lastError.message}`;
+    case "pile-cancelled":
+      return `pile-cancelled: ${failure.kind} (${failure.reason})`;
+  }
+}
+
 function createIntentAmbiguityArtifact(assessment: IntentAmbiguityAssessment): IntentAmbiguityArtifact {
   const withinThreshold = assessment.ambiguity <= assessment.threshold;
 
@@ -2210,7 +2327,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       ...(flags.runId !== undefined ? { runId: flags.runId } : {}),
       trust: flags.trust,
       executor: executor.value,
-      ...(allowedAdapters !== undefined ? { allowedAdapters } : {})
+      ...(allowedAdapters !== undefined ? { allowedAdapters } : {}),
+      ...(flags.planningMode !== undefined ? { planningMode: flags.planningMode } : {}),
+      ...(flags.reviewMode !== undefined ? { reviewMode: flags.reviewMode } : {}),
+      ...(flags.execCoordMode !== undefined ? { execCoordMode: flags.execCoordMode } : {})
     }
   };
 }

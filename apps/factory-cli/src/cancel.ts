@@ -8,8 +8,14 @@ export interface CancelWiring {
   dispose(): void;
 }
 
-export function installCancelWiring(opts: { readonly runDir: string }): CancelWiring {
-  const rootController = new AbortController();
+export function installCancelWiring(opts: {
+  readonly runDir: string;
+  // Phase 6 Plan 06-07 — when an external AbortController is supplied, cancel
+  // wiring uses it as the run-level parent (so pile invocations that started
+  // before installCancelWiring share the same parent signal per Q-11).
+  readonly rootController?: AbortController;
+}): CancelWiring {
+  const rootController = opts.rootController ?? new AbortController();
   const sentinelPath = join(opts.runDir, "CANCEL");
   const handler = () => rootController.abort("sigint");
   process.on("SIGINT", handler);

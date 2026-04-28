@@ -35,7 +35,12 @@ export interface PileRefusalEnvelope {
 }
 
 export interface WritePileArtifactsInput {
-  readonly runRoot: string;
+  // Provide either `runRoot` (artifacts land under `{runRoot}/runs/{runId}/piles/...`)
+  // OR `runDir` (artifacts land under `{runDir}/piles/...`). `runDir` is the
+  // simpler form for factory-cli where the per-run directory is already known
+  // (`runDir = resolve(outDir, runId)`).
+  readonly runRoot?: string;
+  readonly runDir?: string;
   readonly runId: string;
   readonly kind: PileArtifactKind;
   readonly iteration: number;
@@ -95,6 +100,19 @@ export async function writePileArtifacts(
 }
 
 function resolvePileIterDir(input: WritePileArtifactsInput): string {
+  // Prefer runDir when supplied; otherwise compute from runRoot/runs/runId.
+  if (input.runDir !== undefined) {
+    const target = resolve(input.runDir, "piles", input.kind, `iter-${input.iteration}`);
+    if (!isPathInside(target, resolve(input.runDir))) {
+      throw new Error(
+        `writePileArtifacts: piles dir resolves outside runDir (T-6-23 path traversal refusal).`
+      );
+    }
+    return target;
+  }
+  if (input.runRoot === undefined) {
+    throw new Error("writePileArtifacts: must supply either runRoot or runDir.");
+  }
   const runsRoot = resolve(input.runRoot, "runs");
   const target = resolve(runsRoot, input.runId, "piles", input.kind, `iter-${input.iteration}`);
   if (!isPathInside(target, runsRoot)) {

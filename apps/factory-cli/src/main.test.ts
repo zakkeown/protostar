@@ -501,6 +501,155 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
+  // Phase 6 Plan 06-07 Task 3a — planning seam (PILE-01).
+  it("invokes runFactoryPile in --planning-mode live and admits the parsed pile output", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "live-planning.draft.json");
+      const planningFixturePath = resolve(tempDir, "unused-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_live_planning_happy";
+      const acIds = acceptanceCriterionIdsForDraft(draft);
+      const pileBody = cosmeticPlanningFixture(acIds);
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, { kind: "must-not-be-read" });
+
+      const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
+        async () => ({
+          ok: true as const,
+          result: { output: JSON.stringify(pileBody), eventLog: { events: [] } } as never,
+          trace: { events: [] } as never,
+          accounting: { totalTokens: 0 } as never,
+          stopReason: null
+        })
+      );
+
+      // Workspace-trust gate runs AFTER the planning seam, so we expect it to
+      // refuse here — what matters for THIS test is that the pile was invoked
+      // and its artifacts persisted before the gate fires.
+      await assert.rejects(
+        () =>
+          runFactory(
+            {
+              intentDraftPath: draftPath,
+              outDir,
+              planningFixturePath,
+              failTaskIds: [],
+              intentMode: "brownfield",
+              runId,
+              planningMode: "live"
+            },
+            { runFactoryPile: runFactoryPileSpy }
+          )
+      );
+
+      assert.equal(runFactoryPileSpy.mock.callCount(), 1, "live mode must invoke runFactoryPile exactly once for planning");
+      const resultJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "result.json"));
+      assert.ok(resultJson["output"], "pile result.json must persist");
+      const traceJson = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "trace.json"));
+      assert.ok(traceJson, "pile trace.json must persist (Q-08)");
+    });
+  });
+
+  it("refuses non-zero with stage=pile-planning when runFactoryPile returns ok=false", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "live-planning-fail.draft.json");
+      const planningFixturePath = resolve(tempDir, "unused-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_live_planning_refusal";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, { kind: "must-not-be-read" });
+
+      const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
+        async () => ({
+          ok: false as const,
+          failure: {
+            kind: "planning",
+            class: "pile-timeout",
+            elapsedMs: 120000,
+            configuredTimeoutMs: 120000
+          }
+        })
+      );
+
+      await assert.rejects(
+        () =>
+          runFactory(
+            {
+              intentDraftPath: draftPath,
+              outDir,
+              planningFixturePath,
+              failTaskIds: [],
+              intentMode: "brownfield",
+              runId,
+              planningMode: "live"
+            },
+            { runFactoryPile: runFactoryPileSpy }
+          ),
+        /Planning pile refused/
+      );
+
+      const refusal = await readJsonObject(resolve(outDir, runId, "piles", "planning", "iter-0", "refusal.json"));
+      assert.equal(refusal["stage"], "pile-planning");
+      assert.equal(refusal["sourceOfTruth"], "PlanningPileResult");
+      const refusalsIndex = await readFile(resolve(outDir, "..", "refusals.jsonl"), "utf8");
+      assert.match(refusalsIndex, /"stage":"pile-planning"/);
+    });
+  });
+
+  it("invokes runFactoryPile with the run-level AbortSignal (parent abort cascades)", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "live-planning-abort.draft.json");
+      const planningFixturePath = resolve(tempDir, "unused-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_live_planning_abort";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, { kind: "must-not-be-read" });
+
+      let capturedSignal: AbortSignal | undefined;
+      const acIds = acceptanceCriterionIdsForDraft(draft);
+      const pileBody = cosmeticPlanningFixture(acIds);
+      const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
+        async (_mission, ctx) => {
+          capturedSignal = ctx.signal;
+          return {
+            ok: true as const,
+            result: { output: JSON.stringify(pileBody), eventLog: { events: [] } } as never,
+            trace: { events: [] } as never,
+            accounting: { totalTokens: 0 } as never,
+            stopReason: null
+          };
+        }
+      );
+
+      // Downstream gate is expected to fail (untrusted workspace); we only care
+      // that runFactoryPile was invoked with ctx.signal as the run-level
+      // AbortSignal.
+      await assert.rejects(() =>
+        runFactory(
+          {
+            intentDraftPath: draftPath,
+            outDir,
+            planningFixturePath,
+            failTaskIds: [],
+            intentMode: "brownfield",
+            runId,
+            planningMode: "live"
+          },
+          { runFactoryPile: runFactoryPileSpy }
+        )
+      );
+
+      assert.ok(capturedSignal, "ctx.signal must be supplied to runFactoryPile");
+      assert.equal(typeof capturedSignal!.aborted, "boolean", "ctx.signal must be a real AbortSignal");
+    });
+  });
+
   it("drives the sample factory fixture through draft clarification and admission before composition", async () => {
     await withTempDir(async (tempDir) => {
       await assertSampleFactoryScriptUsesDraftAdmission();

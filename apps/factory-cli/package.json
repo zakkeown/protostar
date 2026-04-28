@@ -17,6 +17,7 @@
     "@protostar/authority": "workspace:*",
     "@protostar/delivery": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
+    "@protostar/dogpile-types": "workspace:*",
     "@protostar/evaluation": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/intent": "workspace:*",

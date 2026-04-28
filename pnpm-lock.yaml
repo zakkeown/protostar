@@ -29,6 +29,9 @@ importers:
       '@protostar/dogpile-adapter':
         specifier: workspace:*
         version: link:../../packages/dogpile-adapter
+      '@protostar/dogpile-types':
+        specifier: workspace:*
+        version: link:../../packages/dogpile-types
       '@protostar/evaluation':
         specifier: workspace:*
         version: link:../../packages/evaluation
