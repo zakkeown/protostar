@@ -12,6 +12,7 @@ import {
   resolveCodeEvolutionMode,
   resolveConsensusJudgeModel,
   resolveConvergenceThreshold,
+  resolveDeliveryMode,
   resolveGeneration,
   resolveLineageId,
   resolveSemanticJudgeModel
@@ -33,6 +34,13 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolved.resolvedFromFile, false);
     assert.equal(resolved.config.adapters.coder.baseUrl, "http://localhost:1234/v1");
     assert.equal(resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
+  });
+
+  it("resolves delivery mode with CLI over config over default precedence", () => {
+    assert.equal(resolveDeliveryMode({ delivery: { mode: "auto" } }, "gated"), "gated");
+    assert.equal(resolveDeliveryMode({ delivery: { mode: "gated" } }, "auto"), "auto");
+    assert.equal(resolveDeliveryMode({ delivery: { mode: "gated" } }, undefined), "gated");
+    assert.equal(resolveDeliveryMode({}, undefined), "auto");
   });
 
   it("surfaces valid file values", async () => {

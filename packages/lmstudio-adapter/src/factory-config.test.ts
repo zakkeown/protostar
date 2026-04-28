@@ -135,6 +135,33 @@ describe("resolveFactoryConfig", () => {
     assert.deepEqual(resolved.config.delivery?.requiredChecks, ["build", "test"]);
   });
 
+  it("accepts delivery.mode gated from file config", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        delivery: { mode: "gated" }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.equal(resolved.config.delivery?.mode, "gated");
+  });
+
+  it("rejects invalid delivery.mode values", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        delivery: { mode: "BAD" }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /delivery\.mode/);
+  });
+
   it("rejects empty delivery requiredChecks entries", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({

@@ -64,4 +64,15 @@ describe("factory-cli real executor integration", () => {
 
     assert.match(source, /factoryConfigHash: factoryConfig\.configHash/);
   });
+
+  it("writes delivery authorization payloads before gated or auto delivery", async () => {
+    const source = await readFile(mainSourcePath, "utf8");
+    const runCommandSource = await readFile(runCommandSourcePath, "utf8");
+
+    assert.match(source, /AuthorizationPayload/);
+    assert.match(source, /authorization\.json/);
+    assert.match(source, /gated: run `protostar-factory deliver \$\{runId\}` to push\./);
+    assert.match(source, /resolveDeliveryMode/);
+    assert.match(runCommandSource, /delivery-mode/);
+  });
 });
