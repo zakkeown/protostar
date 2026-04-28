@@ -12,6 +12,7 @@ export interface FactoryConfig {
   readonly delivery?: DeliveryConfig;
   readonly evaluation?: EvaluationConfig;
   readonly evolution?: EvolutionConfig;
+  readonly operator?: OperatorConfig;
   // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
   // means all piles default to mode="fixture" (Q-05).
   readonly piles?: PilesConfig;
@@ -35,6 +36,10 @@ export interface EvolutionConfig {
   readonly lineage?: string;
   readonly codeEvolution?: "opt-in" | "disabled";
   readonly convergenceThreshold?: number;
+}
+
+export interface OperatorConfig {
+  readonly livenessThresholdMs?: number;
 }
 
 export type PileMode = "fixture" | "live";
@@ -87,6 +92,7 @@ interface PartialFactoryConfig {
   readonly delivery?: PartialDeliveryConfig;
   readonly evaluation?: EvaluationConfig;
   readonly evolution?: EvolutionConfig;
+  readonly operator?: OperatorConfig;
   readonly piles?: PilesConfig;
 }
 
@@ -122,13 +128,14 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   })
 });
 
-const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "evaluation", "evolution", "piles"]);
+const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "evaluation", "evolution", "operator", "piles"]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
 const DELIVERY_KEYS = new Set(["requiredChecks"]);
 const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
 const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
 const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshold"]);
+const OPERATOR_KEYS = new Set(["livenessThresholdMs"]);
 const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
 const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
 const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
@@ -188,6 +195,7 @@ export function resolveFactoryConfig(input: {
       : {}),
     ...(fileConfig.evaluation !== undefined ? { evaluation: fileConfig.evaluation } : {}),
     ...(fileConfig.evolution !== undefined ? { evolution: fileConfig.evolution } : {}),
+    ...(fileConfig.operator !== undefined ? { operator: fileConfig.operator } : {}),
     ...(fileConfig.piles !== undefined ? { piles: fileConfig.piles } : {})
   };
 
@@ -287,6 +295,23 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
           config.evolution.convergenceThreshold > 1)
       ) {
         errors.push("$.evolution.convergenceThreshold must be a number between 0 and 1");
+      }
+    }
+  }
+
+  if (config.operator !== undefined) {
+    if (!isPlainRecord(config.operator)) {
+      errors.push("$.operator must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.operator", config.operator, OPERATOR_KEYS));
+      if (
+        config.operator.livenessThresholdMs !== undefined &&
+        (typeof config.operator.livenessThresholdMs !== "number" ||
+          !Number.isInteger(config.operator.livenessThresholdMs) ||
+          config.operator.livenessThresholdMs < 1000 ||
+          config.operator.livenessThresholdMs > 3_600_000)
+      ) {
+        errors.push("$.operator.livenessThresholdMs must be an integer between 1000 and 3600000");
       }
     }
   }

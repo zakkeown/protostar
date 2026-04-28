@@ -87,3 +87,10 @@ export function resolveConvergenceThreshold(
 ): number {
   return configValue ?? builtInDefault;
 }
+
+export function resolveLivenessThresholdMs(
+  configValue: number | undefined,
+  builtInDefault = 60_000
+): number {
+  return configValue ?? builtInDefault;
+}

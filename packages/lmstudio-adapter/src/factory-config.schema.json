@@ -67,6 +67,19 @@
         "convergenceThreshold": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "livenessThresholdMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 3600000,
+          "default": 60000,
+          "description": "Threshold in ms for run-liveness derivation; runs with manifest.status=running but no journal append within this window report state=orphaned in `protostar-factory status` (Phase 9 Q-09)."
+        }
+      }
+    },
     "piles": {
       "type": "object",
       "description": "Phase 6 (Q-04) per-pile-kind mode selection. Precedence: CLI override (--planning-mode, --review-mode, --exec-coord-mode) > this config > built-in default. Built-in default mode is `fixture` per Q-05. Per Q-06, live failures NEVER auto-fall-back to fixture — they emit a no-admission refusal artifact and the run exits non-zero. Live mode is an explicit operator opt-in.",
