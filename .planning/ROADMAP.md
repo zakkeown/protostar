@@ -147,7 +147,7 @@ Plans:
 - [x] 04-10-factory-cli-real-executor-wiring-PLAN.md — wave 4 — coderAdapterReadyAdmission gate + runRealExecution loop (apply-boundary, evidence, journal, snapshot, orphan-replay) + SIGINT/sentinel cancel + main.ts --executor real branch + .env.example (Q-13, Q-16, Q-17, Q-19)
 
 
-## Phase 5 — Review → Repair → Review Loop
+## Phase 5 — Review → Repair → Review Loop ✅ Complete (2026-04-28)
 
 **Goal:** The central control loop. Mechanical first, model second, repair plans typed, re-execution under shared budget. No delivery unless this loop exits `pass`.
 

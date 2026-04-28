@@ -24,11 +24,11 @@
 
 ## Current Phase
 
-**Phase 5 — Review → Repair → Review Loop** (in progress)
+**Phase 6 — Live Dogpile Piles** (in progress)
 
-Phase 5 is now implementation-complete. Wave 0 added the `@protostar/repair` and `@protostar/mechanical-checks` skeletons, bumped confirmed-intent to schema `1.4.0`, and added `PlanTask.acceptanceTestRefs`. Wave 1 pinned the shared repair/review/delivery/lifecycle contracts, with cycle-neutral `RepairContext` and `ExecutionRunResult` in `@protostar/planning`. Wave 2 added repair synthesis/subgraph computation, repair context retry evidence, the shared LM Studio judge client, and the per-task cosmetic multi-file gate. Wave 3 added AC-coverage admission and the mechanical-checks adapter. Wave 4 added `runReviewRepairLoop`, review persistence, lifecycle events, and DeliveryAuthorization mint/re-mint helpers. Wave 5 wired factory-cli to the real review loop services. Wave 6 pinned the Phase 7 delivery contract so `createGitHubPrDeliveryPlan` requires `DeliveryAuthorization` as its first argument.
+Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
 
-**Next action:** Verify/close Phase 5 as a whole, then continue to Phase 6 or Phase 7 according to roadmap ordering.
+**Next action:** Execute Phase 6 — 8 plans across 5 waves (W0: 06-01, 06-02 → W1: 06-03, 06-04 → W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08).
 
 ## Phase Status
 
@@ -38,8 +38,8 @@ Phase 5 is now implementation-complete. Wave 0 added the `@protostar/repair` and
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
 | 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-13 complete; phase not verified |
 | 4 | Execution Engine | Automated verification passed — human LM Studio smoke pending |
-| 5 | Review → Repair → Review Loop | Implementation complete — 05-01 through 05-13 complete; root verify passed; factory smoke reaches expected workspace-trust gate |
-| 6 | Live Dogpile Piles | Pending |
+| 5 | Review → Repair → Review Loop | ✅ Complete (2026-04-28) — gap-closure `6fddd17` wired RepairPlan subgraph through real execution; LOOP-03/LOOP-04 resolved |
+| 6 | Live Dogpile Piles | In progress — 8 plans, 5 waves; execution starting 2026-04-28 |
 | 7 | Delivery | Pending |
 | 8 | Evaluation + Evolution | Pending |
 | 9 | Operator Surface + Resumability | Pending |
