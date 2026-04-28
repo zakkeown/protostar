@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-28 (Phase 6 Plan 03 complete)
+**Last updated:** 2026-04-28 (Phase 6 Plan 04 complete)
 
 ## Project
 
@@ -28,7 +28,7 @@
 
 Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan subgraph through `runRealExecution` with per-task `repairContext` built from critiques, resolving the LOOP-03/LOOP-04 verification failures. Re-reviewed `05-REVIEW.md` status: clean (9 files). Phase 5 marked complete in ROADMAP.
 
-**Next action:** Wave 0 complete (06-01, 06-02). Wave 1 part A complete (06-03 — adapter failure taxonomy + budget reconciliation). Execute 06-04 (`runFactoryPile` via `stream()` + AbortSignal.any hierarchical aborts). Then W2: 06-05, 06-06 → W3: 06-07 → W4: 06-08.
+**Next action:** Wave 0 complete (06-01, 06-02). Wave 1 complete (06-03 + 06-04 — adapter failure taxonomy + budget reconciliation + `runFactoryPile` network seam + Q-15 mission builder). Execute Wave 2: 06-05 (createReviewPileModelReviewer) and 06-06 (work-slicing + repair-plan-generation triggers). Then W3: 06-07 → W4: 06-08.
 
 ## Phase Status
 
@@ -54,6 +54,8 @@ Phase 5 closed 2026-04-28 (commit `6fddd17`). Gap-closure wired the RepairPlan s
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-28:** Completed Phase 6 Plan 04 (`06-04-adapter-run-factory-pile-PLAN.md`): added `packages/dogpile-adapter/src/run-factory-pile.ts` — the network-only SDK invocation seam — invoking `@dogpile/sdk` `stream()` (Q-02, never `run()`), constructing `childSignal = AbortSignal.any([ctx.signal, AbortSignal.timeout(ctx.budget.timeoutMs)])` (Q-11), forwarding each non-error `RunEvent` via `ctx.onEvent`, walking `RunResult.eventLog` from end for `FinalEvent.termination.normalizedReason` or `BudgetStopEvent.reason` (prefixed `budget:*`), then lifting through `mapSdkStopToPileFailure`. Catch path classifies abort cause via `signal.reason` (DOMException name `'TimeoutError'` → `pile-timeout`; else `pile-cancelled` with parent-abort/sigint discriminator); non-abort throws → `pile-network` with `extractErrorCode` regex pulling `\bE[A-Z0-9_]{3,}\b` from message. Added `packages/dogpile-adapter/src/execution-coordination-mission.ts` — `buildExecutionCoordinationMission(intent, mode, input)` (Q-15) stamping `MODE: work-slicing` or `MODE: repair-plan-generation` discriminator into the intent text; throws on `mode !== input.kind` (T-6-16). Barrel re-exports `runFactoryPile`, `PileRunContext`, `PileRunOutcome`, `RunFactoryPileDeps`, `buildExecutionCoordinationMission`, `ExecutionCoordinationMissionInput`, `ExecutionCoordinationMode`. Added `StreamEvent` re-export to `@protostar/dogpile-types`. 12 new TDD test cases (8 runFactoryPile, 4 mission builder); test fake stream uses ref'd `setInterval(50ms)` to keep loop alive while `AbortSignal.timeout` fires (production SDK keeps loop alive via real network IO). 32/32 adapter tests pass; static no-fs contract still passes; T-6-02 invariant verified (parent signal NOT aborted after pile timeout). Wave 1 closed; W2 (06-05, 06-06) unblocked.
 
 - **2026-04-28:** Completed Phase 6 Plan 03 (`06-03-adapter-budget-failure-types-PLAN.md`): added `packages/dogpile-adapter/src/pile-failure-types.ts` defining the six-variant `PileFailure` discriminated union (Q-13: pile-timeout / pile-budget-exhausted / pile-schema-parse / pile-all-rejected / pile-network / pile-cancelled, each with its own evidence shape) plus supporting `PileKind`, `PileSourceOfTruth`, `JudgeDecisionRef`, `PresetBudget`, `EnvelopeBudget`, `ResolvedPileBudget` types; added pure `resolvePileBudget` (Q-10 per-field min where both defined, envelope-omitted fields fall through, both-omit → `Number.MAX_SAFE_INTEGER`, `maxCalls` included iff at least one input defines it); added pure `mapSdkStopToPileFailure` with exhaustive switch + `assertNever` default (Q-13 SDK→Protostar translation; budget:cost / convergence / judge:accepted / judge:score-threshold → null); 8 TDD test cases per helper (16 new, 20/20 adapter pass). Resolved internal plan inconsistency by landing barrel re-exports in this plan rather than deferring to Plan 06-04 — the plan's own Task 3 acceptance gate and the user-supplied success criteria both required barrel availability now. `pnpm --filter @protostar/dogpile-adapter test` (20/20) and `pnpm run verify` (124/124) green; static no-fs contract still passes. Wave 1 part A closed; 06-04 unblocked.
 
