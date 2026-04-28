@@ -216,7 +216,7 @@ Plans:
 **Plans:** 8 plans across 5 waves (0..4; parallel within wave).
 
 Plans:
-- [ ] 06-01-wave0-types-and-rename-PLAN.md — wave 0 — widen @protostar/dogpile-types runtime+type re-exports; Q-16 rename executionCoordinatorPilePreset → executionCoordinationPilePreset; static no-fs.contract.test.ts in @protostar/dogpile-adapter (Q-09 static, Q-16, PILE-06)
+- [x] 06-01-wave0-types-and-rename-PLAN.md — wave 0 — widen @protostar/dogpile-types runtime+type re-exports; Q-16 rename executionCoordinatorPilePreset → executionCoordinationPilePreset; static no-fs.contract.test.ts in @protostar/dogpile-adapter (Q-09 static, Q-16, PILE-06)
 - [ ] 06-02-wave0-config-schema-and-phase5-annotation-PLAN.md — wave 0 — factory-config.schema.json piles.{planning,review,executionCoordination}.mode block + Phase 5 CONTEXT.md Q-10 retroactive annotation per Phase 6 Q-14 (Q-04, Q-14)
 - [ ] 06-03-adapter-budget-failure-types-PLAN.md — wave 1 — PileFailure six-variant union + ResolvedPileBudget + resolvePileBudget (envelope clamps preset) + mapSdkStopToPileFailure (Q-10, Q-13, PILE-04, PILE-05)
 - [ ] 06-04-adapter-run-factory-pile-PLAN.md — wave 1 — runFactoryPile via @dogpile/sdk stream() + AbortSignal.any hierarchical aborts + onEvent forwarding + buildExecutionCoordinationMission (Q-01, Q-02, Q-11, Q-15, PILE-01)
