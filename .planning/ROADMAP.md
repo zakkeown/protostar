@@ -297,6 +297,21 @@ Plans:
 - `protostar-factory inspect <id>` is JSON-stable and pipeable
 - A pruning recipe exists; `.protostar/runs/` does not balloon unattended
 
+**Plans:** 11 plans
+
+Plans:
+- [ ] 09-01-dispatcher-and-cli-primitives-PLAN.md — commander dispatcher + ExitCode + io.ts + run-id.ts + duration.ts + run command extraction
+- [ ] 09-02-canonical-json-lift-PLAN.md — lift sortJsonValue to @protostar/artifacts/canonical-json (Q-12)
+- [ ] 09-03-factory-run-status-enum-bump-PLAN.md — FactoryRunStatus += cancelling | cancelled | orphaned (Q-18)
+- [ ] 09-04-status-command-PLAN.md — listRuns + computeRunLiveness + status command (human + JSON, tiered rows)
+- [ ] 09-05-inspect-command-PLAN.md — inspect command, path-indexed artifacts, no trace inlining (Q-10/Q-11)
+- [ ] 09-06-cancel-command-PLAN.md — cancel command (sentinel + manifest cancelling) + cancelled transition writer (Q-16/Q-17)
+- [ ] 09-07-resume-command-PLAN.md — stage-aware resume with replayOrphanedTasks + sentinel handling (Q-13/Q-14/Q-15)
+- [ ] 09-08-gated-delivery-and-authorization-writer-PLAN.md — delivery.mode + authorization.json write site + reAuthorizeFromPayload validator (Q-20/Q-21)
+- [ ] 09-09-deliver-command-PLAN.md — deliver command with idempotent retry + gated first delivery (Q-20/Q-21)
+- [ ] 09-10-prune-command-PLAN.md — prune --older-than with active-guard + JSONL preservation (Q-22)
+- [ ] 09-11-admission-e2e-cli-contracts-PLAN.md — 7 admission-e2e contract tests + 8 --help fixtures locking the public CLI surface
+
 **Notes:** TUI is deferred. The product feel is "boring CLI you trust."
 
 ## Phase 10 — V1 Hardening + Dogfood
