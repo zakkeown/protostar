@@ -9,7 +9,7 @@ requires:
 provides:
   - @protostar/fixtures package with the three locked cosmetic-tweak seeds
   - prune support for .protostar/dogfood session directories
-  - DOG-03 live-run checkpoint with verified GitHub access and LM Studio blocker
+  - DOG-03 live-run checkpoint with verified GitHub access and planning-output blocker
 affects: [10-08-dogfood-loop, phase-7-delivery-verification, operator-prune]
 tech-stack:
   added: []
@@ -43,7 +43,7 @@ completed: 2026-04-28
 
 # Phase 10 Plan 02: DOG-03 Fixture Library + Prune Scope Summary
 
-**Frozen cosmetic-tweak seed library and dogfood-session prune support are shipped; the first real PR run is paused on LM Studio availability.**
+**Frozen cosmetic-tweak seed library and dogfood-session prune support are shipped; the first real PR run is paused on non-contract planning-pile output.**
 
 ## Performance
 
@@ -118,10 +118,10 @@ None.
 ### Plan/Environment Deviations
 
 - The plan text refers to `zkeown/protostar-toy-ttt`; the actual public repo from Plan 10-01 is `zakkeown/protostar-toy-ttt`. Live GitHub checks used the actual owner.
-- DOG-03 evidence files were not created because the run is blocked on LM Studio availability. No PR URL or screenshot is claimed.
+- DOG-03 PR/screenshot evidence files were not created because the run is blocked on non-contract planning output. No PR URL or screenshot is claimed.
 
 **Total deviations:** 0 auto-fixed.  
-**Impact on plan:** Implementation work is complete and verified; live Phase 7 catch-up evidence remains blocked by local model runtime availability.
+**Impact on plan:** Implementation work is complete and verified; live Phase 7 catch-up evidence remains blocked by planning-output contract failure.
 
 ## Known Stubs
 
@@ -139,7 +139,7 @@ None. The only security-relevant surface changed is the planned `.protostar/dogf
 
 ## User Setup Required
 
-Start LM Studio with the required models loaded before resuming Task 3.
+Use or load a local model/runtime configuration that returns strict `PlanningPileResult` JSON, or add a planning-output extraction/repair layer before resuming Task 3.
 
 ## Next Phase Readiness
 
