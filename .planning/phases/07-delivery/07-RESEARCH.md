@@ -6,11 +6,11 @@
 
 ## Summary
 
-Phase 7 wires the first real outbound write the dark factory makes: a GitHub PR created via `@octokit/rest` + PAT, with branch push via `isomorphic-git@1.37.6` (reused from Phase 3 clone). CONTEXT.md locks 20/20 design decisions; this research verifies the external-API specifics the planner needs (Octokit method paths and signatures, isomorphic-git push response shape, nock recording strategy, GitHub limits, PAT formats), audits the existing codebase for analog patterns to reuse (Phase 3 `onAuth` shim, Phase 4 preflight, Phase 5 brand-mint, Phase 6 hierarchical AbortSignal — though Phase 6 is not yet implemented, the pattern is locked), and identifies the schema-cascade scope for the `confirmedIntent 1.4.0 → 1.5.0` bump.
+Phase 7 wires the first real outbound write the dark factory makes: a GitHub PR created via `@octokit/rest` + PAT, with branch push via `isomorphic-git@1.37.6` (reused from Phase 3 clone). CONTEXT.md locks 20/20 design decisions; this research verifies the external-API specifics the planner needs (Octokit method paths and signatures, isomorphic-git push response shape, nock recording strategy, GitHub limits, PAT formats), audits the existing codebase for analog patterns to reuse (Phase 3 `onAuth` shim, Phase 4 preflight, Phase 5 brand-mint, Phase 6 hierarchical AbortSignal — Phase 6 is in flight (factory-config `piles` block already in schema; `executionCoordinationPilePreset` rename done in `dogpile-adapter`); Phase 7 plan must layer on top of that work, not collide with it), and identifies the schema-cascade scope for the `confirmedIntent 1.4.0 → 1.5.0` bump.
 
 The package split is locked: `packages/delivery` stays pure-transform (validators + body composers); new `packages/delivery-runtime` owns network I/O (Octokit + push); `apps/factory-cli` orchestrates and persists. v0.1 ships nock-only against fixtures; real GitHub waits for Phase 10 dogfood. Delivery is gated by the Phase 5 `DeliveryAuthorization` brand at compile time (Plan 05-13 already pinned this contract).
 
-**Primary recommendation:** Build `delivery-runtime` to mirror `dogpile-adapter`'s structure (network-permitted + zero-fs static contract test). Pin `@octokit/rest@^22.0.1`, `nock@^14.0.13`, `@octokit/plugin-retry@^7` for transient retries, `@octokit/plugin-throttling@^9` for rate-limit safety. Reuse `packages/repo/src/clone-workspace.ts:buildOnAuth` as the literal template for `pushBranch`'s auth shim — the existing `{ username: token, password: 'x-oauth-basic' }` pattern is the documented isomorphic-git GitHub form and matches Phase 3 conventions; keep that shape for symmetry rather than the alternative `{ username: 'x-access-token', password: PAT }` form mentioned in CONTEXT Q-03 (both work; the Phase 3 form is incumbent and tested).
+**Primary recommendation:** Build `delivery-runtime` to mirror `dogpile-adapter`'s structure (network-permitted + zero-fs static contract test). Pin `@octokit/rest@^22.0.1`, `nock@^14.0.13`, `@octokit/plugin-retry@^7` for transient retries, `@octokit/plugin-throttling@^9` for rate-limit safety. Reuse `packages/repo/src/clone-workspace.ts:buildOnAuth` as the literal template for `pushBranch`'s auth shim — the existing `{ username: token, password: 'x-oauth-basic' }` pattern is the documented isomorphic-git GitHub form and matches Phase 3 conventions. **CONTEXT.md Q-03 specifies the alternative `{ username: 'x-access-token', password: PAT }` form**; both are documented GitHub PAT forms in isomorphic-git's auth docs and both work. This is a recommended deviation from Q-03 for codebase symmetry — flagged in Assumptions Log A0; planner should confirm with discuss-phase before locking. If Q-03 is held verbatim, use `{ username: 'x-access-token', password: PAT }` instead.
 
 ## Project Constraints (from CLAUDE.md / AGENTS.md)
 
@@ -385,7 +385,7 @@ export async function pushBranch(input: {
 
 ```typescript
 // Source: target apps/factory-cli/src/poll-ci-driver.ts
-// Pattern: Phase 6 Q-11 (locked but not yet implemented).
+// Pattern: Phase 6 Q-11 (locked; Phase 6 in flight — factory-config piles block + executionCoordinationPilePreset rename already shipped).
 // Node 22 has AbortSignal.any natively. [VERIFIED: node -e check, v22.22.1]
 
 const deliverySignal = AbortSignal.any([
@@ -527,11 +527,11 @@ This is the same Pitfall 7 from Phase 4 — coordinate as a single Wave 0 task. 
 **How to avoid:** **Inject `fs` from the caller** (`apps/factory-cli`). The test harness can inject `node:fs/promises` directly; production code receives it from `factory-cli`'s assembly seam. Mirror Phase 5 mechanical-checks adapter pattern (injected `readFile` + `RepoSubprocessRunner`).
 **Warning signs:** `pnpm --filter @protostar/delivery-runtime test` fails on `no-fs.contract.test.ts`.
 
-### Pitfall 2: Token regex in CONTEXT.md Q-06 is wrong
+### Pitfall 2: Token regex in CONTEXT.md Q-06 misses fine-grained PATs entirely
 
-**What goes wrong:** CONTEXT.md Q-06 specifies `^gh[pousr]_[A-Za-z0-9]{36,}$`. Two issues:
-1. Classic PATs are exactly **36 chars** after the prefix (40 total) — `{36,}` is over-permissive.
-2. Fine-grained PATs use prefix `github_pat_` and total ~93 chars: `^github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}$`. The `gh[pousr]_` regex doesn't match them at all.
+**What goes wrong:** CONTEXT.md Q-06 specifies `^gh[pousr]_[A-Za-z0-9]{36,}$`. The load-bearing gap:
+1. **Fine-grained PATs use prefix `github_pat_`** and total ~93 chars: `^github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}$`. The `gh[pousr]_` regex doesn't match them at all — operators using fine-grained PATs are rejected at fast preflight as `token-invalid` even though the token is valid.
+2. (Minor) Classic PATs are exactly **36 chars** after the prefix (40 total). `{36,}` is defensively over-permissive — that's a stylistic call, not a bug; either `{36}` (exact match) or `{36,}` (length-flexible) works against today's tokens. Pick whichever you prefer.
 
 **Why it happens:** Token format docs are scattered; CONTEXT.md was written from memory.
 **How to avoid:** Use a UNION regex:
@@ -642,6 +642,19 @@ NOT:
 
 **What goes wrong:** Q-07 already calls this out. Random suffix solves it. Verify the random algorithm provides ≥24 bits of entropy.
 **How to avoid:** `crypto.randomBytes(4).toString('hex')` = 8 hex chars = 32 bits. Safe.
+
+
+### Pitfall 11: `isomorphic-git` push() has no native AbortSignal — cancel is best-effort via `onAuth`
+
+**What goes wrong:** Q-19 makes hierarchical AbortSignal load-bearing for cancel during delivery. `isomorphic-git`'s `push()` parameters list `onAuth | onAuthFailure | onAuthSuccess | onProgress | onMessage | onPrePush` callbacks but **no `signal` parameter** [VERIFIED: Context7 isomorphic-git push API spec, 2026-04-28]. Once the auth handshake completes and the pack upload begins, there is no documented way to interrupt the push mid-stream from outside the callbacks.
+**Why it happens:** isomorphic-git's HTTP transport doesn't currently surface an abort hook to push().
+**How to avoid:** Implement a **two-layer cancel strategy**:
+1. **Pre-push abort:** Check `signal.aborted` immediately before `git.push()`. If aborted, refuse with `cancelled` and skip the call entirely.
+2. **Auth-loop abort:** In `buildPushOnAuth`, check `signal.aborted` on every invocation and return `{ cancel: true }` if so. This kills the push between auth attempts.
+3. **Post-push reconcile:** Accept that an in-flight push CANNOT be interrupted. Document this in CONCERNS as a Q-19 caveat. Recovery via Q-18 idempotency: on next run, `findExistingPr` + remote-SHA check (Pitfall 5) reconcile any partial-push state.
+
+**Octokit calls have proper signal support** (verified via Context7); only the push step has this constraint.
+**Warning signs:** SIGINT during a large pack upload doesn't terminate the process within seconds; tests of "cancel during push" expect immediate termination but observe the push completing first.
 
 ## Code Examples
 
@@ -947,6 +960,7 @@ export function computeDeliveryAllowedHosts(
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
+| A0 | **Deviation from CONTEXT.md Q-03 onAuth form.** RESEARCH recommends `{ username: token, password: 'x-oauth-basic' }` (Phase 3 incumbent form) instead of CONTEXT.md Q-03's `{ username: 'x-access-token', password: PAT }`. Both are documented as valid GitHub PAT forms. | Pattern 2, Primary Recommendation | Low if both forms truly equivalent; Medium if GitHub deprecates one. **Surface to discuss-phase for explicit reconfirmation or revert to Q-03 verbatim.** |
 | A1 | Nock 14 successfully intercepts Octokit 22's native fetch on Node 22 | Standard Stack / Pitfall 6 | High — test surface unusable; need msw fallback. **Wave 0 smoke test required.** |
 | A2 | `host: 'github.com'` should be in `computeDeliveryAllowedHosts` for git-push transport | Code Examples / `computeDeliveryAllowedHosts` | Medium — push fails with `network.allow=allowlist` policy. Needs verification against existing `authorizeNetworkOp` semantics. |
 | A3 | `@octokit/plugin-retry@^7` and `@octokit/plugin-throttling@^9` are the current majors compatible with Octokit 22 | Standard Stack | Low — easily verified at install time via `npm view`. |
@@ -984,6 +998,11 @@ export function computeDeliveryAllowedHosts(
    - What we know: Octokit ships built-in `paginate` method without the plugin; CONTEXT.md doesn't mention pagination explicitly.
    - What's unclear: Whether evidence comments will exceed 30 (default per_page).
    - Recommendation: Use `octokit.paginate.iterator` for `issues.listComments` to handle long-running PRs with many comments. Don't add the plugin — built-in is sufficient.
+
+6. **Can we cancel an in-flight `isomorphic-git push()`?**
+   - What we know: push() takes no `signal` parameter; only `onAuth` returning `{ cancel: true }` interrupts, and only between auth attempts.
+   - What's unclear: Whether Q-19's "best-effort cancel mid-step" requirement is satisfiable for the push step at all.
+   - Recommendation: Document the constraint in CONCERNS; rely on pre-push signal check + Q-18 idempotency for recovery. See Pitfall 11.
 
 ## Sources
 
