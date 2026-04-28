@@ -4,15 +4,18 @@ import { canonicalizeJsonC14nV1 } from "@protostar/authority";
 
 export interface FactoryConfig {
   readonly adapters: {
-    readonly coder: {
+    readonly coder: LmstudioAdapterConfig;
+    readonly judge?: LmstudioAdapterConfig;
+  };
+}
+
+export interface LmstudioAdapterConfig {
       readonly provider: "lmstudio";
       readonly baseUrl: string;
       readonly model: string;
       readonly apiKeyEnv: string;
       readonly temperature?: number;
       readonly topP?: number;
-    };
-  };
 }
 
 export interface ResolvedFactoryConfig {
@@ -30,15 +33,18 @@ export type ResolveFactoryConfigResult =
 
 interface PartialFactoryConfig {
   readonly adapters?: {
-    readonly coder?: {
-      readonly provider?: "lmstudio";
-      readonly baseUrl?: string;
-      readonly model?: string;
-      readonly apiKeyEnv?: string;
-      readonly temperature?: number;
-      readonly topP?: number;
-    };
+    readonly coder?: PartialLmstudioAdapterConfig;
+    readonly judge?: PartialLmstudioAdapterConfig;
   };
+}
+
+interface PartialLmstudioAdapterConfig {
+  readonly provider?: "lmstudio";
+  readonly baseUrl?: string;
+  readonly model?: string;
+  readonly apiKeyEnv?: string;
+  readonly temperature?: number;
+  readonly topP?: number;
 }
 
 const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
@@ -50,13 +56,19 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
       apiKeyEnv: "LMSTUDIO_API_KEY",
       temperature: 0.2,
       topP: 0.9
+    }),
+    judge: Object.freeze({
+      provider: "lmstudio",
+      baseUrl: "http://localhost:1234/v1",
+      model: "qwen3-80b-a3b-mlx-4bit",
+      apiKeyEnv: "LMSTUDIO_API_KEY"
     })
   })
 });
 
 const TOP_LEVEL_KEYS = new Set(["adapters"]);
-const ADAPTERS_KEYS = new Set(["coder"]);
-const CODER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
+const ADAPTERS_KEYS = new Set(["coder", "judge"]);
+const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
 
 export function resolveFactoryConfig(input: {
   readonly fileBytes?: string;
@@ -80,6 +92,7 @@ export function resolveFactoryConfig(input: {
 
   const envOverridesApplied: EnvOverrideName[] = [];
   const fileCoder = fileConfig.adapters?.coder ?? {};
+  const fileJudge = fileConfig.adapters?.judge ?? {};
   const envBaseUrl = envValue(input.env, "LMSTUDIO_BASE_URL");
   const envModel = envValue(input.env, "LMSTUDIO_MODEL");
   const envApiKey = envValue(input.env, "LMSTUDIO_API_KEY");
@@ -88,27 +101,22 @@ export function resolveFactoryConfig(input: {
   if (envModel !== undefined) envOverridesApplied.push("LMSTUDIO_MODEL");
   if (envApiKey !== undefined) envOverridesApplied.push("LMSTUDIO_API_KEY");
 
-  const coder: FactoryConfig["adapters"]["coder"] = {
-    provider: "lmstudio",
-    baseUrl: envBaseUrl ?? fileCoder.baseUrl ?? DEFAULT_FACTORY_CONFIG.adapters.coder.baseUrl,
-    model: envModel ?? fileCoder.model ?? DEFAULT_FACTORY_CONFIG.adapters.coder.model,
-    apiKeyEnv:
-      envApiKey !== undefined
-        ? "LMSTUDIO_API_KEY"
-        : fileCoder.apiKeyEnv ?? DEFAULT_FACTORY_CONFIG.adapters.coder.apiKeyEnv
-  };
-  const temperature = fileCoder.temperature ?? DEFAULT_FACTORY_CONFIG.adapters.coder.temperature;
-  const topP = fileCoder.topP ?? DEFAULT_FACTORY_CONFIG.adapters.coder.topP;
-  if (temperature !== undefined) {
-    Object.assign(coder, { temperature });
-  }
-  if (topP !== undefined) {
-    Object.assign(coder, { topP });
-  }
+  const coder = resolveAdapterConfig({
+    partial: fileCoder,
+    defaults: DEFAULT_FACTORY_CONFIG.adapters.coder,
+    ...(envBaseUrl !== undefined ? { envBaseUrl } : {}),
+    ...(envModel !== undefined ? { envModel } : {}),
+    ...(envApiKey !== undefined ? { envApiKey } : {})
+  });
+  const judge = resolveAdapterConfig({
+    partial: fileJudge,
+    defaults: DEFAULT_FACTORY_CONFIG.adapters.judge!
+  });
 
   const config: FactoryConfig = {
     adapters: {
-      coder
+      coder,
+      judge
     }
   };
 
@@ -149,7 +157,10 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
     } else {
       errors.push(...unknownKeyErrors("$.adapters", config.adapters, ADAPTERS_KEYS));
       if (config.adapters.coder !== undefined) {
-        validateCoder(config.adapters.coder, errors);
+        validateLmstudioAdapter("$.adapters.coder", config.adapters.coder, errors);
+      }
+      if (config.adapters.judge !== undefined) {
+        validateLmstudioAdapter("$.adapters.judge", config.adapters.judge, errors);
       }
     }
   }
@@ -157,26 +168,51 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
   return errors;
 }
 
-function validateCoder(coder: unknown, errors: string[]): void {
-  if (!isPlainRecord(coder)) {
-    errors.push("$.adapters.coder must be an object");
+function validateLmstudioAdapter(path: string, adapter: unknown, errors: string[]): void {
+  if (!isPlainRecord(adapter)) {
+    errors.push(`${path} must be an object`);
     return;
   }
 
-  errors.push(...unknownKeyErrors("$.adapters.coder", coder, CODER_KEYS));
-  if (coder.provider !== undefined && coder.provider !== "lmstudio") {
-    errors.push('$.adapters.coder.provider must be "lmstudio"');
+  errors.push(...unknownKeyErrors(path, adapter, LMSTUDIO_ADAPTER_KEYS));
+  if (adapter.provider !== undefined && adapter.provider !== "lmstudio") {
+    errors.push(`${path}.provider must be "lmstudio"`);
   }
   for (const key of ["baseUrl", "model", "apiKeyEnv"] as const) {
-    if (coder[key] !== undefined && typeof coder[key] !== "string") {
-      errors.push(`$.adapters.coder.${key} must be a string`);
+    if (adapter[key] !== undefined && typeof adapter[key] !== "string") {
+      errors.push(`${path}.${key} must be a string`);
     }
   }
   for (const key of ["temperature", "topP"] as const) {
-    if (coder[key] !== undefined && typeof coder[key] !== "number") {
-      errors.push(`$.adapters.coder.${key} must be a number`);
+    if (adapter[key] !== undefined && typeof adapter[key] !== "number") {
+      errors.push(`${path}.${key} must be a number`);
     }
   }
+}
+
+function resolveAdapterConfig(input: {
+  readonly partial: PartialLmstudioAdapterConfig;
+  readonly defaults: LmstudioAdapterConfig;
+  readonly envBaseUrl?: string;
+  readonly envModel?: string;
+  readonly envApiKey?: string;
+}): LmstudioAdapterConfig {
+  const adapter: LmstudioAdapterConfig = {
+    provider: "lmstudio",
+    baseUrl: input.envBaseUrl ?? input.partial.baseUrl ?? input.defaults.baseUrl,
+    model: input.envModel ?? input.partial.model ?? input.defaults.model,
+    apiKeyEnv:
+      input.envApiKey !== undefined ? "LMSTUDIO_API_KEY" : input.partial.apiKeyEnv ?? input.defaults.apiKeyEnv
+  };
+  const temperature = input.partial.temperature ?? input.defaults.temperature;
+  const topP = input.partial.topP ?? input.defaults.topP;
+  if (temperature !== undefined) {
+    Object.assign(adapter, { temperature });
+  }
+  if (topP !== undefined) {
+    Object.assign(adapter, { topP });
+  }
+  return adapter;
 }
 
 function unknownKeyErrors(

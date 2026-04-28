@@ -9,21 +9,25 @@
     "adapters": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["coder"],
+      "required": ["coder", "judge"],
       "properties": {
-        "coder": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["provider", "baseUrl", "model", "apiKeyEnv"],
-          "properties": {
-            "provider": { "const": "lmstudio" },
-            "baseUrl": { "type": "string" },
-            "model": { "type": "string" },
-            "apiKeyEnv": { "type": "string", "default": "LMSTUDIO_API_KEY" },
-            "temperature": { "type": "number" },
-            "topP": { "type": "number" }
-          }
-        }
+        "coder": { "$ref": "#/definitions/lmstudioAdapterConfig" },
+        "judge": { "$ref": "#/definitions/lmstudioAdapterConfig" }
+      }
+    }
+  },
+  "definitions": {
+    "lmstudioAdapterConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "baseUrl", "model", "apiKeyEnv"],
+      "properties": {
+        "provider": { "const": "lmstudio" },
+        "baseUrl": { "type": "string" },
+        "model": { "type": "string" },
+        "apiKeyEnv": { "type": "string", "default": "LMSTUDIO_API_KEY" },
+        "temperature": { "type": "number" },
+        "topP": { "type": "number" }
       }
     }
   }

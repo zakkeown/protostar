@@ -13,6 +13,7 @@
     { "path": "../intent" },
     { "path": "../authority" },
     { "path": "../repo" },
-    { "path": "../artifacts" }
+    { "path": "../artifacts" },
+    { "path": "../review" }
   ]
 }

@@ -127,10 +127,10 @@ describe("createLmstudioJudgeAdapter", () => {
     });
 
     assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.errors.join("\n"));
+    if (!result.ok) throw new Error("expected config resolution to succeed");
     assert.equal(result.resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
-    assert.equal(result.resolved.config.adapters.judge.model, MODEL);
-    assert.equal(result.resolved.config.adapters.judge.apiKeyEnv, "LMSTUDIO_JUDGE_API_KEY");
+    assert.equal(result.resolved.config.adapters.judge?.model, MODEL);
+    assert.equal(result.resolved.config.adapters.judge?.apiKeyEnv, "LMSTUDIO_JUDGE_API_KEY");
   });
 });
 

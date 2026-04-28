@@ -19,6 +19,12 @@ describe("resolveFactoryConfig", () => {
           apiKeyEnv: "LMSTUDIO_API_KEY",
           temperature: 0.2,
           topP: 0.9
+        },
+        judge: {
+          provider: "lmstudio",
+          baseUrl: "http://localhost:1234/v1",
+          model: "qwen3-80b-a3b-mlx-4bit",
+          apiKeyEnv: "LMSTUDIO_API_KEY"
         }
       }
     });
@@ -137,12 +143,7 @@ describe("resolveFactoryConfig", () => {
 
     assert.deepEqual(schema.properties.adapters.required, ["coder", "judge"]);
     assert.ok("judge" in schema.properties.adapters.properties);
-    assert.deepEqual(schema.properties.adapters.properties.judge.required, [
-      "provider",
-      "baseUrl",
-      "model",
-      "apiKeyEnv"
-    ]);
+    assert.deepEqual(adapterSchemaFor(schema, "judge").required, ["provider", "baseUrl", "model", "apiKeyEnv"]);
   });
 });
 
@@ -157,11 +158,13 @@ interface FactoryConfigSchema {
       readonly required: readonly string[];
       readonly properties: {
         readonly coder: {
+          readonly $ref?: string;
           readonly additionalProperties: boolean;
           readonly required: readonly string[];
           readonly properties: Record<string, unknown>;
         };
         readonly judge: {
+          readonly $ref?: string;
           readonly additionalProperties: boolean;
           readonly required: readonly string[];
           readonly properties: Record<string, unknown>;
@@ -169,19 +172,40 @@ interface FactoryConfigSchema {
       };
     };
   };
+  readonly definitions: {
+    readonly lmstudioAdapterConfig: {
+      readonly additionalProperties: boolean;
+      readonly required: readonly string[];
+      readonly properties: Record<string, unknown>;
+    };
+  };
 }
 
 function assertConfigSatisfiesSchemaShape(config: FactoryConfig, schema: FactoryConfigSchema): void {
   const coder = config.adapters.coder;
-  const coderSchema = schema.properties.adapters.properties.coder;
+  const judge = config.adapters.judge;
+  assert.ok(judge, "resolved config must include adapters.judge");
+  const coderSchema = adapterSchemaFor(schema, "coder");
+  const judgeSchema = adapterSchemaFor(schema, "judge");
 
   assert.equal(schema.properties.adapters.additionalProperties, false);
-  assert.deepEqual(schema.properties.adapters.required, ["coder"]);
+  assert.deepEqual(schema.properties.adapters.required, ["coder", "judge"]);
   assert.equal(coderSchema.additionalProperties, false);
   assert.deepEqual(coderSchema.required, ["provider", "baseUrl", "model", "apiKeyEnv"]);
   for (const key of Object.keys(coder)) {
     assert.ok(key in coderSchema.properties, `schema is missing coder.${key}`);
   }
+  for (const key of Object.keys(judge)) {
+    assert.ok(key in judgeSchema.properties, `schema is missing judge.${key}`);
+  }
+}
+
+function adapterSchemaFor(schema: FactoryConfigSchema, key: "coder" | "judge") {
+  const adapter = schema.properties.adapters.properties[key];
+  if (adapter.$ref === "#/definitions/lmstudioAdapterConfig") {
+    return schema.definitions.lmstudioAdapterConfig;
+  }
+  return adapter;
 }
 
 function unwrapResolved(result: ReturnType<typeof resolveFactoryConfig>) {

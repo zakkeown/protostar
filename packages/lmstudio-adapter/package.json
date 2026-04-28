@@ -21,7 +21,8 @@
     "@protostar/intent": "workspace:*",
     "@protostar/authority": "workspace:*",
     "@protostar/repo": "workspace:*",
-    "@protostar/artifacts": "workspace:*"
+    "@protostar/artifacts": "workspace:*",
+    "@protostar/review": "workspace:*"
   },
   "sideEffects": false
 }

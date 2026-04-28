@@ -164,6 +164,9 @@ importers:
       '@protostar/repo':
         specifier: workspace:*
         version: link:../repo
+      '@protostar/review':
+        specifier: workspace:*
+        version: link:../review
 
   packages/mechanical-checks:
     dependencies:

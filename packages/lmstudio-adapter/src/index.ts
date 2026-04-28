@@ -19,3 +19,4 @@ export {
 export { parseSseStream } from "./sse-parser.js";
 export { createLmstudioCoderAdapter, type LmstudioAdapterConfig } from "./coder-adapter.js";
 export * from "./lmstudio-client.js";
+export * from "./create-judge-adapter.js";
