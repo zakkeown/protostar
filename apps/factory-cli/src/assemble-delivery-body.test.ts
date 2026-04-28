@@ -62,9 +62,28 @@ _Screenshots: deferred until Phase 10 dogfood (toy repo not yet scaffolded)._
   });
 
   it("spills oversized full sections into a fourth evidence comment and leaves summary stubs in the body", () => {
-    const bigRationale = "review transcript ".repeat(4200);
+    const bigFinding = "mechanical transcript ".repeat(1000);
+    const bigRationale = "review transcript ".repeat(1000);
     const assembled = assembleDeliveryBody(
       representativeInput({
+        mechanical: {
+          verdict: "fail",
+          findings: [
+            {
+              ruleId: "execution-completed",
+              severity: "major",
+              summary: bigFinding,
+              evidence: [
+                {
+                  stage: "execution",
+                  kind: "execution-result",
+                  uri: "execution-result.json",
+                  description: "execution-result.json"
+                }
+              ]
+            }
+          ]
+        },
         critiques: [
           {
             judgeId: "judge-big",
@@ -74,7 +93,12 @@ _Screenshots: deferred until Phase 10 dogfood (toy repo not yet scaffolded)._
             rubric: { correctness: 5 },
             taskRefs: []
           }
-        ]
+        ],
+        iterations: Array.from({ length: 550 }, (_, index) => ({
+          iteration: index + 1,
+          mechanicalVerdict: "repair" as const,
+          modelVerdict: "pass" as const
+        }))
       })
     );
 
