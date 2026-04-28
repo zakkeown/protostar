@@ -180,7 +180,7 @@ Plans:
 - [x] 05-04-review-types-and-brands-PLAN.md — wave 1 — RepairPlan/RepairContext/ModelReviewer/JudgeCritique/DeliveryAuthorization brand + ReviewLifecycleEvent union; relocates RepairContext/AdapterAttemptRef/ExecutionRunResult/MechanicalCritiqueRef/ModelCritiqueRef into @protostar/planning to break review↔execution cycle (Q-04, Q-06, Q-10, Q-11, Q-15, Q-16, Q-18)
 
 **Wave 2** *(blocked on Wave 1 completion)* (pure transforms + adapter context + per-task gate + judge adapter)
-- [ ] 05-05-synthesize-repair-plan-PLAN.md — wave 2 — pure-transform synthesizeRepairPlan + computeRepairSubgraph in @protostar/repair (Q-03, Q-04, Q-05)
+- [x] 05-05-synthesize-repair-plan-PLAN.md — wave 2 — pure-transform synthesizeRepairPlan + computeRepairSubgraph in @protostar/repair (Q-03, Q-04, Q-05)
 - [x] 05-06-adapter-context-repair-extension-PLAN.md — wave 2 — AdapterContext.repairContext (sourced from @protostar/planning) + retryReason "repair" widening (Q-06)
 - [ ] 05-08-judge-adapter-PLAN.md — wave 2 — createLmstudioJudgeAdapter + shared lmstudio-client extraction + factory-config adapters.judge schema (Q-10, Q-11)
 - [x] 05-09-apply-change-set-cosmetic-gate-PLAN.md — wave 2 — applyChangeSet per-task ≤1-file gate for cosmetic-tweak archetype (Q-08 first defense)
