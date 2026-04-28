@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ConsensusBreakdown } from "@protostar/evaluation";
-
 import type { PileFailure } from "./pile-failure-types.js";
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected pile failure variant: ${JSON.stringify(value)}`);
 }
 
-const consensusBreakdown: ConsensusBreakdown = {
+const consensusBreakdown = {
   judgeMeans: [0.92, 0.8],
   dimMeans: {
     acMet: 0.9,
@@ -29,7 +27,7 @@ const consensusBreakdown: ConsensusBreakdown = {
     tMinDims: 0.85
   },
   thresholdsHit: ["minJudges", "minDims"]
-};
+} as const;
 
 function describeFailure(failure: PileFailure): string {
   switch (failure.class) {

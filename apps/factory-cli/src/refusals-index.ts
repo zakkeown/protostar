@@ -10,7 +10,8 @@ export type RefusalStage =
   // Phase 6 Plan 06-07 Task 1 — pile-failure refusal stages (Q-12 refusal symmetry).
   | "pile-planning"
   | "pile-review"
-  | "pile-execution-coordination";
+  | "pile-execution-coordination"
+  | "pile-evaluation";
 
 export const REFUSALS_INDEX_FILE_NAME = "refusals.jsonl" as const;
 export const TERMINAL_STATUS_ARTIFACT_NAME = "terminal-status.json" as const;
