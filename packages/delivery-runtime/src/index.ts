@@ -13,3 +13,10 @@ export { findExistingPr } from "./find-existing-pr.js";
 export type { ExistingPrResult } from "./find-existing-pr.js";
 export { findCommentByMarker, postEvidenceComment } from "./post-evidence-comment.js";
 export type { EvidenceCommentInput, EvidenceCommentResult } from "./post-evidence-comment.js";
+export { executeDelivery } from "./execute-delivery.js";
+export type {
+  DeliveryExecutionPlan,
+  DeliveryRunContext,
+  DeliveryRunOutcome,
+  InitialCiSnapshot
+} from "./execute-delivery.js";

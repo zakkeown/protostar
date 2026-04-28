@@ -9,12 +9,14 @@ describe("executeDelivery - brand-typed entry", () => {
     const stubAuth = null as unknown as Parameters<typeof executeDelivery>[0];
     const stubCtx = null as unknown as Parameters<typeof executeDelivery>[2];
 
-    // @ts-expect-error - raw string rejected for branch
-    declaredFn(stubAuth, { branch: "foo", title: "t" as never, body: "b" as never, target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
-    // @ts-expect-error - raw string rejected for title
-    declaredFn(stubAuth, { branch: "b" as never, title: "foo", body: "b" as never, target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
-    // @ts-expect-error - raw string rejected for body
-    declaredFn(stubAuth, { branch: "b" as never, title: "t" as never, body: "foo", target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
+    if (false) {
+      // @ts-expect-error - raw string rejected for branch
+      declaredFn(stubAuth, { branch: "foo", title: "t" as never, body: "b" as never, target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
+      // @ts-expect-error - raw string rejected for title
+      declaredFn(stubAuth, { branch: "b" as never, title: "foo", body: "b" as never, target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
+      // @ts-expect-error - raw string rejected for body
+      declaredFn(stubAuth, { branch: "b" as never, title: "t" as never, body: "foo", target: {} as never, artifacts: [], evidenceComments: [] }, stubCtx);
+    }
 
     assert.ok(true);
   });
