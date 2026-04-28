@@ -1,0 +1,605 @@
+{
+  "phase": "08-evaluation-evolution",
+  "generated_at": "2026-04-28T00:00:00Z",
+  "stats": {
+    "total": 20,
+    "answered": 20,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "prior_decisions": {
+    "phase_6_review_pile_q14": "Phase 6 review pile IS the ModelReviewer; Phase 8 swaps model families + adds consensus math without changing the loop seam.",
+    "phase_6_provider_override_q03": "AgentSpec.provider per-agent override is the heterogeneous-local mechanism. Phase 8 declares a second model family on the second judge AgentSpec.",
+    "phase_6_refusal_q12_q13": "Pile failures use sourceOfTruth refusal pipe + 6-variant PileFailure union. Eval/consensus failures should slot into this taxonomy.",
+    "phase_6_trace_q08": "Always persist full trace.json per pile invocation.",
+    "phase_6_layout_q07": "runs/{id}/piles/{kind}/iter-{N}/{result.json,trace.json,refusal.json}",
+    "constraint_authority": "Only apps/factory-cli + packages/repo touch the filesystem. dogpile-adapter is network-only (Phase 6 Q-09 contract test).",
+    "constraint_local_judges": "Heterogeneous-local via LM Studio only. No cloud judges.",
+    "constraint_archetype": "Only cosmetic-tweak archetype is wired for v0.1.",
+    "constraint_calibration": "Numeric calibration of harsh consensus thresholds is empirical post-0.1, not pre-tuned (PROJECT.md Out of Scope).",
+    "code_landmarks": [
+      "packages/evaluation/src/index.ts — createEvaluationReport (semantic+consensus stubbed status:'skipped'), measureOntologySimilarity, decideEvolution, ONTOLOGY_CONVERGENCE_THRESHOLD=0.95",
+      "apps/factory-cli/src/main.ts:889 — createEvaluationReport call site; main.ts:893 — decideEvolution call site (current=plan ontology, previous=intent ontology — same-run, generation 0→1)",
+      "apps/factory-cli/src/main.ts:1102-1124 — createIntentOntologySnapshot / createPlanOntologySnapshot",
+      "packages/review/src/review-pile-reviewer.ts — review pile is the ModelReviewer (Phase 6 06-05)",
+      "packages/review/src/judge-types.ts — JudgeCritique { judgeId, model, rubric: Record<string, number>, verdict, rationale, taskRefs }",
+      "packages/review/src/review-pile-result.ts — ReviewPileBody { judgeCritiques[], aggregateVerdict }",
+      "packages/mechanical-checks/src/findings.ts — buildFindings produces ReviewFinding[] from command results + AC coverage + cosmetic archetype rule",
+      "packages/dogpile-adapter/src/index.ts:94 — reviewPilePreset (3 agents: correctness/security/release-gate)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "mechanical-eval",
+      "title": "Mechanical Eval — Numeric Scores (EVAL-01)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Mechanical score source: rebuild or reuse?",
+          "context": "Phase 5 already produces a ReviewGate with mechanical-checks findings + command results (build/lint pass-fail). EVAL-01 asks for *numeric* scores on (build pass, lint clean, diff size, AC coverage). The data exists; the question is who derives the numbers.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Reuse Phase 5 outputs in evaluation package",
+              "description": "evaluation imports types from review/mechanical-checks; pure function `computeMechanicalScores(reviewGate, mechanicalCommandResults, diffNameOnly, plan)` returns { build, lint, diffSize, acCoverage }. No re-running of commands. Fastest path; couples evaluation to review/mechanical types but those are stable."
+            },
+            {
+              "id": "b",
+              "label": "New mechanical-eval runner that re-derives from raw artifacts",
+              "description": "Read the persisted mechanical-checks artifacts from disk and recompute scores; evaluation owns parsing. Decouples from review's in-memory shape but duplicates parse logic and adds an I/O boundary in evaluation (against authority constraint)."
+            },
+            {
+              "id": "c",
+              "label": "Hybrid: scores live on ReviewGate, evaluation only renumbers",
+              "description": "Phase 5 ReviewGate is extended with `mechanicalScores: { build, lint, diffSize, acCoverage }` so the score producer is colocated with the finding producer; evaluation just consumes and labels. Most authoritative but requires touching Phase 5 types."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Score dimensions and aggregation",
+          "context": "EVAL-01 lists four sub-scores. They have different natures: build/lint are binary (pass=1, fail=0); diff size is continuous (cosmetic-tweak archetype caps at 1 file — score=1 when ≤1, else 0? or graded?); AC coverage is fractional (covered/total).",
+          "options": [
+            {
+              "id": "a",
+              "label": "4 sub-scores in [0,1] + equal-weighted mean",
+              "description": "Each sub-score independently 0..1; mechanical pass-threshold is mean ≥ T (e.g., 0.95). Simple, transparent, matches the harsher-than-baseline aesthetic later (high mean is one half of consensus rule)."
+            },
+            {
+              "id": "b",
+              "label": "4 sub-scores + min-rule pass (all must hit threshold)",
+              "description": "All four must be ≥ T independently. Mirrors the harsher-than-baseline 'high min' rule from EVAL-03 — keeps mechanical strict and aligned with consensus posture."
+            },
+            {
+              "id": "c",
+              "label": "Per-rule weights (build heaviest, diff-size lightest)",
+              "description": "build=0.4, lint=0.2, AC=0.3, diffSize=0.1 (cosmetic-tweak biases). More expressive but bakes archetype assumptions into v0.1 evaluation; v1.0 calibration will rewrite this."
+            },
+            {
+              "id": "d",
+              "label": "Custom (write below)",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Mechanical stage status mapping",
+          "context": "createEvaluationReport currently emits `status: 'passed' | 'failed' | 'skipped'`. With numeric scores, status becomes derived. Question: keep enum surface or expand the EvaluationStageResult shape?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Keep enum, attach scores as new field",
+              "description": "EvaluationStageResult adds `scores?: Record<string, number>` and `score?: number` (composite). status still pass/fail/skipped, derived from threshold. Backwards-compatible with existing artifact shape; consumers that don't care about numbers ignore them."
+            },
+            {
+              "id": "b",
+              "label": "Replace status with verdict + score (breaking)",
+              "description": "EvaluationStageResult becomes `{ stage, score, verdict, summary }`; verdict is pass/fail/skipped. Cleanest forward shape but breaks evaluation-report.json schema — schema bump + downstream consumer audit (delivery, manifest)."
+            },
+            {
+              "id": "c",
+              "label": "Keep enum; numeric scores live in separate `evaluation-scores.json` artifact",
+              "description": "Phase 8 adds a sibling artifact for the numeric detail; createEvaluationReport stays binary. Cleanly separates 'gate decision' from 'forensic numbers' — but two artifacts to read for any downstream consumer."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "semantic-judge",
+      "title": "Semantic Judge (EVAL-02)",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "Semantic stage: reuse review pile output or new evaluation pile?",
+          "context": "Phase 6 review pile already runs N judges and emits JudgeCritique[] with `rubric: Record<string, number>` per judge. The data EVAL-02 needs ('numeric scores against diff + AC') is mostly already produced. But the review pile's mission is 'block/repair/pass for the loop'; an evaluation pile would have a different mission ('score this run for archival/evolution').",
+          "options": [
+            {
+              "id": "a",
+              "label": "Reuse review pile — semantic stage reads ReviewPileBody.judgeCritiques",
+              "description": "evaluation extracts numeric scores from existing JudgeCritique rubrics; no new pile invocation. Saves model spend, keeps loop simple. Risk: review-pile rubric was tuned for verdict, not for retrospective scoring — semantic dimensions may be sparse."
+            },
+            {
+              "id": "b",
+              "label": "New evaluationPilePreset (mirrors review preset)",
+              "description": "Add a 4th preset to dogpile-adapter (planning/review/exec-coord/evaluation). Distinct mission: 'score this completed run on rubric X across diff + AC.' Costs another pile per run; clean separation; lets review-pile rubric stay loop-focused."
+            },
+            {
+              "id": "c",
+              "label": "Reuse for v0.1, add evaluation pile in v1.0",
+              "description": "Ship v0.1 reading review-pile rubrics; document the limitation in CONCERNS; revisit during Phase 10 dogfood once we see whether review rubrics carry enough signal."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Semantic confidence signal — what triggers consensus?",
+          "context": "EVAL-03 says 'consensus runs when semantic confidence is below threshold'. We need a concrete number. The judges produce `rubric: Record<string, number>` per judge plus a verdict.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Confidence = inverse variance across judge mean rubric scores",
+              "description": "If judges agree numerically (low variance across `mean(rubric)` per judge), confidence is high; high variance → run consensus. Implementable from existing data; aligns with adversarial-multi-model intuition."
+            },
+            {
+              "id": "b",
+              "label": "Confidence = unanimity of verdicts",
+              "description": "All judges return same verdict → high confidence (skip consensus); any disagreement → run consensus. Crisp, doesn't require numeric thresholds; ignores rubric numeric signal. Simplest."
+            },
+            {
+              "id": "c",
+              "label": "Confidence = min rubric score across judges and dimensions",
+              "description": "Lowest individual rubric score is the floor; below threshold → consensus. Pessimistic-by-design; pairs naturally with the 'high min' half of the harsher-than-baseline rule."
+            },
+            {
+              "id": "d",
+              "label": "Custom (write below)",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Rubric dimensions for semantic judge",
+          "context": "JudgeCritique today carries `rubric: Record<string, number>` — schema-free. For numeric scores to mean something across runs we need a fixed dimension list. PROJECT.md is silent on rubric content. The judge model evaluates 'diff + AC'.",
+          "options": [
+            {
+              "id": "a",
+              "label": "AC-met, code-quality, regression-risk (3 dims, all 0..1)",
+              "description": "Minimal but operationalizable; maps to what a reviewer actually thinks about. AC-met is the load-bearing one for cosmetic-tweak; others provide signal for graduation to feature-add."
+            },
+            {
+              "id": "b",
+              "label": "AC-met, code-quality, security, regression-risk, release-readiness (5 dims)",
+              "description": "Mirrors reviewPilePreset's 3-agent split (correctness/security/release-gate) plus quality and regression. Richer signal; more for the model to score; risk of low-information dimensions on cosmetic-tweak runs."
+            },
+            {
+              "id": "c",
+              "label": "AC-met only (single dimension)",
+              "description": "v0.1 is cosmetic-tweak; AC-met is the only rubric that has real teeth. Document expansion path for v1.0. Keeps judge prompts short and signal high."
+            },
+            {
+              "id": "d",
+              "label": "Custom (write below)",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Default semantic judge model",
+          "context": "PROJECT.md/REQUIREMENTS reference 'Qwen3-Next-80B-A3B-MLX-4bit'. Current Phase 4 lock used Qwen3-Coder for execution + Qwen3-80B for judge. Phase 6 Q-03 lets per-AgentSpec providers be set, so this is a default-only question.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Qwen3-Next-80B-A3B-MLX-4bit (per REQUIREMENTS.md example)",
+              "description": "Matches REQUIREMENTS.md EVAL-02 example. Phase 6 Q-03 still allows operator override via factory-config.json or AgentSpec."
+            },
+            {
+              "id": "b",
+              "label": "Operator-supplied only — fail-fast if not set",
+              "description": "No baked default; factory-config.json must declare `evaluation.semanticJudge.model`. Forces operators to commit; matches dark-factory 'risk-bearing flips are config' posture."
+            },
+            {
+              "id": "c",
+              "label": "Inherit from review pile's first judge",
+              "description": "Whatever model is configured for the first reviewPilePreset agent becomes the semantic baseline. Single source of truth for 'the baseline judge.'"
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "consensus",
+      "title": "Consensus + Harsh Rule (EVAL-03)",
+      "questions": [
+        {
+          "id": "Q-08",
+          "title": "Second judge model family (consensus)",
+          "context": "EVAL-03 says 'second judge from a different model family.' Constraint: heterogeneous-local via LM Studio. Common families available locally: Qwen, Llama, DeepSeek, Mistral/Mixtral, Gemma. Phase 6 Q-03 makes this an AgentSpec.provider override.",
+          "options": [
+            {
+              "id": "a",
+              "label": "DeepSeek-Coder-V2-Lite (16B-ish) — different family, code-trained",
+              "description": "Strong default for code-review judging at modest VRAM. Diverse from Qwen. Available via LM Studio."
+            },
+            {
+              "id": "b",
+              "label": "Llama-3.1-70B-Instruct — different family, generalist",
+              "description": "Most-tested generalist judge in literature. Larger VRAM cost but well-understood biases. Maximum family distance from Qwen."
+            },
+            {
+              "id": "c",
+              "label": "Mixtral-8x7B-Instruct — different family, MoE",
+              "description": "Lower active params, decent diversity, runs on modest hardware. Less code-specialized than DeepSeek."
+            },
+            {
+              "id": "d",
+              "label": "Operator-supplied only — config field, no default",
+              "description": "factory-config.json declares `evaluation.consensusJudge.model` and `provider`; no baked choice. Matches Q-07 option b."
+            },
+            {
+              "id": "e",
+              "label": "Custom (write below)",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "Harsher-than-baseline rule operationalization",
+          "context": "EVAL-03 spec: 'high mean AND high min' → pass. Need to define what 'mean' and 'min' aggregate over. Two natural readings: (a) per-judge: mean of rubric dimensions per judge, then mean and min across judges; (b) per-dimension: mean of judges per dimension, then mean and min across dimensions.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Per-judge: pass iff mean(judge_means) ≥ T_mean AND min(judge_means) ≥ T_min",
+              "description": "Each judge gets a single mean rubric score; consensus passes only if every judge's mean is high enough (no judge falls below floor) AND average across judges is high. Pessimistic-on-judges."
+            },
+            {
+              "id": "b",
+              "label": "Per-dimension: pass iff mean(dim_means_across_judges) ≥ T_mean AND min(dim_means) ≥ T_min",
+              "description": "Each rubric dimension is averaged across judges; consensus passes only if no dimension drops below floor AND overall mean is high. Pessimistic-on-dimensions."
+            },
+            {
+              "id": "c",
+              "label": "Both: pass iff (a) AND (b) — strictest possible read",
+              "description": "No weak judge AND no weak dimension. Maximum harshness; most likely to block. Aligns with dark-factory bias toward false-negatives over false-positives."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-10",
+          "title": "Consensus failure surface",
+          "context": "When consensus runs and fails — semantic judges disagree, harsh rule blocks, or the second judge errors out — Phase 6 Q-12/Q-13 give us a refusal taxonomy. EVAL stages are not piles but they fail similarly.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Reuse Phase 6 PileFailure taxonomy via new sourceOfTruth 'EvaluationResult'",
+              "description": "Extend the refusal pipe with sourceOfTruth='EvaluationResult'; failure variants reuse pile-timeout/budget-exhausted/schema-parse/network/cancelled and add `eval-consensus-block`. Symmetric with all other refusal evidence; one operator mental model."
+            },
+            {
+              "id": "b",
+              "label": "Distinct EvaluationFailure union",
+              "description": "evaluation package owns its own discriminated union; refusal artifact has a separate top-level shape. Cleaner domain boundary; operators learn two refusal flavors."
+            },
+            {
+              "id": "c",
+              "label": "Verdict-only — no refusal artifact for eval",
+              "description": "Evaluation is observational; a 'fail' is just a verdict in evaluation-report.json. Block/PR-decision lives downstream in delivery. Lightest plumbing; loses forensic surface."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "stub-removal",
+      "title": "Stub Removal (EVAL-04)",
+      "questions": [
+        {
+          "id": "Q-11",
+          "title": "Status 'skipped' — kill or keep?",
+          "context": "EVAL-04 says remove the `status: 'skipped'` stubs once mech+sem+consensus are wired. But there's a legitimate skipped case: consensus skipped because semantic confidence was high. Same word, different meaning.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Remove 'skipped' from EvaluationStageStatus entirely; consensus emits 'passed' with summary 'not required (high semantic confidence)'",
+              "description": "Strict EVAL-04 reading. Status enum becomes pass|fail. Forces every stage to declare a verdict. Consensus-not-required becomes a pass. Cleanest but slightly misleading verdict for the 'didn't run' case."
+            },
+            {
+              "id": "b",
+              "label": "Keep 'skipped' but require evidence — never as 'stubbed'",
+              "description": "skipped is allowed only when an explicit gate (e.g., semantic-confidence ≥ T) was evaluated and decided to skip. Add a contract test: no stage emits 'skipped' without a `skippedReason` field referencing a real gate. Resolves the EVAL-04 risk-register concern (\"stubbed eval lies in artifacts\")."
+            },
+            {
+              "id": "c",
+              "label": "Replace 'skipped' with 'not-applicable' (semantic rename)",
+              "description": "Same machinery, different word, makes intent obvious; schema bump on evaluation-report.json."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "createEvaluationReport new signature",
+          "context": "Currently it takes `{ runId, reviewGate }` and stubs everything semantic/consensus. To wire real stages, it needs more inputs: mechanical scores, semantic outcome, consensus outcome (if run). Question is shape.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pre-computed: caller passes per-stage results",
+              "description": "createEvaluationReport({ runId, mechanical: MechanicalEvalResult, semantic: SemanticEvalResult, consensus?: ConsensusEvalResult }). evaluation package is pure assembly; factory-cli orchestrates the stages and threads results in. Matches 'evaluation package stays pure' authority posture."
+            },
+            {
+              "id": "b",
+              "label": "Orchestrating: caller passes runners, evaluation package calls them in order",
+              "description": "createEvaluationReport({ runId, runMechanical: () => Promise<...>, runSemantic: () => Promise<...>, runConsensus: () => Promise<...> }). evaluation owns gating logic ('skip consensus when confidence high'). Cleaner control flow; risks pulling I/O semantics into pure package."
+            },
+            {
+              "id": "c",
+              "label": "Pre-computed + helper: caller pre-computes; evaluation exports `shouldRunConsensus(semantic): boolean` so caller can decide",
+              "description": "Best of both — gating logic is pure and exported, but factory-cli does the actual `if (shouldRunConsensus(s)) await runConsensus()`. evaluation stays pure; consensus-gate logic is unit-testable in isolation."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "evolution-snapshots",
+      "title": "Evolution Snapshots (EVOL-01)",
+      "questions": [
+        {
+          "id": "Q-13",
+          "title": "Snapshot: what evolves between runs?",
+          "context": "Today, decideEvolution is called within ONE run — previous=intent ontology, current=plan ontology — comparing intent→plan within the same run. EVOL-01 says 'reads previous run's snapshot from disk.' Cross-run means we need a single artifact comparable across runs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Plan ontology snapshot per run (one snapshot per run)",
+              "description": "Each run persists its admitted-plan ontology; next run reads previous run's plan snapshot, computes similarity vs current run's plan. Plan-vs-plan across runs. Direct read of the EVOL-01 spec."
+            },
+            {
+              "id": "b",
+              "label": "Spec ontology snapshot (intent + AC, post-clarification)",
+              "description": "Snapshot is the post-admission intent + AC structure. Convergence means 'the spec stopped changing across runs' — closer to the Ouroboros spec-first framing in PROJECT.md ('Specs and plans evolve before code')."
+            },
+            {
+              "id": "c",
+              "label": "Combined: persist both spec AND plan; similarity is weighted",
+              "description": "Two snapshots per run; convergence is composite (spec_sim * 0.6 + plan_sim * 0.4 or similar). Richer; doubles the surface; calibration burden grows."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-14",
+          "title": "Snapshot persistence path",
+          "context": "Constraint: only factory-cli + repo touch fs (Phase 6 Q-09). Phase 6 layout is runs/{id}/piles/{kind}/iter-{N}/. Snapshots are cross-run; either live alongside per-run artifacts (and a chain index resolves them) or in a top-level lineage directory.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Per-run + chain index: runs/{id}/evolution/snapshot.json + .protostar/evolution/{lineageId}.jsonl chain index",
+              "description": "Snapshot lives with its run; a top-level jsonl indexes the chain by lineage. Symmetric with refusals.jsonl pattern. Pruning a run still leaves chain history because the index is append-only."
+            },
+            {
+              "id": "b",
+              "label": "Lineage-keyed directory: .protostar/evolution/{lineageId}/gen-{N}-{runId}.json",
+              "description": "Cross-run artifacts live cross-run; runs/{id}/ stays per-run. Direct cd into a lineage dir to see history. Decouples lineage retention from run retention (Phase 9 OP-08 pruning)."
+            },
+            {
+              "id": "c",
+              "label": "In-run only with prev-run pointer: runs/{id}/evolution/{snapshot.json, prev-run.txt}",
+              "description": "Each run's evolution dir contains its snapshot and the runId of its predecessor. Lineage is reconstructed by walking the linked list. Lightweight; pruning a middle run breaks the chain."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Lineage identity",
+          "context": "What groups two runs into 'consecutive generations'? IntentId? IntentTitle? Hash of confirmed intent? Operator-supplied lineage tag? Phase 9 will add `protostar-factory run`/`resume`/`inspect` — lineage identity must be discoverable from CLI.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hash of normalized intent (acceptance criteria + problem)",
+              "description": "Runs with the same problem statement + AC structure form a lineage automatically. Operator-free; rerunning the same intent = same lineage. Risk: minor AC edit creates a new lineage even though the operator wanted to evolve."
+            },
+            {
+              "id": "b",
+              "label": "Operator-supplied --lineage <id> flag, defaulting to confirmed-intent hash",
+              "description": "Operator can explicitly tie runs together across small edits ('--lineage cosmetic-tweak-button-color'). Default is hash-based for hands-off use. Most ergonomic; matches dark-factory autonomy posture."
+            },
+            {
+              "id": "c",
+              "label": "ConfirmedIntent.id (if it has one) — strict identity",
+              "description": "Only runs sharing the same ConfirmedIntent identity link. Any change makes a new lineage. Strictest; maps cleanly to admission artifacts; least flexible."
+            },
+            {
+              "id": "d",
+              "label": "Custom (write below)",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "evolution-drives-next",
+      "title": "Evolution → Next Run + Threshold (EVOL-02, EVOL-03)",
+      "questions": [
+        {
+          "id": "Q-16",
+          "title": "What does 'continue' produce as input to next run?",
+          "context": "EVOL-02: 'Evolution decision drives spec/plan refinement on the next run; core code evolution is gated behind explicit operator opt-in.' v0.1 only does cosmetic-tweak. We need to scope what 'refinement' actually means for v0.1.",
+          "options": [
+            {
+              "id": "a",
+              "label": "v0.1: prior snapshot + decision-summary file fed into planning pile mission as context",
+              "description": "Next run's planning pile mission includes a 'previous-generation summary' block (changed AC, prior plan deltas, prior verdict). Spec/plan refinement happens implicitly via the model seeing prior context. Minimal scope; matches 'cosmetic-tweak only' v0.1 reality."
+            },
+            {
+              "id": "b",
+              "label": "v0.1: structured spec-delta artifact that human reviews before next run",
+              "description": "evolution-decision.json → human-readable diff/proposal → operator confirms → next run starts. Explicit human-in-the-loop step; aligns with 'core code evolution gated behind opt-in' but adds a manual step inconsistent with dark-factory autonomy."
+            },
+            {
+              "id": "c",
+              "label": "v0.1: store-only — evolution decides continue/converged/exhausted but does NOT modify next run input",
+              "description": "v0.1 ships generation tracking + convergence detection only. Refinement is a Phase 10 / v1.0 problem. Cleanest scope; smallest surface; lets dogfood reveal what refinement should mean."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-17",
+          "title": "Operator opt-in mechanism for code evolution",
+          "context": "EVOL-02: 'core code evolution is gated behind explicit operator opt-in.' Spec/plan refinement is allowed by default; touching code across runs needs a flag. Question is the flag's shape and granularity.",
+          "options": [
+            {
+              "id": "a",
+              "label": "CLI flag --evolve-code on `protostar-factory run`",
+              "description": "Operator passes --evolve-code to allow next run's planning to read previous run's code state and propose changes. Default off. Per-invocation explicit. Matches Phase 9 CLI surface."
+            },
+            {
+              "id": "b",
+              "label": "factory-config.json field `evolution.codeEvolution: 'opt-in' | 'disabled'`",
+              "description": "Persistent in repo config. dogfood configs can flip on; CI/example configs stay disabled. CLI flag `--evolve-code` overrides. Symmetric with Phase 6 Q-04 mode-flag pattern."
+            },
+            {
+              "id": "c",
+              "label": "Both: config default + CLI override (a + b)",
+              "description": "Default config = disabled; CLI flag is the operator escape hatch. Most ergonomic; matches Phase 6 mode resolution rules."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Convergence threshold calibration plan (EVOL-03)",
+          "context": "Threshold currently 0.95 in `packages/evaluation/src/index.ts:8`. EVOL-03 says 'calibrated empirically against ≥10 dogfood runs.' PROJECT.md Out of Scope: 'Numeric calibration of harsh consensus thresholds — set empirically once 0.1 ships, not pre-tuned.' Phase 10 ships ≥10 dogfood runs (DOG-04). v0.1 ships in tension with v1.0 calibration.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Ship 0.95 as v0.1 default; CONCERNS note + calibration script in Phase 10",
+              "description": "Phase 8 leaves the threshold; Phase 10 dogfood produces .protostar/calibration/ontology-similarity.jsonl; a script (`pnpm calibrate:convergence`) recomputes the recommended threshold. EVOL-03 closes in Phase 10, not Phase 8."
+            },
+            {
+              "id": "b",
+              "label": "Make threshold a config field; ship 0.95 default + calibration script",
+              "description": "factory-config.json `evolution.convergenceThreshold` overrides the constant. Phase 10 calibration writes a recommended value to a project-local file. Operator-tunable from day one."
+            },
+            {
+              "id": "c",
+              "label": "Defer EVOL-03 closure to Phase 10 explicitly",
+              "description": "Phase 8 acceptance for EVOL-03 = 'threshold is configurable + calibration plan documented'. Actual numeric recalibration is Phase 10's burden. Keeps Phase 8 scope crisp."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-19",
+          "title": "Generation counter source",
+          "context": "decideEvolution today takes generation from current.generation (currently hardcoded 0/1 in main.ts:1104/1115). Cross-run generation must come from somewhere reliable. Phase 6 trace numbering and Phase 5 iter-N use prior-iteration scans.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Read previous snapshot from disk; current = previous.generation + 1",
+              "description": "Snapshot persistence (Q-14) is the source of truth. New lineage = generation 0; evolves +1 per run. Matches refusals.jsonl-style append-only chain."
+            },
+            {
+              "id": "b",
+              "label": "Count snapshots in lineage directory at run start",
+              "description": "Walk Q-14's lineage dir; generation = file count. Cheap; survives a missing predecessor file. Slightly less rigorous than reading the actual previous state."
+            },
+            {
+              "id": "c",
+              "label": "Operator-supplied via CLI: --generation N (default: auto from disk)",
+              "description": "Auto-detect from disk by default; --generation overrides for replay/test scenarios. Matches Phase 9 ergonomics. Adds CLI surface."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "authority-and-shape",
+      "title": "Authority Boundary + Package Shape",
+      "questions": [
+        {
+          "id": "Q-20",
+          "title": "Where does evaluation read disk?",
+          "context": "Constraint: only factory-cli + repo do fs. evaluation package today is pure (no fs imports). EVOL-01 'reads previous run's snapshot from disk' — that read must happen somewhere. EVAL-02/03 'calls a heterogeneous-local judge' — that's network through dogpile-adapter, not fs.",
+          "options": [
+            {
+              "id": "a",
+              "label": "evaluation stays pure; factory-cli reads snapshot, threads bytes in",
+              "description": "factory-cli loads previous snapshot (file read), passes to decideEvolution as `previous` argument. evaluation package keeps zero fs imports + a contract test (mirror Phase 6 Q-09). Matches existing package posture; clearest authority story."
+            },
+            {
+              "id": "b",
+              "label": "evaluation package gains a thin reader API behind injectable adapter (FsReader)",
+              "description": "evaluation exports `loadPreviousSnapshot(reader, lineageId)` taking an FsReader interface; factory-cli supplies the real implementation. Same authority story as Phase 2 createAuthorityStageReader. Slightly more plumbing; better unit-testability for evaluation."
+            },
+            {
+              "id": "c",
+              "label": "New @protostar/evaluation-runner adapter package",
+              "description": "Mirror dogpile-adapter split: evaluation = pure types/scoring; evaluation-runner = orchestrates judge calls + previous-snapshot reads. factory-cli wires runner into the loop. Highest ceremony; clearest if Phase 9 needs evaluation-runner reusable from `inspect`/`resume`."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}
