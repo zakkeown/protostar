@@ -3,7 +3,16 @@ import type { IntentId } from "@protostar/intent";
 export { sortJsonValue } from "./canonical-json.js";
 
 export type FactoryStage = "intent" | "planning" | "execution" | "review" | "release";
-export type FactoryRunStatus = "created" | "running" | "blocked" | "repairing" | "ready-to-release" | "completed";
+export type FactoryRunStatus =
+  | "created"
+  | "running"
+  | "cancelling"
+  | "cancelled"
+  | "orphaned"
+  | "blocked"
+  | "repairing"
+  | "ready-to-release"
+  | "completed";
 
 export interface StageArtifactRef {
   readonly stage: FactoryStage;
