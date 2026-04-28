@@ -11,6 +11,8 @@ export { CLARIFICATION_QUESTION_CATEGORY_RANK, CLARIFICATION_REPORT_ARTIFACT_NAM
 export type { ClarificationQuestion, ClarificationQuestionGeneratorInput, ClarificationQuestionGeneratorOutput, ClarificationReport, ClarificationReportStatus, ClarificationReportSummary, ClarificationReportUnresolvedQuestion, ClarificationReportUnresolvedQuestionSource, ClarificationRequiredEntry, ClarificationRequiredEntrySource, CreateClarificationReportInput, GenerateClarificationQuestionsInput, GenerateClarificationQuestionsOutput } from "./clarification.js";
 export { parseConfirmedIntent } from "./confirmed-intent.js";
 export type { ConfirmedIntent, ConfirmedIntentData, ConfirmedIntentParseResult, SignatureEnvelope } from "./confirmed-intent.js";
+export { computeDeliveryAllowedHosts } from "./compute-delivery-allowed-hosts.js";
+export type { DeliveryEnvelope } from "./compute-delivery-allowed-hosts.js";
 
 // ──────────────────────────────────────────────────────────
 // Intent admission surface (relocated from @protostar/policy in Plan 06a).
