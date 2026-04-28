@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { parseConfirmedIntent, type CapabilityEnvelope } from "./index.js";
 
-describe("ConfirmedIntent 1.3.0 capability envelope schema", () => {
-  it("pins schemaVersion to exactly 1.3.0", async () => {
+describe("ConfirmedIntent 1.4.0 capability envelope schema", () => {
+  it("pins schemaVersion to exactly 1.4.0", async () => {
     const schema = await readConfirmedIntentSchema();
     const properties = schema["properties"] as Record<string, Record<string, unknown>>;
 
-    assert.equal(properties["schemaVersion"]?.["const"], "1.3.0");
+    assert.equal(properties["schemaVersion"]?.["const"], "1.4.0");
     assert.equal("enum" in (properties["schemaVersion"] ?? {}), false);
     assert.equal("oneOf" in (properties["schemaVersion"] ?? {}), false);
   });
@@ -69,7 +70,7 @@ describe("ConfirmedIntent 1.3.0 capability envelope schema", () => {
           ...buildCapabilityEnvelopeFixture(),
           budget: {
             taskWallClockMs: 180_000,
-            maxRepairLoops: 0
+            maxRepairLoops: 3
           }
         }
       })
@@ -92,7 +93,7 @@ describe("ConfirmedIntent 1.3.0 capability envelope schema", () => {
           budget: {
             adapterRetriesPerTask: 4,
             taskWallClockMs: 0,
-            maxRepairLoops: 0
+            maxRepairLoops: 3
           }
         }
       })
@@ -107,7 +108,110 @@ describe("ConfirmedIntent 1.3.0 capability envelope schema", () => {
     }
   });
 
-  it("CapabilityEnvelope type matches the 1.3.0 shape", () => {
+  it("accepts maxRepairLoops at the Phase 5 default", () => {
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          budget: {
+            adapterRetriesPerTask: 4,
+            taskWallClockMs: 180_000,
+            maxRepairLoops: 3
+          }
+        }
+      })
+    );
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.data.capabilityEnvelope.budget.maxRepairLoops, 3);
+    }
+  });
+
+  it("defaults missing maxRepairLoops to 3", () => {
+    const { maxRepairLoops: _maxRepairLoops, ...budget } = buildCapabilityEnvelopeFixture()["budget"] as Record<string, unknown>;
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          budget
+        }
+      })
+    );
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.data.capabilityEnvelope.budget.maxRepairLoops, 3);
+    }
+  });
+
+  it("rejects maxRepairLoops below 1", () => {
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          budget: {
+            adapterRetriesPerTask: 4,
+            taskWallClockMs: 180_000,
+            maxRepairLoops: 0
+          }
+        }
+      })
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(
+        result.errors.includes("capabilityEnvelope.budget.maxRepairLoops must be an integer from 1 to 10."),
+        true
+      );
+    }
+  });
+
+  it("rejects maxRepairLoops above 10", () => {
+    const result = parseConfirmedIntent(
+      buildConfirmedIntentFixture({
+        capabilityEnvelope: {
+          ...buildCapabilityEnvelopeFixture(),
+          budget: {
+            adapterRetriesPerTask: 4,
+            taskWallClockMs: 180_000,
+            maxRepairLoops: 11
+          }
+        }
+      })
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(
+        result.errors.includes("capabilityEnvelope.budget.maxRepairLoops must be an integer from 1 to 10."),
+        true
+      );
+    }
+  });
+
+  it("fails if confirmed-intent source or fixtures still pin schemaVersion 1.3.0", () => {
+    assert.throws(
+      () =>
+        execFileSync(
+          "git",
+          [
+            "grep",
+            "-n",
+            '"schemaVersion": "1.3.0"',
+            "--",
+            "packages",
+            "examples",
+            "apps"
+          ],
+          { cwd: fileURLToPath(new URL("../../..", import.meta.url)) }
+        ),
+      /Command failed/
+    );
+  });
+
+  it("CapabilityEnvelope type matches the 1.4.0 shape", () => {
     const envelope = {
       repoScopes: [
         {
@@ -129,7 +233,7 @@ describe("ConfirmedIntent 1.3.0 capability envelope schema", () => {
       budget: {
         adapterRetriesPerTask: 4,
         taskWallClockMs: 180_000,
-        maxRepairLoops: 0
+        maxRepairLoops: 3
       }
     } satisfies CapabilityEnvelope;
 
@@ -144,7 +248,7 @@ async function readConfirmedIntentSchema(): Promise<Record<string, unknown>> {
 
 function buildConfirmedIntentFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    schemaVersion: "1.3.0",
+    schemaVersion: "1.4.0",
     id: "intent_capability_envelope",
     sourceDraftId: "draft_capability_envelope",
     mode: "brownfield",
@@ -190,7 +294,7 @@ function buildCapabilityEnvelopeFixture(): Record<string, unknown> {
     budget: {
       adapterRetriesPerTask: 4,
       taskWallClockMs: 180_000,
-      maxRepairLoops: 0
+      maxRepairLoops: 3
     }
   };
 }
