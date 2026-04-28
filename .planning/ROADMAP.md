@@ -190,7 +190,7 @@ Plans:
 - [x] 05-11-admission-rule-ac-coverage-PLAN.md — wave 3 — admission rule rejecting plans without AC coverage + fixture cascade (Q-09 admission side)
 
 **Wave 4** *(blocked on Wave 3 completion)* (the loop body + persistence + DeliveryAuthorization minting)
-- [ ] 05-10-run-review-repair-loop-PLAN.md — wave 4 — runReviewRepairLoop body + ReviewPersistence (iter-N dirs, review.jsonl path-pattern verified, review-decision.json, review-block.json) + loadDeliveryAuthorization; ExecutionRunResult sourced from @protostar/planning (Q-01, Q-02, Q-12, Q-13, Q-14, Q-15, Q-17, Q-18)
+- [x] 05-10-run-review-repair-loop-PLAN.md — wave 4 — runReviewRepairLoop body + ReviewPersistence (iter-N dirs, review.jsonl path-pattern verified, review-decision.json, review-block.json) + loadDeliveryAuthorization; ExecutionRunResult sourced from @protostar/planning (Q-01, Q-02, Q-12, Q-13, Q-14, Q-15, Q-17, Q-18)
 
 **Wave 5** *(blocked on Wave 4 completion)* (factory-cli wiring)
 - [ ] 05-12-factory-cli-wiring-PLAN.md — wave 5 — runFactory swaps to runReviewRepairLoop + buildReviewRepairServices (injects readFile + RepoSubprocessRunner into mechanical-checks) + preflightCoderAndJudge + .env.example (Q-01 wiring, Q-10 preflight)

@@ -62,12 +62,12 @@ Upgrade dry-run execution into a real, boring, deterministic task runner.
 
 The central control loop. No delivery without an approved exit.
 
-- [ ] **LOOP-01**: Mechanical review runs first (build, lint, diff-touches-≤1-file for cosmetic archetype, AC presence)
-- [ ] **LOOP-02**: Model review runs second (semantic + consensus stages from Phase 8 plug in here)
-- [ ] **LOOP-03**: Repair plan generation — failed verdicts produce a typed `RepairPlan` consumed by execution
-- [ ] **LOOP-04**: Re-execution under repair plan emits the same lifecycle events; budget is shared with mechanical (`maxRepairLoops`, default N=3)
-- [ ] **LOOP-05**: Final gate — only `pass` from both mechanical and model review allows progression to delivery
-- [ ] **LOOP-06**: Budget exhaustion produces an evidence-bearing `block` verdict with all judge critiques captured
+- [x] **LOOP-01**: Mechanical review runs first (build, lint, diff-touches-≤1-file for cosmetic archetype, AC presence)
+- [x] **LOOP-02**: Model review runs second (semantic + consensus stages from Phase 8 plug in here)
+- [x] **LOOP-03**: Repair plan generation — failed verdicts produce a typed `RepairPlan` consumed by execution
+- [x] **LOOP-04**: Re-execution under repair plan emits the same lifecycle events; budget is shared with mechanical (`maxRepairLoops`, default N=3)
+- [x] **LOOP-05**: Final gate — only `pass` from both mechanical and model review allows progression to delivery
+- [x] **LOOP-06**: Budget exhaustion produces an evidence-bearing `block` verdict with all judge critiques captured
 
 ### Phase 6 — Live Dogpile Piles
 
@@ -202,12 +202,12 @@ Explicitly excluded. Documented to prevent scope creep.
 | EXEC-06 | Phase 4 | Verified (human smoke pending) |
 | EXEC-07 | Phase 4 | Verified (human smoke pending) |
 | EXEC-08 | Phase 4 | Verified (human smoke pending) |
-| LOOP-01 | Phase 5 | In progress — 05-02 mechanical-checks package skeleton complete; 05-03 added PlanTask.acceptanceTestRefs; 05-09 added applyChangeSet per-task cosmetic multi-file refusal; 05-11 added structural admission rejection for incomplete acceptanceTestRefs AC coverage; 05-07 added run-level diff-name-only, command execution evidence, and AC test-output findings; loop consumption remains in 05-10 |
-| LOOP-02 | Phase 5 | In progress — 05-08 added the real panel-of-one LM Studio ModelReviewer and structured JudgeCritique capture; serial loop invocation remains in 05-10 and factory-cli preflight wiring remains in 05-12 |
-| LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; 05-04 added RepairPlan/RepairTask contracts; 05-05 added synthesizeRepairPlan fan-in; loop consumption remains in 05-10 |
-| LOOP-04 | Phase 5 | In progress — 05-03 added capabilityEnvelope.budget.maxRepairLoops default/range contract; 05-04 added ExecutionRunResult, RepairContext, and ReviewLifecycleEvent contracts; 05-05 added computeRepairSubgraph for repair rerun scope; 05-06 added AdapterContext repairContext and "repair" retry evidence; loop consumption remains in 05-10 |
-| LOOP-05 | Phase 5 | In progress — 05-04 added DeliveryAuthorization and strict pass/pass ReviewDecisionArtifact contracts; loop minting remains in 05-10 and delivery consumption in 05-13 |
-| LOOP-06 | Phase 5 | In progress — 05-04 added JudgeCritique, ModelReviewer, lifecycle, and block/budget event contracts; block artifact persistence remains in 05-10 |
+| LOOP-01 | Phase 5 | Complete — 05-07 emits mechanical findings and 05-10 consumes them first in the strict review loop before model review |
+| LOOP-02 | Phase 5 | Complete — 05-08 added ModelReviewer and 05-10 invokes it only after mechanical pass |
+| LOOP-03 | Phase 5 | Complete — 05-05 added repair synthesis and 05-10 generates RepairPlan values for non-pass review iterations |
+| LOOP-04 | Phase 5 | Complete — 05-03 added maxRepairLoops, 05-05 added repair subgraph, 05-06 added repair context, and 05-10 re-executes via executor.executeRepairTasks |
+| LOOP-05 | Phase 5 | Complete — 05-10 writes review-decision.json and mints DeliveryAuthorization only on mechanical pass plus model pass |
+| LOOP-06 | Phase 5 | Complete — 05-10 writes review-block.json with iteration history and budget/mechanical/model block reasons |
 | PILE-01 | Phase 6 | Pending |
 | PILE-02 | Phase 6 | Pending |
 | PILE-03 | Phase 6 | Pending |
