@@ -11,8 +11,10 @@ import { createGitHubPrDeliveryPlanLegacy } from "@protostar/delivery";
 import {
   buildPlanningMission,
   buildReviewMission,
+  executionCoordinationPilePreset,
   resolvePileBudget,
   runFactoryPile as defaultRunFactoryPile,
+  type PileRunContext,
   type PileRunOutcome,
   type PileFailure
 } from "@protostar/dogpile-adapter";
@@ -62,6 +64,14 @@ import {
   type PlanningAdmissionArtifactPayload,
   type PersistedPlanningAdmissionArtifactRef
 } from "@protostar/planning/artifacts";
+import {
+  DEFAULT_WORK_SLICING_HEURISTIC,
+  invokeRepairPlanRefinementPile,
+  invokeWorkSlicingPile,
+  RefiningRefusedAuthorityExpansion,
+  shouldInvokeWorkSlicing
+} from "./exec-coord-trigger.js";
+import type { RepairPlan } from "@protostar/review";
 import {
   assertPlanningPileResult,
   parsePlanningPileResult,
@@ -623,10 +633,28 @@ export async function runFactory(
   }
   assertAcceptedPlanningAdmissionArtifact(persistedPlanningAdmission);
   const admittedPlan = candidateAdmission.admittedPlan;
-  const admittedPlanningOutput: AdmittedPlanningOutput = {
+  // Phase 6 Plan 06-10 — work-slicing trigger may swap the admitted plan +
+  // planning-admission artifact for a sliced re-admitted variant.
+  const workSlicingApplied = await maybeApplyWorkSlicingPile({
     admittedPlan,
-    planningAdmission: persistedPlanningAdmission,
-    planningAdmissionArtifact
+    persistedPlanningAdmission,
+    planningAdmissionArtifact,
+    pileModes,
+    factoryConfig,
+    intent,
+    runAbortController,
+    runDir,
+    outDir,
+    runId,
+    runFactoryPile: dependencies.runFactoryPile
+  });
+  const workingAdmittedPlan = workSlicingApplied.admittedPlan;
+  const workingPersistedPlanningAdmission = workSlicingApplied.planningAdmission;
+  const workingPlanningAdmissionArtifact = workSlicingApplied.planningAdmissionArtifact;
+  const admittedPlanningOutput: AdmittedPlanningOutput = {
+    admittedPlan: workingAdmittedPlan,
+    planningAdmission: workingPersistedPlanningAdmission,
+    planningAdmissionArtifact: workingPlanningAdmissionArtifact
   };
   const admittedPlanHandoff = assertAdmittedPlanHandoff({
     plan: admittedPlanningOutput.admittedPlan,
@@ -859,25 +887,86 @@ export async function runFactory(
             })
           })
         : undefined;
-    loop = await runReviewRepairLoop({
-      runId,
-      confirmedIntent: intent,
-      admittedPlan: admittedPlanHandoff.executionArtifact,
-      initialExecution: currentExecution,
-      executor: reviewExecutor,
-      mechanicalChecker: (options.executor ?? "dry-run") === "real"
-        ? reviewServices.mechanicalChecker
-        : async () => dryMechanicalCheck({
-            runId,
-            planId: admittedPlanHandoff.executionArtifact.planId,
-            status: executionResult.status
-          }),
-      modelReviewer: liveReviewModelReviewer ??
-        ((options.executor ?? "dry-run") === "real"
-          ? reviewServices.modelReviewer
-          : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] })),
-      persistence: reviewServices.persistence
-    });
+    // Phase 6 Plan 06-10 Task 3 — repair-plan-refinement trigger (PILE-03 #2).
+    // When exec-coord pile mode is live, thread a repairPlanRefiner closure
+    // into runReviewRepairLoop. The closure invokes the exec-coord pile in
+    // repair-plan-generation mode and admits the proposal via
+    // admitRepairPlanProposal. Q-15: pile failure or no-op rejection soft-
+    // falls-back to the deterministic repair plan; authority-expansion
+    // rejection (T-6-19) hard-blocks via RefiningRefusedAuthorityExpansion.
+    const repairPlanRefiner = pileModes.executionCoordination === "live"
+      ? async (repairPlan: RepairPlan, ctx: { readonly attempt: number }): Promise<RepairPlan> => {
+          return invokeRepairPlanRefinementPile(
+            intent,
+            admittedPlanHandoff.executionArtifact,
+            admittedPlanningOutput.admittedPlan,
+            repairPlan,
+            ctx.attempt,
+            {
+              runFactoryPile: dependencies.runFactoryPile,
+              buildContext: () => buildExecCoordPileContext({
+                factoryConfig,
+                intent,
+                signal: runAbortController.signal
+              }),
+              persist: async ({ outcome, iteration, refusal }) => {
+                await writePileArtifacts({
+                  runDir,
+                  runId,
+                  kind: "execution-coordination",
+                  iteration,
+                  outcome,
+                  ...(refusal !== undefined
+                    ? {
+                        refusal: {
+                          reason: refusal.reason,
+                          stage: "pile-execution-coordination",
+                          sourceOfTruth: "ExecutionCoordinationPileResult"
+                        }
+                      }
+                    : {})
+                });
+              }
+            }
+          );
+        }
+      : undefined;
+    try {
+      loop = await runReviewRepairLoop({
+        runId,
+        confirmedIntent: intent,
+        admittedPlan: admittedPlanHandoff.executionArtifact,
+        initialExecution: currentExecution,
+        executor: reviewExecutor,
+        mechanicalChecker: (options.executor ?? "dry-run") === "real"
+          ? reviewServices.mechanicalChecker
+          : async () => dryMechanicalCheck({
+              runId,
+              planId: admittedPlanHandoff.executionArtifact.planId,
+              status: executionResult.status
+            }),
+        modelReviewer: liveReviewModelReviewer ??
+          ((options.executor ?? "dry-run") === "real"
+            ? reviewServices.modelReviewer
+            : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] })),
+        persistence: reviewServices.persistence,
+        ...(repairPlanRefiner !== undefined ? { repairPlanRefiner } : {})
+      });
+    } catch (error) {
+      if (error instanceof RefiningRefusedAuthorityExpansion) {
+        const reason = `Repair-plan refinement refused (authority expansion): ${error.errors.join("; ")}`;
+        await writeRefusalArtifacts({
+          runDir,
+          outDir,
+          runId,
+          stage: "pile-execution-coordination",
+          reason,
+          refusalArtifact: `piles/execution-coordination/refusal.json`
+        });
+        throw new CliExitError(reason, 1);
+      }
+      throw error;
+    }
     review = reviewGateFromLoopResult({
       runId,
       planId: admittedPlanHandoff.executionArtifact.planId,
@@ -2202,6 +2291,137 @@ function formatPlanningPreAdmissionFailure(
 
 function formatUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+// Phase 6 Plan 06-10 — work-slicing trigger orchestrator (PILE-03 #1).
+// Invokes the exec-coord pile in work-slicing mode after planning admission
+// when (a) pileModes.executionCoordination === "live" and (b) the heuristic
+// trips. On admission success, returns a NEW AdmittedPlanningOutput pointing
+// at the sliced plan with a freshly-persisted planning-admission.json. On
+// any failure (pile-* or admission-rejected) the seam HARD-blocks the run
+// per Q-06 — no deterministic alternative exists for the work-slicing path.
+async function maybeApplyWorkSlicingPile(input: {
+  readonly admittedPlan: AdmittedPlanRecord;
+  readonly persistedPlanningAdmission: PlanningAdmissionAcceptedArtifactPayload;
+  readonly planningAdmissionArtifact: PersistedPlanningAdmissionArtifactRef;
+  readonly pileModes: Readonly<Record<FactoryCliPileKind, PileMode>>;
+  readonly factoryConfig: Awaited<ReturnType<typeof loadFactoryConfig>>;
+  readonly intent: ConfirmedIntent;
+  readonly runAbortController: AbortController;
+  readonly runDir: string;
+  readonly outDir: string;
+  readonly runId: string;
+  readonly runFactoryPile: FactoryCompositionDependencies["runFactoryPile"];
+}): Promise<AdmittedPlanningOutput> {
+  const baseline: AdmittedPlanningOutput = {
+    admittedPlan: input.admittedPlan,
+    planningAdmission: input.persistedPlanningAdmission,
+    planningAdmissionArtifact: input.planningAdmissionArtifact
+  };
+  if (input.pileModes.executionCoordination !== "live") return baseline;
+  const heuristicCfg = {
+    maxTargetFiles:
+      input.factoryConfig.config.piles?.executionCoordination?.workSlicing?.maxTargetFiles
+        ?? DEFAULT_WORK_SLICING_HEURISTIC.maxTargetFiles,
+    maxEstimatedTurns:
+      input.factoryConfig.config.piles?.executionCoordination?.workSlicing?.maxEstimatedTurns
+        ?? DEFAULT_WORK_SLICING_HEURISTIC.maxEstimatedTurns
+  };
+  if (!shouldInvokeWorkSlicing(input.admittedPlan, heuristicCfg)) return baseline;
+
+  const workSlicingResult = await invokeWorkSlicingPile(
+    input.intent,
+    input.admittedPlan,
+    input.persistedPlanningAdmission,
+    0,
+    {
+      runFactoryPile: input.runFactoryPile,
+      buildContext: () => buildExecCoordPileContext({
+        factoryConfig: input.factoryConfig,
+        intent: input.intent,
+        signal: input.runAbortController.signal
+      }),
+      persist: async ({ outcome, iteration, refusal }) => {
+        await writePileArtifacts({
+          runDir: input.runDir,
+          runId: input.runId,
+          kind: "execution-coordination",
+          iteration,
+          outcome,
+          ...(refusal !== undefined
+            ? {
+                refusal: {
+                  reason: refusal.reason,
+                  stage: "pile-execution-coordination",
+                  sourceOfTruth: "ExecutionCoordinationPileResult"
+                }
+              }
+            : {})
+        });
+      }
+    }
+  );
+  if (!workSlicingResult.ok) {
+    const reason = `Work-slicing pile failure: ${workSlicingResult.reason}`;
+    await writeRefusalArtifacts({
+      runDir: input.runDir,
+      outDir: input.outDir,
+      runId: input.runId,
+      stage: "pile-execution-coordination",
+      reason,
+      refusalArtifact: `piles/execution-coordination/iter-0/refusal.json`
+    });
+    throw new CliExitError(reason, 1);
+  }
+  // Sliced plan admitted. Reconstruct the planningAdmission payload by
+  // re-running admitCandidatePlan against the sliced plan (admitWorkSlicing
+  // already validated; this call only produces a fresh planning-admission
+  // payload with matching plan_hash + validators_passed for the handoff).
+  const reAdmission = admitCandidatePlan({
+    graph: workSlicingResult.admittedPlan as unknown as Parameters<typeof admitCandidatePlan>[0]["graph"],
+    intent: input.intent,
+    planGraphUri: "plan.json"
+  });
+  if (!reAdmission.ok) {
+    const reason = `Re-admission of sliced plan failed: ${reAdmission.errors.join("; ")}`;
+    throw new CliExitError(reason, 1);
+  }
+  const newArtifact = await writePlanningAdmissionArtifacts({
+    runDir: input.runDir,
+    plan: workSlicingResult.admittedPlan,
+    planningAdmission: reAdmission.planningAdmission
+  });
+  const rePersisted = await readPersistedPlanningAdmissionArtifact(input.runDir);
+  assertAcceptedPlanningAdmissionArtifact(rePersisted);
+  return {
+    admittedPlan: workSlicingResult.admittedPlan,
+    planningAdmission: rePersisted,
+    planningAdmissionArtifact: newArtifact
+  };
+}
+
+// Phase 6 Plan 06-10 — shared context builder for the execution-coordination
+// pile invocations (work-slicing + repair-plan-refinement). Mirrors the
+// inline planning/review context construction so the exec-coord pile shares
+// the same provider, run-level abort signal, and budget-clamping discipline.
+function buildExecCoordPileContext(input: {
+  readonly factoryConfig: { readonly config: { readonly adapters: { readonly coder: { readonly baseUrl: string; readonly model: string; readonly apiKeyEnv: string } } } };
+  readonly intent: ConfirmedIntent;
+  readonly signal: AbortSignal;
+}): PileRunContext {
+  return {
+    provider: createOpenAICompatibleProvider({
+      baseURL: input.factoryConfig.config.adapters.coder.baseUrl,
+      apiKey: process.env[input.factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+      model: input.factoryConfig.config.adapters.coder.model
+    }),
+    signal: input.signal,
+    budget: resolvePileBudget(
+      executionCoordinationPilePreset.budget,
+      input.intent.capabilityEnvelope.budget
+    ),
+    now: () => Date.now()
+  };
 }
 
 // Phase 6 Plan 06-07 — turn a PileFailure into a one-line operator-readable
