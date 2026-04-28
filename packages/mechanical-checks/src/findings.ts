@@ -1,4 +1,4 @@
-import type { MechanicalCheckCommandResult, ReviewFinding } from "@protostar/review";
+import type { MechanicalCheckCommandResult, MechanicalScores, ReviewFinding } from "@protostar/review";
 
 export type MechanicalChecksArchetype = "cosmetic-tweak" | "feature-add" | "refactor" | "bugfix";
 
@@ -12,6 +12,15 @@ export interface MechanicalChecksPlanInput {
       readonly testName: string;
     }[];
   }[];
+}
+
+export interface MechanicalScoresInput {
+  readonly buildExitCode: number | undefined;
+  readonly lintExitCode: number | undefined;
+  readonly diffNameOnly: readonly string[];
+  readonly archetype: MechanicalChecksArchetype;
+  readonly totalAcCount: number;
+  readonly coveredAcCount: number;
 }
 
 type MechanicalRuleId =
@@ -79,6 +88,22 @@ export function buildFindings(input: {
   }
 
   return findings as unknown as readonly ReviewFinding[];
+}
+
+/**
+ * Phase 8 Q-01 / Q-02 numeric mechanical scores.
+ *
+ * The producer lives in the mechanical-checks domain because this package owns
+ * the command, diff, and AC-coverage evidence. Absent build/lint commands score
+ * as passing because the archetype did not request that check.
+ */
+export function computeMechanicalScoresFromFindings(input: MechanicalScoresInput): MechanicalScores {
+  const build = input.buildExitCode === undefined ? 1 : input.buildExitCode === 0 ? 1 : 0;
+  const lint = input.lintExitCode === undefined ? 1 : input.lintExitCode === 0 ? 1 : 0;
+  const diffSize = input.archetype === "cosmetic-tweak" ? (input.diffNameOnly.length <= 1 ? 1 : 0) : 1;
+  const acCoverage = input.totalAcCount === 0 ? 1 : input.coveredAcCount / input.totalAcCount;
+
+  return { build, lint, diffSize, acCoverage };
 }
 
 export function buildMechanicalCommandTimeoutFinding(input: {
