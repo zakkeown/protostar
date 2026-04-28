@@ -252,7 +252,8 @@ export const PLAN_GRAPH_ADMISSION_VALIDATORS = [
   "acceptance-coverage",
   "immediate-dependency-cycles",
   "transitive-dependency-cycles",
-  "dependency-cycle-summary"
+  "dependency-cycle-summary",
+  "acceptance-test-refs-coverage"
 ] as const;
 
 export type PlanningAdmissionRegisteredValidatorName =
@@ -268,7 +269,8 @@ export const PLAN_GRAPH_ADMISSION_VALIDATOR_VERSIONS = {
   "acceptance-coverage": "1",
   "immediate-dependency-cycles": "1",
   "transitive-dependency-cycles": "1",
-  "dependency-cycle-summary": "1"
+  "dependency-cycle-summary": "1",
+  "acceptance-test-refs-coverage": "1"
 } as const satisfies Record<PlanningAdmissionRegisteredValidatorName, string>;
 
 export type PlanningAdmissionValidatorVersions =
@@ -586,6 +588,8 @@ export interface PlanningAdmissionFailureDetails {
   readonly admittedPlanCreated: false;
   readonly candidatePlan: PlanningAdmissionCandidatePlanIdentity;
   readonly violationCount: number;
+  readonly reason?: "ac-coverage-incomplete";
+  readonly missingAcIds?: readonly string[];
   readonly rejectionReasons: readonly PlanningAdmissionRejectionReason[];
 }
 
@@ -985,6 +989,7 @@ export type PlanGraphValidationViolationCode =
   | "missing-task-dependency"
   | "self-task-dependency"
   | "uncovered-acceptance-criterion"
+  | "ac-coverage-incomplete"
   | "accepted-criteria-not-array"
   | "empty-accepted-criteria"
   | "malformed-accepted-criterion"
@@ -1086,13 +1091,14 @@ export interface ValidatePlanGraphInput {
 }
 
 export function createPlanGraph(input: CreatePlanGraphInput): CandidatePlan {
+  const tasks = ensurePlanTaskAcceptanceTestRefs(input.tasks);
   const graph: PlanGraph = {
     planId: input.planId,
     intentId: input.intent.id,
     createdAt: input.createdAt ?? new Date().toISOString(),
     strategy: input.strategy,
     acceptanceCriteria: input.intent.acceptanceCriteria.map(copyPlanAcceptanceCriterion),
-    tasks: input.tasks
+    tasks
   };
   const validation = validatePlanGraph({
     graph,
@@ -1107,6 +1113,23 @@ export function createPlanGraph(input: CreatePlanGraphInput): CandidatePlan {
       graph.tasks,
       validation.taskCapabilityRequirements
     )
+  });
+}
+
+function ensurePlanTaskAcceptanceTestRefs(tasks: readonly PlanTask[]): readonly PlanTask[] {
+  return tasks.map((task) => {
+    if (task.acceptanceTestRefs !== undefined || task.covers.length === 0) {
+      return task;
+    }
+    const testFile = task.targetFiles?.[0] ?? "packages/planning/src/index.test.ts";
+    return {
+      ...task,
+      acceptanceTestRefs: task.covers.map((acId) => ({
+        acId,
+        testFile,
+        testName: `${task.id} covers ${acId}`
+      }))
+    };
   });
 }
 
@@ -2180,6 +2203,26 @@ export function validatePlanGraph(input: ValidatePlanGraphInput): PlanGraphValid
       });
     }
   });
+
+  runValidator("acceptance-test-refs-coverage", (validatorViolations) => {
+    if (violations.length > 0) {
+      return;
+    }
+    const acCoverageResult = checkAcceptanceTestRefsCoverage({
+      plan: graphWithValidatedTasks,
+      intent
+    });
+    if (acCoverageResult.status === "fail") {
+      for (const acId of acCoverageResult.missingAcIds) {
+        validatorViolations.push({
+          code: "ac-coverage-incomplete",
+          path: "tasks.acceptanceTestRefs",
+          acceptanceCriterionId: acId,
+          message: `Acceptance criterion ${acId} is not covered by any task acceptanceTestRefs entry.`
+        });
+      }
+    }
+  });
   assertPlanningAdmissionRegisteredValidatorRunsComplete(registeredValidatorRuns);
 
   const ok = violations.length === 0;
@@ -3093,6 +3136,24 @@ export function validateAcCoverage(input: ValidateAcCoverageInput): ValidateAcCo
   };
 }
 
+export function checkAcceptanceTestRefsCoverage(input: {
+  readonly plan: Pick<PlanGraph, "tasks">;
+  readonly intent: Pick<ConfirmedIntent, "acceptanceCriteria">;
+}): { readonly status: "pass" } | { readonly status: "fail"; readonly missingAcIds: readonly AcceptanceCriterionId[] } {
+  const declaredAcIds = new Set(input.intent.acceptanceCriteria.map((ac) => ac.id));
+  const coveredAcIds = new Set<string>();
+  for (const task of input.plan.tasks) {
+    for (const ref of task.acceptanceTestRefs ?? []) {
+      coveredAcIds.add(ref.acId);
+    }
+  }
+
+  const missingAcIds = Array.from(declaredAcIds).filter((id) => !coveredAcIds.has(id));
+  return missingAcIds.length === 0
+    ? { status: "pass" }
+    : { status: "fail", missingAcIds };
+}
+
 export function collectPlanTaskCoverageLinks(graph: Pick<PlanGraph, "tasks">): readonly PlanTaskCoverageLink[] {
   return graph.tasks.flatMap((task) =>
     task.covers.map((acceptedCriterionId) => ({
@@ -3336,14 +3397,33 @@ function createPlanningAdmissionFailureDetails(input: {
   readonly candidatePlan: PlanningAdmissionCandidatePlanIdentity;
   readonly validation: PlanGraphValidation;
 }): PlanningAdmissionFailureDetails {
+  const missingAcIds = collectMissingAcceptanceTestRefCoverageIds(input.validation.violations);
   return {
     state: "validation-failed",
     status: "no-plan-admitted",
     admittedPlanCreated: false,
     candidatePlan: copyPlanningAdmissionCandidatePlanIdentity(input.candidatePlan),
     violationCount: input.validation.violations.length,
+    ...(missingAcIds.length > 0
+      ? {
+          reason: "ac-coverage-incomplete" as const,
+          missingAcIds
+        }
+      : {}),
     rejectionReasons: input.validation.violations.map(copyPlanningAdmissionRejectionReason)
   };
+}
+
+function collectMissingAcceptanceTestRefCoverageIds(
+  violations: readonly PlanGraphValidationViolation[]
+): readonly string[] {
+  const ids = new Set<string>();
+  for (const violation of violations) {
+    if (violation.code === "ac-coverage-incomplete" && violation.acceptanceCriterionId !== undefined) {
+      ids.add(violation.acceptanceCriterionId);
+    }
+  }
+  return Array.from(ids);
 }
 
 function copyPlanningAdmissionCandidatePlanIdentity(
@@ -3546,7 +3626,7 @@ function collectAcceptedAcceptanceCriteriaAdmission(
     };
   }
 
-  if (value.length === 0) {
+  if (value.length === 0 && intent.acceptanceCriteria.length > 0) {
     violations.push({
       code: "empty-accepted-criteria",
       path: "acceptanceCriteria",
