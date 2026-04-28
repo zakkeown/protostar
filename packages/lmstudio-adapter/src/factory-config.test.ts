@@ -121,6 +121,57 @@ describe("resolveFactoryConfig", () => {
     assert.match(result.errors.join("\n"), /additionalProperties/);
   });
 
+  it("accepts delivery requiredChecks from file config", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        delivery: { requiredChecks: ["build", "test"] }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.deepEqual(resolved.config.delivery?.requiredChecks, ["build", "test"]);
+  });
+
+  it("rejects empty delivery requiredChecks entries", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        delivery: { requiredChecks: [""] }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /requiredChecks/);
+  });
+
+  it("leaves delivery undefined when omitted", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({ adapters: { coder: {}, judge: {} } }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.equal(resolved.config.delivery, undefined);
+  });
+
+  it("rejects unknown delivery keys with an additionalProperties error", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        delivery: { unknownKey: 1 }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /additionalProperties/);
+  });
+
   it("ships a schema matching the resolved config structure", () => {
     const schema = JSON.parse(
       readFileSync(new URL("../../src/factory-config.schema.json", import.meta.url), "utf8")
