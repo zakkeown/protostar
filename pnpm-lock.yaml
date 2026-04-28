@@ -86,6 +86,12 @@ importers:
       '@protostar/dogpile-types':
         specifier: workspace:*
         version: link:../dogpile-types
+      '@protostar/evaluation':
+        specifier: workspace:*
+        version: link:../evaluation
+      '@protostar/evaluation-runner':
+        specifier: workspace:*
+        version: link:../evaluation-runner
       '@protostar/execution':
         specifier: workspace:*
         version: link:../execution

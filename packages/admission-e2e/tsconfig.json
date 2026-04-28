@@ -18,6 +18,8 @@
     { "path": "../delivery-runtime" },
     { "path": "../dogpile-adapter" },
     { "path": "../dogpile-types" },
+    { "path": "../evaluation" },
+    { "path": "../evaluation-runner" },
     { "path": "../../apps/factory-cli" }
   ]
 }
