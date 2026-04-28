@@ -3736,8 +3736,8 @@ async function assertFactoryCompositionUsesPlanningAdmissionBoundary(): Promise<
   );
   assert.match(
     source,
-    /planningAdmission:\s*persistedPlanningAdmission,/,
-    "Execution handoff must consume the persisted planning-admission.json payload, not the in-memory candidate admission."
+    /planningAdmission:\s*workingPersistedPlanningAdmission,/,
+    "Execution handoff must consume the persisted planning-admission.json payload, including any re-admitted work-sliced plan, not the in-memory candidate admission."
   );
   assert.match(
     source,
