@@ -24,7 +24,8 @@
     "@protostar/planning": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/dogpile-adapter": "workspace:*",
-    "@protostar/dogpile-types": "workspace:*"
+    "@protostar/dogpile-types": "workspace:*",
+    "@protostar/factory-cli": "workspace:*"
   },
   "sideEffects": false
 }

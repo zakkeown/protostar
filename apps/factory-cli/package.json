@@ -6,6 +6,16 @@
   "bin": {
     "protostar-factory": "./dist/main.js"
   },
+  "exports": {
+    "./pile-persistence": {
+      "types": "./dist/pile-persistence.d.ts",
+      "import": "./dist/pile-persistence.js"
+    },
+    "./refusals-index": {
+      "types": "./dist/refusals-index.d.ts",
+      "import": "./dist/refusals-index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test dist/*.test.js",

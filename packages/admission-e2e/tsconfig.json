@@ -16,6 +16,7 @@
     { "path": "../planning" },
     { "path": "../execution" },
     { "path": "../dogpile-adapter" },
-    { "path": "../dogpile-types" }
+    { "path": "../dogpile-types" },
+    { "path": "../../apps/factory-cli" }
   ]
 }
