@@ -202,7 +202,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | EXEC-06 | Phase 4 | Verified (human smoke pending) |
 | EXEC-07 | Phase 4 | Verified (human smoke pending) |
 | EXEC-08 | Phase 4 | Verified (human smoke pending) |
-| LOOP-01 | Phase 5 | Pending |
+| LOOP-01 | Phase 5 | In progress — 05-02 mechanical-checks package skeleton complete; real mechanical review checks remain in 05-07 and 05-11 |
 | LOOP-02 | Phase 5 | Pending |
 | LOOP-03 | Phase 5 | In progress — 05-01 repair package skeleton complete; synthesizeRepairPlan implementation remains in 05-05 |
 | LOOP-04 | Phase 5 | Pending |
