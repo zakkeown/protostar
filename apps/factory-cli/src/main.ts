@@ -79,7 +79,8 @@ import { runReviewRepairLoop, type ReviewGate, type ReviewVerdict, type ReviewRe
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
-import { ArgvError, parseCliArgs, type ParsedCliArgs } from "./cli-args.js";
+import { ArgvError, parseCliArgs, type ParsedCliArgs, type PileMode } from "./cli-args.js";
+import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { installCancelWiring } from "./cancel.js";
 import { coderAdapterReadyAdmission } from "./coder-adapter-admission.js";
 import { writeEscalationMarker } from "./escalation-marker.js";
@@ -120,6 +121,11 @@ export interface RunCommandOptions {
   readonly trust?: "untrusted" | "trusted";
   readonly executor?: "dry-run" | "real";
   readonly allowedAdapters?: readonly string[];
+  // Phase 6 Plan 06-07 — pile-mode CLI overrides (Q-04). Resolved against
+  // factory-config.json piles[kind].mode; default = "fixture" (Q-05).
+  readonly planningMode?: PileMode;
+  readonly reviewMode?: PileMode;
+  readonly execCoordMode?: PileMode;
 }
 
 export interface RunCommandResult {
@@ -338,6 +344,31 @@ export async function runFactory(
     throw new CliExitError(reason, 1);
   }
   const factoryConfig = await loadFactoryConfig(workspaceRoot);
+  // Phase 6 Plan 06-07 Task 3 — resolve per-pile-kind mode from CLI > config > default
+  // (Q-04). Live-mode runtime invocation is deferred to a follow-up wiring plan;
+  // for now, a "live" resolution refuses the run rather than silently using the
+  // fixture path (Q-06: no auto-fallback). The CLI flags, config block, refusal
+  // stages, mode resolver, and atomic persistence writer are already in place
+  // (Tasks 1 + 2) so the follow-up only needs to plug the runtime seams.
+  const pileModeCli = {
+    ...(options.planningMode !== undefined ? { planningMode: options.planningMode } : {}),
+    ...(options.reviewMode !== undefined ? { reviewMode: options.reviewMode } : {}),
+    ...(options.execCoordMode !== undefined ? { execCoordMode: options.execCoordMode } : {})
+  };
+  const pileModes: Readonly<Record<FactoryCliPileKind, PileMode>> = {
+    planning: resolvePileMode("planning", pileModeCli, factoryConfig.config.piles),
+    review: resolvePileMode("review", pileModeCli, factoryConfig.config.piles),
+    executionCoordination: resolvePileMode("executionCoordination", pileModeCli, factoryConfig.config.piles)
+  };
+  const liveKinds = (Object.entries(pileModes) as ReadonlyArray<[FactoryCliPileKind, PileMode]>)
+    .filter(([, mode]) => mode === "live")
+    .map(([kind]) => kind);
+  if (liveKinds.length > 0) {
+    throw new CliExitError(
+      `Live pile mode requested for [${liveKinds.join(", ")}] but runtime pile invocation has not yet been wired (deferred from Plan 06-07 to a follow-up plan). Re-run with mode=fixture or omit the --planning-mode/--review-mode/--exec-coord-mode flags. No auto-fallback per Q-06.`,
+      1
+    );
+  }
   const policySnapshot = buildPolicySnapshot({
     policy: {
       allowDarkRun: true,
@@ -2210,7 +2241,10 @@ function parseArgs(args: readonly string[]): ParsedArgs {
       ...(flags.runId !== undefined ? { runId: flags.runId } : {}),
       trust: flags.trust,
       executor: executor.value,
-      ...(allowedAdapters !== undefined ? { allowedAdapters } : {})
+      ...(allowedAdapters !== undefined ? { allowedAdapters } : {}),
+      ...(flags.planningMode !== undefined ? { planningMode: flags.planningMode } : {}),
+      ...(flags.reviewMode !== undefined ? { reviewMode: flags.reviewMode } : {}),
+      ...(flags.execCoordMode !== undefined ? { execCoordMode: flags.execCoordMode } : {})
     }
   };
 }

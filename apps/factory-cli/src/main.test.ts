@@ -501,6 +501,39 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
+  // Phase 6 Plan 06-07 Task 3 — pile-mode plumbing.
+  it("refuses with no auto-fallback when --planning-mode live is requested before runtime wiring lands", async () => {
+    await withTempDir(async (tempDir) => {
+      const baseDraft = await readJsonObject(resolve(repoRoot, "examples/intents/cosmetic-tweak.draft.json"));
+      const draft: Record<string, unknown> = { ...baseDraft, createdAt: "2026-01-01T00:00:00.000Z" };
+      const draftPath = resolve(tempDir, "live-mode-refusal.draft.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
+      const runId = "run_cli_planning_mode_live_refusal";
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
+
+      const result = await runCli([
+        "run",
+        "--draft", draftPath,
+        "--out", outDir,
+        "--planning-fixture", planningFixturePath,
+        "--run-id", runId,
+        "--intent-mode", "brownfield",
+        "--trust", "trusted",
+        "--confirmed-intent", confirmedIntentPath,
+        "--planning-mode", "live"
+      ]);
+
+      assert.notEqual(result.exitCode, 0, "live pile mode must refuse non-zero per Q-06");
+      assert.match(result.stderr, /Live pile mode requested/, "refusal message must surface");
+      assert.match(result.stderr, /no auto-fallback/i, "refusal must cite Q-06");
+    });
+  });
+
   it("drives the sample factory fixture through draft clarification and admission before composition", async () => {
     await withTempDir(async (tempDir) => {
       await assertSampleFactoryScriptUsesDraftAdmission();
