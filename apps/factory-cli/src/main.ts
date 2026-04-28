@@ -2931,7 +2931,6 @@ function planningPileResultResponseFormat(): JsonObject {
     type: "json_schema",
     json_schema: {
       name: "planning_pile_result",
-      strict: true,
       schema: {
         type: "object",
         additionalProperties: false,
@@ -2984,7 +2983,7 @@ function planningPileOutputSchemaProperties(): JsonObject {
         type: "object",
         additionalProperties: false,
         properties: {
-          id: { type: "string", pattern: "^task-" },
+          id: { type: "string" },
           title: { type: "string" },
           kind: {
             type: "string",
@@ -2992,12 +2991,11 @@ function planningPileOutputSchemaProperties(): JsonObject {
           },
           dependsOn: {
             type: "array",
-            items: { type: "string", pattern: "^task-" }
+            items: { type: "string" }
           },
           covers: {
             type: "array",
-            minItems: 1,
-            items: { type: "string", pattern: "^ac_" }
+            items: { type: "string" }
           },
           targetFiles: {
             type: "array",
@@ -3058,8 +3056,7 @@ function planningPileOutputSchemaProperties(): JsonObject {
                 }
               },
               budget: {
-                type: "object",
-                additionalProperties: { type: "number" }
+                type: "object"
               }
             },
             required: ["repoScopes", "toolPermissions", "budget"]

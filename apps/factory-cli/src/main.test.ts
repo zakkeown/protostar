@@ -645,7 +645,6 @@ describe("factory CLI draft admission hardening", () => {
       const jsonSchema = readObjectProperty(responseFormat, "json_schema");
       assert.deepEqual(jsonSchema["name"], "planning_pile_result");
       assert.equal(responseFormat["type"], "json_schema");
-      assert.equal(jsonSchema["strict"], true);
       const schema = readObjectProperty(jsonSchema, "schema");
       const outputSchema = readObjectProperty(readObjectProperty(schema, "properties"), "output");
       assert.equal(outputSchema["type"], "object");
