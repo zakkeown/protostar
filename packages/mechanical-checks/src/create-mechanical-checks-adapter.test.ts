@@ -143,13 +143,13 @@ describe("createMechanicalChecksAdapter", () => {
     assert.deepEqual(readFileCalls, ["/tmp/stdout.log"]);
   });
 
-  it("emits passing mechanicalScores for successful build/lint, one-file cosmetic diff, and covered AC", async (t) => {
+  it("emits passing mechanicalScores for successful verify/lint, one-file cosmetic diff, and covered AC", async (t) => {
     const repo = await repoWithCommit([{ path: "a.test.ts", content: "test('renders', () => {});\n" }]);
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const adapter = createMechanicalChecksAdapter({
       workspaceRoot: repo.dir,
       commands: [
-        { id: "build", argv: ["pnpm", "build"] },
+        { id: "verify", argv: ["pnpm", "verify"] },
         { id: "lint", argv: ["pnpm", "lint"] }
       ],
       archetype: "cosmetic-tweak",
@@ -160,7 +160,7 @@ describe("createMechanicalChecksAdapter", () => {
       readFile: async () => "ok 1 - renders",
       gitFs: fs,
       subprocess: subprocessStub([
-        subprocessResult("build", 0, "/tmp/build.stdout.log"),
+        subprocessResult("verify", 0, "/tmp/verify.stdout.log"),
         subprocessResult("lint", 0, "/tmp/lint.stdout.log")
       ])
     });

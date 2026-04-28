@@ -6,12 +6,18 @@ import type {
 } from "@protostar/execution";
 import type { FsClient } from "isomorphic-git";
 import type { RepoChangeSet } from "@protostar/repo";
-import type { MechanicalCheckCommandResult, MechanicalCheckResult, ReviewFinding } from "@protostar/review";
+import type {
+  MechanicalCheckCommandResult,
+  MechanicalCheckResult,
+  MechanicalScores,
+  ReviewFinding
+} from "@protostar/review";
 
 import { computeDiffNameOnly } from "./diff-name-only.js";
 import {
   buildFindings,
   buildMechanicalCommandTimeoutFinding,
+  computeMechanicalScoresFromFindings,
   type MechanicalChecksArchetype,
   type MechanicalChecksPlanInput
 } from "./findings.js";
@@ -121,13 +127,21 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
           testStdout
         })
       ];
-      const evidence: MechanicalCheckResult = {
+      const mechanicalScores = computeMechanicalScoresFromFindings({
+        buildExitCode: commandResults.find((result) => isBuildScoreCommand(result.id))?.exitCode,
+        lintExitCode: commandResults.find((result) => result.id.startsWith("lint"))?.exitCode,
+        diffNameOnly,
+        archetype: config.archetype,
+        ...acceptanceCoverageCounts(config.plan, diffNameOnly, testStdout)
+      });
+      const evidence: MechanicalCheckResult & { readonly mechanicalScores: MechanicalScores } = {
         schemaVersion: "1.0.0",
         runId: config.runId,
         attempt: config.attempt,
         commands: commandResults,
         diffNameOnly,
-        findings
+        findings,
+        mechanicalScores
       };
       const result: AdapterResult = {
         outcome: "change-set",
@@ -155,6 +169,33 @@ function commandsFor(config: MechanicalChecksAdapterConfig): readonly Mechanical
 
 function isTestOutputCommand(commandId: string): boolean {
   return commandId.includes("verify") || commandId.includes("test");
+}
+
+function isBuildScoreCommand(commandId: string): boolean {
+  return commandId.startsWith("verify") || commandId.startsWith("build");
+}
+
+function acceptanceCoverageCounts(
+  plan: MechanicalChecksPlanInput,
+  diffNameOnly: readonly string[],
+  testStdout: string
+): {
+  readonly totalAcCount: number;
+  readonly coveredAcCount: number;
+} {
+  let totalAcCount = 0;
+  let coveredAcCount = 0;
+
+  for (const task of plan.tasks) {
+    for (const ref of task.acceptanceTestRefs ?? []) {
+      totalAcCount += 1;
+      if (diffNameOnly.includes(ref.testFile) && testStdout.includes(ref.testName)) {
+        coveredAcCount += 1;
+      }
+    }
+  }
+
+  return { totalAcCount, coveredAcCount };
 }
 
 function isTimeoutError(error: unknown): boolean {
