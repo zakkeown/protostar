@@ -19,6 +19,14 @@ describe("delivery-result.json schema contract (Q-17)", () => {
     assert.equal(validDelivered.schemaVersion, DELIVERY_RESULT_SCHEMA_VERSION);
   });
 
+  it("validates a delivery-blocked fixture with refusal evidence", () => {
+    const validBlocked: DeliveryResult = buildBlockedResult();
+    const parsed = JSON.parse(JSON.stringify(validBlocked)) as unknown;
+
+    assertDeliveryResult(parsed);
+    assert.deepEqual(parsed, validBlocked);
+  });
+
   it("pins deferred screenshot status from Q-11", () => {
     const validDelivered = buildDeliveredResult();
 
@@ -92,4 +100,68 @@ function buildDeliveredResult(overrides: Partial<DeliveryResult> = {}): Delivery
     },
     ...overrides
   };
+}
+
+function buildBlockedResult(): DeliveryResult {
+  const { prUrl: _prUrl, prNumber: _prNumber, headSha: _headSha, baseSha: _baseSha, ...base } = buildDeliveredResult({
+    status: "delivery-blocked",
+    ciVerdict: "cancelled"
+  });
+
+  return {
+    ...base,
+    refusal: {
+      kind: "base-branch-missing",
+      evidence: {
+        baseBranch: "release/missing"
+      }
+    }
+  };
+}
+
+function assertDeliveryResult(value: unknown): asserts value is DeliveryResult {
+  assertRecord(value);
+  assert.equal(value.schemaVersion, DELIVERY_RESULT_SCHEMA_VERSION);
+  assert.ok(value.status === "delivered" || value.status === "delivery-blocked");
+  assertString(value.runId, "runId");
+  assertString(value.branch, "branch");
+  assertString(value.baseBranch, "baseBranch");
+  assertString(value.createdAt, "createdAt");
+  assert.ok(
+    ["pass", "fail", "pending", "timeout-pending", "no-checks-configured", "cancelled"].includes(
+      getString(value, "ciVerdict")
+    )
+  );
+  assertString(value.ciVerdictUpdatedAt, "ciVerdictUpdatedAt");
+  assert.ok(Array.isArray(value.ciSnapshots));
+  assert.ok(Array.isArray(value.evidenceComments));
+  assert.ok(Array.isArray(value.commentFailures));
+  assertRecord(value.screenshots);
+  assert.equal(value.screenshots.status, "deferred-v01");
+  assertString(value.screenshots.reason, "screenshots.reason");
+
+  if (value.status === "delivered") {
+    assertString(value.prUrl, "prUrl");
+    assert.equal(typeof value.prNumber, "number");
+    assertString(value.headSha, "headSha");
+    assertString(value.baseSha, "baseSha");
+  } else {
+    assertRecord(value.refusal);
+    assertString(value.refusal.kind, "refusal.kind");
+  }
+}
+
+function assertRecord(value: unknown): asserts value is Record<string, unknown> {
+  assert.equal(typeof value, "object");
+  assert.notEqual(value, null);
+}
+
+function assertString(value: unknown, field: string): asserts value is string {
+  assert.equal(typeof value, "string", `${field} must be a string`);
+}
+
+function getString(value: Record<string, unknown>, field: string): string {
+  const candidate = value[field];
+  assertString(candidate, field);
+  return candidate;
 }
