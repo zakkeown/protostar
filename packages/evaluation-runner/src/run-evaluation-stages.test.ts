@@ -191,15 +191,26 @@ describe("runEvaluationStages", () => {
   });
 
   it("converges evolution when the previous snapshot is similar", async () => {
+    const verification = { type: "manual", command: "inspect" };
     const prior: OntologySnapshot = {
       generation: 0,
-      fields: [{ name: "AC-1", type: "acceptance-criterion", description: "Evaluation exists" }]
+      fields: [{ name: "AC-1", type: verification as unknown as string, description: "Evaluation exists" }]
     };
     const fake = fakeRunner([okOutcome(pileJson([0.95, 0.95]))]);
 
-    const result = await runEvaluationStages(baseInput({ snapshotReader: async () => prior }), {
-      runFactoryPile: fake.runFactoryPile
-    });
+    const result = await runEvaluationStages(
+      baseInput({
+        intent: {
+          title: "Evaluate the run",
+          problem: "Need a reliable evaluation",
+          acceptanceCriteria: [
+            { id: "AC-1", statement: "Evaluation exists", verification }
+          ]
+        } as unknown as ConfirmedIntent,
+        snapshotReader: async () => prior
+      }),
+      { runFactoryPile: fake.runFactoryPile }
+    );
 
     assert.equal(result.evolutionDecision.action, "converged");
   });

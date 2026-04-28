@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b tsconfig.build.json",
+    "build": "tsc -b",
     "test": "node --test --test-reporter=spec dist/**/*.test.js",
     "clean": "rm -rf dist"
   },
