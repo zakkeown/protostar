@@ -111,7 +111,7 @@ CLI first. The product feel: walk away, come back, understand exactly what happe
 - [x] **OP-01**: `protostar-factory run` — start a new run from a draft or confirmed intent
 - [x] **OP-02**: `protostar-factory status [--run <runId>]` — current state of a run or all runs (last N)
 - [ ] **OP-03**: `protostar-factory resume <runId>` — pick up from the last persisted task journal entry
-- [ ] **OP-04**: `protostar-factory cancel <runId>` — cooperative cancel with cleanup
+- [x] **OP-04**: `protostar-factory cancel <runId>` — cooperative cancel with cleanup
 - [x] **OP-05**: `protostar-factory inspect <runId>` — pretty-print the run bundle (manifest, stage records, artifacts)
 - [ ] **OP-06**: `protostar-factory deliver <runId>` — explicit delivery trigger (when delivery is gated to operator action)
 - [x] **OP-07**: Status / inspect output is non-decorative — JSON-stable so it's pipeable
@@ -231,7 +231,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | OP-01 | Phase 9 | Complete — 09-01 commander run extraction preserved run behavior behind the new dispatcher |
 | OP-02 | Phase 9 | Complete — 09-04 added status for recent runs and single-run lookup with human/JSON output |
 | OP-03 | Phase 9 | Pending |
-| OP-04 | Phase 9 | Pending |
+| OP-04 | Phase 9 | Complete — 09-06 added cancel with atomic manifest cancelling writes, CANCEL sentinel touch, terminal-run refusal, and sentinel teardown to cancelled |
 | OP-05 | Phase 9 | Complete — 09-05 added inspect with canonical {manifest, artifacts, summary}, path-indexed artifacts, sha256/bytes, stage filtering, and no trace inlining |
 | OP-06 | Phase 9 | Pending |
 | OP-07 | Phase 9 | Complete — 09-04 status and 09-05 inspect both emit canonical JSON-stable output for automation |
