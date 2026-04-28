@@ -25,6 +25,11 @@ interface PruneCandidate {
   readonly archetype: string | null;
 }
 
+interface InternalPruneCandidate {
+  readonly candidate: PruneCandidate;
+  readonly path: string;
+}
+
 interface PruneProtected {
   readonly runId: string;
   readonly reason: string;
@@ -58,7 +63,7 @@ export function buildPruneCommand(): Command {
     .option("--confirm", "actually delete candidate runs/<id> directories")
     .addHelpText(
       "after",
-      "\nSafety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ directories."
+      "\nSafety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ or .protostar/dogfood/<sessionId>/ directories."
     )
     .exitOverride()
     .configureOutput({
@@ -85,6 +90,7 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
 
   const workspaceRoot = resolveWorkspaceRoot();
   const runsRoot = join(workspaceRoot, ".protostar", "runs");
+  const dogfoodRoot = join(workspaceRoot, ".protostar", "dogfood");
   const thresholdMs = Date.now() - parsedDuration.ms;
   const entries = (
     await listRuns({
@@ -93,8 +99,15 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
       all: true
     })
   ).filter((entry) => entry.mtimeMs <= thresholdMs);
+  const dogfoodEntries = (
+    await listRuns({
+      runsRoot: dogfoodRoot,
+      runIdRegex: RUN_ID_REGEX,
+      all: true
+    })
+  ).filter((entry) => entry.mtimeMs <= thresholdMs);
 
-  const candidates: PruneCandidate[] = [];
+  const candidates: InternalPruneCandidate[] = [];
   const protectedRuns: PruneProtected[] = [];
   for (const entry of entries) {
     const manifest = await readManifest(join(entry.path, "manifest.json"));
@@ -116,18 +129,49 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
     }
 
     candidates.push({
-      runId: entry.runId,
-      mtimeMs: entry.mtimeMs,
-      status: manifest.value.status,
-      archetype
+      candidate: {
+        runId: entry.runId,
+        mtimeMs: entry.mtimeMs,
+        status: manifest.value.status,
+        archetype
+      },
+      path: entry.path
+    });
+  }
+
+  for (const entry of dogfoodEntries) {
+    if (opts.archetype !== undefined) {
+      continue;
+    }
+
+    const cursor = await readDogfoodCursor(join(entry.path, "cursor"));
+    if (!cursor.ok) {
+      protectedRuns.push({ runId: entry.runId, reason: "cursor-unreadable" });
+      continue;
+    }
+
+    if (cursor.value.completed < cursor.value.totalRuns) {
+      protectedRuns.push({ runId: entry.runId, reason: "active-dogfood-session" });
+      continue;
+    }
+
+    candidates.push({
+      candidate: {
+        runId: entry.runId,
+        mtimeMs: entry.mtimeMs,
+        status: "unknown",
+        archetype: null
+      },
+      path: entry.path
     });
   }
 
   const dryRun = opts.confirm !== true;
+  const outputCandidates = candidates.map((candidate) => candidate.candidate);
   if (dryRun) {
     writeStdoutJson({
-      scanned: entries.length,
-      candidates,
+      scanned: entries.length + dogfoodEntries.length,
+      candidates: outputCandidates,
       protected: protectedRuns,
       deleted: [],
       dryRun: true
@@ -137,18 +181,19 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
 
   const deleted: { readonly runId: string }[] = [];
   for (const candidate of candidates) {
-    // Phase 9 Q-22: prune ONLY removes runs/<id>/ subtrees. Workspace-level
+    // Phase 9 Q-22 + Phase 10 dogfood extension: prune ONLY removes scoped
+    // runs/<id>/ or dogfood/<sessionId>/ subtrees. Workspace-level
     // append-only files (.protostar/refusals.jsonl,
     // .protostar/evolution/{lineageId}.jsonl) are NEVER touched. The
-    // active-status guard above + the path constructed via path.join(runsRoot,
-    // runId) ensures we cannot escape into them.
-    await fs.rm(join(runsRoot, candidate.runId), { recursive: true, force: true });
-    deleted.push({ runId: candidate.runId });
+    // active guards above + listRuns RUN_ID_REGEX filtering keep deletion
+    // confined to enumerated session directories.
+    await fs.rm(candidate.path, { recursive: true, force: true });
+    deleted.push({ runId: candidate.candidate.runId });
   }
 
   writeStdoutJson({
-    scanned: entries.length,
-    candidates,
+    scanned: entries.length + dogfoodEntries.length,
+    candidates: outputCandidates,
     protected: protectedRuns,
     deleted,
     dryRun: false
@@ -161,6 +206,27 @@ async function readManifest(
 ): Promise<{ readonly ok: true; readonly value: ManifestWithArchetype } | { readonly ok: false }> {
   try {
     return { ok: true, value: JSON.parse(await fs.readFile(manifestPath, "utf8")) as ManifestWithArchetype };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function readDogfoodCursor(
+  cursorPath: string
+): Promise<{ readonly ok: true; readonly value: { readonly completed: number; readonly totalRuns: number } } | { readonly ok: false }> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(cursorPath, "utf8")) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "completed" in parsed &&
+      "totalRuns" in parsed &&
+      typeof parsed.completed === "number" &&
+      typeof parsed.totalRuns === "number"
+    ) {
+      return { ok: true, value: { completed: parsed.completed, totalRuns: parsed.totalRuns } };
+    }
+    return { ok: false };
   } catch {
     return { ok: false };
   }
