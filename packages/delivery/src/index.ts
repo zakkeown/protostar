@@ -1,6 +1,7 @@
 import type { StageArtifactRef } from "@protostar/artifacts";
 import type { ReviewGate } from "@protostar/review";
 
+export * from "./brands.js";
 export * from "./delivery-contract.js";
 export * from "./evidence-marker.js";
 export * from "./refusals.js";
