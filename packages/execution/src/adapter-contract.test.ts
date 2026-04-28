@@ -6,6 +6,7 @@ import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
 import type {
   AdapterContext,
   AdapterEvent,
+  AdapterEvidence,
   AdapterFailureReason,
   AdapterResult,
   ExecutionAdapter
@@ -104,6 +105,55 @@ describe("ExecutionAdapter contract", () => {
     assert.equal(networkMode, "allowlist");
     assert.deepEqual(allowedHosts, ["localhost"]);
   });
+
+  it("keeps repairContext optional on AdapterContext", () => {
+    const context: AdapterContext = buildAdapterContext();
+
+    assert.equal(context.repairContext, undefined);
+  });
+
+  it("accepts structured repairContext on AdapterContext", () => {
+    const context: AdapterContext = buildAdapterContext({
+      repairContext: {
+        previousAttempt: { planTaskId: "t-1", attempt: 1 },
+        mechanicalCritiques: []
+      }
+    });
+
+    assert.equal(context.repairContext?.previousAttempt.planTaskId, "t-1");
+    assert.deepEqual(context.repairContext.mechanicalCritiques, []);
+  });
+
+  it("accepts repair as an adapter retry reason", () => {
+    const evidence: AdapterEvidence = {
+      model: "test-model",
+      attempts: 2,
+      durationMs: 2,
+      auxReads: [],
+      retries: [{ attempt: 2, retryReason: "repair", durationMs: 1 }]
+    };
+
+    assert.equal(evidence.retries[0]?.retryReason, "repair");
+  });
+
+  it("rejects unknown adapter retry reasons", () => {
+    const evidence: AdapterEvidence = {
+      model: "test-model",
+      attempts: 2,
+      durationMs: 2,
+      auxReads: [],
+      retries: [
+        {
+          attempt: 2,
+          // @ts-expect-error unknown retry reasons must stay out of the literal union.
+          retryReason: "unknown-reason",
+          durationMs: 1
+        }
+      ]
+    };
+
+    assert.equal(evidence.retries[0]?.retryReason, "unknown-reason");
+  });
 });
 
 async function collectAdapterEvents(adapter: ExecutionAdapter): Promise<readonly AdapterEvent[]> {
@@ -131,7 +181,9 @@ function emptyEvidence(): Extract<AdapterResult, { readonly outcome: "change-set
   };
 }
 
-function buildAdapterContext(overrides: Partial<Pick<AdapterContext, "budget" | "network">> = {}): AdapterContext {
+function buildAdapterContext(
+  overrides: Partial<Pick<AdapterContext, "budget" | "network" | "repairContext">> = {}
+): AdapterContext {
   return {
     signal: new AbortController().signal,
     confirmedIntent: {} as ConfirmedIntent,
@@ -152,7 +204,8 @@ function buildAdapterContext(overrides: Partial<Pick<AdapterContext, "budget" | 
       async appendToken() {}
     },
     budget: overrides.budget ?? { taskWallClockMs: 180_000, adapterRetriesPerTask: 4 },
-    network: overrides.network ?? { allow: "loopback" }
+    network: overrides.network ?? { allow: "loopback" },
+    repairContext: overrides.repairContext
   };
 }
 
