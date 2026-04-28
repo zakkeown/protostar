@@ -68,14 +68,15 @@ describe("formatRefusalIndexLine", () => {
     assert.equal(parsed["stage"], "pile-planning");
   });
 
-  it("RefusalStage type accepts the three pile-* extensions", () => {
+  it("RefusalStage type accepts the pile-* extensions", () => {
     const stages: ReadonlyArray<RefusalIndexEntry["stage"]> = [
       "pile-planning",
       "pile-review",
-      "pile-execution-coordination"
+      "pile-execution-coordination",
+      "pile-evaluation"
     ];
     // Compile-time check — if the type doesn't include these, this assignment fails.
-    assert.equal(stages.length, 3);
+    assert.equal(stages.length, 4);
   });
 
   it("emits stage: planning correctly when the input stage is planning", () => {
