@@ -186,8 +186,8 @@ Plans:
 - [x] 05-09-apply-change-set-cosmetic-gate-PLAN.md — wave 2 — applyChangeSet per-task ≤1-file gate for cosmetic-tweak archetype (Q-08 first defense)
 
 **Wave 3** *(blocked on Wave 2 completion)* (mechanical-checks adapter + admission AC-coverage rule)
-- [ ] 05-07-mechanical-checks-adapter-PLAN.md — wave 3 — createMechanicalChecksAdapter (with injected readFile + subprocess capabilities — no node:fs in source) + diff-name-only + buildFindings (Q-07, Q-08 run-level, Q-09 mechanical side)
-- [ ] 05-11-admission-rule-ac-coverage-PLAN.md — wave 3 — admission rule rejecting plans without AC coverage + fixture cascade (Q-09 admission side)
+- [x] 05-07-mechanical-checks-adapter-PLAN.md — wave 3 — createMechanicalChecksAdapter (with injected readFile + subprocess capabilities — no node:fs in source) + diff-name-only + buildFindings (Q-07, Q-08 run-level, Q-09 mechanical side)
+- [x] 05-11-admission-rule-ac-coverage-PLAN.md — wave 3 — admission rule rejecting plans without AC coverage + fixture cascade (Q-09 admission side)
 
 **Wave 4** *(blocked on Wave 3 completion)* (the loop body + persistence + DeliveryAuthorization minting)
 - [ ] 05-10-run-review-repair-loop-PLAN.md — wave 4 — runReviewRepairLoop body + ReviewPersistence (iter-N dirs, review.jsonl path-pattern verified, review-decision.json, review-block.json) + loadDeliveryAuthorization; ExecutionRunResult sourced from @protostar/planning (Q-01, Q-02, Q-12, Q-13, Q-14, Q-15, Q-17, Q-18)

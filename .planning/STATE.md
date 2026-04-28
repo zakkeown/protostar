@@ -26,9 +26,9 @@
 
 **Phase 5 — Review → Repair → Review Loop** (in progress)
 
-Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@protostar/repair` and `@protostar/mechanical-checks` now exist as workspace skeletons, confirmed-intent is bumped to schema `1.4.0` with `budget.maxRepairLoops`, and `PlanTask.acceptanceTestRefs` is available for downstream AC coverage work. Wave 1 pinned the shared repair/review/delivery/lifecycle contracts, with cycle-neutral `RepairContext` and `ExecutionRunResult` in `@protostar/planning`. Wave 2 has progressed: Plan 05-05 implemented pure repair plan synthesis and dependent-subgraph computation, Plan 05-06 extended execution adapter context and retry evidence for repair iterations, Plan 05-08 added the shared LM Studio client plus panel-of-one judge adapter, and Plan 05-09 added the per-task `applyChangeSet` cosmetic multi-file gate.
+Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@protostar/repair` and `@protostar/mechanical-checks` now exist as workspace skeletons, confirmed-intent is bumped to schema `1.4.0` with `budget.maxRepairLoops`, and `PlanTask.acceptanceTestRefs` is available for downstream AC coverage work. Wave 1 pinned the shared repair/review/delivery/lifecycle contracts, with cycle-neutral `RepairContext` and `ExecutionRunResult` in `@protostar/planning`. Wave 2 has progressed: Plan 05-05 implemented pure repair plan synthesis and dependent-subgraph computation, Plan 05-06 extended execution adapter context and retry evidence for repair iterations, Plan 05-08 added the shared LM Studio client plus panel-of-one judge adapter, and Plan 05-09 added the per-task `applyChangeSet` cosmetic multi-file gate. Wave 3 has started: Plan 05-11 now rejects structurally valid candidate plans whose `acceptanceTestRefs` do not cover every confirmed-intent AC.
 
-**Next action:** Continue Phase 5 with Wave 3 mechanical checks adapter and AC-coverage admission work.
+**Next action:** Continue Phase 5 Wave 3 mechanical checks adapter work and update out-of-scope factory-cli inline planning fixtures before treating repo-wide `verify:full` as green under the universal AC-ref rule.
 
 ## Phase Status
 
@@ -38,7 +38,7 @@ Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@pr
 | 2 | Authority + Governance Kernel | In progress — Waves 5–7 complete (Plans 11–15); awaiting re-verification |
 | 3 | Repo Runtime + Sandbox | In progress — Plans 03-01 through 03-13 complete; phase not verified |
 | 4 | Execution Engine | Automated verification passed — human LM Studio smoke pending |
-| 5 | Review → Repair → Review Loop | In progress — Wave 2 mostly complete; 05-05, 05-06, 05-08, and 05-09 complete |
+| 5 | Review → Repair → Review Loop | In progress — Wave 3 started; 05-05, 05-06, 05-08, 05-09, and 05-11 complete |
 | 6 | Live Dogpile Piles | Pending |
 | 7 | Delivery | Pending |
 | 8 | Evaluation + Evolution | Pending |
@@ -55,6 +55,7 @@ Phase 5 is making the review-repair loop boundary real. Wave 0 is complete: `@pr
 
 ## Recent Sessions
 
+- **2026-04-28:** Completed Phase 5 Plan 11 (`05-11-admission-rule-ac-coverage-PLAN.md`): added structural planning admission rejection for incomplete `task.acceptanceTestRefs` AC coverage, serialized `ac-coverage-incomplete` with `missingAcIds`, cascaded scaffold/Dogpile passing fixtures, and added `bad-ac-coverage-incomplete.json`. `pnpm --filter @protostar/policy test`, `pnpm --filter @protostar/planning test`, and `pnpm --filter @protostar/admission-e2e test` passed; repo-wide `pnpm run verify:full` is blocked by out-of-scope factory-cli inline planning fixtures that still need `acceptanceTestRefs`.
 - **2026-04-28:** Completed Phase 5 Plan 05 (`05-05-synthesize-repair-plan-PLAN.md`): added pure `computeRepairSubgraph` for repair seeds plus descendants in admitted-plan order, added pure `synthesizeRepairPlan` fan-in from mechanical findings and judge critiques, and exported both from `@protostar/repair`. `pnpm --filter @protostar/repair build && pnpm --filter @protostar/repair test` passed with 13 tests; `pnpm run verify` passed.
 - **2026-04-28:** Completed Phase 5 Plan 08 (`05-08-judge-adapter-PLAN.md`): extracted shared LM Studio chat/preflight helpers, refactored the coder adapter onto the shared client, added `createLmstudioJudgeAdapter` with panel-of-one `JudgeCritique` output and `LmstudioJudgeParseError`, and extended factory-config schema/resolver coverage for `adapters.judge`. `pnpm --filter @protostar/lmstudio-adapter test` and `pnpm run verify` passed; `pnpm run factory` built then stopped at the expected workspace-trust gate.
 - **2026-04-28:** Completed Phase 5 Plan 09 (`05-09-apply-change-set-cosmetic-gate-PLAN.md`): added optional `applyChangeSet` archetype metadata, refused multi-file `cosmetic-tweak` change sets with `cosmetic-archetype-multifile` before any writes, and expanded apply-change-set coverage to 14 tests. `pnpm --filter @protostar/repo test` passed; the shared-wave lmstudio-adapter blocker was cleared by Plan 05-08 and root `pnpm run verify` now passes.
