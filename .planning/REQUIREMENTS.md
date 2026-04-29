@@ -153,7 +153,7 @@ Create the headless/stress traceability foundation before source-code implementa
 
 - [x] **STRESS-01**: Requirements traceability
 - [x] **STRESS-02**: All-three narrow archetype admission lift
-- [ ] **STRESS-03**: Per-archetype seed library with TTT feature seed
+- [x] **STRESS-03**: Per-archetype seed library with TTT feature seed
 - [x] **STRESS-04**: Immutable toy verification preflight/refusal
 - [x] **STRESS-05**: Headless mode config and CLI selection
 - [ ] **STRESS-06**: LLM backend selector while preserving LM Studio default
@@ -295,7 +295,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | BOUNDARY-12 | Phase 10.1 | Complete |
 | STRESS-01 | Phase 11 | Complete |
 | STRESS-02 | Phase 11 | Complete |
-| STRESS-03 | Phase 11 | Pending |
+| STRESS-03 | Phase 11 | Complete |
 | STRESS-04 | Phase 11 | Complete |
 | STRESS-05 | Phase 11 | Complete |
 | STRESS-06 | Phase 11 | Pending |
