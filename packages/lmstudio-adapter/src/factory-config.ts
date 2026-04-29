@@ -21,9 +21,11 @@ export interface FactoryConfig {
 }
 
 export type HeadlessMode = "github-hosted" | "self-hosted-runner" | "local-daemon";
+export type LlmBackend = "lmstudio" | "hosted-openai-compatible" | "mock";
 
 export interface FactoryRuntimeConfig {
   readonly headlessMode: HeadlessMode;
+  readonly llmBackend: LlmBackend;
   readonly nonInteractive: boolean;
   readonly stress: FactoryStressConfig;
 }
@@ -151,6 +153,7 @@ interface PartialFactoryConfig {
 
 interface PartialFactoryRuntimeConfig {
   readonly headlessMode?: HeadlessMode;
+  readonly llmBackend?: LlmBackend;
   readonly nonInteractive?: boolean;
   readonly stress?: PartialFactoryStressConfig;
 }
@@ -199,6 +202,7 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   }),
   factory: Object.freeze({
     headlessMode: "local-daemon",
+    llmBackend: "lmstudio",
     nonInteractive: false,
     stress: Object.freeze({
       caps: Object.freeze({
@@ -235,7 +239,7 @@ const TOP_LEVEL_KEYS = new Set([
 ]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
-const FACTORY_KEYS = new Set(["headlessMode", "nonInteractive", "stress"]);
+const FACTORY_KEYS = new Set(["headlessMode", "llmBackend", "nonInteractive", "stress"]);
 const FACTORY_STRESS_KEYS = new Set(["caps"]);
 const STRESS_CAPS_KEYS = new Set(["tttDelivery", "sustainedLoad", "concurrency", "faultInjection"]);
 const TTT_DELIVERY_CAP_KEYS = new Set(["maxAttempts", "maxWallClockDays"]);
@@ -243,6 +247,7 @@ const SUSTAINED_LOAD_CAP_KEYS = new Set(["maxRuns", "maxWallClockDays"]);
 const CONCURRENCY_CAP_KEYS = new Set(["maxSessions", "maxWallClockDays"]);
 const FAULT_INJECTION_CAP_KEYS = new Set(["maxFaults", "maxWallClockDays"]);
 const HEADLESS_MODE_VALUES = new Set(["github-hosted", "self-hosted-runner", "local-daemon"]);
+const LLM_BACKEND_VALUES = new Set(["lmstudio", "hosted-openai-compatible", "mock"]);
 const DELIVERY_KEYS = new Set(["mode", "requiredChecks"]);
 const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
 const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
@@ -375,6 +380,12 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
         !HEADLESS_MODE_VALUES.has(config.factory.headlessMode as string)
       ) {
         errors.push("$.factory.headlessMode must be one of github-hosted|self-hosted-runner|local-daemon");
+      }
+      if (
+        config.factory.llmBackend !== undefined &&
+        !LLM_BACKEND_VALUES.has(config.factory.llmBackend as string)
+      ) {
+        errors.push("$.factory.llmBackend must be one of lmstudio|hosted-openai-compatible|mock");
       }
       if (config.factory.nonInteractive !== undefined && typeof config.factory.nonInteractive !== "boolean") {
         errors.push("$.factory.nonInteractive must be a boolean");
@@ -663,6 +674,7 @@ function resolveAdapterConfig(input: {
 function resolveFactoryRuntimeConfig(partial: PartialFactoryRuntimeConfig | undefined): FactoryRuntimeConfig {
   return {
     headlessMode: partial?.headlessMode ?? DEFAULT_FACTORY_CONFIG.factory.headlessMode,
+    llmBackend: partial?.llmBackend ?? DEFAULT_FACTORY_CONFIG.factory.llmBackend,
     nonInteractive: partial?.nonInteractive ?? DEFAULT_FACTORY_CONFIG.factory.nonInteractive,
     stress: {
       caps: {

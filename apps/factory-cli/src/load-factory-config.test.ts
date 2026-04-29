@@ -14,6 +14,7 @@ import {
   resolveConvergenceThreshold,
   resolveDeliveryMode,
   resolveHeadlessMode,
+  resolveLlmBackend,
   resolveNonInteractive,
   resolveGeneration,
   resolveLineageId,
@@ -37,6 +38,7 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolved.config.adapters.coder.baseUrl, "http://localhost:1234/v1");
     assert.equal(resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
     assert.equal(resolved.config.factory.headlessMode, "local-daemon");
+    assert.equal(resolved.config.factory.llmBackend, "lmstudio");
     assert.equal(resolved.config.factory.nonInteractive, false);
   });
 
@@ -52,6 +54,16 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolveHeadlessMode({ factory: { headlessMode: "github-hosted" } }, "local-daemon"), "local-daemon");
     assert.equal(resolveHeadlessMode({ factory: { headlessMode: "self-hosted-runner" } }, undefined), "self-hosted-runner");
     assert.equal(resolveHeadlessMode({}, undefined), "local-daemon");
+  });
+
+  it("resolves LLM backend with CLI over config over LM Studio default precedence", () => {
+    assert.equal(resolveLlmBackend({ factory: { llmBackend: "hosted-openai-compatible" } }, "mock"), "mock");
+    assert.equal(resolveLlmBackend({ factory: { llmBackend: "mock" } }, "lmstudio"), "lmstudio");
+    assert.equal(
+      resolveLlmBackend({ factory: { llmBackend: "hosted-openai-compatible" } }, undefined),
+      "hosted-openai-compatible"
+    );
+    assert.equal(resolveLlmBackend({}, undefined), "lmstudio");
   });
 
   it("resolves non-interactive with CLI over config over false default precedence", () => {

@@ -30,6 +30,19 @@ describe("run command headless options", () => {
     assert.equal(parsed.options.nonInteractive, true);
   });
 
+  it("maps --llm-backend hosted-openai-compatible into run options", () => {
+    const parsed = buildRunOptions({
+      draft: "draft.json",
+      out: "out",
+      llmBackend: "hosted-openai-compatible"
+    });
+
+    if (!parsed.ok) {
+      assert.fail(parsed.error);
+    }
+    assert.equal(parsed.options.llmBackend, "hosted-openai-compatible");
+  });
+
   it("rejects invalid --headless-mode values through the usage-code path", async () => {
     const result = await captureMain(["run", "--draft", "draft.json", "--out", "out", "--headless-mode", "ci"]);
 
@@ -38,6 +51,18 @@ describe("run command headless options", () => {
     assert.match(result.stderr, /--headless-mode/);
     assert.doesNotMatch(result.stderr, /Usage:/);
     assert.doesNotMatch(result.stderr, /Options:/);
+  });
+
+  it("rejects provider aliases for --llm-backend through the usage-code path", async () => {
+    for (const alias of ["openai", "anthropic"] as const) {
+      const result = await captureMain(["run", "--draft", "draft.json", "--out", "out", "--llm-backend", alias]);
+
+      assert.equal(result.exitCode, ExitCode.UsageOrArgError);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /--llm-backend/);
+      assert.doesNotMatch(result.stderr, /Usage:/);
+      assert.doesNotMatch(result.stderr, /Options:/);
+    }
   });
 
   it("preserves stdout=data discipline when headless parsing succeeds but required run args are missing", async () => {

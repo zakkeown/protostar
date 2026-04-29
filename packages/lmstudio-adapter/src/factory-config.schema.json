@@ -17,7 +17,7 @@
     },
     "factory": {
       "type": "object",
-      "description": "Phase 11 Q-04/Q-03: headless execution posture and bounded stress caps. CLI flags --headless-mode and --non-interactive take precedence over this config.",
+      "description": "Phase 11 Q-04/Q-05/Q-03: headless execution posture, LLM backend selection, and bounded stress caps. CLI flags --headless-mode, --llm-backend, and --non-interactive take precedence over this config.",
       "additionalProperties": false,
       "properties": {
         "headlessMode": {
@@ -25,6 +25,12 @@
           "enum": ["github-hosted", "self-hosted-runner", "local-daemon"],
           "default": "local-daemon",
           "description": "github-hosted, self-hosted-runner, or local-daemon. local-daemon is the default to preserve ordinary local LM Studio runs."
+        },
+        "llmBackend": {
+          "type": "string",
+          "enum": ["lmstudio", "hosted-openai-compatible", "mock"],
+          "default": "lmstudio",
+          "description": "Execution backend selected at the factory composition root. lmstudio remains the default; hosted-openai-compatible and mock are reserved for later Phase 11 adapter packages."
         },
         "nonInteractive": {
           "type": "boolean",

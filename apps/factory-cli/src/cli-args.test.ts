@@ -171,6 +171,23 @@ describe("factory CLI argv parser", () => {
     );
   });
 
+  it("parses --llm-backend=mock", () => {
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--llm-backend=mock"]).llmBackend,
+      "mock"
+    );
+  });
+
+  it("rejects unsupported --llm-backend values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--llm-backend", "openai"]),
+      (error: unknown) =>
+        error instanceof ArgvError &&
+        error.flag === "--llm-backend" &&
+        /lmstudio\|hosted-openai-compatible\|mock/.test(error.reason)
+    );
+  });
+
   it("parses --non-interactive as a boolean flag without a value", () => {
     const parsed = parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--non-interactive"]);
 

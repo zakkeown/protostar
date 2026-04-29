@@ -1,5 +1,5 @@
 import { MAX_EVOLUTION_GENERATIONS } from "@protostar/evaluation";
-import type { HeadlessMode } from "@protostar/lmstudio-adapter";
+import type { HeadlessMode, LlmBackend } from "@protostar/lmstudio-adapter";
 
 export type TrustLevel = "untrusted" | "trusted";
 
@@ -13,6 +13,12 @@ export const HEADLESS_MODES: readonly HeadlessMode[] = Object.freeze([
   "github-hosted",
   "self-hosted-runner",
   "local-daemon"
+]);
+
+export const LLM_BACKENDS: readonly LlmBackend[] = Object.freeze([
+  "lmstudio",
+  "hosted-openai-compatible",
+  "mock"
 ]);
 
 export interface ParsedCliArgs {
@@ -35,6 +41,7 @@ export interface ParsedCliArgs {
   readonly reviewMode?: PileMode;
   readonly execCoordMode?: PileMode;
   readonly lineage?: string;
+  readonly llmBackend?: LlmBackend;
   readonly evolveCode?: boolean;
   readonly generation?: number;
   readonly semanticJudgeModel?: string;
@@ -60,6 +67,7 @@ const FLAG_NAMES = new Set([
   "--intent-mode",
   "--intent-output",
   "--lineage",
+  "--llm-backend",
   "--out",
   "--planning-fixture",
   "--planning-mode",
@@ -147,6 +155,14 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
       continue;
     }
 
+    if (flag === "--llm-backend") {
+      if (!isLlmBackend(value)) {
+        throw new ArgvError(flag, `expected one of ${LLM_BACKENDS.join("|")}, got "${value}"`);
+      }
+      setFlag(flags, "llmBackend", value);
+      continue;
+    }
+
     if (flag === "--generation") {
       setFlag(flags, "generation", parseGenerationArg(value));
       continue;
@@ -179,6 +195,10 @@ function flagName(flag: string): keyof ParsedCliArgs {
 
 function isHeadlessMode(value: string): value is HeadlessMode {
   return (HEADLESS_MODES as readonly string[]).includes(value);
+}
+
+function isLlmBackend(value: string): value is LlmBackend {
+  return (LLM_BACKENDS as readonly string[]).includes(value);
 }
 
 type WritableParsedCliArgs = {

@@ -140,6 +140,7 @@ function factoryConfig(baseUrl: string, model: string): ResolvedFactoryConfig {
       },
       factory: {
         headlessMode: "local-daemon",
+        llmBackend: "lmstudio",
         nonInteractive: false,
         stress: {
           caps: {

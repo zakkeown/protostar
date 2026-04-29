@@ -3,6 +3,7 @@ export {
   type ExecutionCoordinationPileConfig,
   type FactoryConfig,
   type HeadlessMode,
+  type LlmBackend,
   type PileKindConfig,
   type PileMode,
   type PilesConfig,

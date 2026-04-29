@@ -39,6 +39,7 @@ import { runEvaluationStages as defaultRunEvaluationStages, type SnapshotReader 
 import {
   prepareExecutionRun as defaultPrepareExecutionRun,
   runExecutionDryRun,
+  type ExecutionAdapter,
   type ExecutionDryRunResult
 } from "@protostar/execution";
 import { createLmstudioCoderAdapter } from "@protostar/lmstudio-adapter";
@@ -137,9 +138,10 @@ import {
   resolveDeliveryMode,
   resolveGeneration,
   resolveLineageId,
+  resolveLlmBackend,
   resolveSemanticJudgeModel
 } from "./load-factory-config.js";
-import type { HeadlessMode } from "./load-factory-config.js";
+import type { HeadlessMode, LlmBackend } from "./load-factory-config.js";
 import { appendCalibrationEntry, CALIBRATION_LOG_PATH } from "./calibration-log.js";
 import { appendChainLine, chainIndexPath, readLatestChainLine, type ChainIndexLine } from "./evolution-chain-index.js";
 import { writeEvolutionSnapshot } from "./evolution-snapshot-writer.js";
@@ -165,6 +167,7 @@ import {
 } from "./write-admission-decision.js";
 import { validateTwoKeyLaunch, verifyTrustedLaunchConfirmedIntent, type TwoKeyLaunchRefusal } from "./two-key-launch.js";
 import { buildReviewRepairServices, preflightCoderAndJudge, type ReviewLoopFsAdapter } from "./wiring/index.js";
+import { selectExecutionAdapter } from "./wiring/execution-adapter.js";
 import { ExitCode } from "./exit-codes.js";
 import { writeStderr } from "./io.js";
 
@@ -188,6 +191,7 @@ export interface RunCommandOptions {
   readonly execCoordMode?: PileMode;
   readonly deliveryMode?: "auto" | "gated";
   readonly headlessMode?: HeadlessMode;
+  readonly llmBackend?: LlmBackend;
   readonly nonInteractive?: boolean;
   readonly lineage?: string;
   readonly evolveCode?: boolean;
@@ -783,50 +787,57 @@ export async function runFactory(
   });
   const cancel = installCancelWiring({ runDir, rootController: runAbortController });
   let executionResult: ExecutionDryRunResult;
-  let realExecutionAdapter: ReturnType<typeof dependencies.createLmstudioCoderAdapter> | undefined;
+  let realExecutionAdapter: ExecutionAdapter | undefined;
   let loop: ReviewRepairLoopResult;
   let review: ReviewGate;
   try {
     await cancel.unlinkSentinelOnResume();
     if ((options.executor ?? "dry-run") === "real") {
-      const admission = await dependencies.coderAdapterReadyAdmission({
-        runId,
-        runDir,
-        outDir,
-        resolvedEnvelope: precedenceDecision.resolvedEnvelope,
-        factoryConfig,
-        precedenceDecision,
-        signal: cancel.rootController.signal
-      });
-      if (!admission.ok) {
-        throw admission.error;
-      }
-      const judge = factoryConfig.config.adapters.judge;
-      if (judge === undefined) {
-        throw new Error("factoryConfig.adapters.judge is required for review preflight.");
-      }
-      const preflight = await preflightCoderAndJudge({
-        coderBaseUrl: factoryConfig.config.adapters.coder.baseUrl,
-        judgeBaseUrl: judge.baseUrl,
-        coderModel: factoryConfig.config.adapters.coder.model,
-        judgeModel: judge.model,
-        timeoutMs: intent.capabilityEnvelope.budget.taskWallClockMs ?? 60_000
-      });
-      if (preflight.status !== "ready") {
-        throw new CliExitError(`LM Studio review preflight failed: ${preflight.status}${preflight.detail === undefined ? "" : ` (${preflight.detail})`}`, 1);
+      const resolvedLlmBackend = resolveLlmBackend(factoryConfig.config, options.llmBackend);
+      if (resolvedLlmBackend === "lmstudio") {
+        const admission = await dependencies.coderAdapterReadyAdmission({
+          runId,
+          runDir,
+          outDir,
+          resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+          factoryConfig,
+          precedenceDecision,
+          signal: cancel.rootController.signal
+        });
+        if (!admission.ok) {
+          throw admission.error;
+        }
+        const judge = factoryConfig.config.adapters.judge;
+        if (judge === undefined) {
+          throw new Error("factoryConfig.adapters.judge is required for review preflight.");
+        }
+        const preflight = await preflightCoderAndJudge({
+          coderBaseUrl: factoryConfig.config.adapters.coder.baseUrl,
+          judgeBaseUrl: judge.baseUrl,
+          coderModel: factoryConfig.config.adapters.coder.model,
+          judgeModel: judge.model,
+          timeoutMs: intent.capabilityEnvelope.budget.taskWallClockMs ?? 60_000
+        });
+        if (preflight.status !== "ready") {
+          throw new CliExitError(`LM Studio review preflight failed: ${preflight.status}${preflight.detail === undefined ? "" : ` (${preflight.detail})`}`, 1);
+        }
       }
       const journalWriter = await createJournalWriter({ runDir });
       try {
-        const adapter = dependencies.createLmstudioCoderAdapter({
-          baseUrl: factoryConfig.config.adapters.coder.baseUrl,
-          model: factoryConfig.config.adapters.coder.model,
-          apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
-          ...(factoryConfig.config.adapters.coder.temperature !== undefined
-            ? { temperature: factoryConfig.config.adapters.coder.temperature }
-            : {}),
-          ...(factoryConfig.config.adapters.coder.topP !== undefined
-            ? { topP: factoryConfig.config.adapters.coder.topP }
-            : {})
+        const adapter = selectExecutionAdapter({
+          backend: resolvedLlmBackend,
+          lmstudio: {
+            baseUrl: factoryConfig.config.adapters.coder.baseUrl,
+            model: factoryConfig.config.adapters.coder.model,
+            apiKey: process.env[factoryConfig.config.adapters.coder.apiKeyEnv] ?? "lm-studio",
+            ...(factoryConfig.config.adapters.coder.temperature !== undefined
+              ? { temperature: factoryConfig.config.adapters.coder.temperature }
+              : {}),
+            ...(factoryConfig.config.adapters.coder.topP !== undefined
+              ? { topP: factoryConfig.config.adapters.coder.topP }
+              : {})
+          },
+          createLmstudioCoderAdapter: dependencies.createLmstudioCoderAdapter
         });
         realExecutionAdapter = adapter;
         const realResult = await dependencies.runRealExecution({

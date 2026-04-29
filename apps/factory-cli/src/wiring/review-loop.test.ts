@@ -246,6 +246,7 @@ function factoryConfig() {
       },
       factory: {
         headlessMode: "local-daemon",
+        llmBackend: "lmstudio",
         nonInteractive: false,
         stress: {
           caps: {

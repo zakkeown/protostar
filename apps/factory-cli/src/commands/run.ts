@@ -3,7 +3,7 @@ import { basename, resolve } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import { InvalidArgumentError } from "commander";
 import type { IntentAmbiguityMode } from "@protostar/intent/ambiguity";
-import type { HeadlessMode } from "@protostar/lmstudio-adapter";
+import type { HeadlessMode, LlmBackend } from "@protostar/lmstudio-adapter";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { parseGenerationArg, type PileMode, type TrustLevel } from "../cli-args.js";
@@ -36,6 +36,7 @@ export interface CommanderRunOptions {
   readonly intentMode?: string;
   readonly intentOutput?: string;
   readonly lineage?: string;
+  readonly llmBackend?: LlmBackend;
   readonly out?: string;
   readonly planningFixture?: string;
   readonly planningMode?: string;
@@ -66,6 +67,7 @@ export function buildRunCommand(): Command {
     .option("--intent-mode <mode>", "intent ambiguity mode: greenfield or brownfield")
     .option("--intent-output <path>", "legacy alias for --confirmed-intent-output")
     .option("--lineage <id>", "evolution lineage id")
+    .option("--llm-backend <backend>", "lmstudio | hosted-openai-compatible | mock", parseLlmBackendOption)
     .option("--out <dir>", "run output directory")
     .option("--planning-fixture <path>", "planning pile fixture path")
     .option("--planning-mode <mode>", "planning pile mode: fixture or live")
@@ -187,6 +189,7 @@ export function buildRunOptions(opts: CommanderRunOptions):
       ...(execCoordMode.value !== undefined ? { execCoordMode: execCoordMode.value } : {}),
       ...(opts.deliveryMode !== undefined ? { deliveryMode: opts.deliveryMode } : {}),
       ...(opts.lineage !== undefined ? { lineage: opts.lineage } : {}),
+      ...(opts.llmBackend !== undefined ? { llmBackend: opts.llmBackend } : {}),
       ...(opts.evolveCode !== undefined ? { evolveCode: opts.evolveCode } : {}),
       ...(generation.value !== undefined ? { generation: generation.value } : {}),
       ...(opts.semanticJudgeModel !== undefined ? { semanticJudgeModel: opts.semanticJudgeModel } : {}),
@@ -202,6 +205,13 @@ function parseHeadlessModeOption(value: string): HeadlessMode {
     return value;
   }
   throw new InvalidArgumentError("--headless-mode must be github-hosted, self-hosted-runner, or local-daemon.");
+}
+
+function parseLlmBackendOption(value: string): LlmBackend {
+  if (value === "lmstudio" || value === "hosted-openai-compatible" || value === "mock") {
+    return value;
+  }
+  throw new InvalidArgumentError("--llm-backend must be lmstudio, hosted-openai-compatible, or mock.");
 }
 
 function parseDeliveryModeOption(value: string): DeliveryMode {

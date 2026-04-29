@@ -26,6 +26,7 @@ Options:
                                     brownfield
   --intent-output <path>            legacy alias for --confirmed-intent-output
   --lineage <id>                    evolution lineage id
+  --llm-backend <backend>           lmstudio | hosted-openai-compatible | mock
   --out <dir>                       run output directory
   --planning-fixture <path>         planning pile fixture path
   --planning-mode <mode>            planning pile mode: fixture or live
