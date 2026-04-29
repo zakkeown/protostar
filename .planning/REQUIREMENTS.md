@@ -155,13 +155,13 @@ Create the headless/stress traceability foundation before source-code implementa
 - [x] **STRESS-02**: All-three narrow archetype admission lift
 - [ ] **STRESS-03**: Per-archetype seed library with TTT feature seed
 - [ ] **STRESS-04**: Immutable toy verification preflight/refusal
-- [ ] **STRESS-05**: Headless mode config and CLI selection
+- [x] **STRESS-05**: Headless mode config and CLI selection
 - [ ] **STRESS-06**: LLM backend selector while preserving LM Studio default
 - [ ] **STRESS-07**: Deterministic mock backend
 - [ ] **STRESS-08**: Hosted OpenAI-compatible backend
 - [ ] **STRESS-09**: Bounded `pnpm add` allowlist
 - [ ] **STRESS-10**: Stress report schema plus append-only event artifacts
-- [ ] **STRESS-11**: Shared stress session core
+- [x] **STRESS-11**: Shared stress session core
 - [ ] **STRESS-12**: Sustained-load bash driver
 - [ ] **STRESS-13**: TypeScript concurrency/fault driver
 - [ ] **STRESS-14**: CI/headless/security and final TTT plus stress gate
@@ -297,13 +297,13 @@ Explicitly excluded. Documented to prevent scope creep.
 | STRESS-02 | Phase 11 | Complete |
 | STRESS-03 | Phase 11 | Pending |
 | STRESS-04 | Phase 11 | Pending |
-| STRESS-05 | Phase 11 | Pending |
+| STRESS-05 | Phase 11 | Complete |
 | STRESS-06 | Phase 11 | Pending |
 | STRESS-07 | Phase 11 | Pending |
 | STRESS-08 | Phase 11 | Pending |
 | STRESS-09 | Phase 11 | Pending |
 | STRESS-10 | Phase 11 | Pending |
-| STRESS-11 | Phase 11 | Pending |
+| STRESS-11 | Phase 11 | Complete |
 | STRESS-12 | Phase 11 | Pending |
 | STRESS-13 | Phase 11 | Pending |
 | STRESS-14 | Phase 11 | Pending |
