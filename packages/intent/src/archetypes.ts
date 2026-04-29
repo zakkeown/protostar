@@ -241,7 +241,7 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     rationale: "Cosmetic tweaks may edit bounded repository paths with low-risk tools and one repair loop."
   },
   "feature-add": {
-    status: "stub",
+    status: "wired",
     repo_scope: {
       required: true,
       allowedValues: ["read", "write"],
@@ -250,8 +250,8 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     },
     allowedRepoScopeValues: ["read", "write"],
     grants: {
-      required: ["repo_scope", "tool_permissions", "budgets"],
-      optional: ["repair_loop_count"],
+      required: ["repo_scope", "tool_permissions", "budgets", "repair_loop_count"],
+      optional: [],
       forbidden: []
     },
     writeGrant: {
@@ -285,19 +285,19 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     },
     budgets: {
       timeoutMs: 900_000,
-      repair_loop_count: 2
+      repair_loop_count: 9
     },
-    repair_loop_count: 2,
+    repair_loop_count: 9,
     maxRepoAccess: "write",
     maxToolRisk: "medium",
     budgetCaps: {
       timeoutMs: 900_000,
-      maxRepairLoops: 2
+      maxRepairLoops: 9
     },
-    rationale: "Feature-add caps are unsupported v0.0.1 stub admission limits reserved for a later policy wiring pass."
+    rationale: "Feature-add admission is wired for bounded repository writes with medium-risk tools and nine repair loops."
   },
   refactor: {
-    status: "stub",
+    status: "wired",
     repo_scope: {
       required: true,
       allowedValues: ["read", "write"],
@@ -306,8 +306,8 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     },
     allowedRepoScopeValues: ["read", "write"],
     grants: {
-      required: ["repo_scope", "tool_permissions", "budgets"],
-      optional: ["repair_loop_count"],
+      required: ["repo_scope", "tool_permissions", "budgets", "repair_loop_count"],
+      optional: [],
       forbidden: []
     },
     writeGrant: {
@@ -340,20 +340,20 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
       maxPermissionLevel: "write"
     },
     budgets: {
-      timeoutMs: 900_000,
-      repair_loop_count: 2
+      timeoutMs: 600_000,
+      repair_loop_count: 5
     },
-    repair_loop_count: 2,
+    repair_loop_count: 5,
     maxRepoAccess: "write",
     maxToolRisk: "medium",
     budgetCaps: {
-      timeoutMs: 900_000,
-      maxRepairLoops: 2
+      timeoutMs: 600_000,
+      maxRepairLoops: 5
     },
-    rationale: "Refactor caps are unsupported v0.0.1 stub admission limits reserved for a later policy wiring pass."
+    rationale: "Refactor admission is wired for bounded repository writes with medium-risk tools and five repair loops."
   },
   bugfix: {
-    status: "stub",
+    status: "wired",
     repo_scope: {
       required: true,
       allowedValues: ["read", "write"],
@@ -362,8 +362,8 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     },
     allowedRepoScopeValues: ["read", "write"],
     grants: {
-      required: ["repo_scope", "tool_permissions", "budgets"],
-      optional: ["repair_loop_count"],
+      required: ["repo_scope", "tool_permissions", "budgets", "repair_loop_count"],
+      optional: [],
       forbidden: []
     },
     writeGrant: {
@@ -397,16 +397,16 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
     },
     budgets: {
       timeoutMs: 600_000,
-      repair_loop_count: 2
+      repair_loop_count: 5
     },
-    repair_loop_count: 2,
+    repair_loop_count: 5,
     maxRepoAccess: "write",
     maxToolRisk: "medium",
     budgetCaps: {
       timeoutMs: 600_000,
-      maxRepairLoops: 2
+      maxRepairLoops: 5
     },
-    rationale: "Bugfix caps are unsupported v0.0.1 stub admission limits reserved for a later policy wiring pass."
+    rationale: "Bugfix admission is wired for bounded repository writes with medium-risk tools and five repair loops."
   },
   "factory-scaffold": {
     status: "stub",
@@ -478,23 +478,23 @@ export const INTENT_ARCHETYPE_REGISTRY = {
   },
   "feature-add": {
     id: "feature-add",
-    supportStatus: "unsupported",
-    supported: false,
-    capabilityCapStatus: "stub",
+    supportStatus: "supported",
+    supported: true,
+    capabilityCapStatus: "wired",
     policy: GOAL_ARCHETYPE_POLICY_TABLE["feature-add"]
   },
   refactor: {
     id: "refactor",
-    supportStatus: "unsupported",
-    supported: false,
-    capabilityCapStatus: "stub",
+    supportStatus: "supported",
+    supported: true,
+    capabilityCapStatus: "wired",
     policy: GOAL_ARCHETYPE_POLICY_TABLE.refactor
   },
   bugfix: {
     id: "bugfix",
-    supportStatus: "unsupported",
-    supported: false,
-    capabilityCapStatus: "stub",
+    supportStatus: "supported",
+    supported: true,
+    capabilityCapStatus: "wired",
     policy: GOAL_ARCHETYPE_POLICY_TABLE.bugfix
   }
 } as const satisfies IntentArchetypeRegistry;

@@ -4,7 +4,7 @@ import type { BugfixCapabilityEnvelopeUnsupportedDecision, FeatureAddCapabilityE
 
 import { hasText, isKnownGoalArchetype } from "./admission-shared.js";
 
-import { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, INTENT_ARCHETYPE_REGISTRY, REFACTOR_GOAL_ARCHETYPE } from "./archetypes.js";
+import { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, REFACTOR_GOAL_ARCHETYPE } from "./archetypes.js";
 
 import type { GoalArchetypePolicyTable } from "./archetypes.js";
 
@@ -70,6 +70,10 @@ export function featureAddAdmissionPathFindings(
     return [];
   }
 
+  if (policyTable[FEATURE_ADD_GOAL_ARCHETYPE].status === "wired") {
+    return [];
+  }
+
   const decision = createFeatureAddUnsupportedDecision(goalArchetype, policyTable);
 
   return [
@@ -92,6 +96,10 @@ export function refactorAdmissionPathFindings(
     return [];
   }
 
+  if (policyTable[REFACTOR_GOAL_ARCHETYPE].status === "wired") {
+    return [];
+  }
+
   const decision = createRefactorUnsupportedDecision(goalArchetype, policyTable);
 
   return [
@@ -111,6 +119,10 @@ export function bugfixAdmissionPathFindings(
   policyTable: GoalArchetypePolicyTable = ARCHETYPE_POLICY_TABLE
 ): readonly IntentAdmissionPolicyFinding[] {
   if (goalArchetype !== BUGFIX_GOAL_ARCHETYPE) {
+    return [];
+  }
+
+  if (policyTable[BUGFIX_GOAL_ARCHETYPE].status === "wired") {
     return [];
   }
 
@@ -186,7 +198,6 @@ export function createFeatureAddUnsupportedDecision(
   requestedGoalArchetype: string,
   policyTable: GoalArchetypePolicyTable
 ): FeatureAddCapabilityEnvelopeUnsupportedDecision {
-  const registryEntry = INTENT_ARCHETYPE_REGISTRY[FEATURE_ADD_GOAL_ARCHETYPE];
   const policy = policyTable[FEATURE_ADD_GOAL_ARCHETYPE];
 
   return {
@@ -194,8 +205,8 @@ export function createFeatureAddUnsupportedDecision(
     goalArchetype: FEATURE_ADD_GOAL_ARCHETYPE,
     requestedGoalArchetype,
     decision: "unsupported",
-    supportStatus: registryEntry.supportStatus,
-    capabilityCapStatus: registryEntry.capabilityCapStatus,
+    supportStatus: "unsupported",
+    capabilityCapStatus: "stub",
     stubCap: policy,
     message:
       "Feature-add admission path is unsupported in v0.0.1: " +
@@ -207,7 +218,6 @@ export function createRefactorUnsupportedDecision(
   requestedGoalArchetype: string,
   policyTable: GoalArchetypePolicyTable
 ): RefactorCapabilityEnvelopeUnsupportedDecision {
-  const registryEntry = INTENT_ARCHETYPE_REGISTRY[REFACTOR_GOAL_ARCHETYPE];
   const policy = policyTable[REFACTOR_GOAL_ARCHETYPE];
 
   return {
@@ -215,8 +225,8 @@ export function createRefactorUnsupportedDecision(
     goalArchetype: REFACTOR_GOAL_ARCHETYPE,
     requestedGoalArchetype,
     decision: "unsupported",
-    supportStatus: registryEntry.supportStatus,
-    capabilityCapStatus: registryEntry.capabilityCapStatus,
+    supportStatus: "unsupported",
+    capabilityCapStatus: "stub",
     stubCap: policy,
     message:
       "Refactor admission path is unsupported in v0.0.1: " +
@@ -228,7 +238,6 @@ export function createBugfixUnsupportedDecision(
   requestedGoalArchetype: string,
   policyTable: GoalArchetypePolicyTable
 ): BugfixCapabilityEnvelopeUnsupportedDecision {
-  const registryEntry = INTENT_ARCHETYPE_REGISTRY[BUGFIX_GOAL_ARCHETYPE];
   const policy = policyTable[BUGFIX_GOAL_ARCHETYPE];
 
   return {
@@ -236,8 +245,8 @@ export function createBugfixUnsupportedDecision(
     goalArchetype: BUGFIX_GOAL_ARCHETYPE,
     requestedGoalArchetype,
     decision: "unsupported",
-    supportStatus: registryEntry.supportStatus,
-    capabilityCapStatus: registryEntry.capabilityCapStatus,
+    supportStatus: "unsupported",
+    capabilityCapStatus: "stub",
     stubCap: policy,
     message:
       "Bugfix admission path is unsupported in v0.0.1: " +

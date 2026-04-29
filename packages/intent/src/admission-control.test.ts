@@ -837,7 +837,7 @@ describe("intent admission policy", () => {
       assert.ok(policy.grants.required.includes("repo_scope"));
       assert.ok(policy.grants.required.includes("tool_permissions"));
       assert.ok(policy.grants.required.includes("budgets"));
-      assert.equal(policy.status, archetype === "cosmetic-tweak" ? "wired" : "stub");
+      assert.equal(policy.status, archetype === "factory-scaffold" ? "stub" : "wired");
     }
 
     assert.equal(cosmeticPolicy.status, "wired");
@@ -893,7 +893,7 @@ describe("intent admission policy", () => {
     assert.equal(cosmeticPolicy.budgetCaps.maxRepairLoops, cosmeticPolicy.budgets.repair_loop_count);
   });
 
-  it("defines the v0.0.1 intent archetype registry with one supported wired archetype and unsupported stub caps", () => {
+  it("defines the v0.0.1 intent archetype registry with Phase 11 supported wired archetypes", () => {
     assert.equal(V0_0_1_INTENT_ARCHETYPE_REGISTRY, INTENT_ARCHETYPE_REGISTRY);
     assert.deepEqual(Object.keys(INTENT_ARCHETYPE_REGISTRY), [...V0_0_1_INTENT_ARCHETYPE_IDS]);
     assert.equal(INTENT_ARCHETYPE_REGISTRY["cosmetic-tweak"].supportStatus, "supported");
@@ -902,9 +902,9 @@ describe("intent admission policy", () => {
     assert.equal(INTENT_ARCHETYPE_REGISTRY["cosmetic-tweak"].policy, GOAL_ARCHETYPE_POLICY_TABLE["cosmetic-tweak"]);
 
     for (const archetype of ["feature-add", "refactor", "bugfix"] as const) {
-      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].supportStatus, "unsupported");
-      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].supported, false);
-      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].capabilityCapStatus, "stub");
+      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].supportStatus, "supported");
+      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].supported, true);
+      assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].capabilityCapStatus, "wired");
       assert.equal(INTENT_ARCHETYPE_REGISTRY[archetype].policy, GOAL_ARCHETYPE_POLICY_TABLE[archetype]);
     }
   });
@@ -1248,220 +1248,70 @@ describe("intent admission policy", () => {
     assert.match(result.errors[0] ?? "", /cannot grant a capability envelope/);
   });
 
-  it("returns an explicit unsupported feature-add admission decision with stub caps", () => {
-    const draft = clearFeatureAddDraft();
-    const result = admitFeatureAddCapabilityEnvelope({
-      draft
-    });
+  it("grants feature-add, refactor, and bugfix capability envelopes with Phase 11 wired caps", () => {
+    const cases = [
+      {
+        goalArchetype: FEATURE_ADD_GOAL_ARCHETYPE,
+        source: "feature-add-policy-admission",
+        draft: clearFeatureAddDraft(),
+        admit: admitFeatureAddCapabilityEnvelope,
+        expectedMaxRepairLoops: 9
+      },
+      {
+        goalArchetype: REFACTOR_GOAL_ARCHETYPE,
+        source: "refactor-policy-admission",
+        draft: clearRefactorDraft(),
+        admit: admitRefactorCapabilityEnvelope,
+        expectedMaxRepairLoops: 5
+      },
+      {
+        goalArchetype: BUGFIX_GOAL_ARCHETYPE,
+        source: "bugfix-policy-admission",
+        draft: clearBugfixDraft(),
+        admit: admitBugfixCapabilityEnvelope,
+        expectedMaxRepairLoops: 5
+      }
+    ] as const;
 
-    assert.equal(FEATURE_ADD_GOAL_ARCHETYPE, "feature-add");
-    assert.equal(result.ok, false);
-    assert.equal(result.goalArchetype, FEATURE_ADD_GOAL_ARCHETYPE);
-    assert.equal(result.decision.source, "feature-add-policy-admission");
-    assert.equal(result.decision.goalArchetype, FEATURE_ADD_GOAL_ARCHETYPE);
-    assert.equal(result.decision.requestedGoalArchetype, FEATURE_ADD_GOAL_ARCHETYPE);
-    assert.equal(result.decision.decision, "unsupported");
-    assert.equal(result.decision.supportStatus, "unsupported");
-    assert.equal(result.decision.capabilityCapStatus, "stub");
-    assert.equal(result.decision.stubCap, GOAL_ARCHETYPE_POLICY_TABLE["feature-add"]);
-    assert.equal(result.decision.stubCap.status, "stub");
-    assert.deepEqual(result.admission.blockingFindings.map((finding) => finding.code), [
-      "unsupported-goal-archetype"
-    ]);
-    assert.deepEqual(
-      result.findings.map(({ code, fieldPath, severity, overridable, overridden }) => ({
-        code,
-        fieldPath,
-        severity,
-        overridable,
-        overridden
-      })),
-      [
-        {
-          code: "unsupported-goal-archetype",
-          fieldPath: "goalArchetype",
-          severity: "block",
-          overridable: false,
-          overridden: false
-        }
-      ]
-    );
-    assert.match(
-      result.errors[0] ?? "",
-      /Feature-add admission path is unsupported in v0\.0\.1/
-    );
+    for (const testCase of cases) {
+      const result = testCase.admit({ draft: testCase.draft });
+
+      if (!result.ok) {
+        assert.fail(`${testCase.goalArchetype} should grant: ${result.errors.join("; ")}`);
+      }
+      assert.equal(result.goalArchetype, testCase.goalArchetype);
+      assert.equal(result.grant.source, testCase.source);
+      assert.equal(result.grant.goalArchetype, testCase.goalArchetype);
+      assert.equal(result.grant.policy, GOAL_ARCHETYPE_POLICY_TABLE[testCase.goalArchetype]);
+      assert.equal(result.grant.policy.status, "wired");
+      assert.equal(result.grant.policy.budgetCaps.maxRepairLoops, testCase.expectedMaxRepairLoops);
+      assert.equal(result.grant.capabilityEnvelope.budget.maxRepairLoops, 1);
+      assert.deepEqual(result.admission.blockingFindings, []);
+      assert.deepEqual(result.findings, []);
+      assert.deepEqual(result.errors, []);
+    }
   });
 
-  it("blocks feature-add draft promotion through the explicit unsupported admission path", () => {
-    const draft = clearFeatureAddDraft();
-    const result = promoteIntentDraft({
-      draft,
-      mode: "brownfield",
-      confirmedAt: "2026-04-25T00:00:00.000Z"
-    });
+  it("promotes feature-add, refactor, and bugfix drafts without unsupported-goal-archetype findings", () => {
+    const cases = [
+      clearFeatureAddDraft(),
+      clearRefactorDraft(),
+      clearBugfixDraft()
+    ] as const;
 
-    assertPromotionFailed(result, "checklist-only");
-    assert.equal("intent" in result, false);
-    assert.deepEqual(result.failureDetails.ambiguityErrors, []);
-    assert.deepEqual(result.policyFindings.map(({ code, fieldPath, severity }) => ({ code, fieldPath, severity })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        severity: "block"
-      }
-    ]);
-    assert.deepEqual(result.missingFieldDetections.map(({ code, fieldPath, source }) => ({ code, fieldPath, source })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        source: "policy-finding"
-      }
-    ]);
-    assert.match(result.errors[0] ?? "", /Feature-add admission path is unsupported in v0\.0\.1/);
-  });
+    for (const draft of cases) {
+      const result = promoteIntentDraft({
+        draft,
+        mode: "brownfield",
+        confirmedAt: "2026-04-25T00:00:00.000Z"
+      });
 
-  it("returns an explicit unsupported refactor admission decision with stub caps", () => {
-    const draft = clearRefactorDraft();
-    const result = admitRefactorCapabilityEnvelope({
-      draft
-    });
-
-    assert.equal(REFACTOR_GOAL_ARCHETYPE, "refactor");
-    assert.equal(result.ok, false);
-    assert.equal(result.goalArchetype, REFACTOR_GOAL_ARCHETYPE);
-    assert.equal(result.decision.source, "refactor-policy-admission");
-    assert.equal(result.decision.goalArchetype, REFACTOR_GOAL_ARCHETYPE);
-    assert.equal(result.decision.requestedGoalArchetype, REFACTOR_GOAL_ARCHETYPE);
-    assert.equal(result.decision.decision, "unsupported");
-    assert.equal(result.decision.supportStatus, "unsupported");
-    assert.equal(result.decision.capabilityCapStatus, "stub");
-    assert.equal(result.decision.stubCap, GOAL_ARCHETYPE_POLICY_TABLE.refactor);
-    assert.equal(result.decision.stubCap.status, "stub");
-    assert.deepEqual(result.admission.blockingFindings.map((finding) => finding.code), [
-      "unsupported-goal-archetype"
-    ]);
-    assert.deepEqual(
-      result.findings.map(({ code, fieldPath, severity, overridable, overridden }) => ({
-        code,
-        fieldPath,
-        severity,
-        overridable,
-        overridden
-      })),
-      [
-        {
-          code: "unsupported-goal-archetype",
-          fieldPath: "goalArchetype",
-          severity: "block",
-          overridable: false,
-          overridden: false
-        }
-      ]
-    );
-    assert.match(
-      result.errors[0] ?? "",
-      /Refactor admission path is unsupported in v0\.0\.1/
-    );
-  });
-
-  it("blocks refactor draft promotion through the explicit unsupported admission path", () => {
-    const draft = clearRefactorDraft();
-    const result = promoteIntentDraft({
-      draft,
-      mode: "brownfield",
-      confirmedAt: "2026-04-25T00:00:00.000Z"
-    });
-
-    assertPromotionFailed(result, "checklist-only");
-    assert.equal("intent" in result, false);
-    assert.deepEqual(result.failureDetails.ambiguityErrors, []);
-    assert.deepEqual(result.policyFindings.map(({ code, fieldPath, severity }) => ({ code, fieldPath, severity })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        severity: "block"
-      }
-    ]);
-    assert.deepEqual(result.missingFieldDetections.map(({ code, fieldPath, source }) => ({ code, fieldPath, source })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        source: "policy-finding"
-      }
-    ]);
-    assert.match(result.errors[0] ?? "", /Refactor admission path is unsupported in v0\.0\.1/);
-  });
-
-  it("returns an explicit unsupported bugfix admission decision with stub caps", () => {
-    const draft = clearBugfixDraft();
-    const result = admitBugfixCapabilityEnvelope({
-      draft
-    });
-
-    assert.equal(BUGFIX_GOAL_ARCHETYPE, "bugfix");
-    assert.equal(result.ok, false);
-    assert.equal(result.goalArchetype, BUGFIX_GOAL_ARCHETYPE);
-    assert.equal(result.decision.source, "bugfix-policy-admission");
-    assert.equal(result.decision.goalArchetype, BUGFIX_GOAL_ARCHETYPE);
-    assert.equal(result.decision.requestedGoalArchetype, BUGFIX_GOAL_ARCHETYPE);
-    assert.equal(result.decision.decision, "unsupported");
-    assert.equal(result.decision.supportStatus, "unsupported");
-    assert.equal(result.decision.capabilityCapStatus, "stub");
-    assert.equal(result.decision.stubCap, GOAL_ARCHETYPE_POLICY_TABLE.bugfix);
-    assert.equal(result.decision.stubCap.status, "stub");
-    assert.deepEqual(result.admission.blockingFindings.map((finding) => finding.code), [
-      "unsupported-goal-archetype"
-    ]);
-    assert.deepEqual(
-      result.findings.map(({ code, fieldPath, severity, overridable, overridden }) => ({
-        code,
-        fieldPath,
-        severity,
-        overridable,
-        overridden
-      })),
-      [
-        {
-          code: "unsupported-goal-archetype",
-          fieldPath: "goalArchetype",
-          severity: "block",
-          overridable: false,
-          overridden: false
-        }
-      ]
-    );
-    assert.match(
-      result.errors[0] ?? "",
-      /Bugfix admission path is unsupported in v0\.0\.1/
-    );
-  });
-
-  it("blocks bugfix draft promotion through the explicit unsupported admission path", () => {
-    const draft = clearBugfixDraft();
-    const result = promoteIntentDraft({
-      draft,
-      mode: "brownfield",
-      confirmedAt: "2026-04-25T00:00:00.000Z"
-    });
-
-    assertPromotionFailed(result, "checklist-only");
-    assert.equal("intent" in result, false);
-    assert.deepEqual(result.failureDetails.ambiguityErrors, []);
-    assert.deepEqual(result.policyFindings.map(({ code, fieldPath, severity }) => ({ code, fieldPath, severity })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        severity: "block"
-      }
-    ]);
-    assert.deepEqual(result.missingFieldDetections.map(({ code, fieldPath, source }) => ({ code, fieldPath, source })), [
-      {
-        code: "unsupported-goal-archetype",
-        fieldPath: "goalArchetype",
-        source: "policy-finding"
-      }
-    ]);
-    assert.match(result.errors[0] ?? "", /Bugfix admission path is unsupported in v0\.0\.1/);
+      assertPromotionSucceeded(result);
+      assert.equal(result.intent.goalArchetype, draft.goalArchetype);
+      assert.deepEqual(result.policyFindings, []);
+      assert.deepEqual(result.missingFieldDetections, []);
+      assert.deepEqual(result.errors, []);
+    }
   });
 
   it("auto-tags draft archetypes deterministically without live model calls", () => {
@@ -4574,7 +4424,7 @@ function clearFeatureAddDraft(): IntentDraft {
     mode: "brownfield",
     goalArchetype: "feature-add",
     context:
-      "Protostar already has a factory CLI and intent admission packages; this draft exercises the v0.0.1 feature-add policy row.",
+      "Protostar already has a factory CLI and intent admission packages; this draft exercises the Phase 11 wired feature-add policy row.",
     acceptanceCriteria: [
       {
         statement: "The CLI accepts a draft input path and routes it through admission before creating a confirmed intent.",
@@ -4587,7 +4437,7 @@ function clearFeatureAddDraft(): IntentDraft {
     ],
     constraints: ["Keep changes inside the intent front door and policy admission surface."],
     stopConditions: [
-      "Stop if feature-add admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if feature-add admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [
@@ -4623,20 +4473,20 @@ function clearRefactorDraft(): IntentDraft {
     mode: "brownfield",
     goalArchetype: "refactor",
     context:
-      "Protostar already has feature-add and cosmetic-tweak admission paths; this draft exercises the v0.0.1 refactor policy row.",
+      "Protostar already has feature-add and cosmetic-tweak admission paths; this draft exercises the Phase 11 wired refactor policy row.",
     acceptanceCriteria: [
       {
-        statement: "The refactor admission response reports the selected refactor policy row and its stub capability cap.",
+        statement: "The refactor admission response reports the selected refactor policy row and its wired capability cap.",
         verification: "evidence"
       },
       {
-        statement: "Refactor drafts remain unconfirmed while the refactor policy row is unsupported.",
+        statement: "Refactor drafts can be confirmed when the refactor policy row is wired.",
         verification: "test"
       }
     ],
     constraints: ["Keep the work inside the intent-facing policy admission surface."],
     stopConditions: [
-      "Stop if refactor admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if refactor admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [
@@ -4667,25 +4517,25 @@ function clearBugfixDraft(): IntentDraft {
     draftId: "draft_bugfix_policy_admission",
     title: "Fix bugfix policy admission path",
     problem:
-      "The bugfix policy row exists in the policy table, but operators need deterministic admission to report that bugfix is still unsupported with a stub capability cap.",
+      "The bugfix policy row exists in the policy table, and operators need deterministic admission to grant bugfix with a wired capability cap.",
     requester: "ouroboros-ac-80204",
     mode: "brownfield",
     goalArchetype: "bugfix",
     context:
-      "Protostar already has unsupported feature-add and refactor admission paths; this draft exercises the v0.0.1 bugfix policy row.",
+      "Protostar already has feature-add and refactor admission paths; this draft exercises the Phase 11 wired bugfix policy row.",
     acceptanceCriteria: [
       {
-        statement: "The bugfix admission response reports the selected bugfix policy row and its stub capability cap.",
+        statement: "The bugfix admission response reports the selected bugfix policy row and its wired capability cap.",
         verification: "evidence"
       },
       {
-        statement: "Bugfix drafts remain unconfirmed while the bugfix policy row is unsupported.",
+        statement: "Bugfix drafts can be confirmed when the bugfix policy row is wired.",
         verification: "test"
       }
     ],
     constraints: ["Keep the work inside the intent-facing policy admission surface."],
     stopConditions: [
-      "Stop if bugfix admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if bugfix admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [

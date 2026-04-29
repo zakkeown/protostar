@@ -255,6 +255,27 @@ export interface CosmeticTweakCapabilityEnvelopeGrant {
   readonly capabilityEnvelope: CapabilityEnvelope;
 }
 
+export interface FeatureAddCapabilityEnvelopeGrant {
+  readonly source: "feature-add-policy-admission";
+  readonly goalArchetype: typeof FEATURE_ADD_GOAL_ARCHETYPE;
+  readonly policy: GoalArchetypePolicyEntry;
+  readonly capabilityEnvelope: CapabilityEnvelope;
+}
+
+export interface RefactorCapabilityEnvelopeGrant {
+  readonly source: "refactor-policy-admission";
+  readonly goalArchetype: typeof REFACTOR_GOAL_ARCHETYPE;
+  readonly policy: GoalArchetypePolicyEntry;
+  readonly capabilityEnvelope: CapabilityEnvelope;
+}
+
+export interface BugfixCapabilityEnvelopeGrant {
+  readonly source: "bugfix-policy-admission";
+  readonly goalArchetype: typeof BUGFIX_GOAL_ARCHETYPE;
+  readonly policy: GoalArchetypePolicyEntry;
+  readonly capabilityEnvelope: CapabilityEnvelope;
+}
+
 export interface AdmitCosmeticTweakCapabilityEnvelopeInput {
   readonly draft: IntentDraft;
   readonly policyTable?: GoalArchetypePolicyTable;
@@ -293,14 +314,23 @@ export interface AdmitFeatureAddCapabilityEnvelopeInput {
   readonly policyTable?: GoalArchetypePolicyTable;
 }
 
-export type AdmitFeatureAddCapabilityEnvelopeResult = {
-  readonly ok: false;
-  readonly goalArchetype: string;
-  readonly decision: FeatureAddCapabilityEnvelopeUnsupportedDecision;
-  readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
-  readonly findings: readonly IntentAdmissionPolicyFinding[];
-  readonly errors: readonly string[];
-};
+export type AdmitFeatureAddCapabilityEnvelopeResult =
+  | {
+      readonly ok: true;
+      readonly goalArchetype: typeof FEATURE_ADD_GOAL_ARCHETYPE;
+      readonly grant: FeatureAddCapabilityEnvelopeGrant;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly goalArchetype: string;
+      readonly decision?: FeatureAddCapabilityEnvelopeUnsupportedDecision;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    };
 
 export interface RefactorCapabilityEnvelopeUnsupportedDecision {
   readonly source: "refactor-policy-admission";
@@ -318,14 +348,23 @@ export interface AdmitRefactorCapabilityEnvelopeInput {
   readonly policyTable?: GoalArchetypePolicyTable;
 }
 
-export type AdmitRefactorCapabilityEnvelopeResult = {
-  readonly ok: false;
-  readonly goalArchetype: string;
-  readonly decision: RefactorCapabilityEnvelopeUnsupportedDecision;
-  readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
-  readonly findings: readonly IntentAdmissionPolicyFinding[];
-  readonly errors: readonly string[];
-};
+export type AdmitRefactorCapabilityEnvelopeResult =
+  | {
+      readonly ok: true;
+      readonly goalArchetype: typeof REFACTOR_GOAL_ARCHETYPE;
+      readonly grant: RefactorCapabilityEnvelopeGrant;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly goalArchetype: string;
+      readonly decision?: RefactorCapabilityEnvelopeUnsupportedDecision;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    };
 
 export interface BugfixCapabilityEnvelopeUnsupportedDecision {
   readonly source: "bugfix-policy-admission";
@@ -343,14 +382,23 @@ export interface AdmitBugfixCapabilityEnvelopeInput {
   readonly policyTable?: GoalArchetypePolicyTable;
 }
 
-export type AdmitBugfixCapabilityEnvelopeResult = {
-  readonly ok: false;
-  readonly goalArchetype: string;
-  readonly decision: BugfixCapabilityEnvelopeUnsupportedDecision;
-  readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
-  readonly findings: readonly IntentAdmissionPolicyFinding[];
-  readonly errors: readonly string[];
-};
+export type AdmitBugfixCapabilityEnvelopeResult =
+  | {
+      readonly ok: true;
+      readonly goalArchetype: typeof BUGFIX_GOAL_ARCHETYPE;
+      readonly grant: BugfixCapabilityEnvelopeGrant;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly goalArchetype: string;
+      readonly decision?: BugfixCapabilityEnvelopeUnsupportedDecision;
+      readonly admission: ValidateIntentDraftCapabilityEnvelopeAdmissionResult;
+      readonly findings: readonly IntentAdmissionPolicyFinding[];
+      readonly errors: readonly string[];
+    };
 
 export const REPO_SCOPE_ADMISSION_REASON_CODES = [
   "repo_scope_allowed",

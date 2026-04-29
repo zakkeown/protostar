@@ -583,25 +583,34 @@ function grantCapabilityEnvelopeForPromotion(input: {
       const admission = admitFeatureAddCapabilityEnvelope({
         draft: input.draft
       });
-      throw new Error(
-        `Draft promotion reached confirmation despite unsupported feature-add admission: ${admission.errors.join("; ")}`
-      );
+      if (!admission.ok) {
+        throw new Error(
+          `Draft promotion reached confirmation without a granted feature-add capability envelope: ${admission.errors.join("; ")}`
+        );
+      }
+      return admission.grant.capabilityEnvelope;
     }
     if (goalArchetype === REFACTOR_GOAL_ARCHETYPE) {
       const admission = admitRefactorCapabilityEnvelope({
         draft: input.draft
       });
-      throw new Error(
-        `Draft promotion reached confirmation despite unsupported refactor admission: ${admission.errors.join("; ")}`
-      );
+      if (!admission.ok) {
+        throw new Error(
+          `Draft promotion reached confirmation without a granted refactor capability envelope: ${admission.errors.join("; ")}`
+        );
+      }
+      return admission.grant.capabilityEnvelope;
     }
     if (goalArchetype === BUGFIX_GOAL_ARCHETYPE) {
       const admission = admitBugfixCapabilityEnvelope({
         draft: input.draft
       });
-      throw new Error(
-        `Draft promotion reached confirmation despite unsupported bugfix admission: ${admission.errors.join("; ")}`
-      );
+      if (!admission.ok) {
+        throw new Error(
+          `Draft promotion reached confirmation without a granted bugfix capability envelope: ${admission.errors.join("; ")}`
+        );
+      }
+      return admission.grant.capabilityEnvelope;
     }
 
     return input.envelope;

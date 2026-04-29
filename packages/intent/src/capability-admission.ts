@@ -112,20 +112,46 @@ export function admitFeatureAddCapabilityEnvelope(
   const wrongPathFindings = requestedGoalArchetype === FEATURE_ADD_GOAL_ARCHETYPE
     ? []
     : featureAddWrongPathFindings(requestedGoalArchetype);
+  const normalization = normalizeDraftCapabilityEnvelope(input.draft.capabilityEnvelope);
   const findings = [...wrongPathFindings, ...admission.findings];
-  const decision = createFeatureAddUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const decision = policyTable[FEATURE_ADD_GOAL_ARCHETYPE].status === "wired"
+    ? undefined
+    : createFeatureAddUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const errors = uniqueOrdered([
+    ...(decision === undefined ? [] : [decision.message]),
+    ...wrongPathFindings.map((finding) => finding.message),
+    ...admission.unresolvedFindings.map((finding) => finding.message),
+    ...normalization.errors
+  ]);
+
+  if (
+    requestedGoalArchetype !== FEATURE_ADD_GOAL_ARCHETYPE ||
+    policyTable[FEATURE_ADD_GOAL_ARCHETYPE].status !== "wired" ||
+    admission.unresolvedFindings.length > 0 ||
+    normalization.envelope === undefined
+  ) {
+    return {
+      ok: false,
+      goalArchetype: requestedGoalArchetype,
+      ...(decision === undefined ? {} : { decision }),
+      admission,
+      findings,
+      errors
+    };
+  }
 
   return {
-    ok: false,
-    goalArchetype: requestedGoalArchetype,
-    decision,
+    ok: true,
+    goalArchetype: FEATURE_ADD_GOAL_ARCHETYPE,
+    grant: {
+      source: "feature-add-policy-admission",
+      goalArchetype: FEATURE_ADD_GOAL_ARCHETYPE,
+      policy: policyTable[FEATURE_ADD_GOAL_ARCHETYPE],
+      capabilityEnvelope: normalization.envelope
+    },
     admission,
     findings,
-    errors: uniqueOrdered([
-      decision.message,
-      ...wrongPathFindings.map((finding) => finding.message),
-      ...admission.unresolvedFindings.map((finding) => finding.message)
-    ])
+    errors: []
   };
 }
 
@@ -141,20 +167,46 @@ export function admitRefactorCapabilityEnvelope(
   const wrongPathFindings = requestedGoalArchetype === REFACTOR_GOAL_ARCHETYPE
     ? []
     : refactorWrongPathFindings(requestedGoalArchetype);
+  const normalization = normalizeDraftCapabilityEnvelope(input.draft.capabilityEnvelope);
   const findings = [...wrongPathFindings, ...admission.findings];
-  const decision = createRefactorUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const decision = policyTable[REFACTOR_GOAL_ARCHETYPE].status === "wired"
+    ? undefined
+    : createRefactorUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const errors = uniqueOrdered([
+    ...(decision === undefined ? [] : [decision.message]),
+    ...wrongPathFindings.map((finding) => finding.message),
+    ...admission.unresolvedFindings.map((finding) => finding.message),
+    ...normalization.errors
+  ]);
+
+  if (
+    requestedGoalArchetype !== REFACTOR_GOAL_ARCHETYPE ||
+    policyTable[REFACTOR_GOAL_ARCHETYPE].status !== "wired" ||
+    admission.unresolvedFindings.length > 0 ||
+    normalization.envelope === undefined
+  ) {
+    return {
+      ok: false,
+      goalArchetype: requestedGoalArchetype,
+      ...(decision === undefined ? {} : { decision }),
+      admission,
+      findings,
+      errors
+    };
+  }
 
   return {
-    ok: false,
-    goalArchetype: requestedGoalArchetype,
-    decision,
+    ok: true,
+    goalArchetype: REFACTOR_GOAL_ARCHETYPE,
+    grant: {
+      source: "refactor-policy-admission",
+      goalArchetype: REFACTOR_GOAL_ARCHETYPE,
+      policy: policyTable[REFACTOR_GOAL_ARCHETYPE],
+      capabilityEnvelope: normalization.envelope
+    },
     admission,
     findings,
-    errors: uniqueOrdered([
-      decision.message,
-      ...wrongPathFindings.map((finding) => finding.message),
-      ...admission.unresolvedFindings.map((finding) => finding.message)
-    ])
+    errors: []
   };
 }
 
@@ -170,20 +222,46 @@ export function admitBugfixCapabilityEnvelope(
   const wrongPathFindings = requestedGoalArchetype === BUGFIX_GOAL_ARCHETYPE
     ? []
     : bugfixWrongPathFindings(requestedGoalArchetype);
+  const normalization = normalizeDraftCapabilityEnvelope(input.draft.capabilityEnvelope);
   const findings = [...wrongPathFindings, ...admission.findings];
-  const decision = createBugfixUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const decision = policyTable[BUGFIX_GOAL_ARCHETYPE].status === "wired"
+    ? undefined
+    : createBugfixUnsupportedDecision(requestedGoalArchetype, policyTable);
+  const errors = uniqueOrdered([
+    ...(decision === undefined ? [] : [decision.message]),
+    ...wrongPathFindings.map((finding) => finding.message),
+    ...admission.unresolvedFindings.map((finding) => finding.message),
+    ...normalization.errors
+  ]);
+
+  if (
+    requestedGoalArchetype !== BUGFIX_GOAL_ARCHETYPE ||
+    policyTable[BUGFIX_GOAL_ARCHETYPE].status !== "wired" ||
+    admission.unresolvedFindings.length > 0 ||
+    normalization.envelope === undefined
+  ) {
+    return {
+      ok: false,
+      goalArchetype: requestedGoalArchetype,
+      ...(decision === undefined ? {} : { decision }),
+      admission,
+      findings,
+      errors
+    };
+  }
 
   return {
-    ok: false,
-    goalArchetype: requestedGoalArchetype,
-    decision,
+    ok: true,
+    goalArchetype: BUGFIX_GOAL_ARCHETYPE,
+    grant: {
+      source: "bugfix-policy-admission",
+      goalArchetype: BUGFIX_GOAL_ARCHETYPE,
+      policy: policyTable[BUGFIX_GOAL_ARCHETYPE],
+      capabilityEnvelope: normalization.envelope
+    },
     admission,
     findings,
-    errors: uniqueOrdered([
-      decision.message,
-      ...wrongPathFindings.map((finding) => finding.message),
-      ...admission.unresolvedFindings.map((finding) => finding.message)
-    ])
+    errors: []
   };
 }
 
