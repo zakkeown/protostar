@@ -386,7 +386,7 @@ Plans:
 - [x] 11-03-seed-library-ttt-PLAN.md — W2; deps: 11-01, 11-02 — per-archetype seed library and `feature-add/ttt-game` seed
 - [x] 11-06-llm-backend-selection-PLAN.md — W2; deps: 11-05 — `factory.llmBackend`, `--llm-backend`, and LM Studio default-preserving selector
 - [x] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02, 11-04 — feature-add `pnpm.allowedAdds`, bounded multi-file admission, immutable-file refusal, and repo-owned exact `pnpm add` allowlist
-- [ ] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible adapter package and hosted package wiring
+- [x] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible adapter package and hosted package wiring
 - [ ] 11-09-stress-session-core-PLAN.md — W3; deps: 11-06, 11-08 — shared stress session paths, seed/draft/sign input preparation, append writer, stress cap resolver/breach evidence, and prune extension
 - [ ] 11-15-mock-adapter-selector-wiring-PLAN.md — W4; deps: 11-06, 11-07 — deterministic mock adapter package plus hosted/mock selector wiring
 - [ ] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only

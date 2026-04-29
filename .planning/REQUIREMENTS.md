@@ -158,7 +158,7 @@ Create the headless/stress traceability foundation before source-code implementa
 - [x] **STRESS-05**: Headless mode config and CLI selection
 - [x] **STRESS-06**: LLM backend selector while preserving LM Studio default
 - [ ] **STRESS-07**: Deterministic mock backend
-- [ ] **STRESS-08**: Hosted OpenAI-compatible backend
+- [x] **STRESS-08**: Hosted OpenAI-compatible backend
 - [x] **STRESS-09**: Bounded `pnpm add` allowlist
 - [x] **STRESS-10**: Stress report schema plus append-only event artifacts
 - [x] **STRESS-11**: Shared stress session core
@@ -321,7 +321,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | STRESS-05 | Phase 11 | Complete |
 | STRESS-06 | Phase 11 | Complete |
 | STRESS-07 | Phase 11 | Pending |
-| STRESS-08 | Phase 11 | Pending |
+| STRESS-08 | Phase 11 | Complete |
 | STRESS-09 | Phase 11 | Complete |
 | STRESS-10 | Phase 11 | Complete |
 | STRESS-11 | Phase 11 | Complete |
