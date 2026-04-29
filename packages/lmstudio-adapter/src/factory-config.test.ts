@@ -26,6 +26,13 @@ describe("resolveFactoryConfig", () => {
           model: "qwen3-80b-a3b-mlx-4bit",
           apiKeyEnv: "LMSTUDIO_API_KEY"
         }
+      },
+      factory: {
+        headlessMode: "local-daemon",
+        nonInteractive: false,
+        stress: {
+          caps: defaultStressCaps()
+        }
       }
     });
     assert.equal(resolved.resolvedFromFile, false);
@@ -330,6 +337,178 @@ describe("resolveFactoryConfig", () => {
     assert.match(result.errors.join("\n"), /additionalProperties/);
   });
 
+  it("accepts exactly the three Phase 11 headless modes from file config", () => {
+    for (const mode of ["github-hosted", "self-hosted-runner", "local-daemon"] as const) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: { headlessMode: mode }
+        }),
+        env: {}
+      });
+
+      const resolved = unwrapResolved(result);
+
+      assert.equal(resolved.config.factory.headlessMode, mode);
+      assert.equal(resolved.config.factory.nonInteractive, false);
+    }
+  });
+
+  it("rejects ambiguous headless mode aliases dashboard and ci", () => {
+    for (const mode of ["dashboard", "ci"] as const) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: { headlessMode: mode }
+        }),
+        env: {}
+      });
+
+      assert.equal(result.ok, false, `${mode} should be rejected`);
+      assert.match(result.errors.join("\n"), /headlessMode/);
+      assert.match(result.errors.join("\n"), /github-hosted\|self-hosted-runner\|local-daemon/);
+    }
+  });
+
+  it("applies exact Q-03 factory.stress.caps defaults", () => {
+    const result = resolveFactoryConfig({ env: {} });
+
+    const resolved = unwrapResolved(result);
+
+    assert.deepEqual(resolved.config.factory.stress.caps, {
+      tttDelivery: {
+        maxAttempts: 50,
+        maxWallClockDays: 14
+      },
+      sustainedLoad: {
+        maxRuns: 500,
+        maxWallClockDays: 7
+      },
+      concurrency: {
+        maxSessions: 20,
+        maxWallClockDays: 3
+      },
+      faultInjection: {
+        maxFaults: 100,
+        maxWallClockDays: 3
+      }
+    });
+  });
+
+  it("merges factory.stress.caps overrides over Q-03 defaults", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        factory: {
+          stress: {
+            caps: {
+              tttDelivery: { maxAttempts: 12 },
+              sustainedLoad: { maxWallClockDays: 2 },
+              concurrency: { maxSessions: 4 },
+              faultInjection: { maxFaults: 9 }
+            }
+          }
+        }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.deepEqual(resolved.config.factory.stress.caps, {
+      tttDelivery: {
+        maxAttempts: 12,
+        maxWallClockDays: 14
+      },
+      sustainedLoad: {
+        maxRuns: 500,
+        maxWallClockDays: 2
+      },
+      concurrency: {
+        maxSessions: 4,
+        maxWallClockDays: 3
+      },
+      faultInjection: {
+        maxFaults: 9,
+        maxWallClockDays: 3
+      }
+    });
+  });
+
+  it("rejects zero, negative, and non-integer stress cap values", () => {
+    for (const [path, value] of [
+      ["tttDelivery.maxAttempts", 0],
+      ["tttDelivery.maxWallClockDays", -1],
+      ["sustainedLoad.maxRuns", 12.5],
+      ["sustainedLoad.maxWallClockDays", 0],
+      ["concurrency.maxSessions", -2],
+      ["concurrency.maxWallClockDays", 2.5],
+      ["faultInjection.maxFaults", 0],
+      ["faultInjection.maxWallClockDays", -3]
+    ] as const) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: {
+            stress: {
+              caps: setStressCap(path, value)
+            }
+          }
+        }),
+        env: {}
+      });
+
+      assert.equal(result.ok, false, `${path}=${value} should be rejected`);
+      assert.match(result.errors.join("\n"), new RegExp(path.replace(".", "\\.")));
+      assert.match(result.errors.join("\n"), /positive integer/);
+    }
+  });
+
+  it("rejects unknown stress cap fields with additionalProperties errors at every caps object", () => {
+    for (const caps of [
+      { surprise: true },
+      { tttDelivery: { maxAttempts: 50, unknown: true } },
+      { sustainedLoad: { maxRuns: 500, unknown: true } },
+      { concurrency: { maxSessions: 20, unknown: true } },
+      { faultInjection: { maxFaults: 100, unknown: true } }
+    ]) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: {
+            stress: {
+              caps
+            }
+          }
+        }),
+        env: {}
+      });
+
+      assert.equal(result.ok, false, JSON.stringify(caps));
+      assert.match(result.errors.join("\n"), /additionalProperties/);
+    }
+  });
+
+  it("ships a schema with strict factory headless mode and stress caps objects", () => {
+    const schema = JSON.parse(
+      readFileSync(new URL("../../src/factory-config.schema.json", import.meta.url), "utf8")
+    ) as FactoryConfigSchema;
+
+    const factory = schema.properties.factory;
+    const caps = factory.properties.stress.properties.caps;
+
+    assert.equal(factory.additionalProperties, false);
+    assert.deepEqual(factory.properties.headlessMode.enum, ["github-hosted", "self-hosted-runner", "local-daemon"]);
+    assert.equal(factory.properties.headlessMode.default, "local-daemon");
+    assert.equal(factory.properties.nonInteractive.default, false);
+    assert.equal(factory.properties.stress.additionalProperties, false);
+    assert.equal(caps.additionalProperties, false);
+    const tttDelivery = caps.properties.tttDelivery;
+    assert.ok(tttDelivery);
+    assert.deepEqual(tttDelivery.properties.maxAttempts?.default, 50);
+    assert.deepEqual(tttDelivery.properties.maxWallClockDays?.default, 14);
+    for (const key of ["tttDelivery", "sustainedLoad", "concurrency", "faultInjection"] as const) {
+      const capSchema = caps.properties[key];
+      assert.ok(capSchema, key);
+      assert.equal(capSchema.additionalProperties, false, key);
+    }
+  });
+
   it("ships a schema matching the resolved config structure", () => {
     const schema = JSON.parse(
       readFileSync(new URL("../../src/factory-config.schema.json", import.meta.url), "utf8")
@@ -380,6 +559,30 @@ interface FactoryConfigSchema {
         };
       };
     };
+    readonly factory: {
+      readonly additionalProperties: boolean;
+      readonly properties: {
+        readonly headlessMode: {
+          readonly enum: readonly string[];
+          readonly default: string;
+        };
+        readonly nonInteractive: {
+          readonly default: boolean;
+        };
+        readonly stress: {
+          readonly additionalProperties: boolean;
+          readonly properties: {
+            readonly caps: {
+              readonly additionalProperties: boolean;
+              readonly properties: Record<string, {
+                readonly additionalProperties: boolean;
+                readonly properties: Record<string, { readonly default: number }>;
+              }>;
+            };
+          };
+        };
+      };
+    };
   };
   readonly definitions: {
     readonly lmstudioAdapterConfig: {
@@ -387,6 +590,38 @@ interface FactoryConfigSchema {
       readonly required: readonly string[];
       readonly properties: Record<string, unknown>;
     };
+  };
+}
+
+function defaultStressCaps() {
+  return {
+    tttDelivery: {
+      maxAttempts: 50,
+      maxWallClockDays: 14
+    },
+    sustainedLoad: {
+      maxRuns: 500,
+      maxWallClockDays: 7
+    },
+    concurrency: {
+      maxSessions: 20,
+      maxWallClockDays: 3
+    },
+    faultInjection: {
+      maxFaults: 100,
+      maxWallClockDays: 3
+    }
+  };
+}
+
+function setStressCap(path: string, value: number): Record<string, Record<string, number>> {
+  const [shape, field] = path.split(".");
+  assert.ok(shape !== undefined);
+  assert.ok(field !== undefined);
+  return {
+    [shape]: {
+      [field]: value
+    }
   };
 }
 

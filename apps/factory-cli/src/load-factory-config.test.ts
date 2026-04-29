@@ -13,6 +13,8 @@ import {
   resolveConsensusJudgeModel,
   resolveConvergenceThreshold,
   resolveDeliveryMode,
+  resolveHeadlessMode,
+  resolveNonInteractive,
   resolveGeneration,
   resolveLineageId,
   resolveSemanticJudgeModel
@@ -34,6 +36,8 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolved.resolvedFromFile, false);
     assert.equal(resolved.config.adapters.coder.baseUrl, "http://localhost:1234/v1");
     assert.equal(resolved.config.adapters.coder.model, "qwen3-coder-next-mlx-4bit");
+    assert.equal(resolved.config.factory.headlessMode, "local-daemon");
+    assert.equal(resolved.config.factory.nonInteractive, false);
   });
 
   it("resolves delivery mode with CLI over config over default precedence", () => {
@@ -41,6 +45,20 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolveDeliveryMode({ delivery: { mode: "gated" } }, "auto"), "auto");
     assert.equal(resolveDeliveryMode({ delivery: { mode: "gated" } }, undefined), "gated");
     assert.equal(resolveDeliveryMode({}, undefined), "auto");
+  });
+
+  it("resolves headless mode with CLI over config over local-daemon default precedence", () => {
+    assert.equal(resolveHeadlessMode({ factory: { headlessMode: "self-hosted-runner" } }, "github-hosted"), "github-hosted");
+    assert.equal(resolveHeadlessMode({ factory: { headlessMode: "github-hosted" } }, "local-daemon"), "local-daemon");
+    assert.equal(resolveHeadlessMode({ factory: { headlessMode: "self-hosted-runner" } }, undefined), "self-hosted-runner");
+    assert.equal(resolveHeadlessMode({}, undefined), "local-daemon");
+  });
+
+  it("resolves non-interactive with CLI over config over false default precedence", () => {
+    assert.equal(resolveNonInteractive({ factory: { nonInteractive: false } }, true), true);
+    assert.equal(resolveNonInteractive({ factory: { nonInteractive: true } }, false), false);
+    assert.equal(resolveNonInteractive({ factory: { nonInteractive: true } }, undefined), true);
+    assert.equal(resolveNonInteractive({}, undefined), false);
   });
 
   it("surfaces valid file values", async () => {
@@ -186,6 +204,34 @@ describe("loadFactoryConfig", () => {
     assert.equal(resolved.config.evolution?.lineage, "cosmetic-tweak");
     assert.equal(resolved.config.evolution?.codeEvolution, "opt-in");
     assert.equal(resolved.config.evolution?.convergenceThreshold, 0.91);
+  });
+
+  it("preserves factory headless mode and stress caps from factory-config.json", async () => {
+    process.env = {};
+    const root = await mkdtemp(join(tmpdir(), "factory-config-"));
+    await mkdir(join(root, ".protostar"));
+    await writeFile(join(root, ".protostar", "factory-config.json"), JSON.stringify({
+      factory: {
+        headlessMode: "self-hosted-runner",
+        nonInteractive: true,
+        stress: {
+          caps: {
+            tttDelivery: { maxAttempts: 11, maxWallClockDays: 4 },
+            sustainedLoad: { maxRuns: 55, maxWallClockDays: 5 },
+            concurrency: { maxSessions: 6, maxWallClockDays: 2 },
+            faultInjection: { maxFaults: 7, maxWallClockDays: 1 }
+          }
+        }
+      }
+    }));
+
+    const resolved = await loadFactoryConfig(root);
+
+    assert.equal(resolved.config.factory.headlessMode, "self-hosted-runner");
+    assert.equal(resolved.config.factory.nonInteractive, true);
+    assert.equal(resolved.config.factory.stress.caps.tttDelivery.maxAttempts, 11);
+    assert.equal(resolved.config.factory.stress.caps.tttDelivery.maxWallClockDays, 4);
+    assert.equal(resolved.config.factory.stress.caps.faultInjection.maxFaults, 7);
   });
 });
 

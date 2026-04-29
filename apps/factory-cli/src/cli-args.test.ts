@@ -146,4 +146,41 @@ describe("factory CLI argv parser", () => {
       "deepseek-custom"
     );
   });
+
+  it("parses --headless-mode github-hosted", () => {
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--headless-mode", "github-hosted"]).headlessMode,
+      "github-hosted"
+    );
+  });
+
+  it("parses --headless-mode=self-hosted-runner", () => {
+    assert.equal(
+      parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--headless-mode=self-hosted-runner"]).headlessMode,
+      "self-hosted-runner"
+    );
+  });
+
+  it("rejects unsupported --headless-mode values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--headless-mode", "ci"]),
+      (error: unknown) =>
+        error instanceof ArgvError &&
+        error.flag === "--headless-mode" &&
+        /github-hosted\|self-hosted-runner\|local-daemon/.test(error.reason)
+    );
+  });
+
+  it("parses --non-interactive as a boolean flag without a value", () => {
+    const parsed = parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--non-interactive"]);
+
+    assert.equal(parsed.nonInteractive, true);
+  });
+
+  it("rejects --non-interactive values", () => {
+    assert.throws(
+      () => parseCliArgs(["run", "--draft", "d.json", "--out", "o", "--non-interactive=true"]),
+      (error: unknown) => error instanceof ArgvError && error.flag === "--non-interactive"
+    );
+  });
 });
