@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 11 Wave 0 traceability complete)
+**Last updated:** 2026-04-29 (Phase 11 Plan 02 archetype admission lift complete)
 
 ## Project
 
@@ -24,13 +24,13 @@
 
 ## Current Phase
 
-**Phase 11 — Headless Mode + E2E Stress** (planned; ready to execute)
+**Phase 11 — Headless Mode + E2E Stress** (in progress; Wave 1 partially complete)
 
-Phase 11 planning is complete and Wave 0 traceability is committed. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
+Phase 11 planning is complete, Wave 0 traceability is committed, and Plan 11-02 has lifted `feature-add`, `bugfix`, and `refactor` into wired admission archetypes with exact repair-loop caps of 9, 5, and 5. `factory-scaffold` remains a blocked stub. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
 
 Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around executable stress inputs, observed fault mechanisms, feature-add envelope expansion, stress caps, and all-three headless modes. `gsd-sdk query` validation was unavailable in this checkout, so deterministic local checks and checker agents were used instead.
 
-**Next action:** Execute Wave 1 plans: `11-02-archetype-admission-lift-PLAN.md`, `11-04-immutable-toy-verification-PLAN.md`, `11-05-headless-mode-config-cli-PLAN.md`, and `11-08-stress-artifact-schema-and-events-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
+**Next action:** Continue Wave 1 with `11-04-immutable-toy-verification-PLAN.md`, `11-05-headless-mode-config-cli-PLAN.md`, and `11-08-stress-artifact-schema-and-events-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
 
 ## Phase Status
 
@@ -47,7 +47,7 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
-| 11 | Headless Mode + E2E Stress | Planned — Wave 0 traceability complete; 15 plans across 8 waves; plan-checker PASS (2026-04-29); ready for Wave 1 execution |
+| 11 | Headless Mode + E2E Stress | In progress — Plans 11-01 and 11-02 complete; feature-add/bugfix/refactor admission wired; continue Wave 1 (`11-04`, `11-05`, `11-08`) |
 
 ## Active Documents
 
@@ -58,6 +58,8 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 11 Plan 02 (`11-02-archetype-admission-lift-PLAN.md`). Wired `feature-add`, `bugfix`, and `refactor` admission paths with repair-loop caps 9, 5, and 5; added non-cosmetic grant functions and exports; updated example fixtures and admission-e2e coverage; kept `factory-scaffold` blocked with an explicit stub-row guard; and recorded the Phase 11 archetype lift lock in `.planning/PROJECT.md`. Verification passed: `pnpm --filter @protostar/intent test`, `pnpm --filter @protostar/factory-cli test`, `pnpm --filter @protostar/admission-e2e test`, `pnpm run verify`; `pnpm run factory` built and stopped at the expected workspace-trust gate. Commits: `9367655`, `37f9841`, `1e5c59f`, `76ba5f4`.
 
 - **2026-04-29:** Completed Phase 11 Plan 01 (`11-01-requirements-traceability-PLAN.md`). Added `STRESS-01` through `STRESS-14` requirement rows plus Phase 11 traceability rows, confirmed the accepted 15-plan/8-wave roadmap graph, converted `11-VALIDATION.md` per-task rows to exact `*-PLAN.md` filenames, marked Wave 0 validation green, and created `11-01-SUMMARY.md`. Verification passed: STRESS requirement greps, local all-id/all-plan assertion, `git diff --check`, and `pnpm run verify`. Commits: `4a18ab0`, `a946255`.
 
