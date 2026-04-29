@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { describe, it } from "node:test";
 
 import { buildAuthorizedWorkspaceOpForTest } from "@protostar/authority/internal/test-builders";
-import { applyChangeSet, type PatchRequest } from "@protostar/repo";
+import { applyChangeSet, mintPatchRequest } from "@protostar/repo";
 import { buildSacrificialRepo } from "@protostar/repo/internal/test-fixtures";
 
 import {
@@ -19,7 +19,7 @@ describe("repo-runtime hash-mismatch refusal contract", () => {
       dirtyFiles: [{ path: "seed-0.txt", content: "stable\n" }]
     });
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
-    const patch: PatchRequest = {
+    const minted = mintPatchRequest({
       path: "seed-0.txt",
       op: buildAuthorizedWorkspaceOpForTest({
         workspace: { root: repo.dir, trust: "trusted" },
@@ -29,9 +29,11 @@ describe("repo-runtime hash-mismatch refusal contract", () => {
       }),
       diff: unifiedOneLinePatch("seed-0.txt", "stable", "changed"),
       preImageSha256: sha256Hex(Buffer.from("not-the-current-file\n"))
-    };
+    });
+    assert.equal(minted.ok, true);
+    if (!minted.ok) return;
 
-    const patchResults = await applyChangeSet([patch]);
+    const patchResults = await applyChangeSet([minted.request]);
     const decision = buildRepoRuntimeAdmissionDecision({
       workspaceRoot: repo.dir,
       auth: { mode: "anonymous" },
