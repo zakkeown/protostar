@@ -837,6 +837,19 @@ export async function runFactory(
               ? { topP: factoryConfig.config.adapters.coder.topP }
               : {})
           },
+          hostedOpenAiCompatible: {
+            baseUrl: process.env.PROTOSTAR_HOSTED_LLM_BASE_URL ?? factoryConfig.config.adapters.coder.baseUrl,
+            model: process.env.PROTOSTAR_HOSTED_LLM_MODEL ?? factoryConfig.config.adapters.coder.model,
+            apiKeyEnv: "PROTOSTAR_HOSTED_LLM_API_KEY",
+            env: process.env,
+            ...(factoryConfig.config.adapters.coder.temperature !== undefined
+              ? { temperature: factoryConfig.config.adapters.coder.temperature }
+              : {}),
+            ...(factoryConfig.config.adapters.coder.topP !== undefined
+              ? { topP: factoryConfig.config.adapters.coder.topP }
+              : {})
+          },
+          env: process.env,
           createLmstudioCoderAdapter: dependencies.createLmstudioCoderAdapter
         });
         realExecutionAdapter = adapter;
