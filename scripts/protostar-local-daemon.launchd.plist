@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>local.protostar.factory</string>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/YOU/Code/protostar</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/protostar-factory</string>
+    <string>run</string>
+    <string>--headless-mode</string>
+    <string>local-daemon</string>
+    <string>--non-interactive</string>
+    <string>--draft</string>
+    <string>/Users/YOU/Code/protostar/.protostar/headless/intent-draft.json</string>
+    <string>--out</string>
+    <string>/Users/YOU/Code/protostar/.protostar/runs</string>
+    <string>--trust</string>
+    <string>untrusted</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>LMSTUDIO_BASE_URL</key>
+    <string>http://localhost:1234/v1</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/YOU/Code/protostar/.protostar/headless/local-daemon.stdout.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/YOU/Code/protostar/.protostar/headless/local-daemon.stderr.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>KeepAlive</key>
+  <false/>
+</dict>
+</plist>
