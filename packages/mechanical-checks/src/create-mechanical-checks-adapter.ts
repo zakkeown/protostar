@@ -4,7 +4,6 @@ import type {
   AdapterResult,
   ExecutionAdapter
 } from "@protostar/execution";
-import type { FsClient } from "isomorphic-git";
 import type { RepoChangeSet } from "@protostar/repo";
 import type {
   MechanicalCheckCommandResult,
@@ -13,7 +12,6 @@ import type {
   ReviewFinding
 } from "@protostar/review";
 
-import { computeDiffNameOnly } from "./diff-name-only.js";
 import {
   buildFindings,
   buildMechanicalCommandTimeoutFinding,
@@ -54,7 +52,7 @@ export interface MechanicalChecksAdapterConfig {
   readonly attempt: number;
   readonly plan: MechanicalChecksPlanInput;
   readonly readFile: (path: string) => Promise<string>;
-  readonly gitFs: FsClient;
+  readonly diffNameOnly: readonly string[];
   readonly subprocess: MechanicalChecksSubprocessRunner;
 }
 
@@ -112,11 +110,7 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
         }
       }
 
-      const diffNameOnly = await computeDiffNameOnly({
-        fs: config.gitFs,
-        workspaceRoot: config.workspaceRoot,
-        baseRef: config.baseRef
-      });
+      const diffNameOnly = config.diffNameOnly;
       const findings = [
         ...timeoutFindings,
         ...buildFindings({
