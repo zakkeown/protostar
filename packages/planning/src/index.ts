@@ -17,6 +17,10 @@ import {
   assertTargetFiles,
   type TargetFiles
 } from "./task-target-files.contract.js";
+import {
+  IMMUTABLE_TOY_VERIFICATION_PATTERNS,
+  validateImmutableTargetFiles
+} from "./immutable-target-files.js";
 
 export {
   admitTaskAdapterRef,
@@ -28,6 +32,14 @@ export {
   assertTargetFiles,
   type TargetFiles
 } from "./task-target-files.contract.js";
+export {
+  IMMUTABLE_TOY_VERIFICATION_PATTERNS,
+  validateImmutableTargetFiles,
+  type ImmutableTargetFileViolation,
+  type ImmutableTargetFileViolationCode,
+  type ValidateImmutableTargetFilesInput,
+  type ValidateImmutableTargetFilesResult
+} from "./immutable-target-files.js";
 export type {
   AdapterAttemptRef,
   MechanicalCritiqueRef,
@@ -979,6 +991,7 @@ export type PlanGraphValidationViolationCode =
   | "malformed-task-coverage"
   | "target-files-missing"
   | "target-files-empty"
+  | "immutable-target-file"
   | "malformed-task-adapter-ref"
   | "adapter-ref-not-allowed"
   | "empty-task-coverage"
@@ -1850,6 +1863,24 @@ function collectTaskExecutionMetadataViolations(
           ? `Task ${task.id} ${error.message}`
           : `Task ${task.id} targetFiles must contain non-empty file paths.`
       });
+    }
+
+    const immutableTargetFiles = validateImmutableTargetFiles({
+      targetFiles: task.targetFiles,
+      immutableGlobs: IMMUTABLE_TOY_VERIFICATION_PATTERNS
+    });
+    if (!immutableTargetFiles.ok) {
+      for (const violation of immutableTargetFiles.violations) {
+        const targetFileIndex = task.targetFiles.findIndex(
+          (path) => path.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\.\//, "").replace(/\/$/, "") === violation.path
+        );
+        violations.push({
+          code: violation.code,
+          path: `tasks.${task.id}.targetFiles.${targetFileIndex < 0 ? 0 : targetFileIndex}`,
+          taskId: task.id,
+          message: `Task ${task.id} ${violation.message}`
+        });
+      }
     }
   }
 
