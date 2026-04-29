@@ -56,7 +56,7 @@ export interface CapabilityEnvelopePnpm {
   readonly allowedAdds?: readonly string[];
 }
 
-export const CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS = [
+const CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS = [
   "verify",
   "typecheck",
   "lint",
