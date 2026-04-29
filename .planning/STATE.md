@@ -158,6 +158,10 @@ Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 complete
 - **2026-04-27:** Completed Phase 2 Plan 03 (`02-03-signature-envelope-extension-PLAN.md`): confirmed-intent artifacts now hard-bump to `schemaVersion: "1.1.0"` and `SignatureEnvelope` carries `canonicalForm: "json-c14n@1.0"` plus deterministic sub-hashes.
 - **2026-04-27:** Completed Phase 2 Plan 06a (`02-06a-admission-decision-base-PLAN.md`): authority now owns `AdmissionDecisionBase`, re-exports the intent-owned admission outcome literal, and provides `SignedAdmissionDecision` signing/verification.
 
+## Roadmap Evolution
+
+- **2026-04-29:** Phase 12 added — Authority Boundary Stabilization (verify:full parity, mechanical-argv via repo runner, env scrubbing default, apply-change-set path/op/diff invariant, manifest↔contract single source of truth). Seeded by post-v1 review findings; see `.planning/phases/12-authority-boundary-stabilization/12-SEED.md`.
+
 ## Key Locks (Carried Forward)
 
 From `MEMORY.md`:

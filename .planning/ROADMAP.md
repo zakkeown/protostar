@@ -19,6 +19,8 @@ Each phase carries forward the prior phase's invariants. No phase ships unless i
 | 8 | Evaluation + Evolution | Mechanical → semantic → consensus; spec/plan convergence | Real model calls | 5, 6 |
 | 9 | Operator Surface + Resumability | `run` / `status` / `resume` / `cancel` / `inspect` / `deliver` | Operator UX | 4, 7 |
 | 10 | V1 Hardening + Dogfood | Fixture matrix + sacrificial sibling repo + docs + security review | Real GitHub repo, real PRs | 1–9 |
+| 11 | Headless Mode + E2E Stress | Headless CI run + stress sweep + TTT delivery | Multi-archetype + sustained load | 1–10 |
+| 12 | Authority Boundary Stabilization | Fix CI gate + route mechanical commands through repo runner + scrub child env + tighten apply-change-set invariants + reconcile boundary truth source | Authority surface + subprocess wiring | 10, 11 |
 
 ## Phase 1 — Intent + Planning Admission ✅ Complete (2026-04-27)
 
@@ -373,6 +375,22 @@ Plans:
 - Phase 11 stress evidence is appended (extension of Phase 10 `report.json` or sibling artifact, decided in CONTEXT)
 
 **Notes:** Phase 11 lifts the v0.1 `cosmetic-tweak`-only archetype lock; expect updates to PROJECT.md Out-of-Scope and to `packages/policy/src/admission-paths.ts`. Phase 11 also revisits the v0.1 LM-Studio-only execution posture if "headless CI" requires a non-local LLM backend.
+
+## Phase 12 — Authority Boundary Stabilization
+
+**Goal:** Re-seal the authority boundary after the v1 dogfood pass — make CI green again, route mechanical review through `@protostar/repo`'s hardened subprocess runner, scrub child-process env by default, tighten `applyChangeSet`'s display-vs-write invariant, and reconcile the duplicated tier/boundary encoding so manifests, AGENTS.md, and contract tests agree.
+
+**Requirements:** *(to be derived from `12-CONTEXT.md`; tentative theme: AUTH-01..AUTH-N covering verify gate parity, mechanical-checks net contract, mechanical command runner authority, env scrubbing default, apply-change-set path/op/diff agreement, manifest↔contract truth source)*
+
+**Success criteria:**
+- `pnpm run verify:full` is green locally and in `.github/workflows/verify.yml` — root `verify` ⊆ `verify:full` so CI cannot diverge from local again
+- `@protostar/mechanical-checks` no-net contract holds in production — `diff-name-only` no longer imports `isomorphic-git` (or mechanical-checks tier flips to `subprocess`/`workspace` in manifest + AGENTS.md + boundary contract, with deliberate justification)
+- Configured mechanical commands flow through `@protostar/repo`'s allowlist + per-command schema + refusal-evidence runner — no raw `spawn` in `apps/factory-cli/src/main.ts` for mechanical argv
+- `packages/repo/src/subprocess-runner.ts` defaults child env to `{}`; callers that need `PROTOSTAR_GITHUB_TOKEN` (or any secret) must opt in via an explicit allowlist, and persisted logs cannot leak ambient process env
+- `applyChangeSet` refuses when `PatchRequest.path`, `patch.op` write target, and parsed-diff filenames disagree — pinned by a contract test in `@protostar/admission-e2e`
+- Boundary tiers have one source of truth — `package.json` `protostar.tier` (or equivalent), AGENTS.md table, and `authority-boundary.contract.test.ts` are derived from it (or assert equality), so `mechanical-checks`/`evaluation-runner`-style drift becomes a test failure
+
+**Notes:** Seeded by post-v1 review findings (verify-gate divergence, mechanical-argv bypass, env leakage, apply-change-set display-vs-write split, manifest-vs-contract drift). Do **not** decompose `packages/planning/src/index.ts` (5701 LOC) or `apps/factory-cli/src/main.ts` (3429 LOC) in this phase — the architecture read flags them as the next pressure point but only after authority is stable. Phase 12 is allowed to pull command-execution / review-loop / delivery wiring out of `main.ts` *if* doing so is the cleanest path to routing mechanical commands through the repo runner; otherwise defer the split.
 
 ## Cross-Phase Constraints
 

@@ -1,0 +1,528 @@
+{
+  "phase": "12-authority-boundary-stabilization",
+  "generated_at": "2026-04-29T00:00:00Z",
+  "stats": {
+    "total": 16,
+    "answered": 16,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "verify-gate-parity",
+      "title": "Verify Gate Parity (Blocker)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "How should `verify` and `verify:full` relate?",
+          "context": "Root `package.json:11` `verify` skips many package tests; CI runs `verify:full` in `.github/workflows/verify.yml:31`. Local-vs-CI divergence is what hid the no-net failure.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Subset relationship + contract test",
+              "description": "Keep two scripts but add a contract test that asserts every package test that runs in `verify:full` also runs (or is explicitly excluded with rationale) in `verify`. Drift becomes a test failure."
+            },
+            {
+              "id": "b",
+              "label": "Collapse to one script",
+              "description": "Drop tiered verify entirely. Local devs run the same thing CI runs. Slower local feedback but zero divergence risk."
+            },
+            {
+              "id": "c",
+              "label": "CI runs both, asserts no new skips",
+              "description": "Keep two scripts, but CI runs `verify` first then `verify:full`, and a contract test asserts no package was added to a skip-list since the last release."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "How to fix the no-net violation in `@protostar/mechanical-checks`?",
+          "context": "`packages/mechanical-checks/src/no-net.contract.test.ts:43` forbids `isomorphic-git`, but production imports it in `packages/mechanical-checks/src/diff-name-only.ts:1`. Tier in `package.json:36` and `AGENTS.md:26` says pure.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Move git inspection into `@protostar/repo`",
+              "description": "`diff-name-only` becomes a repo-runtime helper. Mechanical-checks stays a pure transform, takes pre-computed diff names as input. Strongest separation; small wiring change in factory-cli."
+            },
+            {
+              "id": "b",
+              "label": "Inject `diffNameOnly` evidence into mechanical-checks",
+              "description": "Repo runner produces diff-name evidence and passes it in via the existing injected-evidence pattern. Mechanical-checks remains pure (just consumes a value), no import flip needed."
+            },
+            {
+              "id": "c",
+              "label": "Flip mechanical-checks tier to subprocess",
+              "description": "Acknowledge the implementation reality. Update `package.json:36`, `AGENTS.md:26`, and `authority-boundary.contract.test.ts` to declare mechanical-checks as `subprocess`. Loosens authority guarantee for this package."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "mechanical-subprocess-authority",
+      "title": "Mechanical Subprocess Authority (High)",
+      "questions": [
+        {
+          "id": "Q-03",
+          "title": "Where should configured mechanical commands run?",
+          "context": "Currently: config in `factory-config.schema.json:187`, list in `wiring/review-loop.ts:214`, raw `spawn` in `main.ts:1892`. Bypasses `@protostar/repo`'s allowlist + per-command schema + refusal evidence.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Through `@protostar/repo` runner — closed allowlist",
+              "description": "Mechanical commands resolve to a fixed set of repo-allowlisted CLIs (`pnpm`, `tsc`, `node`, `git`). Operator picks from the menu by name; argv shape is schema-validated per-command. Strongest authority; least flexible."
+            },
+            {
+              "id": "b",
+              "label": "Through repo runner — operator-declared, schema-validated",
+              "description": "Operator declares `{ name, argv[] }` in factory-config; schema requires shape (no shell strings, no env vars in argv). Runner intersects with repo allowlist at admission; refuses if not allowed. Flexible but operator can declare new commands."
+            },
+            {
+              "id": "c",
+              "label": "Through repo runner — capability-bound",
+              "description": "Each declared mechanical command requires explicit capability in `confirmedIntent.capabilityEnvelope.subprocess.allow[]`. No command runs without being signed into the intent. Most authority-tight; bumps confirmed-intent schema."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Does this require a confirmedIntent schema bump (1.5.0 → 1.6.0)?",
+          "context": "Current schema is 1.5.0 (Phase 7). If mechanical commands become capability-bound (Q-03 option c) the envelope grows a `mechanical: { allowed: [...] }` field.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — bump to 1.6.0 with `mechanical.allowed`",
+              "description": "Mechanical commands become first-class capability. Fixture cascade required (every signed-intent fixture re-signs). Operator must list mechanical commands at intent time."
+            },
+            {
+              "id": "b",
+              "label": "No — reuse `subprocess.allow`",
+              "description": "Mechanical commands intersect with the existing subprocess allow list. No schema bump; same authority surface as other subprocess calls. Less explicit but simpler."
+            },
+            {
+              "id": "c",
+              "label": "Defer — depends on Q-03 outcome",
+              "description": "Bump only if Q-03 picks the capability-bound path. Otherwise no bump."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Where does the mechanical command run?",
+          "context": "Today raw `spawn` runs in target-repo cwd. With env scrubbing (Q-06) we also have to decide whether the command sees the cloned workspace or a sandboxed cwd.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Cloned target-repo workspace",
+              "description": "Same as today — the command runs against the cloned repo. Required for `pnpm verify` to inspect the target."
+            },
+            {
+              "id": "b",
+              "label": "Read-only bind-mount of workspace",
+              "description": "Mechanical commands cannot write back. Defends against a target-repo `verify` script writing arbitrary files."
+            },
+            {
+              "id": "c",
+              "label": "Workspace cwd + post-run dirty-tree assertion",
+              "description": "Run in workspace; after run, repo runner asserts no unexpected file writes (existing `dirtyWorktreeStatus` check, scoped to mechanical phase)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "subprocess-env-default",
+      "title": "Subprocess Env Default (High)",
+      "questions": [
+        {
+          "id": "Q-06",
+          "title": "What is the minimum env baseline for `packages/repo/src/subprocess-runner.ts`?",
+          "context": "Both call sites (`:33` and `:85`) default child env to `process.env`. Delivery uses `PROTOSTAR_GITHUB_TOKEN` from process env in `main.ts:1198`. Empty `{}` would break commands needing PATH.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Empty `{}` — caller passes everything",
+              "description": "Most defensive. Caller must explicitly include PATH, HOME, NODE_OPTIONS, etc. High friction but zero ambient leakage."
+            },
+            {
+              "id": "b",
+              "label": "Tiny baseline (PATH, HOME, LANG, USER)",
+              "description": "Posix-required env only. Caller adds secrets explicitly. Practical default; covers 90% of subprocess needs without leaking project-specific env."
+            },
+            {
+              "id": "c",
+              "label": "Baseline + `inheritEnv: string[]` allowlist",
+              "description": "Same as (b) plus an explicit per-call allowlist of vars to inherit by name. Fine-grained; logs the allowlist into evidence."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "How does delivery opt in to `PROTOSTAR_GITHUB_TOKEN`?",
+          "context": "Delivery is the only place a real secret needs to flow into a subprocess. Today it inherits ambient env. We want explicit opt-in.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Token passed only at Octokit boundary, never to subprocess",
+              "description": "Delivery uses Octokit (HTTP) for PR ops and `pushBranch` via `isomorphic-git` `onAuth` shim — both library calls, not subprocess. Confirms subprocess never needs the token. Strongest separation."
+            },
+            {
+              "id": "b",
+              "label": "`secretEnv: { TOKEN }` map with redacted logging",
+              "description": "Subprocess runner accepts a separate `secretEnv` field; values are passed to child but logged as `<redacted:TOKEN>` in evidence. Generic mechanism for any future secret."
+            },
+            {
+              "id": "c",
+              "label": "Token-bearing AuthorizedOp brand",
+              "description": "A new branded type the runner consumes. Authority-typed; type system prevents leak. Highest ceremony."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Should persisted logs be scrubbed for secret patterns as defense-in-depth?",
+          "context": "Even with empty env, a target repo's script could echo a token if the operator runs the factory with the token in their shell.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — redaction filter on log write",
+              "description": "Apply known patterns (GH PAT shapes, bearer headers, JWT shapes) before writing rolling tail / evidence. Defense in depth."
+            },
+            {
+              "id": "b",
+              "label": "No — env scrubbing is enough",
+              "description": "Redaction is theatre once env is empty. Adds maintenance burden (pattern drift) without solving a real attack."
+            },
+            {
+              "id": "c",
+              "label": "Both — empty env + redaction filter",
+              "description": "Belt and suspenders. Filter cost is small; pattern set is small (we control what tokens look like in our factory)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "apply-change-set-invariant",
+      "title": "applyChangeSet Path/Op/Diff Invariant (Medium)",
+      "questions": [
+        {
+          "id": "Q-09",
+          "title": "Where is the path/op/diff agreement enforced?",
+          "context": "`applyChangeSet` counts `PatchRequest.path` (`:65`) but reads/writes `patch.op` (`:82`, `:114`). Display vs write target can disagree at the API boundary.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Inside `applyChangeSet` — refuse at function entry",
+              "description": "Function asserts `path === op.path === parsedDiff.fileName` and refuses with a typed error if not. Library-level safety; every caller protected."
+            },
+            {
+              "id": "b",
+              "label": "At admission — `PatchRequest` brand only constructible if invariant holds",
+              "description": "Move the invariant up. Branded constructor refuses; once you have a `PatchRequest` you know the paths agree. `applyChangeSet` trusts the brand."
+            },
+            {
+              "id": "c",
+              "label": "Both — admission constructs + applyChangeSet re-asserts",
+              "description": "Admission is the primary gate; `applyChangeSet` re-asserts as defense-in-depth (catches handcrafted `PatchRequest` instances in tests)."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-10",
+          "title": "How permissive is 'agree'?",
+          "context": "`./foo/bar.ts` vs `foo/bar.ts` vs `/abs/foo/bar.ts` — string equality fails on equivalent paths.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Exact string equality after canonicalization",
+              "description": "All three sources normalize via the same canonicalize-relative-path helper, then require strict equality. Predictable; rejects ambiguous patches."
+            },
+            {
+              "id": "b",
+              "label": "Path-equivalent (resolve+normalize)",
+              "description": "Compare via `path.resolve` against workspace root. Accepts cosmetic differences; needs a workspace-root anchor."
+            },
+            {
+              "id": "c",
+              "label": "Display path advisory, only `op.path` and parsed-diff filename must match",
+              "description": "Loosen the cosmetic gate. Display is for humans; enforcement is on the two real write inputs."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "boundary-truth-source",
+      "title": "Boundary Truth Source (Medium)",
+      "questions": [
+        {
+          "id": "Q-11",
+          "title": "Which artifact is the source of truth for tier?",
+          "context": "Three artifacts encode tiers today: `protostar.tier` in `package.json`, the AGENTS.md table, and `authority-boundary.contract.test.ts`. Two of them disagree about `evaluation-runner` and `mechanical-checks`.",
+          "options": [
+            {
+              "id": "a",
+              "label": "`package.json` `protostar.tier`",
+              "description": "Manifest is canonical (lives next to code; package owns its claim). AGENTS.md and contract test derive from it."
+            },
+            {
+              "id": "b",
+              "label": "Authority-boundary contract test",
+              "description": "Code-as-spec — the contract is the runtime gate. Manifest must match the contract."
+            },
+            {
+              "id": "c",
+              "label": "AGENTS.md table",
+              "description": "Human-readable canonical. Agents and humans read the same source. Both manifest and contract test asserted against parsed AGENTS.md."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "How is drift detected?",
+          "context": "Phase 10.1.7 already has `tier-conformance.contract.test.ts` (manifest-driven). It does not currently parse AGENTS.md.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Extend `tier-conformance.contract.test.ts`",
+              "description": "Add AGENTS.md parsing; assert manifest tier == AGENTS.md table tier == authority-boundary contract entry. One test, three sources."
+            },
+            {
+              "id": "b",
+              "label": "`tools/check-tier-coherence.ts` wired into `verify`",
+              "description": "Standalone script. Easier to run in pre-commit; less reportable than a node:test failure."
+            },
+            {
+              "id": "c",
+              "label": "Generate AGENTS.md table from manifests",
+              "description": "Single source — manifest. `tools/regen-agents-tiers.ts` rewrites the table; CI asserts table matches generated form. Eliminates drift by construction."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "For `evaluation-runner` specifically — pure or network?",
+          "context": "`packages/evaluation-runner/package.json:37` declares `network`. `packages/admission-e2e/src/contracts/authority-boundary.contract.test.ts:76` treats it as pure.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Network — match manifest",
+              "description": "Update authority-boundary contract to reflect manifest. Evaluation runs LM Studio HTTP calls — `network` is honest."
+            },
+            {
+              "id": "b",
+              "label": "Pure — match contract",
+              "description": "Update manifest to `pure`. Evaluation-runner is a pure orchestrator; network is done by the injected adapter, not evaluation-runner itself."
+            },
+            {
+              "id": "c",
+              "label": "Re-derive from imports",
+              "description": "Inspect actual imports; resolve to whichever the code currently does. Don't pre-judge — code is truth."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "scope-and-verification",
+      "title": "Scope & Verification",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "Decomposition of large files — defer entirely?",
+          "context": "`packages/planning/src/index.ts:1` is 5701 LOC; `apps/factory-cli/src/main.ts:1` is 3429 LOC. Architecture read flagged them but recommended deferring until after authority is stable.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Defer entirely — Phase 12 does zero file splits",
+              "description": "Strict scope. Authority fixes only. Splits become Phase 13."
+            },
+            {
+              "id": "b",
+              "label": "Pull command-execution wiring out of main.ts only-if-needed",
+              "description": "Allowed exception: if routing mechanical commands through repo runner is cleaner with a separate `wiring/mechanical-runner.ts`, do that. No other splits."
+            },
+            {
+              "id": "c",
+              "label": "Light decomposition allowed",
+              "description": "Pull all three wiring concerns (command-execution, review-loop, delivery) out of main.ts as part of the authority fix. Bigger blast radius; pays off the architectural debt now."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "What proves Phase 12 is done?",
+          "context": "Phase 10 dogfood loop is the existing live verification surface. Phase 11 has stress harness.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Contract tests + `verify:full` green",
+              "description": "All new contracts (verify-parity, mechanical-via-repo, env-empty-default, applyChangeSet-invariant, tier-coherence) pass. No live re-run required."
+            },
+            {
+              "id": "b",
+              "label": "Above + Phase 10 dogfood re-run on protostar-toy-ttt",
+              "description": "Re-run the existing dogfood loop end-to-end. Confirms env scrubbing didn't break delivery, mechanical routing didn't break review."
+            },
+            {
+              "id": "c",
+              "label": "Above + secret-leak attack test",
+              "description": "Add an offensive test: target repo's `pnpm verify` echoes `$PROTOSTAR_GITHUB_TOKEN`; assert evidence logs do not contain the token shape."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Does Phase 12 block Phase 11?",
+          "context": "Phase 11 is `Headless Mode + E2E Stress`. Phase 12 was just inserted with `Depends on: 10, 11`. If Phase 11 hasn't started yet, ordering is open.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Phase 12 runs after Phase 11 (as-roadmapped)",
+              "description": "Phase 11 first — stress harness exposes more authority-boundary issues to fold in. Phase 12 then sweeps everything."
+            },
+            {
+              "id": "b",
+              "label": "Phase 12 runs BEFORE Phase 11 — invert dependency",
+              "description": "Authority is broken NOW (CI red, mechanical bypass, env leak). Fix it before stress-testing the broken surface. Update ROADMAP.md `Depends on` to `10` only."
+            },
+            {
+              "id": "c",
+              "label": "Run in parallel — independent workstreams",
+              "description": "Phase 12 in a workstream branch, Phase 11 in another. Merge ordering by whoever finishes first; rebase the second one."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}

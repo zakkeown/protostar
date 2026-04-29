@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 12: Authority Boundary Stabilization — Discussion</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #11172b;
+    --ink: #e2e8f0;
+    --muted: #94a3b8;
+    --line: #1f2937;
+    --accent: #38bdf8;
+    --green: #22c55e;
+    --green-bg: #052e1a;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 24px 32px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #0e1530, var(--bg)); position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0 0 6px; font-size: 18px; letter-spacing: 0.2px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .stats { display: flex; gap: 16px; align-items: center; margin-top: 14px; }
+  .stat { background: var(--panel); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); font-size: 13px; }
+  .stat strong { color: var(--accent); }
+  .progress { flex: 1; height: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--green); width: 0%; transition: width 200ms ease; }
+  .actions { margin-top: 14px; display: flex; gap: 8px; }
+  button { background: var(--accent); color: #0b1020; border: 0; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button:hover { filter: brightness(1.1); }
+  main { padding: 24px 32px 80px; max-width: 1400px; margin: 0 auto; }
+  details.section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+  details.section[open] summary { border-bottom: 1px solid var(--line); }
+  details.section > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .section-meta { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; padding: 16px; }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px; transition: border-color 200ms, background 200ms; }
+  .card.answered { border: 2px solid var(--green); background: var(--green-bg); }
+  .card-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+  .badge { display: inline-block; background: var(--accent); color: #0b1020; font-weight: 700; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+  .card h3 { margin: 0; font-size: 14px; }
+  .ctx { color: var(--muted); font-size: 12px; font-style: italic; margin: 4px 0 10px; line-height: 1.5; }
+  .ctx code { font-style: normal; background: #1a223b; padding: 1px 4px; border-radius: 3px; color: #cbd5e1; }
+  .options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  .opt:hover { background: #14203a; }
+  .opt input { margin-top: 3px; flex-shrink: 0; }
+  .opt-text { flex: 1; }
+  .opt-label { font-weight: 600; font-size: 13px; }
+  .opt-desc { color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.45; }
+  textarea { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; color: var(--ink); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; min-height: 50px; transition: border-color 200ms; }
+  textarea.has-content { border: 2px solid var(--orange); }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .help { margin-top: 12px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; }
+  .help code { background: #1a223b; padding: 1px 5px; border-radius: 3px; color: #cbd5e1; }
+  .save-banner { position: sticky; bottom: 0; background: linear-gradient(0deg, var(--bg), rgba(11,16,32,0.9)); padding: 12px 32px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase 12 — Authority Boundary Stabilization</h1>
+  <p>Re-seal the authority surface after v1 dogfood. Answer at your pace; tell Claude <code style="background:#1a223b;padding:1px 5px;border-radius:3px;color:#cbd5e1">refresh</code> or <code style="background:#1a223b;padding:1px 5px;border-radius:3px;color:#cbd5e1">finalize</code> when ready.</p>
+  <div class="stats">
+    <div class="stat"><strong id="s-total">0</strong> total</div>
+    <div class="stat"><strong id="s-answered">0</strong> answered</div>
+    <div class="stat"><strong id="s-remaining">0</strong> remaining</div>
+    <div class="stat"><strong id="s-chatmore">0</strong> chat-more</div>
+    <div class="progress"><div id="bar"></div></div>
+  </div>
+  <div class="actions">
+    <button id="save">Save answers</button>
+    <button id="reload" class="secondary">Reload from disk</button>
+    <span class="stat" style="margin-left:auto">JSON: <code id="json-path" style="background:#1a223b;padding:1px 5px;border-radius:3px;color:#cbd5e1">12-QUESTIONS.json</code></span>
+  </div>
+</header>
+<main id="main"></main>
+<div class="save-banner">
+  <span class="stat" id="status">Loaded</span>
+  <button id="save2">Save answers</button>
+</div>
+<script>
+const JSON_FILE = "12-QUESTIONS.json";
+const LS_KEY = "phase12-questions-state";
+const EMBEDDED_STATE = {
+  "phase": "12-authority-boundary-stabilization",
+  "generated_at": "2026-04-29T00:00:00Z",
+  "stats": {
+    "total": 16,
+    "answered": 0,
+    "chat_more": 0,
+    "remaining": 16
+  },
+  "sections": [
+    {
+      "id": "verify-gate-parity",
+      "title": "Verify Gate Parity (Blocker)",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "How should `verify` and `verify:full` relate?",
+          "context": "Root `package.json:11` `verify` skips many package tests; CI runs `verify:full` in `.github/workflows/verify.yml:31`. Local-vs-CI divergence is what hid the no-net failure.",
+          "options": [
+            { "id": "a", "label": "Subset relationship + contract test", "description": "Keep two scripts but add a contract test that asserts every package test that runs in `verify:full` also runs (or is explicitly excluded with rationale) in `verify`. Drift becomes a test failure." },
+            { "id": "b", "label": "Collapse to one script", "description": "Drop tiered verify entirely. Local devs run the same thing CI runs. Slower local feedback but zero divergence risk." },
+            { "id": "c", "label": "CI runs both, asserts no new skips", "description": "Keep two scripts, but CI runs `verify` first then `verify:full`, and a contract test asserts no package was added to a skip-list since the last release." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-02",
+          "title": "How to fix the no-net violation in `@protostar/mechanical-checks`?",
+          "context": "`packages/mechanical-checks/src/no-net.contract.test.ts:43` forbids `isomorphic-git`, but production imports it in `packages/mechanical-checks/src/diff-name-only.ts:1`. Tier in `package.json:36` and `AGENTS.md:26` says pure.",
+          "options": [
+            { "id": "a", "label": "Move git inspection into `@protostar/repo`", "description": "`diff-name-only` becomes a repo-runtime helper. Mechanical-checks stays a pure transform, takes pre-computed diff names as input. Strongest separation; small wiring change in factory-cli." },
+            { "id": "b", "label": "Inject `diffNameOnly` evidence into mechanical-checks", "description": "Repo runner produces diff-name evidence and passes it in via the existing injected-evidence pattern. Mechanical-checks remains pure (just consumes a value), no import flip needed." },
+            { "id": "c", "label": "Flip mechanical-checks tier to subprocess", "description": "Acknowledge the implementation reality. Update `package.json:36`, `AGENTS.md:26`, and `authority-boundary.contract.test.ts` to declare mechanical-checks as `subprocess`. Loosens authority guarantee for this package." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "mechanical-subprocess-authority",
+      "title": "Mechanical Subprocess Authority (High)",
+      "questions": [
+        {
+          "id": "Q-03",
+          "title": "Where should configured mechanical commands run?",
+          "context": "Currently: config in `factory-config.schema.json:187`, list in `wiring/review-loop.ts:214`, raw `spawn` in `main.ts:1892`. Bypasses `@protostar/repo`'s allowlist + per-command schema + refusal evidence.",
+          "options": [
+            { "id": "a", "label": "Through `@protostar/repo` runner — closed allowlist", "description": "Mechanical commands resolve to a fixed set of repo-allowlisted CLIs (`pnpm`, `tsc`, `node`, `git`). Operator picks from the menu by name; argv shape is schema-validated per-command. Strongest authority; least flexible." },
+            { "id": "b", "label": "Through repo runner — operator-declared, schema-validated", "description": "Operator declares `{ name, argv[] }` in factory-config; schema requires shape (no shell strings, no env vars in argv). Runner intersects with repo allowlist at admission; refuses if not allowed. Flexible but operator can declare new commands." },
+            { "id": "c", "label": "Through repo runner — capability-bound", "description": "Each declared mechanical command requires explicit capability in `confirmedIntent.capabilityEnvelope.subprocess.allow[]`. No command runs without being signed into the intent. Most authority-tight; bumps confirmed-intent schema." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Does this require a confirmedIntent schema bump (1.5.0 → 1.6.0)?",
+          "context": "Current schema is 1.5.0 (Phase 7). If mechanical commands become capability-bound (Q-03 option c) the envelope grows a `mechanical: { allowed: [...] }` field.",
+          "options": [
+            { "id": "a", "label": "Yes — bump to 1.6.0 with `mechanical.allowed`", "description": "Mechanical commands become first-class capability. Fixture cascade required (every signed-intent fixture re-signs). Operator must list mechanical commands at intent time." },
+            { "id": "b", "label": "No — reuse `subprocess.allow`", "description": "Mechanical commands intersect with the existing subprocess allow list. No schema bump; same authority surface as other subprocess calls. Less explicit but simpler." },
+            { "id": "c", "label": "Defer — depends on Q-03 outcome", "description": "Bump only if Q-03 picks the capability-bound path. Otherwise no bump." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Where does the mechanical command run?",
+          "context": "Today raw `spawn` runs in target-repo cwd. With env scrubbing (Q-06) we also have to decide whether the command sees the cloned workspace or a sandboxed cwd.",
+          "options": [
+            { "id": "a", "label": "Cloned target-repo workspace", "description": "Same as today — the command runs against the cloned repo. Required for `pnpm verify` to inspect the target." },
+            { "id": "b", "label": "Read-only bind-mount of workspace", "description": "Mechanical commands cannot write back. Defends against a target-repo `verify` script writing arbitrary files." },
+            { "id": "c", "label": "Workspace cwd + post-run dirty-tree assertion", "description": "Run in workspace; after run, repo runner asserts no unexpected file writes (existing `dirtyWorktreeStatus` check, scoped to mechanical phase)." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "subprocess-env-default",
+      "title": "Subprocess Env Default (High)",
+      "questions": [
+        {
+          "id": "Q-06",
+          "title": "What is the minimum env baseline for `packages/repo/src/subprocess-runner.ts`?",
+          "context": "Both call sites (`:33` and `:85`) default child env to `process.env`. Delivery uses `PROTOSTAR_GITHUB_TOKEN` from process env in `main.ts:1198`. Empty `{}` would break commands needing PATH.",
+          "options": [
+            { "id": "a", "label": "Empty `{}` — caller passes everything", "description": "Most defensive. Caller must explicitly include PATH, HOME, NODE_OPTIONS, etc. High friction but zero ambient leakage." },
+            { "id": "b", "label": "Tiny baseline (PATH, HOME, LANG, USER)", "description": "Posix-required env only. Caller adds secrets explicitly. Practical default; covers 90% of subprocess needs without leaking project-specific env." },
+            { "id": "c", "label": "Baseline + `inheritEnv: string[]` allowlist", "description": "Same as (b) plus an explicit per-call allowlist of vars to inherit by name. Fine-grained; logs the allowlist into evidence." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-07",
+          "title": "How does delivery opt in to `PROTOSTAR_GITHUB_TOKEN`?",
+          "context": "Delivery is the only place a real secret needs to flow into a subprocess. Today it inherits ambient env. We want explicit opt-in.",
+          "options": [
+            { "id": "a", "label": "Token passed only at Octokit boundary, never to subprocess", "description": "Delivery uses Octokit (HTTP) for PR ops and `pushBranch` via `isomorphic-git` `onAuth` shim — both library calls, not subprocess. Confirms subprocess never needs the token. Strongest separation." },
+            { "id": "b", "label": "`secretEnv: { TOKEN }` map with redacted logging", "description": "Subprocess runner accepts a separate `secretEnv` field; values are passed to child but logged as `<redacted:TOKEN>` in evidence. Generic mechanism for any future secret." },
+            { "id": "c", "label": "Token-bearing AuthorizedOp brand", "description": "A new branded type the runner consumes. Authority-typed; type system prevents leak. Highest ceremony." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Should persisted logs be scrubbed for secret patterns as defense-in-depth?",
+          "context": "Even with empty env, a target repo's script could echo a token if the operator runs the factory with the token in their shell.",
+          "options": [
+            { "id": "a", "label": "Yes — redaction filter on log write", "description": "Apply known patterns (GH PAT shapes, bearer headers, JWT shapes) before writing rolling tail / evidence. Defense in depth." },
+            { "id": "b", "label": "No — env scrubbing is enough", "description": "Redaction is theatre once env is empty. Adds maintenance burden (pattern drift) without solving a real attack." },
+            { "id": "c", "label": "Both — empty env + redaction filter", "description": "Belt and suspenders. Filter cost is small; pattern set is small (we control what tokens look like in our factory)." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "apply-change-set-invariant",
+      "title": "applyChangeSet Path/Op/Diff Invariant (Medium)",
+      "questions": [
+        {
+          "id": "Q-09",
+          "title": "Where is the path/op/diff agreement enforced?",
+          "context": "`applyChangeSet` counts `PatchRequest.path` (`:65`) but reads/writes `patch.op` (`:82`, `:114`). Display vs write target can disagree at the API boundary.",
+          "options": [
+            { "id": "a", "label": "Inside `applyChangeSet` — refuse at function entry", "description": "Function asserts `path === op.path === parsedDiff.fileName` and refuses with a typed error if not. Library-level safety; every caller protected." },
+            { "id": "b", "label": "At admission — `PatchRequest` brand only constructible if invariant holds", "description": "Move the invariant up. Branded constructor refuses; once you have a `PatchRequest` you know the paths agree. `applyChangeSet` trusts the brand." },
+            { "id": "c", "label": "Both — admission constructs + applyChangeSet re-asserts", "description": "Admission is the primary gate; `applyChangeSet` re-asserts as defense-in-depth (catches handcrafted `PatchRequest` instances in tests)." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-10",
+          "title": "How permissive is 'agree'?",
+          "context": "`./foo/bar.ts` vs `foo/bar.ts` vs `/abs/foo/bar.ts` — string equality fails on equivalent paths.",
+          "options": [
+            { "id": "a", "label": "Exact string equality after canonicalization", "description": "All three sources normalize via the same canonicalize-relative-path helper, then require strict equality. Predictable; rejects ambiguous patches." },
+            { "id": "b", "label": "Path-equivalent (resolve+normalize)", "description": "Compare via `path.resolve` against workspace root. Accepts cosmetic differences; needs a workspace-root anchor." },
+            { "id": "c", "label": "Display path advisory, only `op.path` and parsed-diff filename must match", "description": "Loosen the cosmetic gate. Display is for humans; enforcement is on the two real write inputs." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "boundary-truth-source",
+      "title": "Boundary Truth Source (Medium)",
+      "questions": [
+        {
+          "id": "Q-11",
+          "title": "Which artifact is the source of truth for tier?",
+          "context": "Three artifacts encode tiers today: `protostar.tier` in `package.json`, the AGENTS.md table, and `authority-boundary.contract.test.ts`. Two of them disagree about `evaluation-runner` and `mechanical-checks`.",
+          "options": [
+            { "id": "a", "label": "`package.json` `protostar.tier`", "description": "Manifest is canonical (lives next to code; package owns its claim). AGENTS.md and contract test derive from it." },
+            { "id": "b", "label": "Authority-boundary contract test", "description": "Code-as-spec — the contract is the runtime gate. Manifest must match the contract." },
+            { "id": "c", "label": "AGENTS.md table", "description": "Human-readable canonical. Agents and humans read the same source. Both manifest and contract test asserted against parsed AGENTS.md." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-12",
+          "title": "How is drift detected?",
+          "context": "Phase 10.1.7 already has `tier-conformance.contract.test.ts` (manifest-driven). It does not currently parse AGENTS.md.",
+          "options": [
+            { "id": "a", "label": "Extend `tier-conformance.contract.test.ts`", "description": "Add AGENTS.md parsing; assert manifest tier == AGENTS.md table tier == authority-boundary contract entry. One test, three sources." },
+            { "id": "b", "label": "`tools/check-tier-coherence.ts` wired into `verify`", "description": "Standalone script. Easier to run in pre-commit; less reportable than a node:test failure." },
+            { "id": "c", "label": "Generate AGENTS.md table from manifests", "description": "Single source — manifest. `tools/regen-agents-tiers.ts` rewrites the table; CI asserts table matches generated form. Eliminates drift by construction." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-13",
+          "title": "For `evaluation-runner` specifically — pure or network?",
+          "context": "`packages/evaluation-runner/package.json:37` declares `network`. `packages/admission-e2e/src/contracts/authority-boundary.contract.test.ts:76` treats it as pure.",
+          "options": [
+            { "id": "a", "label": "Network — match manifest", "description": "Update authority-boundary contract to reflect manifest. Evaluation runs LM Studio HTTP calls — `network` is honest." },
+            { "id": "b", "label": "Pure — match contract", "description": "Update manifest to `pure`. Evaluation-runner is a pure orchestrator; network is done by the injected adapter, not evaluation-runner itself." },
+            { "id": "c", "label": "Re-derive from imports", "description": "Inspect actual imports; resolve to whichever the code currently does. Don't pre-judge — code is truth." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    },
+    {
+      "id": "scope-and-verification",
+      "title": "Scope & Verification",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "Decomposition of large files — defer entirely?",
+          "context": "`packages/planning/src/index.ts:1` is 5701 LOC; `apps/factory-cli/src/main.ts:1` is 3429 LOC. Architecture read flagged them but recommended deferring until after authority is stable.",
+          "options": [
+            { "id": "a", "label": "Defer entirely — Phase 12 does zero file splits", "description": "Strict scope. Authority fixes only. Splits become Phase 13." },
+            { "id": "b", "label": "Pull command-execution wiring out of main.ts only-if-needed", "description": "Allowed exception: if routing mechanical commands through repo runner is cleaner with a separate `wiring/mechanical-runner.ts`, do that. No other splits." },
+            { "id": "c", "label": "Light decomposition allowed", "description": "Pull all three wiring concerns (command-execution, review-loop, delivery) out of main.ts as part of the authority fix. Bigger blast radius; pays off the architectural debt now." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-15",
+          "title": "What proves Phase 12 is done?",
+          "context": "Phase 10 dogfood loop is the existing live verification surface. Phase 11 has stress harness.",
+          "options": [
+            { "id": "a", "label": "Contract tests + `verify:full` green", "description": "All new contracts (verify-parity, mechanical-via-repo, env-empty-default, applyChangeSet-invariant, tier-coherence) pass. No live re-run required." },
+            { "id": "b", "label": "Above + Phase 10 dogfood re-run on protostar-toy-ttt", "description": "Re-run the existing dogfood loop end-to-end. Confirms env scrubbing didn't break delivery, mechanical routing didn't break review." },
+            { "id": "c", "label": "Above + secret-leak attack test", "description": "Add an offensive test: target repo's `pnpm verify` echoes `$PROTOSTAR_GITHUB_TOKEN`; assert evidence logs do not contain the token shape." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Does Phase 12 block Phase 11?",
+          "context": "Phase 11 is `Headless Mode + E2E Stress`. Phase 12 was just inserted with `Depends on: 10, 11`. If Phase 11 hasn't started yet, ordering is open.",
+          "options": [
+            { "id": "a", "label": "Phase 12 runs after Phase 11 (as-roadmapped)", "description": "Phase 11 first — stress harness exposes more authority-boundary issues to fold in. Phase 12 then sweeps everything." },
+            { "id": "b", "label": "Phase 12 runs BEFORE Phase 11 — invert dependency", "description": "Authority is broken NOW (CI red, mechanical bypass, env leak). Fix it before stress-testing the broken surface. Update ROADMAP.md `Depends on` to `10` only." },
+            { "id": "c", "label": "Run in parallel — independent workstreams", "description": "Phase 12 in a workstream branch, Phase 11 in another. Merge ordering by whoever finishes first; rebase the second one." },
+            { "id": "d", "label": "Custom", "description": "" }
+          ],
+          "answer": null,
+          "chat_more": "",
+          "status": "unanswered"
+        }
+      ]
+    }
+  ]
+};
+let state = null;
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      state = JSON.parse(saved);
+      setStatus("Loaded from browser localStorage (your in-progress answers). Click 'Save answers' to write back to disk.");
+    } else {
+      state = JSON.parse(JSON.stringify(EMBEDDED_STATE));
+      setStatus("Loaded embedded state. Answers persist in this browser; click 'Save answers' to write " + JSON_FILE + " to disk.");
+    }
+    render();
+  } catch (e) {
+    setStatus("Failed to load: " + e.message);
+  }
+}
+
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+function clearPersist() { localStorage.removeItem(LS_KEY); }
+
+function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+function render() {
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  let total = 0, answered = 0, chatMore = 0;
+  for (const sec of state.sections) {
+    const det = document.createElement("details");
+    det.className = "section";
+    det.open = true;
+    const sum = document.createElement("summary");
+    const sAns = sec.questions.filter(q => q.answer).length;
+    const sCm = sec.questions.filter(q => q.chat_more && q.chat_more.trim()).length;
+    sum.innerHTML = `<h2>${escape(sec.title)}</h2><span class="section-meta">${sAns}/${sec.questions.length} answered${sCm ? " · " + sCm + " chat-more" : ""}</span>`;
+    det.appendChild(sum);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (const q of sec.questions) {
+      total++;
+      if (q.answer) answered++;
+      if (q.chat_more && q.chat_more.trim()) chatMore++;
+      grid.appendChild(renderCard(q));
+    }
+    det.appendChild(grid);
+    main.appendChild(det);
+  }
+  state.stats = { total, answered, chat_more: chatMore, remaining: total - answered };
+  document.getElementById("s-total").textContent = total;
+  document.getElementById("s-answered").textContent = answered;
+  document.getElementById("s-remaining").textContent = total - answered;
+  document.getElementById("s-chatmore").textContent = chatMore;
+  document.getElementById("bar").style.width = (total ? Math.round(100 * answered / total) : 0) + "%";
+}
+
+function renderCard(q) {
+  const card = document.createElement("div");
+  card.className = "card" + (q.answer ? " answered" : "");
+  const head = document.createElement("div");
+  head.className = "card-head";
+  head.innerHTML = `<span class="badge">${q.id}</span><h3>${escape(q.title)}</h3>`;
+  card.appendChild(head);
+  const ctx = document.createElement("div");
+  ctx.className = "ctx";
+  ctx.innerHTML = formatContext(q.context);
+  card.appendChild(ctx);
+  const opts = document.createElement("div");
+  opts.className = "options";
+  for (const o of q.options) {
+    const lab = document.createElement("label");
+    lab.className = "opt";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = q.id;
+    radio.value = o.id;
+    if (q.answer === o.id) radio.checked = true;
+    radio.addEventListener("change", () => {
+      q.answer = o.id;
+      q.status = "answered";
+      persist();
+      render();
+    });
+    lab.appendChild(radio);
+    const txt = document.createElement("div");
+    txt.className = "opt-text";
+    txt.innerHTML = `<div class="opt-label">${escape(o.label)}</div>` + (o.description ? `<div class="opt-desc">${escape(o.description)}</div>` : "");
+    lab.appendChild(txt);
+    opts.appendChild(lab);
+  }
+  card.appendChild(opts);
+  const ta = document.createElement("textarea");
+  ta.placeholder = "Add context, nuance, or clarification (optional)…";
+  ta.value = q.chat_more || "";
+  if (ta.value.trim()) ta.classList.add("has-content");
+  ta.addEventListener("input", () => {
+    q.chat_more = ta.value;
+    if (ta.value.trim()) ta.classList.add("has-content"); else ta.classList.remove("has-content");
+    if (!q.answer && q.chat_more.trim()) q.status = "chat-more";
+    persist();
+    render();
+  });
+  card.appendChild(ta);
+  return card;
+}
+
+function formatContext(s) {
+  if (!s) return "";
+  return escape(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function escape(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+
+async function saveState() {
+  const text = JSON.stringify(state, null, 2);
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: JSON_FILE, types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
+      const w = await handle.createWritable();
+      await w.write(text);
+      await w.close();
+      setStatus("Saved via File System Access API");
+      return;
+    } catch (e) { /* fall through to download */ }
+  }
+  const blob = new Blob([text], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = JSON_FILE;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("Downloaded " + JSON_FILE + " — replace the original on disk, then tell Claude 'refresh'.");
+}
+
+document.getElementById("save").addEventListener("click", saveState);
+document.getElementById("save2").addEventListener("click", saveState);
+document.getElementById("reload").addEventListener("click", () => {
+  if (confirm("Discard browser-stored answers and reload the embedded state?")) {
+    clearPersist();
+    loadState();
+  }
+});
+
+loadState();
+</script>
+</body>
+</html>
