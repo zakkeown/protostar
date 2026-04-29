@@ -18,6 +18,8 @@ Options:
   --fail-task-ids <ids>             comma-separated task ids to fail in dry-run
                                     mode
   --generation <n>                  evolution generation override
+  --headless-mode <mode>            github-hosted | self-hosted-runner |
+                                    local-daemon
   --intent <path>                   unsupported legacy confirmed intent flag
   --intent-draft <path>             intent draft JSON file
   --intent-mode <mode>              intent ambiguity mode: greenfield or
@@ -30,5 +32,7 @@ Options:
   --review-mode <mode>              review pile mode: fixture or live
   --run-id <id>                     explicit run id
   --semantic-judge-model <model>    override the semantic judge model
+  --non-interactive                 refuse instead of prompting in headless
+                                    execution
   --trust <level>                   workspace trust: untrusted or trusted
   -h, --help                        display help for command
