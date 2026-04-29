@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 11 planning complete)
+**Last updated:** 2026-04-29 (Phase 11 Wave 0 traceability complete)
 
 ## Project
 
@@ -26,11 +26,11 @@
 
 **Phase 11 — Headless Mode + E2E Stress** (planned; ready to execute)
 
-Phase 11 planning is complete. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
+Phase 11 planning is complete and Wave 0 traceability is committed. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
 
 Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around executable stress inputs, observed fault mechanisms, feature-add envelope expansion, stress caps, and all-three headless modes. `gsd-sdk query` validation was unavailable in this checkout, so deterministic local checks and checker agents were used instead.
 
-**Next action:** Execute Phase 11 starting with `11-01-requirements-traceability-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
+**Next action:** Execute Wave 1 plans: `11-02-archetype-admission-lift-PLAN.md`, `11-04-immutable-toy-verification-PLAN.md`, `11-05-headless-mode-config-cli-PLAN.md`, and `11-08-stress-artifact-schema-and-events-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
 
 ## Phase Status
 
@@ -47,12 +47,12 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
-| 11 | Headless Mode + E2E Stress | Planned — 15 plans across 8 waves; plan-checker PASS (2026-04-29); ready for execution |
+| 11 | Headless Mode + E2E Stress | Planned — Wave 0 traceability complete; 15 plans across 8 waves; plan-checker PASS (2026-04-29); ready for Wave 1 execution |
 
 ## Active Documents
 
 - `.planning/PROJECT.md` — project context
-- `.planning/REQUIREMENTS.md` — 65 v1 requirements mapped to 10 phases
+- `.planning/REQUIREMENTS.md` — 91 mapped requirements including Phase 11 STRESS-01..STRESS-14
 - `.planning/ROADMAP.md` — phase-by-phase plan with success criteria
 - `.planning/config.json` — workflow toggles
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
