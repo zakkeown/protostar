@@ -297,3 +297,25 @@ The narrative pieces of DOG-08 (envelope sizes, secret handling, prune behavior)
 
 *Phase: 10-v1-hardening-dogfood*
 *Context gathered: 2026-04-28 (--power mode, 22/22 answered)*
+
+## Addendum (2026-04-29, planner revision iter 1) — Dogfood driver fs authority
+
+Q-09 was recorded as "shell-script driver, no business logic in bash, no public dogfood subcommand."
+During plan-checker review, an authority-boundary violation was identified: the original draft of
+`scripts/dogfood.sh` performed direct `jq`/`mv` writes for cursor + log.jsonl + report.json from
+bash. This violated `<carried_forward>`'s "only `apps/factory-cli` and `packages/repo` may do
+filesystem I/O" lock.
+
+Resolution: All fs writes and business logic move into a new INTERNAL subcommand
+`apps/factory-cli/src/commands/__dogfood-step.ts`. The double-underscore prefix marks it as
+internal-only:
+- Registered with commander as `hidden: true` — does NOT appear in `protostar-factory --help`.
+- Excluded from the public CLI surface lock and from `docs/cli/*.txt` snapshots (10-04 Task 3
+  filters `__`-prefixed names from the snapshot enumeration).
+- NOT part of Q-13 release surface: per-package READMEs (10-05) do not document it.
+
+Q-09's "no public dogfood subcommand" constraint is honored — the subcommand is internal.
+Q-09's "no business logic in bash" constraint is honored — the subcommand owns all logic;
+`scripts/dogfood.sh` is an orchestration loop calling subcommands.
+
+This addendum is a planner-time clarification; no Q-XX renumbering occurs.

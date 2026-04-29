@@ -19,6 +19,7 @@
     { "path": "../../packages/execution" },
     { "path": "../../packages/review" },
     { "path": "../../packages/mechanical-checks" },
+    { "path": "../../packages/fixtures" },
     { "path": "../../packages/delivery" },
     { "path": "../../packages/delivery-runtime" },
     { "path": "../../packages/evaluation" },

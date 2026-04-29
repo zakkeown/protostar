@@ -49,6 +49,7 @@
     "@protostar/evaluation": "workspace:*",
     "@protostar/evaluation-runner": "workspace:*",
     "@protostar/execution": "workspace:*",
+    "@protostar/fixtures": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/lmstudio-adapter": "workspace:*",
     "@protostar/mechanical-checks": "workspace:*",
@@ -58,7 +59,8 @@
     "@protostar/repair": "workspace:*",
     "@protostar/repo": "workspace:*",
     "@protostar/review": "workspace:*",
-    "commander": "14.0.3"
+    "commander": "14.0.3",
+    "zod": "^3.25.76"
   },
   "publishConfig": {
     "access": "public"
