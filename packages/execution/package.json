@@ -1,7 +1,7 @@
 {
   "name": "@protostar/execution",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,5 +22,12 @@
     "@protostar/planning": "workspace:*",
     "@protostar/repo": "workspace:*"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

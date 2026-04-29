@@ -1,7 +1,7 @@
 {
   "name": "@protostar/repo",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,8 @@
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
@@ -33,5 +34,8 @@
     "diff": "9.0.0",
     "isomorphic-git": "1.37.6"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@protostar/evaluation-runner",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,5 +26,12 @@
   },
   "devDependencies": {
     "typescript": "^6.0.3"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

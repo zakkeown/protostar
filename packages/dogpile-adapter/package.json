@@ -1,7 +1,7 @@
 {
   "name": "@protostar/dogpile-adapter",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,5 +21,12 @@
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

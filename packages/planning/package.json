@@ -1,7 +1,7 @@
 {
   "name": "@protostar/planning",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,7 +25,11 @@
     "./schema/no-plan-admitted.schema.json": "./schema/no-plan-admitted.schema.json",
     "./schema/planning-admission-decision.schema.json": "./schema/planning-admission-decision.schema.json"
   },
-  "files": ["dist", "schema"],
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test dist/*.test.js",
@@ -36,5 +40,8 @@
     "@protostar/intent": "workspace:*",
     "@protostar/policy": "workspace:*"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }

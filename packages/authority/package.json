@@ -1,7 +1,7 @@
 {
   "name": "@protostar/authority",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,11 @@
     "./schema/policy-snapshot.schema.json": "./schema/policy-snapshot.schema.json",
     "./schema/escalation-marker.schema.json": "./schema/escalation-marker.schema.json"
   },
-  "files": ["dist", "schema"],
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test \"dist/**/*.test.js\"",
@@ -34,5 +38,8 @@
     "@protostar/intent": "workspace:*",
     "@protostar/repo": "workspace:*"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@protostar/lmstudio-adapter",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -25,5 +25,12 @@
     "@protostar/review": "workspace:*",
     "diff": "9.0.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "@protostar/intent",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -48,7 +48,11 @@
     "./schema/capability-admission-decision.schema.json": "./schema/capability-admission-decision.schema.json",
     "./schema/repo-scope-admission-decision.schema.json": "./schema/repo-scope-admission-decision.schema.json"
   },
-  "files": ["dist", "schema"],
+  "files": [
+    "dist",
+    "schema",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "pnpm run build && node --test dist/*.test.js",
@@ -57,5 +61,8 @@
   "dependencies": {
     "@protostar/authority": "workspace:*"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
 }

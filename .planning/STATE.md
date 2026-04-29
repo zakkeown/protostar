@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 10 Plan 05 complete)
+**Last updated:** 2026-04-29 (Phase 10 Plan 06 complete)
 
 ## Project
 
@@ -26,9 +26,9 @@
 
 **Phase 10 — V1 Hardening + Dogfood** (in progress)
 
-Phase 10 Plans 01, 02, 03, 04, 05, and 07 completed. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-02 added the seven-row fixture matrix plus coverage/age contracts; DOG-05 added operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement; DOG-06 added knip to verify plus per-package README coverage; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
+Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-02 added the seven-row fixture matrix plus coverage/age contracts; DOG-05 added operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement; DOG-06 added knip to verify plus per-package README coverage; DOG-07 wired Changesets release tooling, public package metadata, an initial `0.1.0` changeset, and a changeset-required PR workflow without running npm publish; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
 
-**Next action:** Execute Phase 10 Plan 06 release packaging (non-autonomous) when ready. 10-08 waits on Plan 10-06.
+**Next action:** Execute Phase 10 Plan 08 dogfood driver and exit gate (non-autonomous).
 
 ## Phase Status
 
@@ -43,7 +43,7 @@ Phase 10 Plans 01, 02, 03, 04, 05, and 07 completed. The sibling toy repo exists
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
-| 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, and 10-07 complete; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
+| 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
@@ -56,6 +56,8 @@ Phase 10 Plans 01, 02, 03, 04, 05, and 07 completed. The sibling toy repo exists
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 10 Plan 06 (`10-06-PLAN.md`). Added `@changesets/cli@^2`, initialized `.changeset/`, configured public access with `baseBranch: main` and `updateInternalDependencies: patch`, added `.changeset/initial-publish.md`, made every publishable workspace manifest public with `publishConfig.access = public`, exposed `apps/factory-cli` as `@protostar/factory-cli` with `protostar-factory`, and added `.github/workflows/changeset-required.yml`. Deliberately did not run `pnpm release` or publish to npm; package versions stay `0.0.0` so the initial minor changeset will version the first public release as `0.1.0`. Verification passed: release packaging acceptance checks, `pnpm knip --no-config-hints`, `git diff --check`, and `pnpm run verify`.
 
 - **2026-04-29:** Completed Phase 10 Plan 05 (`10-05-PLAN.md`). Added `knip@^5.88.1`, root `knip.json`, and `pnpm knip --no-config-hints` to the verify chain; added `.planning/templates/package-readme.md`; generated READMEs for every `packages/*` workspace plus `apps/factory-cli`; and added `packages/admission-e2e/src/per-package-readme-coverage.contract.test.ts`. Added test-only `@protostar/artifacts` devDependency to `@protostar/repair` for an existing type import. Verification passed: `pnpm knip --no-config-hints`, plain `pnpm knip`, README acceptance checks, `pnpm --filter @protostar/admission-e2e test` (132 tests), `git diff --check`, and `pnpm run verify`.
 
