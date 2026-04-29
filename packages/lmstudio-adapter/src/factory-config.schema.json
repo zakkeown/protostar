@@ -157,11 +157,12 @@
     "mechanicalChecks": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Review-loop mechanical command overrides. When omitted, archetype defaults are used.",
+      "description": "Review-loop mechanical command overrides. When omitted, archetype defaults are used. Phase 12 D-03/D-04: closed enum — operator config can only INTERSECT the capability envelope's mechanical.allowed[]; new mechanical commands require a confirmed-intent schema bump, not a runtime config edit.",
       "properties": {
         "commands": {
           "type": "array",
-          "items": { "$ref": "#/definitions/mechanicalCheckCommand" }
+          "items": { "enum": ["verify", "typecheck", "lint", "test"] },
+          "uniqueItems": true
         }
       }
     },
@@ -250,19 +251,6 @@
         "apiKeyEnv": { "type": "string", "default": "LMSTUDIO_API_KEY" },
         "temperature": { "type": "number" },
         "topP": { "type": "number" }
-      }
-    },
-    "mechanicalCheckCommand": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "argv"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "argv": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
-        }
       }
     }
   }

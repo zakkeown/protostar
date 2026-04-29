@@ -221,15 +221,12 @@ describe("resolveFactoryConfig", () => {
     assert.match(result.errors.join("\n"), /operator\.livenessThresholdMs/);
   });
 
-  it("accepts mechanical check command overrides from file config", () => {
+  it("accepts mechanical check command overrides from file config (closed enum)", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({
         adapters: { coder: {}, judge: {} },
         mechanicalChecks: {
-          commands: [
-            { id: "build", argv: ["pnpm", "build"] },
-            { id: "test", argv: ["pnpm", "test"] }
-          ]
+          commands: ["verify", "test"]
         }
       }),
       env: {}
@@ -237,26 +234,25 @@ describe("resolveFactoryConfig", () => {
 
     const resolved = unwrapResolved(result);
 
-    assert.deepEqual(resolved.config.mechanicalChecks?.commands, [
-      { id: "build", argv: ["pnpm", "build"] },
-      { id: "test", argv: ["pnpm", "test"] }
-    ]);
+    assert.deepEqual(resolved.config.mechanicalChecks?.commands, ["verify", "test"]);
   });
 
-  it("rejects invalid mechanical check command overrides", () => {
+  it("rejects mechanical check command names outside the closed enum", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({
         adapters: { coder: {}, judge: {} },
         mechanicalChecks: {
-          commands: [{ id: "", argv: [] }]
+          commands: ["build"]
         }
       }),
       env: {}
     });
 
     assert.equal(result.ok, false);
-    assert.match(result.errors.join("\n"), /mechanicalChecks\.commands\[0\]\.id/);
-    assert.match(result.errors.join("\n"), /mechanicalChecks\.commands\[0\]\.argv/);
+    assert.match(
+      result.errors.join("\n"),
+      /mechanicalChecks\.commands\[0\] must be one of/
+    );
   });
 
   it("preserves evaluation judge overrides and evolution config from file config", () => {

@@ -11,10 +11,7 @@ describe("createMechanicalChecksAdapter", () => {
     ]);
     const adapter = createMechanicalChecksAdapter({
       workspaceRoot: "/workspace",
-      commands: [
-        { id: "verify", argv: ["pnpm", "verify"] },
-        { id: "lint", argv: ["pnpm", "lint"] }
-      ],
+      commands: ["verify", "lint"] as const,
       archetype: "cosmetic-tweak",
       baseRef: "HEAD",
       runId: "run-1",
@@ -57,13 +54,10 @@ describe("createMechanicalChecksAdapter", () => {
     const calls: string[] = [];
     const adapter = createMechanicalChecksAdapter({
       ...baseConfig({ diffNameOnly: ["a.ts"] }),
-      commands: [
-        { id: "verify", argv: ["pnpm", "verify"] },
-        { id: "lint", argv: ["pnpm", "lint"] }
-      ],
+      commands: ["verify", "lint"] as const,
       subprocess: {
-        async runCommand(input: { readonly argv: readonly string[] }) {
-          calls.push(input.argv.join(" "));
+        async runCommand(input: { readonly name: string }) {
+          calls.push(`pnpm ${input.name}`);
           return subprocessResult(calls.length === 1 ? "verify" : "lint", 0, `/tmp/${calls.length}.log`);
         }
       }
@@ -117,10 +111,7 @@ describe("createMechanicalChecksAdapter", () => {
   it("emits passing mechanicalScores for successful verify/lint, one-file cosmetic diff, and covered AC", async () => {
     const adapter = createMechanicalChecksAdapter({
       workspaceRoot: "/workspace",
-      commands: [
-        { id: "verify", argv: ["pnpm", "verify"] },
-        { id: "lint", argv: ["pnpm", "lint"] }
-      ],
+      commands: ["verify", "lint"] as const,
       archetype: "cosmetic-tweak",
       baseRef: "HEAD",
       runId: "run-1",
@@ -147,7 +138,7 @@ describe("createMechanicalChecksAdapter", () => {
   it("emits a failing lint mechanical score when lint exits non-zero", async () => {
     const adapter = createMechanicalChecksAdapter({
       ...baseConfig({ diffNameOnly: ["a.test.ts"] }),
-      commands: [{ id: "lint", argv: ["pnpm", "lint"] }],
+      commands: ["lint"] as const,
       subprocess: subprocessStub([subprocessResult("lint", 1, "/tmp/lint.stdout.log")])
     });
 
@@ -170,7 +161,7 @@ describe("createMechanicalChecksAdapter", () => {
 function baseConfig(opts: { readonly diffNameOnly: readonly string[] }) {
   return {
     workspaceRoot: "/workspace",
-    commands: [{ id: "verify", argv: ["pnpm", "verify"] }],
+    commands: ["verify"] as const,
     archetype: "cosmetic-tweak" as const,
     baseRef: "HEAD",
     runId: "run-1",

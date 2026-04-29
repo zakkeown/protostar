@@ -3,7 +3,6 @@
 import * as nodeFs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { appendFile, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -17,10 +16,6 @@ import {
   type FactoryRunManifest,
   type StageArtifactRef
 } from "@protostar/artifacts";
-import {
-  isAuthorizationPayload,
-  type AuthorizationPayload
-} from "@protostar/delivery/authorization-payload";
 import {
   buildPlanningMission,
   buildReviewMission,
@@ -104,7 +99,9 @@ import {
   dirtyWorktreeStatus,
   intersectAllowlist,
   DEFAULT_REPO_POLICY,
-  loadRepoPolicy as loadRepoRuntimePolicy
+  loadRepoPolicy as loadRepoRuntimePolicy,
+  PNPM_SCHEMA,
+  type MechanicalCommandName
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
@@ -122,9 +119,10 @@ import { buildDeliverCommand } from "./commands/deliver.js";
 import { buildPruneCommand } from "./commands/prune.js";
 import { buildDogfoodStepCommand } from "./commands/__dogfood-step.js";
 import { buildStressStepCommand } from "./commands/__stress-step.js";
-import { runFastDeliveryPreflight, runFullDeliveryPreflight } from "./delivery-preflight-wiring.js";
-import { wireExecuteDelivery } from "./execute-delivery-wiring.js";
-import { assembleDeliveryBody, type DeliveryBodyInput } from "./assemble-delivery-body.js";
+import { runFastDeliveryPreflight } from "./delivery-preflight-wiring.js";
+import { type DeliveryBodyInput } from "./assemble-delivery-body.js";
+import { createMechanicalSubprocessRunner } from "./wiring/command-execution.js";
+import { buildAndExecuteDelivery } from "./wiring/delivery.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
@@ -916,6 +914,12 @@ export async function runFactory(
         }
       }
     });
+    // Phase 12 D-03/D-04: closed mechanical command allowlist intersected
+    // with the capability envelope's `mechanical.allowed[]`. Empty envelope
+    // means no mechanical commands are admitted at runtime.
+    const allowedMechanicalCommands =
+      (intent.capabilityEnvelope as { readonly mechanical?: { readonly allowed?: readonly MechanicalCommandName[] } })
+        .mechanical?.allowed ?? [];
     const reviewServices = buildReviewRepairServices({
       fs: createNodeReviewFsAdapter(),
       gitFs: nodeFs,
@@ -927,7 +931,14 @@ export async function runFactory(
       runId,
       baseRef: "main",
       executor: reviewExecutor,
-      subprocess: createMechanicalSubprocessRunner({ runDir, resolvedEnvelope: precedenceDecision.resolvedEnvelope })
+      allowedMechanicalCommands,
+      subprocess: createMechanicalSubprocessRunner({
+        runDir,
+        resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+        allowedMechanicalCommands,
+        effectiveAllowlist: intersectAllowlist(repoRuntime.policy?.commandAllowlist),
+        schemas: { pnpm: PNPM_SCHEMA }
+      })
     });
     // Phase 6 Plan 06-07 Task 3b — review seam (PILE-02). When mode=live, the
     // ModelReviewer is the review pile (Q-14 retroactive lock); fixture mode
@@ -1170,100 +1181,33 @@ export async function runFactory(
   let deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
   let deliveryAuthorizationPayloadWritten = false;
   if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
-    const authorization = await loadDeliveryAuthorization({
-      decisionPath: loop.decisionPath,
-      readJson: async (path) => JSON.parse(await readFile(path, "utf8")) as unknown
-    });
-    if (authorization === null) {
-      throw new CliExitError("Delivery authorization could not be loaded from approved review decision.", 1);
-    }
-    const deliveryArtifacts = buildDeliveryArtifactList(executionResult.evidence);
-    const deliveryBodyInput = buildDeliveryBodyInput({
+    const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
+    const deliverySignal = AbortSignal.any([
+      runAbortController.signal,
+      AbortSignal.timeout(deliveryWallClockMs)
+    ]);
+    // Phase 12 D-14: extracted to wiring/delivery.ts. PROTOSTAR_GITHUB_TOKEN
+    // is read inside that module — never here, never in command-execution.ts.
+    const deliveryOutcome = await buildAndExecuteDelivery({
       runId,
-      target: intent.capabilityEnvelope.delivery.target,
-      review,
+      runDir,
+      deliveryMode,
+      intent,
       loop,
-      artifacts: deliveryArtifacts
+      review,
+      executionEvidence: executionResult.evidence,
+      repoRuntime: { headSha: repoRuntime.headSha, cloneDir: repoRuntime.cloneDir },
+      signal: deliverySignal,
+      requiredChecks: factoryConfig.config.delivery?.requiredChecks ?? [],
+      buildDeliveryArtifactList,
+      buildDeliveryBodyInput,
+      throwExit: (message: string, code: number): never => {
+        throw new CliExitError(message, code);
+      },
+      writeStderr
     });
-    const branchName = buildBranchName({
-      archetype: intent.goalArchetype ?? "cosmetic-tweak",
-      runId
-    });
-    if (deliveryMode === 'gated') {
-      await writeDeliveryAuthorizationPayloadAtomic({
-        runDir,
-        payload: buildAuthorizationPayload({
-          runId,
-          decisionPath: loop.decisionPath,
-          target: intent.capabilityEnvelope.delivery.target,
-          branchName,
-          title: intent.title || runId,
-          body: assembleDeliveryBody(deliveryBodyInput).body,
-          headSha: repoRuntime.headSha,
-          baseSha: repoRuntime.headSha
-        })
-      });
-      deliveryAuthorizationPayloadWritten = true;
-      writeStderr(`gated: run \`protostar-factory deliver ${runId}\` to push.`);
-    } else {
-      const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
-      const deliverySignal = AbortSignal.any([
-        runAbortController.signal,
-        AbortSignal.timeout(deliveryWallClockMs)
-      ]);
-      const fullResult = await runFullDeliveryPreflight({
-        token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
-        target: intent.capabilityEnvelope.delivery.target,
-        runDir,
-        fs: fsPromises,
-        signal: deliverySignal
-      });
-      if (!fullResult.proceed) {
-        throw new CliExitError(`Delivery full preflight refused: ${fullResult.result.outcome}`, 1);
-      }
-      const { octokit, baseSha } = fullResult;
-      if (octokit === undefined || baseSha === undefined) {
-        throw new CliExitError("Delivery full preflight did not return Octokit and base SHA.", 1);
-      }
-      await writeDeliveryAuthorizationPayloadAtomic({
-        runDir,
-        payload: buildAuthorizationPayload({
-          runId,
-          decisionPath: loop.decisionPath,
-          target: intent.capabilityEnvelope.delivery.target,
-          branchName,
-          title: intent.title || runId,
-          body: assembleDeliveryBody(deliveryBodyInput).body,
-          headSha: repoRuntime.headSha,
-          baseSha
-        })
-      });
-      deliveryAuthorizationPayloadWritten = true;
-      const wireResult = await wireExecuteDelivery({
-        runId,
-        runDir,
-        authorization,
-        intent: {
-          title: intent.title,
-          archetype: intent.goalArchetype ?? "cosmetic-tweak"
-        },
-        target: intent.capabilityEnvelope.delivery.target,
-        bodyInput: {
-          ...deliveryBodyInput
-        },
-        token: process.env["PROTOSTAR_GITHUB_TOKEN"]!,
-        octokit,
-        baseSha,
-        workspaceDir: repoRuntime.cloneDir,
-        fs: fsPromises,
-        signal: deliverySignal,
-        requiredChecks: factoryConfig.config.delivery?.requiredChecks ?? []
-      });
-      deliveryWireStatus = wireResult.status;
-      if (wireResult.status === "delivery-blocked") {
-        throw new CliExitError("Delivery execution was blocked; see delivery/delivery-result.json.", 1);
-      }
-    }
+    deliveryAuthorizationPayloadWritten = deliveryOutcome.deliveryAuthorizationPayloadWritten;
+    deliveryWireStatus = deliveryOutcome.deliveryWireStatus;
   }
   const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);
   const startedAt = new Date().toISOString();
@@ -1844,108 +1788,6 @@ function createNodeReviewFsAdapter(): ReviewLoopFsAdapter {
   };
 }
 
-function createMechanicalSubprocessRunner(input: {
-  readonly runDir: string;
-  readonly resolvedEnvelope: unknown;
-}) {
-  return {
-    async runCommand(command: {
-      readonly argv: readonly string[];
-      readonly cwd: string;
-      readonly signal: AbortSignal;
-      readonly timeoutMs: number;
-    }) {
-      const [program, ...args] = command.argv;
-      if (program === undefined) {
-        throw new Error("mechanical command argv must not be empty.");
-      }
-      const id = command.argv.join("-").replace(/[^a-zA-Z0-9._-]+/g, "_");
-      const dir = resolve(input.runDir, "review", "mechanical");
-      await mkdir(dir, { recursive: true });
-      const stdoutPath = resolve(dir, `${id}.stdout.log`);
-      const stderrPath = resolve(dir, `${id}.stderr.log`);
-      const result = await runSpawnedCommand({
-        program,
-        args,
-        cwd: command.cwd,
-        signal: command.signal,
-        timeoutMs: command.timeoutMs,
-        stdoutPath,
-        stderrPath
-      });
-      return {
-        argv: command.argv,
-        exitCode: result.exitCode,
-        durationMs: result.durationMs,
-        stdoutPath,
-        stderrPath,
-        stdoutBytes: result.stdoutBytes,
-        stderrBytes: result.stderrBytes
-      };
-    }
-  };
-}
-
-async function runSpawnedCommand(input: {
-  readonly program: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly signal: AbortSignal;
-  readonly timeoutMs: number;
-  readonly stdoutPath: string;
-  readonly stderrPath: string;
-}): Promise<{
-  readonly exitCode: number;
-  readonly durationMs: number;
-  readonly stdoutBytes: number;
-  readonly stderrBytes: number;
-}> {
-  const startedAt = Date.now();
-  const stdoutChunks: Buffer[] = [];
-  const stderrChunks: Buffer[] = [];
-  let settled = false;
-
-  const child = spawn(input.program, [...input.args], {
-    cwd: input.cwd,
-    shell: false,
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  const timer = setTimeout(() => child.kill("SIGTERM"), input.timeoutMs);
-  const abort = () => child.kill("SIGTERM");
-  input.signal.addEventListener("abort", abort, { once: true });
-
-  child.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
-  child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-
-  try {
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      child.once("error", reject);
-      child.once("exit", (code) => {
-        settled = true;
-        resolve(code ?? 124);
-      });
-    });
-    const stdout = Buffer.concat(stdoutChunks);
-    const stderr = Buffer.concat(stderrChunks);
-    await Promise.all([
-      writeFile(input.stdoutPath, stdout),
-      writeFile(input.stderrPath, stderr)
-    ]);
-    return {
-      exitCode,
-      durationMs: Date.now() - startedAt,
-      stdoutBytes: stdout.length,
-      stderrBytes: stderr.length
-    };
-  } finally {
-    clearTimeout(timer);
-    input.signal.removeEventListener("abort", abort);
-    if (!settled) {
-      child.kill("SIGTERM");
-    }
-  }
-}
-
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
@@ -2009,27 +1851,6 @@ function buildDeliveryBodyInput(input: {
     iterations: deliveryIterationsFromLoop(input.loop),
     artifacts: input.artifacts
   };
-}
-
-function buildAuthorizationPayload(input: Omit<AuthorizationPayload, "schemaVersion" | "mintedAt">): AuthorizationPayload {
-  return {
-    schemaVersion: "1.0.0",
-    ...input,
-    mintedAt: new Date().toISOString()
-  };
-}
-
-async function writeDeliveryAuthorizationPayloadAtomic(input: {
-  readonly runDir: string;
-  readonly payload: AuthorizationPayload;
-}): Promise<void> {
-  if (!isAuthorizationPayload(input.payload)) {
-    throw new CliExitError("Delivery authorization payload failed schema validation.", 1);
-  }
-  await writeJsonAtomic(
-    resolve(input.runDir, "delivery", "authorization.json"),
-    sortJsonValue(input.payload)
-  );
 }
 
 function resolveRefusalsIndexPath(outDir: string): string {

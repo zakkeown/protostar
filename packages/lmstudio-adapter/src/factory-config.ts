@@ -86,13 +86,16 @@ export interface OperatorConfig {
   readonly livenessThresholdMs?: number;
 }
 
+/**
+ * Phase 12 D-03/D-04: operator-supplied mechanical commands are a closed enum.
+ * Each entry must be a member of CLOSED_MECHANICAL_COMMAND_NAMES (verify,
+ * typecheck, lint, test). Argv is bound by name in @protostar/repo's
+ * MECHANICAL_COMMAND_BINDINGS — operators cannot supply free-form argv.
+ */
+export type MechanicalChecksCommandConfig = "verify" | "typecheck" | "lint" | "test";
+
 export interface MechanicalChecksConfig {
   readonly commands?: readonly MechanicalChecksCommandConfig[];
-}
-
-export interface MechanicalChecksCommandConfig {
-  readonly id: string;
-  readonly argv: readonly string[];
 }
 
 export type PileMode = "fixture" | "live";
@@ -254,7 +257,12 @@ const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
 const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshold"]);
 const OPERATOR_KEYS = new Set(["livenessThresholdMs"]);
 const MECHANICAL_CHECKS_KEYS = new Set(["commands"]);
-const MECHANICAL_COMMAND_KEYS = new Set(["id", "argv"]);
+const ALLOWED_MECHANICAL_COMMAND_NAMES: ReadonlySet<string> = new Set([
+  "verify",
+  "typecheck",
+  "lint",
+  "test"
+]);
 const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
 const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
 const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
@@ -569,22 +577,10 @@ function validateMechanicalCommands(path: string, commands: unknown, errors: str
 
   for (const [index, command] of commands.entries()) {
     const commandPath = `${path}[${index}]`;
-    if (!isPlainRecord(command)) {
-      errors.push(`${commandPath} must be an object`);
-      continue;
-    }
-    errors.push(...unknownKeyErrors(commandPath, command, MECHANICAL_COMMAND_KEYS));
-    if (!isNonEmptyString(command["id"])) {
-      errors.push(`${commandPath}.id must be a non-empty string`);
-    }
-    if (!Array.isArray(command["argv"]) || command["argv"].length === 0) {
-      errors.push(`${commandPath}.argv must be a non-empty string array`);
-    } else {
-      for (const [argIndex, arg] of command["argv"].entries()) {
-        if (!isNonEmptyString(arg)) {
-          errors.push(`${commandPath}.argv[${argIndex}] must be a non-empty string`);
-        }
-      }
+    if (typeof command !== "string" || !ALLOWED_MECHANICAL_COMMAND_NAMES.has(command)) {
+      errors.push(
+        `${commandPath} must be one of "verify" | "typecheck" | "lint" | "test"`
+      );
     }
   }
 }
