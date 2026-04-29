@@ -1,11 +1,22 @@
 import { createHash } from "node:crypto";
+import { isAbsolute as isAbsoluteOs, relative as relativeOs } from "node:path";
 
+import { canonicalizeRelativePath } from "@protostar/paths";
 import { applyPatch, parsePatch, type StructuredPatch } from "diff";
 
 import { FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
 import type { AuthorizedWorkspaceOp } from "./fs-adapter.js";
 
-export interface PatchRequest {
+declare const __patchRequestBrand: unique symbol;
+
+/**
+ * Branded patch request. Construct only via `mintPatchRequest` so the
+ * `path` / `op.path` / parsed-diff filename invariant is enforced (D-09).
+ *
+ * Equality across the three sources is exact-string `===` after canonicalization
+ * through `@protostar/paths::canonicalizeRelativePath` (D-10).
+ */
+export type PatchRequest = {
   /** Workspace-relative path of the file to patch. */
   readonly path: string;
   /** Authorized op for FS access. Caller mints this via the authority boundary. */
@@ -13,6 +24,18 @@ export interface PatchRequest {
   /** Unified-diff text. */
   readonly diff: string;
   /** Hex-encoded SHA-256 of expected pre-image bytes. */
+  readonly preImageSha256: string;
+} & { readonly [__patchRequestBrand]: void };
+
+export type PatchRequestMintError =
+  | "path-mismatch"
+  | "diff-filename-mismatch"
+  | "diff-parse-error";
+
+export interface PatchRequestMintInput {
+  readonly path: string;
+  readonly op: AuthorizedWorkspaceOp;
+  readonly diff: string;
   readonly preImageSha256: string;
 }
 
@@ -29,7 +52,8 @@ export type ApplyError =
   | "cosmetic-archetype-multifile"
   | "hunk-fit-failure"
   | "io-error"
-  | "parse-error";
+  | "parse-error"
+  | "path-op-diff-mismatch";
 
 export interface ApplyResult {
   readonly path: string;
@@ -40,10 +64,106 @@ export interface ApplyResult {
   };
 }
 
+function stripDiffPrefix(filename: string): string {
+  if (filename.startsWith("a/") || filename.startsWith("b/")) {
+    return filename.slice(2);
+  }
+  return filename;
+}
+
+function opPathRelative(op: AuthorizedWorkspaceOp): string {
+  // fs-adapter requires op.path to be absolute in production (it re-resolves
+  // and demands strict equality). Test fixtures may pass a relative op.path.
+  // Reconcile both conventions before canonicalization.
+  if (isAbsoluteOs(op.path)) {
+    return relativeOs(op.workspace.root, op.path);
+  }
+  return op.path;
+}
+
+type CheckOk = { readonly ok: true; readonly canonPath: string };
+type CheckErr = { readonly ok: false; readonly error: PatchRequestMintError };
+
+function checkInvariant(input: PatchRequestMintInput): CheckOk | CheckErr {
+  let canonPath: string;
+  let canonOpPath: string;
+  try {
+    canonPath = canonicalizeRelativePath(input.path);
+    canonOpPath = canonicalizeRelativePath(opPathRelative(input.op));
+  } catch {
+    return { ok: false, error: "path-mismatch" };
+  }
+  if (canonPath !== canonOpPath) {
+    return { ok: false, error: "path-mismatch" };
+  }
+
+  let parsed: readonly StructuredPatch[];
+  try {
+    parsed = parsePatch(input.diff);
+  } catch {
+    return { ok: false, error: "diff-parse-error" };
+  }
+  const first = parsed[0];
+  if (first === undefined) return { ok: false, error: "diff-parse-error" };
+  const filename = first.newFileName ?? first.oldFileName;
+  if (
+    filename === undefined ||
+    filename === "/dev/null" ||
+    filename.length === 0
+  ) {
+    return { ok: false, error: "diff-parse-error" };
+  }
+  // diff lib parses unparseable strings as a single patch with no hunks and a
+  // bogus filename. Treat zero-hunk parses with no recognizable header as
+  // diff-parse-error rather than diff-filename-mismatch.
+  if (first.hunks.length === 0 && first.oldFileName === undefined && first.newFileName === undefined) {
+    return { ok: false, error: "diff-parse-error" };
+  }
+  let canonDiffPath: string;
+  try {
+    canonDiffPath = canonicalizeRelativePath(stripDiffPrefix(filename));
+  } catch {
+    return { ok: false, error: "diff-filename-mismatch" };
+  }
+  if (canonPath !== canonDiffPath) {
+    return { ok: false, error: "diff-filename-mismatch" };
+  }
+  return { ok: true, canonPath };
+}
+
+/**
+ * Mint a branded PatchRequest after enforcing the path/op/diff invariant.
+ *
+ * Returns `{ok:true, request}` on success, or `{ok:false, error}` with a
+ * machine-readable refusal reason. Callers SHOULD surface refusals as
+ * blocked-execution evidence rather than retrying with the same inputs.
+ */
+export function mintPatchRequest(
+  input: PatchRequestMintInput
+):
+  | { readonly ok: true; readonly request: PatchRequest }
+  | { readonly ok: false; readonly error: PatchRequestMintError } {
+  const result = checkInvariant(input);
+  if (!result.ok) return { ok: false, error: result.error };
+  const branded = {
+    path: input.path,
+    op: input.op,
+    diff: input.diff,
+    preImageSha256: input.preImageSha256
+  } as PatchRequest;
+  return { ok: true, request: branded };
+}
+
 export async function applyChangeSet(
   patches: readonly PatchRequest[],
   input: ApplyChangeSetInput = {}
 ): Promise<readonly ApplyResult[]> {
+  // Defense-in-depth: re-assert the path/op/diff invariant at function entry.
+  // Catches handcrafted brand instances (test casts) before any I/O.
+  // Pitfall 5: this MUST share the canonicalize helper with mintPatchRequest.
+  const reassertFailure = reassertInvariants(patches);
+  if (reassertFailure !== null) return reassertFailure;
+
   const cosmeticRefusal = refuseCosmeticMultifile(patches, input);
   if (cosmeticRefusal !== null) return cosmeticRefusal;
 
@@ -54,6 +174,24 @@ export async function applyChangeSet(
   }
 
   return results;
+}
+
+function reassertInvariants(
+  patches: readonly PatchRequest[]
+): readonly ApplyResult[] | null {
+  for (const patch of patches) {
+    const check = checkInvariant(patch);
+    if (!check.ok) {
+      return [
+        {
+          path: patch.path,
+          status: "skipped-error",
+          error: "path-op-diff-mismatch"
+        }
+      ];
+    }
+  }
+  return null;
 }
 
 function refuseCosmeticMultifile(

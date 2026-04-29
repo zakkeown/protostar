@@ -9,6 +9,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../delivery" }
+    { "path": "../delivery" },
+    { "path": "../paths" }
   ]
 }
