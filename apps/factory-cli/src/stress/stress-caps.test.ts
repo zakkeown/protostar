@@ -90,7 +90,7 @@ describe("stress caps", () => {
       shape: "concurrency",
       count: 1,
       startedAt: "2026-04-20T00:00:00Z",
-      now: "2026-04-24T00:00:01Z",
+      now: "2026-04-24T00:00:00Z",
       caps: resolveStressCaps({})
     });
 
@@ -118,7 +118,7 @@ describe("stress caps", () => {
       now: "2026-04-29T00:05:00Z",
       caps: resolveStressCaps({})
     });
-    assert.notEqual(breach, null);
+    assert.ok(breach);
 
     await writeCapBreach({
       paths,

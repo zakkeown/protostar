@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,7 @@ import {
   writeWedgeEvidence
 } from "./stress-session.js";
 
-const sourceDir = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
+const sourceDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
 const tempRoots: string[] = [];
 
 describe("stress session paths", () => {
@@ -56,6 +56,7 @@ describe("stress session paths", () => {
       type: "existing",
       payload: { runId: "run_existing" }
     };
+    await mkdir(dirname(paths.eventsPath), { recursive: true });
     await writeFile(paths.eventsPath, `${JSON.stringify(existing)}\n`, "utf8");
     const beforeHash = await sha256(paths.eventsPath);
 

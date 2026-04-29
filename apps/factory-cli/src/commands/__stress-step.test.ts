@@ -237,7 +237,17 @@ async function writePermissiveRepoPolicy(workspace: string): Promise<void> {
       repoScopes: [
         {
           workspace: "protostar-toy-ttt",
-          path: ".",
+          path: "src/App.tsx",
+          access: "write"
+        },
+        {
+          workspace: "protostar-toy-ttt",
+          path: "src/components/TicTacToeBoard.tsx",
+          access: "write"
+        },
+        {
+          workspace: "protostar-toy-ttt",
+          path: "src/lib/ttt-state.ts",
           access: "write"
         }
       ],
