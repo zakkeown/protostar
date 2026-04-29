@@ -366,31 +366,61 @@ Plans:
 
 **Goal:** Run the factory in fully headless CI mode and stress-test the full E2E pipeline against synthetic load until we can build and deliver a Tauri-based tic-tac-toe game in `../protostar-toy-ttt`.
 
-**Requirements:** *(to be derived from `11-CONTEXT.md`; tentative theme: STRESS-01..STRESS-N covering headless runner, archetype expansion beyond cosmetic-tweak, multi-step feature delivery, stress-load shape, exit criterion, observability)*
+**Requirements:** STRESS-01, STRESS-02, STRESS-03, STRESS-04, STRESS-05, STRESS-06, STRESS-07, STRESS-08, STRESS-09, STRESS-10, STRESS-11, STRESS-12, STRESS-13, STRESS-14
 
 **Success criteria:**
 - Factory runs end-to-end without an interactive operator (driven from CI / cron / detached runner) — no operator-attached terminal required for any successful path
-- Pipeline survives a sustained synthetic-load stress run with documented pass/recovery thresholds (specific shape decided in `11-CONTEXT.md`)
-- A working Tauri-based tic-tac-toe game is delivered to `../protostar-toy-ttt` via factory PRs (verification mode — playable build vs. test-pass vs. CI-green — locked in `11-CONTEXT.md`)
-- Phase 11 stress evidence is appended (extension of Phase 10 `report.json` or sibling artifact, decided in CONTEXT)
+- Pipeline survives sustained-load, concurrency, and fault-injection stress sessions without a wedge, artifact corruption, prompt hang, secret leak, or merge/update-branch authority
+- A working Tauri-based tic-tac-toe game is delivered to `../protostar-toy-ttt` via a factory PR with CI green, Playwright E2E pass, property test pass, and Tauri debug build evidence
+- Phase 11 stress evidence is written to `.protostar/stress/<sessionId>/stress-report.json` and append-only `.protostar/stress/<sessionId>/events.jsonl`; no HTTP dashboard/server is added in Phase 11
+- The final gate is the Boolean conjunction `(ttt-delivered AND stress-clean)`
 
-**Notes:** Phase 11 lifts the v0.1 `cosmetic-tweak`-only archetype lock; expect updates to PROJECT.md Out-of-Scope and to `packages/policy/src/admission-paths.ts`. Phase 11 also revisits the v0.1 LM-Studio-only execution posture if "headless CI" requires a non-local LLM backend.
+**Plans:** 14 plans across 7 waves
+
+Plans:
+- [ ] 11-01-requirements-traceability-PLAN.md — W0 — STRESS-01 requirements/roadmap/validation traceability
+- [ ] 11-02-archetype-admission-lift-PLAN.md — W1; deps: 11-01 — all-three narrow `feature-add`/`bugfix`/`refactor` admission lift with exact repair-loop caps
+- [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal for immutable toy verification files
+- [ ] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `--headless-mode`, and non-interactive CLI support
+- [ ] 11-08-stress-artifact-schema-and-events-PLAN.md — W1; deps: 11-01 — canonical `stress-report.json`, append-only `events.jsonl`, and R2 no-dashboard contract
+- [ ] 11-03-seed-library-ttt-PLAN.md — W2; deps: 11-01, 11-02 — per-archetype seed library and `feature-add/ttt-game` seed
+- [ ] 11-06-llm-backend-selection-PLAN.md — W2; deps: 11-05 — `factory.llmBackend`, `--llm-backend`, and LM Studio default-preserving selector
+- [ ] 11-09-stress-session-core-PLAN.md — W2; deps: 11-08 — shared stress session paths, append writer, wedge/cap evidence, and prune extension
+- [ ] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02 — repo-owned exact `pnpm add` allowlist
+- [ ] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible and deterministic mock adapter packages
+- [ ] 11-10-sustained-load-bash-driver-PLAN.md — W4; deps: 11-05, 11-07, 11-09 — `scripts/stress.sh` for sustained-load only
+- [ ] 11-11-concurrency-fault-ts-driver-PLAN.md — W4; deps: 11-07, 11-09 — TypeScript concurrency and fault-injection stress runner
+- [ ] 11-13-ci-headless-security-gates-PLAN.md — W5; deps: 11-05, 11-07, 11-10, 11-11, 11-12 — headless workflow, no-prompt, secret-redaction, no-merge, and security review gates
+- [ ] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W6; deps: 11-02, 11-03, 11-04, 11-07, 11-09, 11-10, 11-11, 11-12, 11-13 — final `(ttt-delivered AND stress-clean)` gate
+
+**Notes:** Phase 11 chooses Q-17 R2: append-only `.protostar/stress/<sessionId>/events.jsonl` and no HTTP dashboard/server. LM Studio remains the default backend; hosted OpenAI-compatible and deterministic mock backends are sibling packages behind the existing `ExecutionAdapter` contract. The toy repo verification files are preconditions and immutable from factory-generated plans.
 
 ## Phase 12 — Authority Boundary Stabilization
 
 **Goal:** Re-seal the authority boundary after the v1 dogfood pass — make CI green again, route mechanical review through `@protostar/repo`'s hardened subprocess runner, scrub child-process env by default, tighten `applyChangeSet`'s display-vs-write invariant, and reconcile the duplicated tier/boundary encoding so manifests, AGENTS.md, and contract tests agree.
 
-**Requirements:** *(to be derived from `12-CONTEXT.md`; tentative theme: AUTH-01..AUTH-N covering verify gate parity, mechanical-checks net contract, mechanical command runner authority, env scrubbing default, apply-change-set path/op/diff agreement, manifest↔contract truth source)*
+**Requirements:** AUTH-01..AUTH-16 (see REQUIREMENTS.md §"Phase 12"). AUTH-16 is the pre-phase ordering check (no test artifact).
+
+**Plans:** 8 plans in 5 waves
+- [ ] 12-01-verify-collapse-PLAN.md — W0; deps: — — Unify `verify` script + add AUTH-01..AUTH-16 block to REQUIREMENTS.md (AUTH-01, AUTH-16)
+- [ ] 12-02-schema-cascade-PLAN.md — W0; deps: — — Bump confirmed-intent 1.5.0 → 1.6.0; cascade 25 source files; re-sign 2 example intents; rename signed-intent test (AUTH-04)
+- [ ] 12-03-diff-name-only-relocate-PLAN.md — W0; deps: — — Move `computeDiffNameOnly` (and isomorphic-git) from `@protostar/mechanical-checks` → `@protostar/repo`; reshape adapter (AUTH-02)
+- [ ] 12-04-subprocess-env-and-redact-PLAN.md — W1; deps: 12-01, 12-03 — subprocess-runner POSIX baseline + required `inheritEnv`; lift TOKEN_PATTERNS into `@protostar/delivery/redact`; env-empty-default contract test (AUTH-06, AUTH-07, AUTH-08)
+- [ ] 12-05-patch-request-brand-PLAN.md — W1; deps: 12-01, 12-04 — `canonicalizeRelativePath` in `@protostar/paths`; brand `PatchRequest` + `mintPatchRequest`; `applyChangeSet` re-assertion; mismatch contract test (AUTH-09, AUTH-10)
+- [ ] 12-06-mechanical-via-repo-and-wiring-PLAN.md — W2; deps: 12-02, 12-03, 12-04, 12-05 — Closed mechanical command bindings in `@protostar/repo`; extract `wiring/{command-execution,delivery}.ts`; delete raw spawn from `main.ts`; close operator config schema enum (AUTH-03, AUTH-05, AUTH-14)
+- [ ] 12-07-tier-conformance-three-way-PLAN.md — W3; deps: 12-03 — Flip evaluation-runner authority-boundary entry to network; extend `tier-conformance.contract.test.ts` to assert manifest == AGENTS.md == authority-boundary entry per package (AUTH-11, AUTH-12, AUTH-13)
+- [ ] 12-08-secret-leak-and-dogfood-PLAN.md — W4; deps: 12-02, 12-04, 12-06, 12-07 — Secret-leak attack test (sentinel token + shared TOKEN_PATTERNS); operator-driven Phase 10 dogfood re-run on protostar-toy-ttt (AUTH-15)
 
 **Success criteria:**
-- `pnpm run verify:full` is green locally and in `.github/workflows/verify.yml` — root `verify` ⊆ `verify:full` so CI cannot diverge from local again
-- `@protostar/mechanical-checks` no-net contract holds in production — `diff-name-only` no longer imports `isomorphic-git` (or mechanical-checks tier flips to `subprocess`/`workspace` in manifest + AGENTS.md + boundary contract, with deliberate justification)
-- Configured mechanical commands flow through `@protostar/repo`'s allowlist + per-command schema + refusal-evidence runner — no raw `spawn` in `apps/factory-cli/src/main.ts` for mechanical argv
-- `packages/repo/src/subprocess-runner.ts` defaults child env to `{}`; callers that need `PROTOSTAR_GITHUB_TOKEN` (or any secret) must opt in via an explicit allowlist, and persisted logs cannot leak ambient process env
-- `applyChangeSet` refuses when `PatchRequest.path`, `patch.op` write target, and parsed-diff filenames disagree — pinned by a contract test in `@protostar/admission-e2e`
-- Boundary tiers have one source of truth — `package.json` `protostar.tier` (or equivalent), AGENTS.md table, and `authority-boundary.contract.test.ts` are derived from it (or assert equality), so `mechanical-checks`/`evaluation-runner`-style drift becomes a test failure
+- `pnpm run verify` is the single unified script — green locally and in `.github/workflows/verify.yml`. `verify:full` is gone.
+- `@protostar/mechanical-checks` no-net contract holds in production — `diff-name-only` and its `isomorphic-git` import live in `@protostar/repo`; mechanical-checks stays `pure`.
+- Configured mechanical commands flow through `@protostar/repo`'s allowlist + per-command schema + refusal-evidence runner — no raw `spawn` in `apps/factory-cli/src/main.ts`. Operator config schema is a closed enum of `["verify","typecheck","lint","test"]`.
+- `packages/repo/src/subprocess-runner.ts` defaults child env to a tiny POSIX baseline; callers MUST declare `inheritEnv` (required field). `PROTOSTAR_GITHUB_TOKEN` cannot appear in any `inheritEnv` literal (static contract test).
+- `applyChangeSet` refuses when `PatchRequest.path`, `patch.op.path`, and parsed-diff filename disagree — both at admission (`mintPatchRequest`) and as defense-in-depth at function entry. Equality is exact-string after canonicalization through one shared helper in `@protostar/paths`.
+- Boundary tiers have one source of truth — `package.json` `protostar.tier` is canonical; AGENTS.md table and `authority-boundary.contract.test.ts` are cross-asserted by `tier-conformance.contract.test.ts`. `evaluation-runner` is `network` in all three sources.
+- Done-criteria: secret-leak attack test green (sentinel token absent from persisted artifacts; shares `TOKEN_PATTERNS` with the runtime filter); Phase 10 dogfood loop re-runs end-to-end ≥3 times on protostar-toy-ttt with ≥2/3 reaching pr-ready.
 
-**Notes:** Seeded by post-v1 review findings (verify-gate divergence, mechanical-argv bypass, env leakage, apply-change-set display-vs-write split, manifest-vs-contract drift). Do **not** decompose `packages/planning/src/index.ts` (5701 LOC) or `apps/factory-cli/src/main.ts` (3429 LOC) in this phase — the architecture read flags them as the next pressure point but only after authority is stable. Phase 12 is allowed to pull command-execution / review-loop / delivery wiring out of `main.ts` *if* doing so is the cleanest path to routing mechanical commands through the repo runner; otherwise defer the split.
+**Notes:** Seeded by post-v1 review findings (verify-gate divergence, mechanical-argv bypass, env leakage, apply-change-set display-vs-write split, manifest-vs-contract drift). Decomposition allowed for `apps/factory-cli/src/wiring/{command-execution,delivery}.ts` only — `packages/planning/src/index.ts` (5701 LOC) decomposition is explicitly deferred to Phase 13. AUTH-16 (Phase ordering: 12 runs after 11) is a pre-phase orchestrator check with no test artifact.
 
 ## Cross-Phase Constraints
 
