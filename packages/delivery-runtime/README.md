@@ -6,7 +6,7 @@ Network-only GitHub delivery runtime for preflight, branch push, PR creation, co
 
 - `export { buildOctokit } from "./octokit-client.js"` - public surface exported from `src/index.ts`.
 - `export { ProtostarOctokit } from "./octokit-client.js"` - public surface exported from `src/index.ts`.
-- `export { mapOctokitErrorToRefusal, TOKEN_PATTERN } from "./map-octokit-error.js"` - public surface exported from `src/index.ts`.
+- `export { mapOctokitErrorToRefusal } from "./map-octokit-error.js"` - public surface exported from `src/index.ts`.
 - `export { OctokitDeliveryPhase } from "./map-octokit-error.js"` - public surface exported from `src/index.ts`.
 - `export { preflightDeliveryFast } from "./preflight-fast.js"` - public surface exported from `src/index.ts`.
 - `export { FastPreflightResult } from "./preflight-fast.js"` - public surface exported from `src/index.ts`.

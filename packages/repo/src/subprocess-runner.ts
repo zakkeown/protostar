@@ -4,11 +4,37 @@ import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { performance } from "node:perf_hooks";
 
+import { redactTokens } from "@protostar/delivery/redact";
+
 import { applyOuterPatternGuard, ArgvViolation } from "./argv-pattern-guard.js";
 import type { CommandSchema } from "./subprocess-schemas/index.js";
 
 const DEFAULT_STDOUT_TAIL_BYTES = 8192;
 const DEFAULT_STDERR_TAIL_BYTES = 4096;
+
+/**
+ * POSIX baseline env keys passed to every spawned child unconditionally
+ * (when defined in the parent). Anything beyond this requires explicit
+ * `inheritEnv` opt-in. PROTOSTAR_GITHUB_TOKEN is never in this list (D-07).
+ */
+const POSIX_BASELINE_ENV_KEYS = Object.freeze(["PATH", "HOME", "LANG", "USER"] as const);
+
+function buildChildEnv(inheritEnv: readonly string[]): {
+  readonly env: NodeJS.ProcessEnv;
+  readonly inheritedEnvKeys: readonly string[];
+} {
+  const env: NodeJS.ProcessEnv = {};
+  const allKeys: readonly string[] = [...POSIX_BASELINE_ENV_KEYS, ...inheritEnv];
+  const used: string[] = [];
+  for (const key of allKeys) {
+    const value = process.env[key];
+    if (value !== undefined && env[key] === undefined) {
+      env[key] = value;
+      used.push(key);
+    }
+  }
+  return { env, inheritedEnvKeys: Object.freeze([...new Set(used)].sort()) };
+}
 
 // Kept structurally aligned with @protostar/authority's AuthorizedSubprocessOp
 // to avoid a circular TS project reference: authority imports @protostar/repo.
@@ -30,8 +56,15 @@ export interface RunCommandOptions {
   readonly schemas: Readonly<Record<string, CommandSchema>>;
   /** Optional explicit timeout in ms (kills child). Phase 4 plumbs this from envelope budget. */
   readonly timeoutMs?: number;
-  /** Optional env override for child. Defaults to process.env. */
-  readonly env?: NodeJS.ProcessEnv;
+  /**
+   * Per-call allowlist of process.env keys to inherit IN ADDITION TO the
+   * POSIX baseline (PATH, HOME, LANG, USER). REQUIRED — every caller declares
+   * intent explicitly. Pass [] for baseline-only.
+   *
+   * MUST NOT contain "PROTOSTAR_GITHUB_TOKEN" — pinned by
+   * env-empty-default.contract.test.ts (D-07).
+   */
+  readonly inheritEnv: readonly string[];
 }
 
 export interface SubprocessResult {
@@ -46,6 +79,12 @@ export interface SubprocessResult {
   readonly stdoutBytes: number;
   readonly stderrBytes: number;
   readonly killed: boolean;
+  /**
+   * Sorted list of env keys actually inherited by the child = POSIX baseline
+   * keys present in parent ∪ caller's `inheritEnv` ∩ defined-in-parent.
+   * Logged into evidence so refusal artifacts show exactly which vars crossed.
+   */
+  readonly inheritedEnvKeys: readonly string[];
 }
 
 export type SubprocessRefusedReason =
@@ -82,10 +121,16 @@ export async function runCommand(
   let killed = false;
   let timer: NodeJS.Timeout | undefined;
 
+  // Build child env from POSIX baseline + per-call inheritEnv allowlist (D-06).
+  // The on-disk raw stdout/stderr logs MAY still contain raw token shapes if a
+  // command echoes them (defense in depth — redaction lives at the read
+  // boundary on tail/evidence; see RESEARCH §"Where redaction lives").
+  const childEnv = buildChildEnv(options.inheritEnv);
+
   const child = spawn(op.command, [...op.args], {
     shell: false,
     cwd: op.cwd,
-    env: options.env ?? process.env,
+    env: childEnv.env,
     stdio: ["ignore", "pipe", "pipe"]
   });
 
@@ -127,11 +172,12 @@ export async function runCommand(
       durationMs: performance.now() - start,
       stdoutPath: options.stdoutPath,
       stderrPath: options.stderrPath,
-      stdoutTail: stdoutCapture.tail().toString("utf8"),
-      stderrTail: stderrCapture.tail().toString("utf8"),
+      stdoutTail: redactTokens(stdoutCapture.tail().toString("utf8")),
+      stderrTail: redactTokens(stderrCapture.tail().toString("utf8")),
       stdoutBytes: stdoutCapture.bytes(),
       stderrBytes: stderrCapture.bytes(),
-      killed
+      killed,
+      inheritedEnvKeys: childEnv.inheritedEnvKeys
     };
   } finally {
     if (timer !== undefined) {

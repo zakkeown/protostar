@@ -29,6 +29,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@protostar/delivery": "workspace:*",
     "diff": "9.0.0",
     "isomorphic-git": "1.37.6"
   },

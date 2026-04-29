@@ -373,6 +373,9 @@ importers:
 
   packages/repo:
     dependencies:
+      '@protostar/delivery':
+        specifier: workspace:*
+        version: link:../delivery
       diff:
         specifier: 9.0.0
         version: 9.0.0

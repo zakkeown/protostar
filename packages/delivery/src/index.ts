@@ -12,6 +12,7 @@ export * from "./pr-body/compose-repair-history.js";
 export * from "./pr-body/compose-run-summary.js";
 export * from "./pr-body/compose-score-sheet.js";
 export * from "./refusals.js";
+export { TOKEN_PATTERNS, redactTokens } from "./redact.js";
 export { isValidGitHubTokenFormat, validateBranchName, validatePrBody, validatePrTitle } from "./brands.js";
 export { composeArtifactList } from "./pr-body/compose-artifact-list.js";
 export { composeFooter } from "./pr-body/compose-footer.js";
