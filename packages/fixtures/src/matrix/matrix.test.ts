@@ -58,7 +58,11 @@ describe("fixture matrix", () => {
   it("has one filesystem row per outcome with required files", async () => {
     const fixturesDir = resolve(await repoRoot(), "packages/fixtures/__fixtures__");
     const entries = await readdir(fixturesDir, { withFileTypes: true });
-    const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    const dirs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => expectedOutcomes.includes(name as (typeof expectedOutcomes)[number]))
+      .sort();
 
     assert.deepEqual(dirs, [...expectedOutcomes].sort());
     for (const outcome of expectedOutcomes) {

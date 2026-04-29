@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { getSeed, listSeedIds, seedLibrary } from "./index.js";
+import { flattenSeedLibrary, getSeed, listSeedIds, seedLibrary } from "./index.js";
 
 describe("seed library", () => {
   it("exports a frozen per-archetype record", () => {
@@ -56,6 +56,13 @@ describe("seed library", () => {
 
     assert.deepEqual(ids, ["button-color-hover", "card-shadow", "navbar-aria"]);
     assert.equal(Object.isFrozen(ids), true);
+  });
+
+  it("returns a frozen flattened seed list across archetypes", () => {
+    const seeds = flattenSeedLibrary();
+
+    assert.deepEqual(seeds.map((seed) => seed.id), ["button-color-hover", "card-shadow", "navbar-aria", "ttt-game"]);
+    assert.equal(Object.isFrozen(seeds), true);
   });
 
   it("deeply freezes grouped seed arrays and seed objects", () => {

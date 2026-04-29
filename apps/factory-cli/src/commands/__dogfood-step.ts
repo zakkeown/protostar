@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import { buildPolicySnapshot, buildSignatureEnvelope, hashPolicySnapshot, intersectEnvelopes } from "@protostar/authority";
 import { seedLibrary } from "@protostar/fixtures";
+import type { Seed } from "@protostar/fixtures";
 import { promoteAndSignIntent, promoteIntentDraft } from "@protostar/intent";
 import type { ConfirmedIntent } from "@protostar/intent";
 import { resolveWorkspaceRoot } from "@protostar/paths";
@@ -156,10 +157,7 @@ async function nextSeed(paths: ReturnType<typeof dogfoodPaths>, opts: DogfoodSte
     return ExitCode.GenericError;
   }
 
-  const seed = seedLibrary[cursor.completed % seedLibrary.length];
-  if (seed === undefined) {
-    throw new Error("seed library is empty");
-  }
+  const seed = getDogfoodSeed(cursor.completed);
   await writeTextAtomic(paths.draftPath, `${JSON.stringify(buildDraftForSeed(seed, cursor.completed), null, 2)}\n`);
   if (opts.json === true) {
     writeStdoutJson({
@@ -200,10 +198,7 @@ async function record(paths: ReturnType<typeof dogfoodPaths>, opts: DogfoodStepO
     return ExitCode.UsageOrArgError;
   }
 
-  const seed = seedLibrary[cursor.completed % seedLibrary.length];
-  if (seed === undefined) {
-    throw new Error("seed library is empty");
-  }
+  const seed = getDogfoodSeed(cursor.completed);
   const run: CursorRun = {
     runId: parsed.data.runId,
     seedId: seed.id,
@@ -479,7 +474,16 @@ function emptyToUndefined<T extends string>(input: T | "" | undefined): T | unde
   return input === "" ? undefined : input;
 }
 
-function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): unknown {
+function getDogfoodSeed(index: number): Seed {
+  const seeds = seedLibrary["cosmetic-tweak"];
+  const seed = seeds[index % seeds.length];
+  if (seed === undefined) {
+    throw new Error("cosmetic-tweak seed library is empty");
+  }
+  return seed;
+}
+
+function buildDraftForSeed(seed: Seed, index: number): unknown {
   const dogfoodTargetFile = "src/components/PrimaryButton.tsx";
   const targetDescription = `In the protostar-toy-ttt sibling repository, ${seed.intent.toLowerCase()} without changing gameplay behavior or broadening the requested cosmetic scope.`;
   return {

@@ -49,7 +49,7 @@ describe("__dogfood-step", () => {
 
     const first = await runStep(workspace, ["--session", "session_2", "--action", "next-seed", "--json"]);
     const firstJson = JSON.parse(first.stdout) as { readonly seedId: string; readonly draftPath: string };
-    assert.equal(firstJson.seedId, seedLibrary[0]?.id);
+    assert.equal(firstJson.seedId, seedLibrary["cosmetic-tweak"][0]?.id);
     const draft = JSON.parse(await readFile(firstJson.draftPath, "utf8")) as {
       readonly capabilityEnvelope?: {
         readonly repoScopes?: readonly { readonly workspace?: string; readonly path?: string; readonly access?: string }[];
@@ -70,7 +70,7 @@ describe("__dogfood-step", () => {
 
     await record(workspace, "session_2", "run_one", "pr-ready");
     const second = await runStep(workspace, ["--session", "session_2", "--action", "next-seed", "--json"]);
-    assert.equal(JSON.parse(second.stdout).seedId, seedLibrary[1]?.id);
+    assert.equal(JSON.parse(second.stdout).seedId, seedLibrary["cosmetic-tweak"][1]?.id);
   });
 
   it("record appends log.jsonl and advances the cursor", async () => {

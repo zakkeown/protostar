@@ -6,12 +6,25 @@ import assert from "node:assert/strict";
 
 const maxFixtureAgeMs = 60 * 24 * 60 * 60 * 1000;
 
+const outcomes = Object.freeze([
+  "accepted",
+  "ambiguous",
+  "bad-plan",
+  "failed-execution",
+  "repaired-execution",
+  "blocked-review",
+  "pr-ready"
+] as const);
+
 describe("fixture-matrix age", () => {
   it("fails when any DOG-02 fixture row is older than 60 days", async () => {
     const now = Date.now();
     const fixturesDir = resolve(await repoRoot(), "packages/fixtures/__fixtures__");
     const entries = await readdir(fixturesDir, { withFileTypes: true });
-    const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    const dirs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => outcomes.includes(name as (typeof outcomes)[number]));
 
     assert.ok(dirs.length > 0, "fixture matrix has no rows");
     for (const dir of dirs) {

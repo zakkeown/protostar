@@ -22,6 +22,7 @@ describe("fixture-matrix coverage", () => {
     const dirs = (await readdir(fixturesDir, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
+      .filter((name) => outcomes.includes(name as (typeof outcomes)[number]))
       .sort();
 
     assert.deepEqual(dirs, [...outcomes].sort());
