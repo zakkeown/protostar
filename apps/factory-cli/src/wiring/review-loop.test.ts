@@ -52,6 +52,7 @@ describe("buildReviewRepairServices", () => {
       executor: executor(),
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [finding] }),
+      computeDiffNameOnly: async () => [],
       judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
@@ -137,6 +138,7 @@ describe("buildReviewRepairServices", () => {
       executor: executor(),
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [] }),
+      computeDiffNameOnly: async () => [],
       judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 
@@ -169,6 +171,7 @@ describe("runReviewRepairLoopWithDurablePersistence", () => {
       } as never,
       subprocess: subprocess(),
       mechanicalChecksFactory: finalMechanicalAdapter({ findings: [] }),
+      computeDiffNameOnly: async () => [],
       judgeFactory: () => async () => ({ verdict: "pass", critiques: [] })
     });
 

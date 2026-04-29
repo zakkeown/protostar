@@ -1,7 +1,10 @@
 import type { AdapterContext, ExecutionAdapter, ExecutionAdapterTaskInput } from "@protostar/execution";
 import { createMechanicalChecksAdapter, type MechanicalChecksAdapterConfig, type MechanicalChecksCommandConfig, type MechanicalChecksSubprocessRunner } from "@protostar/mechanical-checks";
 import type { AdmittedPlanExecutionArtifact, ExecutionRunResult } from "@protostar/planning";
+import { computeDiffNameOnly } from "@protostar/repo";
 import type { FsAdapter } from "@protostar/repo";
+
+type GitFs = Parameters<typeof computeDiffNameOnly>[0]["fs"];
 import { createLmstudioJudgeAdapter, type ResolvedFactoryConfig } from "@protostar/lmstudio-adapter";
 import {
   createReviewGate,
@@ -25,7 +28,7 @@ export interface ReviewLoopFsAdapter extends FsAdapter {
 
 export interface BuildReviewRepairServicesInput {
   readonly fs: ReviewLoopFsAdapter;
-  readonly gitFs: MechanicalChecksAdapterConfig["gitFs"];
+  readonly gitFs: GitFs;
   readonly runsRoot: string;
   readonly workspaceRoot: string;
   readonly factoryConfig: ResolvedFactoryConfig;
@@ -36,6 +39,11 @@ export interface BuildReviewRepairServicesInput {
   readonly executor: TaskExecutorService;
   readonly subprocess: MechanicalChecksSubprocessRunner;
   readonly mechanicalChecksFactory?: (config: MechanicalChecksAdapterConfig) => ExecutionAdapter;
+  readonly computeDiffNameOnly?: (input: {
+    readonly fs: GitFs;
+    readonly workspaceRoot: string;
+    readonly baseRef: string;
+  }) => Promise<readonly string[]>;
   readonly judgeFactory?: (config: {
     readonly baseUrl: string;
     readonly model: string;
@@ -54,11 +62,14 @@ export function buildReviewRepairServices(input: BuildReviewRepairServicesInput)
   const createJudge = input.judgeFactory ?? createLmstudioJudgeAdapter;
   // Construct once at build time so factory wiring failures surface before the
   // loop starts. Per-attempt calls below create a fresh adapter with the real attempt.
-  createAdapter(mechanicalAdapterConfig(input, 0));
+  // Use a synchronous placeholder diff (empty) for the smoke test; the real
+  // mechanicalChecker calls below recompute diffNameOnly per attempt.
+  createAdapter(mechanicalAdapterConfigSync(input, 0, []));
 
   return {
     mechanicalChecker: async (checkInput) => {
-      const adapter = createAdapter(mechanicalAdapterConfig(input, checkInput.attempt));
+      const config = await mechanicalAdapterConfig(input, checkInput.attempt);
+      const adapter = createAdapter(config);
       const final = await finalMechanicalResult(adapter, input, checkInput.attempt);
       return {
         result: final,
@@ -124,9 +135,23 @@ export function defaultMechanicalCommandsForArchetype(
   return [{ id: "verify", argv: ["pnpm", "verify"] }];
 }
 
-function mechanicalAdapterConfig(
+async function mechanicalAdapterConfig(
   input: BuildReviewRepairServicesInput,
   attempt: number
+): Promise<MechanicalChecksAdapterConfig> {
+  const compute = input.computeDiffNameOnly ?? computeDiffNameOnly;
+  const diffNameOnly = await compute({
+    fs: input.gitFs,
+    workspaceRoot: input.workspaceRoot,
+    baseRef: input.baseRef
+  });
+  return mechanicalAdapterConfigSync(input, attempt, diffNameOnly);
+}
+
+function mechanicalAdapterConfigSync(
+  input: BuildReviewRepairServicesInput,
+  attempt: number,
+  diffNameOnly: readonly string[]
 ): MechanicalChecksAdapterConfig {
   return {
     workspaceRoot: input.workspaceRoot,
@@ -137,7 +162,7 @@ function mechanicalAdapterConfig(
     attempt,
     plan: input.admittedPlan,
     readFile: input.fs.readFile,
-    gitFs: input.gitFs,
+    diffNameOnly,
     subprocess: input.subprocess
   };
 }
