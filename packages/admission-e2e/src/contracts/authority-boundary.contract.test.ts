@@ -74,7 +74,11 @@ const PACKAGE_RULES: Readonly<Record<string, BoundaryRule | "unrestricted">> = {
   },
   "dogpile-types": PURE_PACKAGE_RULE,
   evaluation: PURE_PACKAGE_RULE,
-  "evaluation-runner": PURE_PACKAGE_RULE,
+  // D-13 (Phase 12 AUTH-13): reclassified from PURE_PACKAGE_RULE — manifest tier is network; transitive net via @protostar/dogpile-adapter.
+  "evaluation-runner": {
+    reason: "network package: orchestrates dogpile-adapter network calls; filesystem and subprocess authority forbidden",
+    forbidden: [...FS_IMPORTS, ...PROCESS_IMPORTS, ...PATH_IMPORTS]
+  },
   execution: PURE_PACKAGE_RULE,
   fixtures: PURE_PACKAGE_RULE,
   intent: PURE_PACKAGE_RULE,
