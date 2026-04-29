@@ -26,7 +26,8 @@ describe("repo-runtime subprocess allowlist refusal contract", () => {
       stdoutPath: `${repo.dir}/logs/stdout.log`,
       stderrPath: `${repo.dir}/logs/stderr.log`,
       effectiveAllowlist: intersectAllowlist(),
-      schemas: { node: NODE_SCHEMA }
+      schemas: { node: NODE_SCHEMA },
+      inheritEnv: []
     };
 
     const cargoRefusal = await expectSubprocessRefusal(

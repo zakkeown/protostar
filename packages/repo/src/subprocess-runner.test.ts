@@ -131,6 +131,78 @@ describe("runCommand", () => {
     assert.equal(result.exitCode, -1);
   });
 
+  it("defaults child env to POSIX baseline subset (PATH, HOME, LANG, USER) when inheritEnv is empty", async (t) => {
+    const context = await createRunContext(t);
+    const script = await writeScript(context.dir, "env-empty.mjs", [
+      "process.stdout.write(JSON.stringify(Object.keys(process.env).sort()));"
+    ]);
+
+    const result = await runCommand(
+      mkOp({ command: "node", args: [script], cwd: context.dir }),
+      context.options
+    );
+
+    assert.equal(result.exitCode, 0);
+    const childKeys = JSON.parse(result.stdoutTail) as string[];
+    // Keys the factory authority is responsible for: baseline only.
+    const factoryAllowed = new Set(["PATH", "HOME", "LANG", "USER"]);
+    // Keys the OS may inject independent of factory authority (macOS/CoreFoundation,
+    // glibc loaders, etc.). We tolerate these — they are not under factory control
+    // and never carry secrets the factory holds.
+    const osInjected = new Set(["__CF_USER_TEXT_ENCODING", "__CFBundleIdentifier"]);
+    for (const key of childKeys) {
+      const tolerated = factoryAllowed.has(key) || osInjected.has(key);
+      assert.ok(tolerated, `unexpected env key crossed factory boundary: ${key}`);
+    }
+    // inheritedEnvKeys reports exactly what the factory authority crossed —
+    // sorted and a subset of factoryAllowed.
+    assert.deepEqual(result.inheritedEnvKeys, [...result.inheritedEnvKeys].sort());
+    for (const key of result.inheritedEnvKeys) {
+      assert.ok(factoryAllowed.has(key), `inheritedEnvKeys leaked non-baseline: ${key}`);
+    }
+    // No factory-controlled secret-shaped key crossed.
+    assert.ok(!childKeys.includes("PROTOSTAR_GITHUB_TOKEN"));
+  });
+
+  it("extends child env with explicit inheritEnv keys when defined in parent", async (t) => {
+    const context = await createRunContext(t, { inheritEnv: ["PROTOSTAR_TEST_FLAG"] });
+    process.env.PROTOSTAR_TEST_FLAG = "yes";
+    t.after(() => {
+      delete process.env.PROTOSTAR_TEST_FLAG;
+    });
+    const script = await writeScript(context.dir, "env-extend.mjs", [
+      "process.stdout.write(process.env.PROTOSTAR_TEST_FLAG ?? '<unset>');"
+    ]);
+
+    const result = await runCommand(
+      mkOp({ command: "node", args: [script], cwd: context.dir }),
+      context.options
+    );
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdoutTail, "yes");
+    assert.ok(result.inheritedEnvKeys.includes("PROTOSTAR_TEST_FLAG"));
+  });
+
+  it("redacts GitHub PAT-shaped tokens in stdoutTail/stderrTail (read-side defense in depth)", async (t) => {
+    const context = await createRunContext(t);
+    const script = await writeScript(context.dir, "echo-token.mjs", [
+      "process.stdout.write('leak: ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA done\\n');",
+      "process.stderr.write('also-leak: ghp_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\\n');"
+    ]);
+
+    const result = await runCommand(
+      mkOp({ command: "node", args: [script], cwd: context.dir }),
+      context.options
+    );
+
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stdoutTail, /leak: \*\*\* done/);
+    assert.match(result.stderrTail, /also-leak: \*\*\*/);
+    assert.doesNotMatch(result.stdoutTail, /ghp_AAAA/);
+    assert.doesNotMatch(result.stderrTail, /ghp_BBBB/);
+  });
+
   it("flushes process output before resolving for small outputs", async (t) => {
     const context = await createRunContext(t);
     const script = await writeScript(context.dir, "flush.mjs", [
@@ -165,6 +237,7 @@ async function createRunContext(
       stderrPath,
       effectiveAllowlist: DEFAULT_ALLOWLIST,
       schemas: DEFAULT_SCHEMAS,
+      inheritEnv: [],
       ...overrides
     }
   };
