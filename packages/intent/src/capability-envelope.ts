@@ -56,6 +56,20 @@ export interface CapabilityEnvelopePnpm {
   readonly allowedAdds?: readonly string[];
 }
 
+export const CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS = [
+  "verify",
+  "typecheck",
+  "lint",
+  "test"
+] as const;
+
+export type CapabilityEnvelopeMechanicalCommand =
+  (typeof CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS)[number];
+
+export interface CapabilityEnvelopeMechanical {
+  readonly allowed?: readonly CapabilityEnvelopeMechanicalCommand[];
+}
+
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD = "repair_loop_count";
 
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_ADMISSION_FAILURE_CODES = [
@@ -112,6 +126,7 @@ export interface CapabilityEnvelope {
   readonly toolPermissions: readonly ToolPermissionGrant[];
   readonly executeGrants?: readonly ExecuteGrant[];
   readonly pnpm?: CapabilityEnvelopePnpm;
+  readonly mechanical?: CapabilityEnvelopeMechanical;
   readonly workspace?: CapabilityEnvelopeWorkspace;
   readonly network?: CapabilityEnvelopeNetwork;
   readonly budget: FactoryBudget;
@@ -222,7 +237,7 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
 
   rejectUnknownKeys(
     value,
-    ["repoScopes", "toolPermissions", "executeGrants", "pnpm", "workspace", "network", "budget", "delivery"],
+    ["repoScopes", "toolPermissions", "executeGrants", "pnpm", "mechanical", "workspace", "network", "budget", "delivery"],
     "capabilityEnvelope",
     errors
   );
@@ -232,11 +247,71 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
     toolPermissions: parseToolPermissions(value["toolPermissions"], errors),
     ...optionalExecuteGrants(value["executeGrants"], errors),
     ...optionalPnpm(value["pnpm"], errors),
+    ...optionalMechanical(value["mechanical"], errors),
     workspace: parseWorkspace(value["workspace"], errors),
     network: parseNetwork(value["network"], errors),
     budget: parseBudget(value["budget"], errors),
     ...optionalDelivery(value["delivery"], errors)
   };
+}
+
+function optionalMechanical(
+  value: unknown,
+  errors: string[]
+): Pick<CapabilityEnvelope, "mechanical"> | Record<string, never> {
+  if (value === undefined) {
+    return {};
+  }
+
+  return {
+    mechanical: parseMechanical(value, errors)
+  };
+}
+
+function parseMechanical(value: unknown, errors: string[]): CapabilityEnvelopeMechanical {
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.mechanical must be an object.");
+    return {};
+  }
+
+  rejectUnknownKeys(value, ["allowed"], "capabilityEnvelope.mechanical", errors);
+  const allowed = readMechanicalAllowed(value["allowed"], errors);
+  return allowed === undefined ? {} : { allowed };
+}
+
+function readMechanicalAllowed(
+  value: unknown,
+  errors: string[]
+): readonly CapabilityEnvelopeMechanicalCommand[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("capabilityEnvelope.mechanical.allowed must be an array.");
+    return undefined;
+  }
+
+  const allowedSet = new Set<string>(CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS);
+  const seen = new Set<string>();
+  const commands: CapabilityEnvelopeMechanicalCommand[] = [];
+  let invalid = false;
+  for (const [index, command] of value.entries()) {
+    if (typeof command !== "string" || !allowedSet.has(command)) {
+      errors.push(
+        `capabilityEnvelope.mechanical.allowed[${index}] must be one of ${CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS.join(", ")}.`
+      );
+      invalid = true;
+      continue;
+    }
+    if (seen.has(command)) {
+      errors.push(`capabilityEnvelope.mechanical.allowed[${index}] is a duplicate of an earlier entry.`);
+      invalid = true;
+      continue;
+    }
+    seen.add(command);
+    commands.push(command as CapabilityEnvelopeMechanicalCommand);
+  }
+  return invalid ? undefined : commands;
 }
 
 function optionalPnpm(

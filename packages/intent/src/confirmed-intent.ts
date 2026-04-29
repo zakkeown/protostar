@@ -41,7 +41,7 @@ interface ConfirmedIntentBaseShape {
   readonly capabilityEnvelope: CapabilityEnvelope;
   readonly constraints: readonly string[];
   readonly stopConditions: readonly string[];
-  readonly schemaVersion: "1.5.0";
+  readonly schemaVersion: "1.6.0";
   readonly signature: SignatureEnvelope | null;
 }
 
@@ -83,7 +83,7 @@ export interface ConfirmedIntentMintInput {
   readonly constraints?: readonly string[];
   readonly stopConditions?: readonly string[];
   readonly confirmedAt?: string;
-  readonly schemaVersion?: "1.5.0";
+  readonly schemaVersion?: "1.6.0";
   readonly signature?: SignatureEnvelope | null;
 }
 
@@ -114,7 +114,7 @@ export function mintConfirmedIntent(input: ConfirmedIntentMintInput): ConfirmedI
     capabilityEnvelope: copyCapabilityEnvelope(input.capabilityEnvelope),
     constraints: copyStringList(input.constraints),
     stopConditions: copyStringList(input.stopConditions),
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     signature: input.signature ?? null
   };
 
@@ -170,6 +170,15 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
           pnpm: {
             ...(envelope.pnpm.allowedAdds !== undefined
               ? { allowedAdds: envelope.pnpm.allowedAdds.map((add) => add) }
+              : {})
+          }
+        }
+      : {}),
+    ...(envelope.mechanical !== undefined
+      ? {
+          mechanical: {
+            ...(envelope.mechanical.allowed !== undefined
+              ? { allowed: envelope.mechanical.allowed.map((command) => command) }
               : {})
           }
         }
@@ -302,7 +311,7 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
     capabilityEnvelope: copyCapabilityEnvelope(capabilityEnvelope),
     constraints: copyStringList(constraints),
     stopConditions: copyStringList(stopConditions),
-    schemaVersion: schemaVersion ?? "1.5.0",
+    schemaVersion: schemaVersion ?? "1.6.0",
     signature: signature ?? null
   };
 
@@ -313,15 +322,15 @@ export function parseConfirmedIntent(value: unknown): ConfirmedIntentParseResult
   };
 }
 
-function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.5.0" | undefined {
+function readOptionalSchemaVersion(record: Record<string, unknown>, errors: string[]): "1.6.0" | undefined {
   const value = record["schemaVersion"];
   if (value === undefined) {
     return undefined;
   }
-  if (value === "1.5.0") {
+  if (value === "1.6.0") {
     return value;
   }
-  errors.push("schemaVersion must be \"1.5.0\" when provided.");
+  errors.push("schemaVersion must be \"1.6.0\" when provided.");
   return undefined;
 }
 
