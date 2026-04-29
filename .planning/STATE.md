@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 11 Plan 15 mock adapter selector wiring complete)
+**Last updated:** 2026-04-29 (Phase 12 parked at wave 4 with 12-01..12-07 complete; 12-08 dogfood gate awaits Phase 11)
 
 ## Project
 
@@ -48,6 +48,7 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
 | 11 | Headless Mode + E2E Stress | In progress — Plans 11-01, 11-02, 11-03, 11-04, 11-05, 11-06, 11-07, 11-08, 11-09, 11-12, and 11-15 complete; Wave 4 complete; feature-add/bugfix/refactor admission wired; TTT seed library ready; immutable toy verification gate recorded; headless config/CLI/docs ready; hosted and mock adapters wired; stress artifact schema/events locked; stress session core ready; pnpm add allowlist locked |
+| 12 | Authority Boundary Stabilization | **Parked at wave 4 (2026-04-29)** — Plans 12-01..12-07 complete (waves 0–3); 12-08 (`autonomous: false`, dogfood evidence) deferred until Phase 11 lands so the Phase 10 dogfood baseline is stable. HEAD `cecffb1`. Verify gate 5/5 green at wave 0 (`12-01-WAVE0-VERIFY-EVIDENCE.md`). Cross-phase items in `deferred-items.md`. |
 
 ## Active Documents
 
@@ -58,6 +59,8 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Phase 12 (authority-boundary-stabilization) parked at wave 4. Waves 0–3 (Plans 12-01..12-07) executed in parallel via worktree isolation while Phase 11 ran concurrently. Wave 0: `pnpm run verify` collapsed (12-01), confirmed-intent schema 1.5.0→1.6.0 cascade with mechanical envelope (12-02), `computeDiffNameOnly` relocated from mechanical-checks to `@protostar/repo` dropping isomorphic-git dep (12-03); 5/5 verify-evidence at `49a7a34`. Wave 1: subprocess-runner POSIX baseline + required `inheritEnv` + shared `redactTokens` (12-04), `@protostar/paths/canonicalize-relative-path` + branded `PatchRequest` via `mintPatchRequest` (12-05); inline post-merge fix `be97cbe` aligned a factory-cli test fixture's diff filenames with the new brand. Wave 2: mechanical commands routed through `@protostar/repo/runCommand` with closed allowlist + factory-cli `wiring/{command-execution,delivery}.ts` extracted from `main.ts` (12-06). Wave 3: AGENTS.md tier-table parser + three-way conformance (manifest ≡ AGENTS.md ≡ authority-boundary contract) + `evaluation-runner` reclassified `network` (12-07); orchestrator-recovered SUMMARY after a 600s executor stall right before commit. Wave 4 (12-08 secret-leak-and-dogfood) deferred — requires settled Phase 11 stress surface for the ≥3 dogfood-loop runs. Phase 11 prune `--help` snapshot drift documented as cross-phase deferred. HEAD `cecffb1`. Commits: `4e88240`, `c988f51`, `189ddab`, `624989e`, `b9431f0`, `ed54aaf`, `bb0e5c3`, `8fb68d9`, `e7ec775`, `29f45c3`, `49a7a34`, `73c3402`, `e2a1639`, `c9064a3`, `2ca26ec`, `818b112`, `c60b3dd`, `44ff526`, `4cea694`, `15b69f0`, `313dd95`, `306b8e1`, `03bb0a1`, `be97cbe`, `30d2cc3`, `18f1aa6`, `a59d4c3`, `5a959b3`, `7281f64`, `06e33e3`, `df67500`, `303d4c5`, `aa5ff3b`, `60e6718`, `ae80e10`, plus the four `chore: merge` commits.
 
 - **2026-04-29:** Completed Phase 11 Plan 15 (`11-15-mock-adapter-selector-wiring-PLAN.md`). Added pure-tier `@protostar/mock-llm-adapter` with no-net contract coverage, deterministic `createMockCoderAdapter`, and stress fault modes for `network-drop` (`adapter-network-refusal`) and `llm-timeout` (`llm-abort-timeout`). Factory-cli selector wiring now resolves LM Studio, hosted OpenAI-compatible, and mock backends through real package imports; temporary missing-package selector errors are gone. Verification passed: mock adapter tests, hosted adapter tests, factory-cli typecheck, selector tests, full factory-cli tests, admission-e2e, acceptance greps, `git diff --check`, and `pnpm run verify`. Commits: `40ee9f1`, `bf326cc`, `077c95c`, `13bceec`, plus source-shape test hygiene `3da511d`.
 
