@@ -1,0 +1,36 @@
+{
+  "runId": "run_matrix_bad_plan",
+  "intentId": "intent_matrix_bad_plan",
+  "status": "blocked",
+  "createdAt": "2026-04-29T00:00:00.000Z",
+  "stages": [
+    {
+      "stage": "intent",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "intent",
+          "kind": "confirmed-intent",
+          "uri": "intent.json"
+        }
+      ]
+    },
+    {
+      "stage": "planning",
+      "status": "failed",
+      "startedAt": "2026-04-29T00:00:00.000Z",
+      "completedAt": "2026-04-29T00:00:00.000Z",
+      "artifacts": [
+        {
+          "stage": "planning",
+          "kind": "planning-admission",
+          "uri": "planning-admission.json",
+          "description": "refusalKind: planning-refusal"
+        }
+      ]
+    },
+    { "stage": "execution", "status": "skipped", "artifacts": [] },
+    { "stage": "review", "status": "skipped", "artifacts": [] },
+    { "stage": "release", "status": "skipped", "artifacts": [] }
+  ]
+}

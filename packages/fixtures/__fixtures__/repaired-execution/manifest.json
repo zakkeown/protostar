@@ -1,0 +1,36 @@
+{
+  "runId": "run_matrix_repaired_execution",
+  "intentId": "intent_matrix_repaired_execution",
+  "status": "ready-to-release",
+  "createdAt": "2026-04-29T00:00:00.000Z",
+  "stages": [
+    {
+      "stage": "intent",
+      "status": "passed",
+      "artifacts": [{ "stage": "intent", "kind": "confirmed-intent", "uri": "intent.json" }]
+    },
+    {
+      "stage": "planning",
+      "status": "passed",
+      "artifacts": [{ "stage": "planning", "kind": "plan-graph", "uri": "plan.json" }]
+    },
+    {
+      "stage": "execution",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "execution",
+          "kind": "repair-attempt",
+          "uri": "review/iter-1/repair-plan.json",
+          "description": "Envelope-tweak matrix row: one repair iteration recovered execution."
+        }
+      ]
+    },
+    {
+      "stage": "review",
+      "status": "passed",
+      "artifacts": [{ "stage": "review", "kind": "review-gate", "uri": "review-gate.json" }]
+    },
+    { "stage": "release", "status": "skipped", "artifacts": [] }
+  ]
+}

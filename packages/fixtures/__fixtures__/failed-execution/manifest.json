@@ -1,0 +1,38 @@
+{
+  "runId": "run_matrix_failed_execution",
+  "intentId": "intent_matrix_failed_execution",
+  "status": "blocked",
+  "createdAt": "2026-04-29T00:00:00.000Z",
+  "stages": [
+    {
+      "stage": "intent",
+      "status": "passed",
+      "artifacts": [{ "stage": "intent", "kind": "confirmed-intent", "uri": "intent.json" }]
+    },
+    {
+      "stage": "planning",
+      "status": "passed",
+      "artifacts": [{ "stage": "planning", "kind": "plan-graph", "uri": "plan.json" }]
+    },
+    {
+      "stage": "execution",
+      "status": "failed",
+      "startedAt": "2026-04-29T00:00:00.000Z",
+      "completedAt": "2026-04-29T00:00:00.000Z",
+      "artifacts": [
+        {
+          "stage": "execution",
+          "kind": "execution-snapshot",
+          "uri": "execution/snapshot.json",
+          "description": "Envelope-tweak matrix row: execution failed under a constrained budget."
+        }
+      ]
+    },
+    {
+      "stage": "review",
+      "status": "failed",
+      "artifacts": [{ "stage": "review", "kind": "review-gate", "uri": "review-gate.json" }]
+    },
+    { "stage": "release", "status": "skipped", "artifacts": [] }
+  ]
+}

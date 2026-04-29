@@ -1,0 +1,32 @@
+{
+  "runId": "run_matrix_ambiguous",
+  "intentId": "intent_matrix_ambiguous",
+  "status": "blocked",
+  "createdAt": "2026-04-29T00:00:00.000Z",
+  "stages": [
+    {
+      "stage": "intent",
+      "status": "failed",
+      "startedAt": "2026-04-29T00:00:00.000Z",
+      "completedAt": "2026-04-29T00:00:00.000Z",
+      "artifacts": [
+        {
+          "stage": "intent",
+          "kind": "intent-ambiguity",
+          "uri": "intent-ambiguity.json",
+          "description": "Synthetic matrix row: ambiguity score exceeded the 0.2 gate."
+        },
+        {
+          "stage": "intent",
+          "kind": "refusal",
+          "uri": "intent-admission-decision.json",
+          "description": "refusalKind: intent-ambiguous"
+        }
+      ]
+    },
+    { "stage": "planning", "status": "skipped", "artifacts": [] },
+    { "stage": "execution", "status": "skipped", "artifacts": [] },
+    { "stage": "review", "status": "skipped", "artifacts": [] },
+    { "stage": "release", "status": "skipped", "artifacts": [] }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "planId": "plan_run_dog_03_button_color_hover_22",
+  "runId": "run_dog_03_button_color_hover_22",
+  "verdict": "block",
+  "findings": [
+    {
+      "ruleId": "build-failure",
+      "severity": "critical",
+      "summary": "mechanical command build exited with code 2",
+      "evidence": {
+        "commandId": "build",
+        "argv": [
+          "pnpm",
+          "build"
+        ],
+        "exitCode": 2,
+        "stdoutPath": "/Users/zakkeown/Code/protostar/.protostar/runs/run_dog_03_button_color_hover_22/review/mechanical/pnpm-build.stdout.log",
+        "stderrPath": "/Users/zakkeown/Code/protostar/.protostar/runs/run_dog_03_button_color_hover_22/review/mechanical/pnpm-build.stderr.log"
+      }
+    },
+    {
+      "ruleId": "ac-uncovered",
+      "severity": "major",
+      "summary": "acceptance criterion ac_d0e5c105063ffb31 test name did not appear in test output",
+      "evidence": {
+        "acId": "ac_d0e5c105063ffb31",
+        "missingTestName": "PrimaryButton color and hover state evidence"
+      },
+      "repairTaskId": "task-dog-03-primary-button"
+    },
+    {
+      "ruleId": "ac-uncovered",
+      "severity": "major",
+      "summary": "acceptance criterion ac_37ecd3edbfdcf83c test name did not appear in test output",
+      "evidence": {
+        "acId": "ac_37ecd3edbfdcf83c",
+        "missingTestName": "Toy repo build-and-test CI succeeds"
+      },
+      "repairTaskId": "task-dog-03-primary-button"
+    }
+  ]
+}

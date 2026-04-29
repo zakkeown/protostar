@@ -1,0 +1,167 @@
+{
+  "runId": "run_dog_03_button_color_hover_25",
+  "intentId": "intent_dog_03_button_color_hover",
+  "status": "ready-to-release",
+  "createdAt": "2026-04-28T23:55:34.895Z",
+  "stages": [
+    {
+      "stage": "intent",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "intent",
+          "kind": "intent-draft",
+          "uri": "intent-draft.json",
+          "description": "Captured mutable draft input before clarification or admission mutation."
+        },
+        {
+          "stage": "intent",
+          "kind": "clarification-report",
+          "uri": "clarification-report.json",
+          "description": "Deterministic clarification questions and unresolved draft issues."
+        },
+        {
+          "stage": "intent",
+          "kind": "admission-decision",
+          "uri": "intent-admission-decision.json",
+          "description": "Deterministic draft admission allow/block/escalate decision and gate details."
+        },
+        {
+          "stage": "intent",
+          "kind": "confirmed-intent",
+          "uri": "intent.json",
+          "description": "Normalized confirmed intent input."
+        },
+        {
+          "stage": "intent",
+          "kind": "intent-ambiguity",
+          "uri": "intent-ambiguity.json",
+          "description": "Ouroboros-style intent ambiguity assessment."
+        },
+        {
+          "stage": "intent",
+          "kind": "intent-archetype-suggestion",
+          "uri": "intent-archetype-suggestion.json",
+          "description": "Deterministic draft archetype suggestion and confidence score."
+        }
+      ],
+      "startedAt": "2026-04-28T23:55:41.514Z",
+      "completedAt": "2026-04-28T23:55:41.514Z"
+    },
+    {
+      "stage": "planning",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "planning",
+          "kind": "pile-mission",
+          "uri": "planning-mission.txt",
+          "description": "Model-visible planning pile mission."
+        },
+        {
+          "stage": "planning",
+          "kind": "candidate-plan-source",
+          "uri": "planning-result.json",
+          "description": "Raw candidate-plan source returned by the planning pile before admission."
+        },
+        {
+          "stage": "planning",
+          "kind": "plan-graph",
+          "uri": "plan.json",
+          "description": "Admitted PlanGraph written only after planning-admission.json allows the candidate plan."
+        },
+        {
+          "stage": "planning",
+          "kind": "planning-admission",
+          "uri": "planning-admission.json",
+          "description": "Plan admission decision and thin per-AC coverage evidence."
+        }
+      ],
+      "startedAt": "2026-04-28T23:55:41.514Z",
+      "completedAt": "2026-04-28T23:55:41.514Z"
+    },
+    {
+      "stage": "execution",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "execution",
+          "kind": "execution-plan",
+          "uri": "execution-plan.json",
+          "description": "Execution task ordering derived from the plan graph."
+        },
+        {
+          "stage": "execution",
+          "kind": "execution-events",
+          "uri": "execution-events.json",
+          "description": "Dry-run execution lifecycle events."
+        },
+        {
+          "stage": "execution",
+          "kind": "execution-result",
+          "uri": "execution-result.json",
+          "description": "Dry-run execution result."
+        },
+        {
+          "stage": "execution",
+          "kind": "review-execution-loop",
+          "uri": "review-execution-loop.json",
+          "description": "Review-execute-review loop transcript."
+        },
+        {
+          "stage": "execution",
+          "kind": "adapter-evidence",
+          "uri": "execution/task-task-dog-03-primary-button/evidence.json",
+          "description": "Adapter evidence for task task-dog-03-primary-button attempt 1."
+        }
+      ],
+      "startedAt": "2026-04-28T23:55:41.514Z",
+      "completedAt": "2026-04-28T23:55:41.514Z"
+    },
+    {
+      "stage": "review",
+      "status": "passed",
+      "artifacts": [
+        {
+          "stage": "review",
+          "kind": "pile-mission",
+          "uri": "review-mission.txt",
+          "description": "Model-visible review pile mission."
+        },
+        {
+          "stage": "review",
+          "kind": "review-gate",
+          "uri": "review-gate.json",
+          "description": "Mechanical review verdict and findings."
+        },
+        {
+          "stage": "review",
+          "kind": "evaluation-report",
+          "uri": "evaluation-report.json",
+          "description": "Three-stage evaluation report."
+        },
+        {
+          "stage": "review",
+          "kind": "evolution-decision",
+          "uri": "evolution-decision.json",
+          "description": "Ontology convergence decision."
+        },
+        {
+          "stage": "review",
+          "kind": "evolution-snapshot",
+          "uri": "evolution/snapshot.json",
+          "description": "Spec ontology snapshot for this lineage generation."
+        }
+      ],
+      "startedAt": "2026-04-28T23:55:41.514Z",
+      "completedAt": "2026-04-28T23:55:41.514Z"
+    },
+    {
+      "stage": "release",
+      "status": "skipped",
+      "artifacts": [],
+      "startedAt": "2026-04-28T23:55:41.514Z",
+      "completedAt": "2026-04-28T23:55:41.514Z"
+    }
+  ]
+}
