@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 
 import type { ExecutionAdapter } from "@protostar/execution";
+import type { HostedOpenAiCompatibleCoderAdapterConfig } from "@protostar/hosted-llm-adapter";
 import type { LmstudioAdapterConfig } from "@protostar/lmstudio-adapter";
+import type { MockCoderAdapterConfig } from "@protostar/mock-llm-adapter";
 
-import { LlmBackendUnavailableError, selectExecutionAdapter } from "./execution-adapter.js";
+import { selectExecutionAdapter } from "./execution-adapter.js";
 
 describe("selectExecutionAdapter", () => {
   it("selects the existing LM Studio adapter factory for the lmstudio backend", () => {
@@ -35,22 +37,50 @@ describe("selectExecutionAdapter", () => {
     });
   });
 
-  it("returns typed unavailable errors for backends that land in later Phase 11 plans", () => {
-    assert.throws(
-      () => selectExecutionAdapter({ backend: "hosted-openai-compatible" }),
-      (error: unknown) => isUnavailableCode(error, "hosted-backend-package-missing")
+  it("selects the hosted OpenAI-compatible adapter factory with env-key redaction config", () => {
+    const adapter = inertAdapter("hosted-openai-compatible-coder");
+    const createHostedOpenAiCompatibleCoderAdapter = mock.fn(
+      (_config: HostedOpenAiCompatibleCoderAdapterConfig): ExecutionAdapter => adapter
     );
 
-    assert.throws(
-      () => selectExecutionAdapter({ backend: "mock" }),
-      (error: unknown) => isUnavailableCode(error, "mock-backend-package-missing")
-    );
+    const selected = selectExecutionAdapter({
+      backend: "hosted-openai-compatible",
+      hostedOpenAiCompatible: {
+        baseUrl: "https://hosted.example/v1",
+        model: "hosted-coder",
+        apiKeyEnv: "PROTOSTAR_HOSTED_LLM_API_KEY",
+        env: { PROTOSTAR_HOSTED_LLM_API_KEY: "sk-test" }
+      },
+      createHostedOpenAiCompatibleCoderAdapter
+    });
+
+    assert.equal(selected, adapter);
+    assert.equal(selected.id, "hosted-openai-compatible-coder");
+    assert.equal(createHostedOpenAiCompatibleCoderAdapter.mock.callCount(), 1);
+    assert.deepEqual(createHostedOpenAiCompatibleCoderAdapter.mock.calls[0]?.arguments[0], {
+      baseUrl: "https://hosted.example/v1",
+      model: "hosted-coder",
+      apiKeyEnv: "PROTOSTAR_HOSTED_LLM_API_KEY",
+      env: { PROTOSTAR_HOSTED_LLM_API_KEY: "sk-test" }
+    });
+  });
+
+  it("selects the deterministic mock adapter factory for stress", () => {
+    const adapter = inertAdapter("mock-coder:network-drop");
+    const createMockCoderAdapter = mock.fn((_config: MockCoderAdapterConfig): ExecutionAdapter => adapter);
+
+    const selected = selectExecutionAdapter({
+      backend: "mock",
+      env: { PROTOSTAR_MOCK_LLM_MODE: "network-drop" },
+      createMockCoderAdapter
+    });
+
+    assert.equal(selected, adapter);
+    assert.equal(selected.id, "mock-coder:network-drop");
+    assert.equal(createMockCoderAdapter.mock.callCount(), 1);
+    assert.deepEqual(createMockCoderAdapter.mock.calls[0]?.arguments[0], { mode: "network-drop" });
   });
 });
-
-function isUnavailableCode(error: unknown, code: string): boolean {
-  return error instanceof LlmBackendUnavailableError && (error as { readonly code?: unknown }).code === code;
-}
 
 function inertAdapter(id: string): ExecutionAdapter {
   return {
