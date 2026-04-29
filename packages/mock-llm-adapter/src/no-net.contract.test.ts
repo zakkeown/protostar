@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const KNOWN_CONTRACT_TESTS = new Set(["no-net.contract.test.ts", "no-fs.contract.test.ts"]);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const srcRoot = resolve(__dirname, "../src");
+const srcRoot = resolve(__dirname, "../../src");
 
 const FORBIDDEN_NET_PATTERNS: readonly RegExp[] = [
   /from\s+["']node:net["']/,

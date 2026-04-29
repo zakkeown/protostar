@@ -23,7 +23,7 @@ This repo is a dark software factory control plane. Keep the authority boundary 
 - **orchestration (`fs-permitted`, `network-permitted`):** `apps/factory-cli`
 - **filesystem (`fs-permitted`, `network-forbidden`):** `packages/repo`, `@protostar/paths` (scope-ceiled carve-out)
 - **domain network (`network-permitted`, `fs-forbidden`):** `@protostar/dogpile-adapter`, `@protostar/delivery-runtime`, `@protostar/evaluation-runner`, `@protostar/hosted-llm-adapter`, `@protostar/lmstudio-adapter`
-- **pure (`fs-forbidden`, `network-forbidden`):** `@protostar/artifacts`, `@protostar/authority`, `@protostar/delivery`, `@protostar/dogpile-types`, `@protostar/evaluation`, `@protostar/execution`, `@protostar/fixtures`, `@protostar/intent`, `@protostar/mechanical-checks`, `@protostar/planning`, `@protostar/policy`, `@protostar/repair`, `@protostar/review`
+- **pure (`fs-forbidden`, `network-forbidden`):** `@protostar/artifacts`, `@protostar/authority`, `@protostar/delivery`, `@protostar/dogpile-types`, `@protostar/evaluation`, `@protostar/execution`, `@protostar/fixtures`, `@protostar/intent`, `@protostar/mechanical-checks`, `@protostar/mock-llm-adapter`, `@protostar/planning`, `@protostar/policy`, `@protostar/repair`, `@protostar/review`
 - **test-only:** `@protostar/admission-e2e` may depend on any tier for contract coverage; nothing may depend on test-only packages.
 
 Every package manifest MUST declare its tier as `"protostar": { "tier": "pure" | "fs" | "network" | "orchestration" | "test-only" }`. The manifest field is the machine-readable source of truth; this table is the human-readable mirror.

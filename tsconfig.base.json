@@ -35,6 +35,7 @@
       "@protostar/intent/draft": ["packages/intent/src/draft/index.ts"],
       "@protostar/hosted-llm-adapter": ["packages/hosted-llm-adapter/src/index.ts"],
       "@protostar/lmstudio-adapter": ["packages/lmstudio-adapter/src/index.ts"],
+      "@protostar/mock-llm-adapter": ["packages/mock-llm-adapter/src/index.ts"],
       "@protostar/planning": ["packages/planning/src/index.ts"],
       "@protostar/planning/artifacts": ["packages/planning/src/artifacts/index.ts"],
       "@protostar/planning/schema": ["packages/planning/src/schema/index.ts"],
