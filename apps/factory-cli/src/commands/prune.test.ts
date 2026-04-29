@@ -235,6 +235,68 @@ describe("prune command", () => {
     await stat(join(workspace, ".protostar", "dogfood", "dogfood_active"));
   });
 
+  it("reports old terminal stress sessions as dry-run candidates with events.jsonl hash evidence", async () => {
+    const workspace = await tempWorkspace();
+    const sessionDir = await createStressSession(workspace, {
+      sessionId: "stress_20260429_001",
+      ageMs: days(8),
+      cursorStatus: "completed",
+      finishedAt: "2026-04-29T00:10:00Z"
+    });
+    const eventsPath = join(sessionDir, "events.jsonl");
+    const expectedHash = await sha256(eventsPath);
+
+    const result = await runPrune(workspace, ["--older-than", "7d"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.equal(output.scanned, 1);
+    assert.deepEqual(output.candidates.map((candidate) => candidate.runId), ["stress_20260429_001"]);
+    assert.equal(output.candidates[0]?.eventsJsonlSha256, expectedHash);
+    assert.deepEqual(output.deleted, []);
+    await stat(sessionDir);
+    assert.equal(await sha256(eventsPath), expectedHash);
+  });
+
+  it("protects active stress sessions with active-stress-session", async () => {
+    const workspace = await tempWorkspace();
+    await createStressSession(workspace, {
+      sessionId: "stress_20260429_002",
+      ageMs: days(8),
+      cursorStatus: "running"
+    });
+
+    const result = await runPrune(workspace, ["--older-than", "7d", "--confirm"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.deepEqual(output.candidates, []);
+    assert.deepEqual(output.deleted, []);
+    assert.deepEqual(output.protected, [{ reason: "active-stress-session", runId: "stress_20260429_002" }]);
+    await stat(join(workspace, ".protostar", "stress", "stress_20260429_002"));
+  });
+
+  it("deletes only selected terminal stress session directories when confirmed", async () => {
+    const workspace = await tempWorkspace();
+    await createStressSession(workspace, {
+      sessionId: "stress_20260429_003",
+      ageMs: days(8),
+      cursorStatus: "completed",
+      finishedAt: "2026-04-29T00:10:00Z"
+    });
+    const refusalsPath = join(workspace, ".protostar", "refusals.jsonl");
+    await writeFile(refusalsPath, "{\"sessionId\":\"stress_20260429_003\"}\n", "utf8");
+    const before = await sha256(refusalsPath);
+
+    const result = await runPrune(workspace, ["--older-than", "7d", "--confirm"]);
+
+    assert.equal(result.exitCode, 0);
+    const output = parseOutput(result.stdout);
+    assert.deepEqual(output.deleted, [{ runId: "stress_20260429_003" }]);
+    await assertMissing(join(workspace, ".protostar", "stress", "stress_20260429_003", "events.jsonl"));
+    assert.equal(await sha256(refusalsPath), before);
+  });
+
   for (const status of ["created", "running", "cancelling", "repairing", "ready-to-release"] as const) {
     it(`protects active status ${status}`, async () => {
       const workspace = await tempWorkspace();
@@ -260,7 +322,13 @@ interface CommandResult {
 
 interface PruneOutput {
   readonly scanned: number;
-  readonly candidates: readonly { readonly runId: string; readonly mtimeMs: number; readonly status: string; readonly archetype: string | null }[];
+  readonly candidates: readonly {
+    readonly runId: string;
+    readonly mtimeMs: number;
+    readonly status: string;
+    readonly archetype: string | null;
+    readonly eventsJsonlSha256?: string;
+  }[];
   readonly protected: readonly { readonly runId: string; readonly reason: string }[];
   readonly deleted: readonly { readonly runId: string }[];
   readonly dryRun: boolean;
@@ -296,6 +364,7 @@ async function tempWorkspace(): Promise<string> {
   await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages: []\n", "utf8");
   await mkdir(join(workspace, ".protostar", "runs"), { recursive: true });
   await mkdir(join(workspace, ".protostar", "dogfood"), { recursive: true });
+  await mkdir(join(workspace, ".protostar", "stress"), { recursive: true });
   return workspace;
 }
 
@@ -372,6 +441,88 @@ async function createDogfoodSession(
     )}\n`,
     "utf8"
   );
+  const mtime = new Date(Date.now() - input.ageMs);
+  await utimes(sessionDir, mtime, mtime);
+  return sessionDir;
+}
+
+async function createStressSession(
+  workspace: string,
+  input: {
+    readonly sessionId: string;
+    readonly ageMs: number;
+    readonly cursorStatus: "running" | "completed" | "aborted";
+    readonly finishedAt?: string;
+  }
+): Promise<string> {
+  const sessionDir = join(workspace, ".protostar", "stress", input.sessionId);
+  await mkdir(sessionDir, { recursive: true });
+  await writeFile(
+    join(sessionDir, "cursor.json"),
+    `${JSON.stringify(
+      {
+        sessionId: input.sessionId,
+        shape: "sustained-load",
+        status: input.cursorStatus,
+        startedAt: "2026-04-29T00:00:00Z",
+        ...(input.finishedAt !== undefined ? { finishedAt: input.finishedAt } : {}),
+        completed: input.cursorStatus === "completed" ? 1 : 0,
+        runs: input.cursorStatus === "completed"
+          ? [
+              {
+                runId: "run_one",
+                seedId: "button-color-hover",
+                archetype: "cosmetic-tweak",
+                outcome: "pass",
+                durationMs: 60000
+              }
+            ]
+          : []
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(sessionDir, "events.jsonl"),
+    "{\"at\":\"2026-04-29T00:00:01Z\",\"payload\":{\"runId\":\"run_one\"},\"sequence\":1,\"sessionId\":\"stress_20260429_001\",\"type\":\"run-started\"}\n",
+    "utf8"
+  );
+  if (input.finishedAt !== undefined) {
+    await writeFile(
+      join(sessionDir, "stress-report.json"),
+      `${JSON.stringify({
+        finishedAt: input.finishedAt,
+        headlessMode: "local-daemon",
+        llmBackend: "mock",
+        perArchetype: [
+          {
+            archetype: "cosmetic-tweak",
+            met: true,
+            passRate: 1,
+            passes: 1,
+            runs: 1,
+            threshold: 0.8
+          }
+        ],
+        perRun: [
+          {
+            archetype: "cosmetic-tweak",
+            durationMs: 60000,
+            outcome: "pass",
+            runId: "run_one",
+            seedId: "button-color-hover"
+          }
+        ],
+        sessionId: input.sessionId,
+        shape: "sustained-load",
+        startedAt: "2026-04-29T00:00:00Z",
+        totalRuns: 1
+      })}\n`,
+      "utf8"
+    );
+  }
   const mtime = new Date(Date.now() - input.ageMs);
   await utimes(sessionDir, mtime, mtime);
   return sessionDir;
