@@ -54,6 +54,18 @@ export { PNPM_ADD_ALLOWLIST, formatPnpmAddAllowlistSpec } from "./pnpm-add-allow
 export type { PnpmAddAllowlistEntry } from "./pnpm-add-allowlist.js";
 export { DEFAULT_REPO_POLICY, loadRepoPolicy, parseRepoPolicy } from "./repo-policy.js";
 export type { ParseRepoPolicyResult, RepoPolicy } from "./repo-policy.js";
+export {
+  CLOSED_MECHANICAL_COMMAND_NAMES,
+  MECHANICAL_COMMAND_BINDINGS,
+  MechanicalCommandRefusedError,
+  inferMechanicalName,
+  isMechanicalCommandName
+} from "./mechanical-commands.js";
+export type {
+  MechanicalCommandBinding,
+  MechanicalCommandName,
+  MechanicalCommandRefusalReason
+} from "./mechanical-commands.js";
 export { runCommand, SubprocessRefusedError } from "./subprocess-runner.js";
 export type {
   AuthorizedSubprocessOp,
