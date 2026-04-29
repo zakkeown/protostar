@@ -212,6 +212,12 @@ describe("factory CLI draft admission hardening", () => {
       /cloneWorkspace\(\{\s*url:\s*pathToFileURL\(input\.projectRoot\)\.href/s,
       "repo-runtime must not always clone the factory checkout when a delivery target is present."
     );
+    assert.match(
+      source,
+      /defineWorkspace\(\{\s*root:\s*workspaceAuthorityRootForIntent\(intent\)/s,
+      "execution workspace authority must be checked against the delivery target's logical workspace."
+    );
+    assert.match(source, /function workspaceAuthorityRootForIntent/);
   });
 
   it("writes an escalation marker and exits 2 for escalate outcomes", async () => {
@@ -3386,7 +3392,10 @@ function livePlanningPileResultWithMalformedNestedOutput(fixture: Record<string,
   const tasks = readObjectArrayProperty(output, "tasks").map((task, index) => ({
     ...task,
     id: `task${index + 1}`,
+    kind: index === 0 ? "implementation" : task["kind"],
+    dependsOn: index === 0 ? ["task2"] : ["task1"],
     covers: [],
+    acceptanceTestRefs: [],
     requiredCapabilities: {
       repoScopes: [{ workspace: "wrong-workspace", path: "not/inside/intent", access: "write" }],
       toolPermissions: [{ tool: "shell", permissionLevel: "write" }],

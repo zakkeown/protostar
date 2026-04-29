@@ -1,5 +1,6 @@
 import type {
   CapabilityEnvelope,
+  CapabilityEnvelopeNetwork,
   ExecuteGrant,
   FactoryBudget,
   RepoScopeGrant,
@@ -36,6 +37,7 @@ export function intersectEnvelopes(tiers: readonly TierConstraint[]): Precedence
     toolPermissions: subtractDeniedTools(intersectToolPermissions(tiers), tiers),
     ...optionalExecuteGrants(intersectExecuteGrants(tiers)),
     workspace: intersectWorkspace(tiers),
+    network: intersectNetwork(tiers),
     budget: intersectBudgets(tiers)
   };
 
@@ -53,6 +55,7 @@ function buildOpenEnvelope(): CapabilityEnvelope {
     repoScopes: [],
     toolPermissions: [],
     workspace: { allowDirty: false },
+    network: { allow: "none" },
     budget: {}
   };
 }
@@ -93,6 +96,22 @@ function intersectWorkspace(tiers: readonly TierConstraint[]): NonNullable<Capab
   return {
     allowDirty: tiers.length > 0 && tiers.every((tier) => tier.envelope.workspace?.allowDirty === true)
   };
+}
+
+function intersectNetwork(tiers: readonly TierConstraint[]): CapabilityEnvelopeNetwork {
+  const networks = tiers.map((tier) => tier.envelope.network ?? { allow: "none" as const });
+  if (networks.some((network) => network.allow === "none")) {
+    return { allow: "none" };
+  }
+  if (networks.some((network) => network.allow === "loopback")) {
+    return { allow: "loopback" };
+  }
+
+  const [firstHosts = [], ...restHosts] = networks.map((network) => network.allowedHosts ?? []);
+  const allowedHosts = firstHosts.filter((host) => restHosts.every((hosts) => hosts.includes(host)));
+  return allowedHosts.length > 0
+    ? { allow: "allowlist", allowedHosts }
+    : { allow: "none" };
 }
 
 function intersectBudgets(tiers: readonly TierConstraint[]): FactoryBudget {
@@ -195,8 +214,24 @@ function sameEnvelopeForPrecedence(left: TierConstraint["envelope"], right: Capa
     sameKeys(left.toolPermissions ?? [], right.toolPermissions, toolPermissionKey) &&
     sameKeys(left.executeGrants ?? [], right.executeGrants ?? [], executeGrantKey) &&
     (left.workspace?.allowDirty ?? false) === (right.workspace?.allowDirty ?? false) &&
+    sameNetwork(left.network, right.network) &&
     BUDGET_FIELDS.every((field) => (left.budgetCaps ?? left.budget ?? {})[field] === right.budget[field])
   );
+}
+
+function sameNetwork(left: CapabilityEnvelope["network"], right: CapabilityEnvelope["network"]): boolean {
+  const leftNetwork = left ?? { allow: "none" as const };
+  const rightNetwork = right ?? { allow: "none" as const };
+  return (
+    leftNetwork.allow === rightNetwork.allow &&
+    sameStringSet(leftNetwork.allowedHosts ?? [], rightNetwork.allowedHosts ?? [])
+  );
+}
+
+function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return sortedLeft.length === sortedRight.length && sortedLeft.every((value, index) => value === sortedRight[index]);
 }
 
 function sameKeys<Item>(

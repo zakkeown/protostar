@@ -44,6 +44,14 @@ function copyTierEnvelope(envelope: TierConstraint["envelope"]): TierConstraint[
       : {}),
     ...(envelope.executeGrants !== undefined ? { executeGrants: envelope.executeGrants.map((grant) => ({ ...grant })) } : {}),
     ...(envelope.workspace !== undefined ? { workspace: { allowDirty: envelope.workspace.allowDirty } } : {}),
+    ...(envelope.network !== undefined
+      ? {
+          network: {
+            allow: envelope.network.allow,
+            ...(envelope.network.allowedHosts !== undefined ? { allowedHosts: [...envelope.network.allowedHosts] } : {})
+          }
+        }
+      : {}),
     ...(envelope.budget !== undefined ? { budget: { ...envelope.budget } } : {}),
     ...(envelope.allowedScopes !== undefined ? { allowedScopes: [...envelope.allowedScopes] } : {}),
     ...(envelope.budgetCaps !== undefined ? { budgetCaps: { ...envelope.budgetCaps } } : {}),
@@ -58,6 +66,14 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
     toolPermissions: envelope.toolPermissions.map((grant) => ({ ...grant })),
     ...(envelope.executeGrants !== undefined ? { executeGrants: envelope.executeGrants.map((grant) => ({ ...grant })) } : {}),
     workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
+    ...(envelope.network !== undefined
+      ? {
+          network: {
+            allow: envelope.network.allow,
+            ...(envelope.network.allowedHosts !== undefined ? { allowedHosts: [...envelope.network.allowedHosts] } : {})
+          }
+        }
+      : {}),
     budget: { ...envelope.budget }
   };
 }

@@ -22,7 +22,8 @@
     "@protostar/authority": "workspace:*",
     "@protostar/repo": "workspace:*",
     "@protostar/artifacts": "workspace:*",
-    "@protostar/review": "workspace:*"
+    "@protostar/review": "workspace:*",
+    "diff": "9.0.0"
   },
   "sideEffects": false
 }

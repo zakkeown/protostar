@@ -101,13 +101,18 @@ function ctx(): DeliveryRunContext {
 
 function mockPushSuccess(t: { after: (fn: () => void) => void }): void {
   __setPushBranchDependenciesForTests({
+    add: async () => undefined,
+    branch: async () => undefined,
+    commit: async () => "head-sha",
     fetch: async () => {
       const error = new Error("not found");
       Object.assign(error, { code: "NotFoundError" });
       throw error;
     },
     push: async () => ({ ok: true, error: null, refs: { [`refs/heads/${branch}`]: { ok: true, error: "" } } }),
-    resolveRef: async () => "head-sha"
+    remove: async () => undefined,
+    resolveRef: async () => "head-sha",
+    statusMatrix: async () => [["src/Button.tsx", 1, 2, 1]]
   });
   t.after(() => __resetPushBranchDependenciesForTests());
 }

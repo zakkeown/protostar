@@ -1,4 +1,4 @@
-import type { RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
+import type { CapabilityEnvelopeNetwork, RepoScopeGrant, ToolPermissionGrant } from "@protostar/intent";
 
 import type { TierEnvelope, TrustOverride } from "../precedence/index.js";
 
@@ -7,6 +7,7 @@ export interface RepoPolicy extends TierEnvelope {
   readonly allowedScopes?: readonly string[];
   readonly repoScopes?: readonly RepoScopeGrant[];
   readonly toolPermissions?: readonly ToolPermissionGrant[];
+  readonly network?: CapabilityEnvelopeNetwork;
   readonly deniedTools?: readonly string[];
   readonly budgetCaps?: {
     readonly maxUsd?: number;
@@ -37,8 +38,9 @@ export const DENY_ALL_REPO_POLICY: RepoPolicy = deepFreeze({
   trustOverride: "untrusted"
 });
 
-const TOP_LEVEL_KEYS = new Set(["schemaVersion", "allowedScopes", "repoScopes", "toolPermissions", "deniedTools", "budgetCaps", "trustOverride"]);
+const TOP_LEVEL_KEYS = new Set(["schemaVersion", "allowedScopes", "repoScopes", "toolPermissions", "network", "deniedTools", "budgetCaps", "trustOverride"]);
 const BUDGET_CAP_KEYS = new Set(["maxUsd", "maxTokens", "timeoutMs", "maxRepairLoops"]);
+const NETWORK_KEYS = new Set(["allow", "allowedHosts"]);
 
 export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
   const errors: string[] = [];
@@ -56,6 +58,7 @@ export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
   const allowedScopes = readOptionalStringArray(input, "allowedScopes", errors);
   const repoScopes = readOptionalRepoScopes(input["repoScopes"], errors);
   const toolPermissions = readOptionalToolPermissions(input["toolPermissions"], errors);
+  const network = readOptionalNetwork(input["network"], errors);
   const deniedTools = readOptionalStringArray(input, "deniedTools", errors);
   const budgetCaps = readOptionalBudgetCaps(input["budgetCaps"], errors);
   const trustOverride = readOptionalTrustOverride(input["trustOverride"], errors);
@@ -71,12 +74,57 @@ export function parseRepoPolicy(input: unknown): ParseRepoPolicyResult {
       ...(allowedScopes !== undefined ? { allowedScopes } : {}),
       ...(repoScopes !== undefined ? { repoScopes } : {}),
       ...(toolPermissions !== undefined ? { toolPermissions } : {}),
+      ...(network !== undefined ? { network } : {}),
       ...(deniedTools !== undefined ? { deniedTools } : {}),
       ...(budgetCaps !== undefined ? { budgetCaps } : {}),
       ...(trustOverride !== undefined ? { trustOverride } : {})
     }),
     errors: []
   };
+}
+
+function readOptionalNetwork(value: unknown, errors: string[]): CapabilityEnvelopeNetwork | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    errors.push("network must be an object.");
+    return undefined;
+  }
+
+  rejectUnknownKeys(value, NETWORK_KEYS, "network.", errors);
+  const allow = value["allow"];
+  if (allow !== "none" && allow !== "loopback" && allow !== "allowlist") {
+    errors.push("network.allow must be none, loopback, or allowlist.");
+    return undefined;
+  }
+  const allowedHosts = readOptionalNetworkHosts(value["allowedHosts"], errors);
+  if (allow === "allowlist" && allowedHosts === undefined) {
+    errors.push("network.allowedHosts is required when network.allow is allowlist.");
+  }
+  return {
+    allow,
+    ...(allowedHosts !== undefined ? { allowedHosts } : {})
+  };
+}
+
+function readOptionalNetworkHosts(value: unknown, errors: string[]): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("network.allowedHosts must be an array of strings.");
+    return undefined;
+  }
+  const hosts: string[] = [];
+  value.forEach((entry, index) => {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      errors.push(`network.allowedHosts[${index}] must be a non-empty string.`);
+      return;
+    }
+    hosts.push(entry);
+  });
+  return hosts.length > 0 ? hosts : undefined;
 }
 
 function readOptionalRepoScopes(value: unknown, errors: string[]): RepoScopeGrant[] | undefined {

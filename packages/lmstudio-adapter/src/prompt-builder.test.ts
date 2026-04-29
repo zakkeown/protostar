@@ -15,7 +15,7 @@ const input = {
   ]),
   acceptanceCriteria: [
     "The primary button uses red background",
-    "The patch is a unified diff"
+    "The patch is a JSON full-file replacement"
   ],
   archetype: "cosmetic-tweak"
 } as const;
@@ -29,13 +29,14 @@ describe("buildCoderMessages", () => {
     assert.equal(result.messages[1]?.role, "user");
   });
 
-  it("includes the strict diff-only nudge in the system prompt", () => {
+  it("includes the strict JSON-only nudge in the system prompt", () => {
     const result = buildCoderMessages(input);
 
     assert.match(
       result.messages[0]?.content ?? "",
-      /Output ONLY a single fenced ```diff block\. No prose\./
+      /Output ONLY a single fenced ```json block\. No prose\./
     );
+    assert.match(result.messages[0]?.content ?? "", /full replacement UTF-8 file content/);
   });
 
   it("includes every target file path and fenced file contents in the user prompt", () => {

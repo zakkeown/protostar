@@ -99,10 +99,10 @@ export const planningPilePreset: FactoryPilePreset = {
   ],
   budget: {
     maxTokens: 24000,
-    timeoutMs: 120000
+    timeoutMs: 300000
   },
   terminate: firstOf(
-    budget({ maxTokens: 24000, timeoutMs: 120000 }),
+    budget({ maxTokens: 24000, timeoutMs: 300000 }),
     convergence({ stableTurns: 2, minSimilarity: 0.86 })
   )
 };

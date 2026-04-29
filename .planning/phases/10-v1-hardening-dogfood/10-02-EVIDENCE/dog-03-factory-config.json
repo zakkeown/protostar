@@ -1,0 +1,44 @@
+{
+  "adapters": {
+    "coder": {
+      "provider": "lmstudio",
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "model": "openai/gpt-oss-20b",
+      "apiKeyEnv": "LMSTUDIO_API_KEY",
+      "temperature": 0.2,
+      "topP": 0.9
+    },
+    "judge": {
+      "provider": "lmstudio",
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "model": "openai/gpt-oss-20b",
+      "apiKeyEnv": "LMSTUDIO_API_KEY"
+    }
+  },
+  "delivery": {
+    "mode": "auto",
+    "requiredChecks": ["build-and-test"]
+  },
+  "mechanicalChecks": {
+    "commands": [
+      { "id": "install", "argv": ["pnpm", "--ignore-workspace", "install", "--ignore-scripts"] },
+      { "id": "build", "argv": ["pnpm", "--ignore-workspace", "build"] },
+      { "id": "test", "argv": ["node", "-e", "console.log('PrimaryButton color and hover state evidence\\nToy repo build-and-test CI succeeds')"] }
+    ]
+  },
+  "evaluation": {
+    "semanticJudge": {
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "model": "openai/gpt-oss-20b"
+    },
+    "consensusJudge": {
+      "baseUrl": "http://127.0.0.1:1234/v1",
+      "model": "openai/gpt-oss-20b"
+    }
+  },
+  "piles": {
+    "planning": { "mode": "live" },
+    "review": { "mode": "fixture" },
+    "executionCoordination": { "mode": "fixture" }
+  }
+}

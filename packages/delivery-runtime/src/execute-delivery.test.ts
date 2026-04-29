@@ -107,11 +107,26 @@ describe("executeDelivery", () => {
 
   it("returns delivery-blocked when push refuses the branch", async (t) => {
     __setPushBranchDependenciesForTests({
+      add: async () => {
+        throw new Error("add should not be called");
+      },
+      branch: async () => {
+        throw new Error("branch should not be called");
+      },
+      commit: async () => {
+        throw new Error("commit should not be called");
+      },
       fetch: async () => ({ defaultBranch: null, fetchHead: "remote-sha", fetchHeadDescription: null }),
       push: async () => {
         throw new Error("push should not be called");
       },
-      resolveRef: async () => "remote-sha"
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async () => "remote-sha",
+      statusMatrix: async () => {
+        throw new Error("statusMatrix should not be called");
+      }
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -200,13 +215,18 @@ function ctx(overrides: Partial<DeliveryRunContext> = {}): DeliveryRunContext {
 
 function mockPushSuccess(t: { after: (fn: () => void) => void }): void {
   __setPushBranchDependenciesForTests({
+    add: async () => undefined,
+    branch: async () => undefined,
+    commit: async () => "head-sha",
     fetch: async () => {
       const error = new Error("not found");
       Object.assign(error, { code: "NotFoundError" });
       throw error;
     },
     push: async () => ({ ok: true, error: null, refs: { [`refs/heads/${branch}`]: { ok: true, error: "" } } }),
-    resolveRef: async () => "head-sha"
+    remove: async () => undefined,
+    resolveRef: async () => "head-sha",
+    statusMatrix: async () => [["src/Button.tsx", 1, 2, 1]]
   });
   t.after(() => __resetPushBranchDependenciesForTests());
 }

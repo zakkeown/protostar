@@ -9,6 +9,7 @@ import {
   type ExecutionAdapterTaskInput
 } from "@protostar/execution";
 import type { RepoChangeSet } from "@protostar/repo";
+import { createTwoFilesPatch } from "diff";
 
 import { parseDiffBlock } from "./diff-parser.js";
 import { callLmstudioChatStream } from "./lmstudio-client.js";
@@ -43,6 +44,15 @@ interface PlanChangeSetEntry {
 }
 
 type TerminalFailureReason = Exclude<AdapterFailureReason, "lmstudio-model-not-loaded">;
+
+interface ReplacementChangeSet {
+  readonly entries: readonly ReplacementChangeSetEntry[];
+}
+
+interface ReplacementChangeSetEntry {
+  readonly path: string;
+  readonly content: string;
+}
 
 export function createLmstudioCoderAdapter(config: LmstudioAdapterConfig): ExecutionAdapter {
   return {
@@ -145,6 +155,29 @@ async function* executeCoderTask(
         continue;
       }
 
+      const parsedReplacement = parseReplacementChangeSetBlock(assistantContent);
+      if (parsedReplacement.ok) {
+        const changeSet = buildReplacementChangeSet(parsedReplacement.changeSet, preImages);
+        if (!changeSet.ok) {
+          yield finalFailure(changeSet.reason, config, startedAt, attempts, retries);
+          return;
+        }
+        yield {
+          kind: "final",
+          result: {
+            outcome: "change-set",
+            changeSet: changeSet.changeSet as unknown as RepoChangeSet,
+            evidence: evidence(config, startedAt, attempts, retries)
+          }
+        };
+        return;
+      }
+
+      if (parsedReplacement.reason === "parse-multiple-blocks") {
+        yield finalFailure("parse-multiple-blocks", config, startedAt, attempts, retries);
+        return;
+      }
+
       const parsed = parseDiffBlock(assistantContent);
       if (parsed.ok) {
         const changeSet = buildChangeSet(parsed.diff, preImages, auxReadBudget);
@@ -202,6 +235,98 @@ async function* executeCoderTask(
   }
 
   yield finalFailure("retries-exhausted", config, startedAt, attempts, retries);
+}
+
+const ANY_JSON_FENCE_RE = /```json\s*\n[\s\S]*?\n```/gm;
+const JSON_FENCE_RE = /^```json\s*\n([\s\S]*?)\n```\s*$/m;
+
+function parseReplacementChangeSetBlock(
+  content: string
+):
+  | { readonly ok: true; readonly changeSet: ReplacementChangeSet }
+  | { readonly ok: false; readonly reason: "parse-no-block" | "parse-multiple-blocks" } {
+  const matches = [...content.matchAll(ANY_JSON_FENCE_RE)];
+  if (matches.length === 0) {
+    return { ok: false, reason: "parse-no-block" };
+  }
+  if (matches.length > 1) {
+    return { ok: false, reason: "parse-multiple-blocks" };
+  }
+
+  const fencedBlock = matches[0]?.[0];
+  if (fencedBlock === undefined || content.trim() !== fencedBlock.trim()) {
+    return { ok: false, reason: "parse-no-block" };
+  }
+
+  const parsed = fencedBlock.match(JSON_FENCE_RE);
+  if (parsed === null) {
+    return { ok: false, reason: "parse-no-block" };
+  }
+
+  try {
+    const value: unknown = JSON.parse(parsed[1] ?? "");
+    if (!isReplacementChangeSet(value)) {
+      return { ok: false, reason: "parse-no-block" };
+    }
+    return { ok: true, changeSet: value };
+  } catch {
+    return { ok: false, reason: "parse-no-block" };
+  }
+}
+
+function isReplacementChangeSet(value: unknown): value is ReplacementChangeSet {
+  if (typeof value !== "object" || value === null) return false;
+  const entries = (value as { readonly entries?: unknown }).entries;
+  return (
+    Array.isArray(entries) &&
+    entries.length > 0 &&
+    entries.every(
+      (entry) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as { readonly path?: unknown }).path === "string" &&
+        typeof (entry as { readonly content?: unknown }).content === "string"
+    )
+  );
+}
+
+function buildReplacementChangeSet(
+  replacement: ReplacementChangeSet,
+  preImages: ReadonlyMap<string, PreImage>
+):
+  | { readonly ok: true; readonly changeSet: PlanChangeSet }
+  | { readonly ok: false; readonly reason: "parse-no-block" } {
+  const decoder = new TextDecoder();
+  const entries: PlanChangeSetEntry[] = [];
+
+  for (const replacementEntry of replacement.entries) {
+    const preImage = preImages.get(replacementEntry.path);
+    if (preImage === undefined) {
+      return { ok: false, reason: "parse-no-block" };
+    }
+
+    const oldContent = decoder.decode(preImage.bytes);
+    if (oldContent === replacementEntry.content) {
+      continue;
+    }
+
+    entries.push({
+      path: replacementEntry.path,
+      op: "modify",
+      diff: createTwoFilesPatch(
+        `a/${replacementEntry.path}`,
+        `b/${replacementEntry.path}`,
+        oldContent,
+        replacementEntry.content,
+        "",
+        "",
+        { context: 3 }
+      ).trimEnd(),
+      preImageSha256: preImage.sha256
+    });
+  }
+
+  return { ok: true, changeSet: { entries } };
 }
 
 function buildChangeSet(

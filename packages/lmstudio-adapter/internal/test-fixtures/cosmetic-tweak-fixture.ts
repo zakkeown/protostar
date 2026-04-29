@@ -27,7 +27,9 @@ export interface CosmeticTweakFixture {
   readonly admittedPlan: AdmittedPlanExecutionArtifact;
   readonly task: ExecutionAdapterTaskInput;
   readonly preImageBytes: Record<string, Uint8Array>;
+  readonly expectedJsonChangeSetSample: string;
   readonly expectedDiffSample: string;
+  readonly proseDriftJsonSample: string;
   readonly proseDriftDiffSample: string;
 }
 
@@ -46,6 +48,19 @@ const expectedDiffSample = [
   "@@ -1 +1 @@",
   "-export const Button = () => <button className=\"bg-blue-500\">Click</button>;",
   "+export const Button = () => <button className=\"bg-red-500\">Click</button>;",
+  "```"
+].join("\n");
+
+const expectedJsonChangeSetSample = [
+  "```json",
+  JSON.stringify({
+    entries: [
+      {
+        path: "src/Button.tsx",
+        content: 'export const Button = () => <button className="bg-red-500">Click</button>;'
+      }
+    ]
+  }),
   "```"
 ].join("\n");
 
@@ -99,7 +114,10 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
         maxRepairLoops: 3
       })
     }),
-    constraints: Object.freeze(["Only change src/Button.tsx.", "Return one fenced unified diff."]),
+    constraints: Object.freeze([
+      "Only change src/Button.tsx.",
+      "Return one fenced JSON full-file replacement object."
+    ]),
     stopConditions: Object.freeze([]),
     schemaVersion: "1.5.0",
     signature: Object.freeze({
@@ -148,7 +166,13 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
       "export const Button = () => <button className=\"bg-blue-500\">Click</button>;"
     )
   }),
+  expectedJsonChangeSetSample,
   expectedDiffSample,
+  proseDriftJsonSample: [
+    `Sure, here's the change set: ${expectedJsonChangeSetSample}`,
+    "",
+    "Let me know if you want me to adjust."
+  ].join("\n"),
   proseDriftDiffSample: [
     `Sure, here's the patch: ${expectedDiffSample}`,
     "",

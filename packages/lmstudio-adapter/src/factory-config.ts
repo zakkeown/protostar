@@ -13,6 +13,7 @@ export interface FactoryConfig {
   readonly evaluation?: EvaluationConfig;
   readonly evolution?: EvolutionConfig;
   readonly operator?: OperatorConfig;
+  readonly mechanicalChecks?: MechanicalChecksConfig;
   // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
   // means all piles default to mode="fixture" (Q-05).
   readonly piles?: PilesConfig;
@@ -41,6 +42,15 @@ export interface EvolutionConfig {
 
 export interface OperatorConfig {
   readonly livenessThresholdMs?: number;
+}
+
+export interface MechanicalChecksConfig {
+  readonly commands?: readonly MechanicalChecksCommandConfig[];
+}
+
+export interface MechanicalChecksCommandConfig {
+  readonly id: string;
+  readonly argv: readonly string[];
 }
 
 export type PileMode = "fixture" | "live";
@@ -94,6 +104,7 @@ interface PartialFactoryConfig {
   readonly evaluation?: EvaluationConfig;
   readonly evolution?: EvolutionConfig;
   readonly operator?: OperatorConfig;
+  readonly mechanicalChecks?: MechanicalChecksConfig;
   readonly piles?: PilesConfig;
 }
 
@@ -130,7 +141,15 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
   })
 });
 
-const TOP_LEVEL_KEYS = new Set(["adapters", "delivery", "evaluation", "evolution", "operator", "piles"]);
+const TOP_LEVEL_KEYS = new Set([
+  "adapters",
+  "delivery",
+  "evaluation",
+  "evolution",
+  "operator",
+  "mechanicalChecks",
+  "piles"
+]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
 const DELIVERY_KEYS = new Set(["mode", "requiredChecks"]);
@@ -138,6 +157,8 @@ const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
 const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
 const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshold"]);
 const OPERATOR_KEYS = new Set(["livenessThresholdMs"]);
+const MECHANICAL_CHECKS_KEYS = new Set(["commands"]);
+const MECHANICAL_COMMAND_KEYS = new Set(["id", "argv"]);
 const PILES_KEYS = new Set(["planning", "review", "executionCoordination"]);
 const PILE_KIND_KEYS = new Set(["mode", "fixturePath"]);
 const EXEC_COORD_KEYS = new Set(["mode", "fixturePath", "workSlicing"]);
@@ -203,6 +224,7 @@ export function resolveFactoryConfig(input: {
     ...(fileConfig.evaluation !== undefined ? { evaluation: fileConfig.evaluation } : {}),
     ...(fileConfig.evolution !== undefined ? { evolution: fileConfig.evolution } : {}),
     ...(fileConfig.operator !== undefined ? { operator: fileConfig.operator } : {}),
+    ...(fileConfig.mechanicalChecks !== undefined ? { mechanicalChecks: fileConfig.mechanicalChecks } : {}),
     ...(fileConfig.piles !== undefined ? { piles: fileConfig.piles } : {})
   };
 
@@ -330,6 +352,15 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
     }
   }
 
+  if (config.mechanicalChecks !== undefined) {
+    if (!isPlainRecord(config.mechanicalChecks)) {
+      errors.push("$.mechanicalChecks must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.mechanicalChecks", config.mechanicalChecks, MECHANICAL_CHECKS_KEYS));
+      validateMechanicalCommands("$.mechanicalChecks.commands", config.mechanicalChecks.commands, errors);
+    }
+  }
+
   if (config.piles !== undefined) {
     if (!isPlainRecord(config.piles)) {
       errors.push("$.piles must be an object");
@@ -359,6 +390,35 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
   }
 
   return errors;
+}
+
+function validateMechanicalCommands(path: string, commands: unknown, errors: string[]): void {
+  if (commands === undefined) return;
+  if (!Array.isArray(commands)) {
+    errors.push(`${path} must be an array`);
+    return;
+  }
+
+  for (const [index, command] of commands.entries()) {
+    const commandPath = `${path}[${index}]`;
+    if (!isPlainRecord(command)) {
+      errors.push(`${commandPath} must be an object`);
+      continue;
+    }
+    errors.push(...unknownKeyErrors(commandPath, command, MECHANICAL_COMMAND_KEYS));
+    if (!isNonEmptyString(command["id"])) {
+      errors.push(`${commandPath}.id must be a non-empty string`);
+    }
+    if (!Array.isArray(command["argv"]) || command["argv"].length === 0) {
+      errors.push(`${commandPath}.argv must be a non-empty string array`);
+    } else {
+      for (const [argIndex, arg] of command["argv"].entries()) {
+        if (!isNonEmptyString(arg)) {
+          errors.push(`${commandPath}.argv[${argIndex}] must be a non-empty string`);
+        }
+      }
+    }
+  }
 }
 
 function validateEvaluationJudge(path: string, judge: unknown, errors: string[]): void {

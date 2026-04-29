@@ -213,6 +213,44 @@ describe("resolveFactoryConfig", () => {
     assert.match(result.errors.join("\n"), /operator\.livenessThresholdMs/);
   });
 
+  it("accepts mechanical check command overrides from file config", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        mechanicalChecks: {
+          commands: [
+            { id: "build", argv: ["pnpm", "build"] },
+            { id: "test", argv: ["pnpm", "test"] }
+          ]
+        }
+      }),
+      env: {}
+    });
+
+    const resolved = unwrapResolved(result);
+
+    assert.deepEqual(resolved.config.mechanicalChecks?.commands, [
+      { id: "build", argv: ["pnpm", "build"] },
+      { id: "test", argv: ["pnpm", "test"] }
+    ]);
+  });
+
+  it("rejects invalid mechanical check command overrides", () => {
+    const result = resolveFactoryConfig({
+      fileBytes: JSON.stringify({
+        adapters: { coder: {}, judge: {} },
+        mechanicalChecks: {
+          commands: [{ id: "", argv: [] }]
+        }
+      }),
+      env: {}
+    });
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /mechanicalChecks\.commands\[0\]\.id/);
+    assert.match(result.errors.join("\n"), /mechanicalChecks\.commands\[0\]\.argv/);
+  });
+
   it("preserves evaluation judge overrides and evolution config from file config", () => {
     const result = resolveFactoryConfig({
       fileBytes: JSON.stringify({

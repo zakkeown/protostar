@@ -430,6 +430,7 @@ export async function runFactory(
   const deliveryMode = resolveDeliveryMode(factoryConfig.config, options.deliveryMode);
   const runAbortController = new AbortController();
   const policySnapshot = buildPolicySnapshot({
+    capturedAt: unsignedIntent.confirmedAt,
     policy: {
       allowDarkRun: true,
       maxAutonomousRisk: "medium",
@@ -766,7 +767,7 @@ export async function runFactory(
 
   try {
   const workspace = defineWorkspace({
-    root: workspaceRoot,
+    root: workspaceAuthorityRootForIntent(intent),
     trust: options.trust ?? "untrusted",
     defaultBranch: "main"
   });
@@ -958,6 +959,10 @@ export async function runFactory(
             })
           })
         : undefined;
+    const fixtureReviewModelReviewer: typeof reviewServices.modelReviewer = async () => ({
+      verdict: executionResult.status === "succeeded" ? "pass" : "block",
+      critiques: []
+    });
     // Phase 6 Plan 06-10 Task 3 — repair-plan-refinement trigger (PILE-03 #2).
     // When exec-coord pile mode is live, thread a repairPlanRefiner closure
     // into runReviewRepairLoop. The closure invokes the exec-coord pile in
@@ -1017,9 +1022,11 @@ export async function runFactory(
               status: executionResult.status
             }),
         modelReviewer: liveReviewModelReviewer ??
-          ((options.executor ?? "dry-run") === "real"
-            ? reviewServices.modelReviewer
-            : async () => ({ verdict: executionResult.status === "succeeded" ? "pass" : "block", critiques: [] })),
+          (pileModes.review === "fixture"
+            ? fixtureReviewModelReviewer
+            : (options.executor ?? "dry-run") === "real"
+              ? reviewServices.modelReviewer
+              : fixtureReviewModelReviewer),
         persistence: reviewServices.persistence,
         ...(repairPlanRefiner !== undefined ? { repairPlanRefiner } : {})
       });
@@ -1371,7 +1378,10 @@ export async function runFactory(
       }),
     manifest
   );
-  const reviewedManifest = setFactoryRunStatus(finalManifest, statusForReviewVerdict(review.verdict));
+  const reviewedManifest = setFactoryRunStatus(
+    finalManifest,
+    deliveryWireStatus === "delivered" ? "completed" : statusForReviewVerdict(review.verdict)
+  );
 
   await mkdir(runDir, { recursive: true });
   if (capturedIntentDraftBeforeAdmission !== undefined) {
@@ -2210,6 +2220,10 @@ function cloneUrlForRepoRuntime(input: {
   return `https://github.com/${target.owner}/${target.repo}.git`;
 }
 
+function workspaceAuthorityRootForIntent(intent: ConfirmedIntent): string {
+  return intent.capabilityEnvelope.delivery?.target.repo ?? "main";
+}
+
 async function admitRepoRuntime(input: {
   readonly projectRoot: string;
   readonly runDir: string;
@@ -2399,6 +2413,7 @@ function repoRuntimePolicyCompatibility(
 function isAuthorityRepoPolicyKeyError(error: string): boolean {
   return error === "repoScopes is not allowed." ||
     error === "toolPermissions is not allowed." ||
+    error === "network is not allowed." ||
     error === "trustOverride is not allowed.";
 }
 
@@ -2977,39 +2992,53 @@ function normalizeLivePlanningPileOutput(
 ): Readonly<Record<string, unknown>> {
   const rawTasks = Array.isArray(output["tasks"]) ? output["tasks"] : [];
   const records = rawTasks.filter(isRecord);
-  const idMap = new Map<string, string>();
+  const idsByIndex: string[] = [];
+  const firstIdByRawId = new Map<string, string>();
+  const seenIds = new Set<string>();
   for (const [index, task] of records.entries()) {
     const rawId = typeof task["id"] === "string" ? task["id"] : "";
-    idMap.set(rawId, isPlanTaskIdLike(rawId) ? rawId : `task-live-planning-${index + 1}`);
+    const baseId = isPlanTaskIdLike(rawId) ? rawId : `task-live-planning-${index + 1}`;
+    const normalizedId = nextLivePlanningTaskId(baseId, seenIds);
+    seenIds.add(normalizedId);
+    idsByIndex[index] = normalizedId;
+    if (rawId.length > 0 && !firstIdByRawId.has(rawId)) {
+      firstIdByRawId.set(rawId, normalizedId);
+    }
   }
+
+  const normalizedTasks = records.map((task, index) =>
+    normalizeLivePlanningPileTask(task, index, idsByIndex, firstIdByRawId, intent)
+  );
+  const tasks = ensureLivePlanningPreHandoffVerification(normalizedTasks, intent);
 
   return {
     ...output,
     strategy: typeof output["strategy"] === "string" && output["strategy"].trim().length > 0
       ? output["strategy"]
       : "Normalize live planning output into an admissible candidate plan.",
-    tasks: records.map((task, index) => normalizeLivePlanningPileTask(task, index, idMap, intent))
+    tasks
   };
 }
 
 function normalizeLivePlanningPileTask(
   task: Readonly<Record<string, unknown>>,
   index: number,
-  idMap: ReadonlyMap<string, string>,
+  idsByIndex: readonly string[],
+  firstIdByRawId: ReadonlyMap<string, string>,
   intent: ConfirmedIntent
 ): Readonly<Record<string, unknown>> {
   const rawDependsOn = Array.isArray(task["dependsOn"]) ? task["dependsOn"] : [];
   const dependsOn = rawDependsOn
     .filter((dependency): dependency is string => typeof dependency === "string")
     .flatMap((dependency) => {
-      const mapped = idMap.get(dependency);
+      const mapped = firstIdByRawId.get(dependency);
       return mapped === undefined ? [] : [mapped];
     });
   const covers = normalizeLivePlanningCovers(task["covers"], intent);
 
   return {
     ...task,
-    id: idMap.get(typeof task["id"] === "string" ? task["id"] : "") ?? `task-live-planning-${index + 1}`,
+    id: idsByIndex[index] ?? `task-live-planning-${index + 1}`,
     title: typeof task["title"] === "string" && task["title"].trim().length > 0
       ? task["title"]
       : `Live planning task ${index + 1}`,
@@ -3017,6 +3046,7 @@ function normalizeLivePlanningPileTask(
     dependsOn,
     covers,
     targetFiles: normalizeLivePlanningTargetFiles(task["targetFiles"], intent),
+    acceptanceTestRefs: normalizeLivePlanningAcceptanceTestRefs(covers, task["targetFiles"], intent),
     requiredCapabilities: normalizeLivePlanningRequiredCapabilities(intent),
     risk: isLivePlanningRisk(task["risk"]) ? task["risk"] : "low"
   };
@@ -3038,6 +3068,20 @@ function normalizeLivePlanningTargetFiles(value: unknown, intent: ConfirmedInten
   return intent.capabilityEnvelope.repoScopes.map((scope) => scope.path);
 }
 
+function normalizeLivePlanningAcceptanceTestRefs(
+  covers: readonly string[],
+  targetFiles: unknown,
+  intent: ConfirmedIntent
+): readonly Readonly<Record<string, string>>[] {
+  const files = normalizeLivePlanningTargetFiles(targetFiles, intent);
+  const testFile = files[0] ?? "src/components/PrimaryButton.tsx";
+  return covers.map((acId) => ({
+    acId,
+    testFile,
+    testName: `Live planning normalized coverage for ${acId}`
+  }));
+}
+
 function normalizeLivePlanningRequiredCapabilities(intent: ConfirmedIntent): Readonly<Record<string, unknown>> {
   return {
     repoScopes: intent.capabilityEnvelope.repoScopes.map((scope) => ({ ...scope })),
@@ -3052,6 +3096,57 @@ function normalizeLivePlanningRequiredCapabilities(intent: ConfirmedIntent): Rea
     ...(intent.capabilityEnvelope.network !== undefined ? { network: { ...intent.capabilityEnvelope.network } } : {}),
     budget: {}
   };
+}
+
+function ensureLivePlanningPreHandoffVerification(
+  tasks: readonly Readonly<Record<string, unknown>>[],
+  intent: ConfirmedIntent
+): readonly Readonly<Record<string, unknown>>[] {
+  if (!tasks.some((task) => task["kind"] === "implementation")) {
+    return tasks.map((task) => ({ ...task, dependsOn: [] }));
+  }
+  const existingIds = new Set(tasks.flatMap((task) => (typeof task["id"] === "string" ? [task["id"]] : [])));
+  const verificationTaskId = nextLivePlanningTaskId("task-live-planning-pre-handoff-verification", existingIds);
+
+  const normalizedTasks = tasks.map((task) => {
+    if (task["kind"] !== "implementation") {
+      return {
+        ...task,
+        dependsOn: []
+      };
+    }
+    return {
+      ...task,
+      dependsOn: [verificationTaskId]
+    };
+  });
+
+  return [
+    {
+      id: verificationTaskId,
+      title: "Verify confirmed authority before execution handoff",
+      kind: "verification",
+      dependsOn: [],
+      covers: intent.acceptanceCriteria.map((criterion) => criterion.id),
+      targetFiles: intent.capabilityEnvelope.repoScopes.map((scope) => scope.path),
+      acceptanceTestRefs: normalizeLivePlanningAcceptanceTestRefs(
+        intent.acceptanceCriteria.map((criterion) => criterion.id),
+        undefined,
+        intent
+      ),
+      requiredCapabilities: normalizeLivePlanningRequiredCapabilities(intent),
+      risk: "low"
+    },
+    ...normalizedTasks
+  ];
+}
+
+function nextLivePlanningTaskId(baseId: string, existingIds: ReadonlySet<string>): string {
+  if (!existingIds.has(baseId)) return baseId;
+  for (let index = 2; ; index += 1) {
+    const candidate = `${baseId}-${index}`;
+    if (!existingIds.has(candidate)) return candidate;
+  }
 }
 
 function isPlanTaskIdLike(value: string): boolean {

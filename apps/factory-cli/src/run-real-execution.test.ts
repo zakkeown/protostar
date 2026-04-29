@@ -76,6 +76,28 @@ describe("runRealExecution", () => {
     assert.equal(applyCalls, 0);
   });
 
+  it("uses the physical workspace root for authorized filesystem writes", async () => {
+    const ctx = await testContext({ workspaceName: "protostar-toy-ttt" });
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    let seenRoot: string | undefined;
+    let seenPath: string | undefined;
+    const result = await runRealExecution({
+      ...ctx.input,
+      journalWriter: writer,
+      adapter: finalAdapter(changeSetResult("src/a.ts")),
+      applyChangeSet: async (patches) => {
+        seenRoot = patches[0]?.op.workspace.root;
+        seenPath = patches[0]?.op.path;
+        return [{ path: "src/a.ts", status: "applied" }];
+      }
+    });
+    await writer.close();
+
+    assert.equal(result.outcome, "complete");
+    assert.equal(seenRoot, ctx.runDir);
+    assert.equal(seenPath, resolve(ctx.runDir, "src/a.ts"));
+  });
+
   it("bails with block on apply failure and does not execute downstream tasks", async () => {
     const ctx = await testContext({ taskCount: 3 });
     const writer = await createJournalWriter({ runDir: ctx.runDir });
@@ -359,11 +381,12 @@ describe("runRealExecution", () => {
 async function testContext(opts: {
   readonly taskCount?: number;
   readonly envelope?: CapabilityEnvelope;
+  readonly workspaceName?: string;
 } = {}) {
   const runDir = await mkdtemp(join(tmpdir(), "real-execution-"));
   const controller = new AbortController();
   const resolvedEnvelope = opts.envelope ?? envelope();
-  const runPlan = plan(opts.taskCount ?? 1);
+  const runPlan = plan(opts.taskCount ?? 1, opts.workspaceName ?? "main");
   return {
     runDir,
     controller,
@@ -379,7 +402,7 @@ async function testContext(opts: {
   };
 }
 
-function plan(taskCount: number): ExecutionRunPlan {
+function plan(taskCount: number, workspaceName: string): ExecutionRunPlan {
   return {
     runId: "run_real",
     planId: "plan_real",
@@ -392,7 +415,7 @@ function plan(taskCount: number): ExecutionRunPlan {
       validationSource: "planning-admission.json",
       proofSource: "PlanGraph"
     },
-    workspace: { root: "/tmp/workspace", trust: "trusted" },
+    workspace: { root: workspaceName, trust: "trusted" },
     tasks: Array.from({ length: taskCount }, (_, index) => ({
       planTaskId: `task-${index + 1}`,
       title: `Task ${index + 1}`,
@@ -459,7 +482,10 @@ function reader(): RepoReader {
 
 function envelope(): CapabilityEnvelope {
   return {
-    repoScopes: [{ workspace: "main", path: "src", access: "write" }],
+    repoScopes: [
+      { workspace: "main", path: "src", access: "write" },
+      { workspace: "protostar-toy-ttt", path: "src", access: "write" }
+    ],
     workspace: { allowDirty: false },
     network: { allow: "loopback" },
     budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, deliveryWallClockMs: 600_000, maxRepairLoops: 3 },

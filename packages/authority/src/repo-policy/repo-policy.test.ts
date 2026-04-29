@@ -15,6 +15,20 @@ test("valid minimal repo policy parses", () => {
   assert.deepEqual(result.ok ? result.policy : undefined, { schemaVersion: "1.0.0" });
 });
 
+test("repo policy can contribute network authority", () => {
+  const result = parseRepoPolicy({
+    schemaVersion: "1.0.0",
+    network: { allow: "allowlist", allowedHosts: ["api.github.com"] },
+    toolPermissions: [{ tool: "network", permissionLevel: "use" }]
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok ? result.policy.network : undefined, {
+    allow: "allowlist",
+    allowedHosts: ["api.github.com"]
+  });
+});
+
 test("missing schemaVersion fails closed", () => {
   const result = parseRepoPolicy({});
 

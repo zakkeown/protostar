@@ -31,6 +31,19 @@
         }
       }
     },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow"],
+      "properties": {
+        "allow": { "enum": ["none", "loopback", "allowlist"] },
+        "allowedHosts": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      }
+    },
     "deniedTools": { "type": "array", "items": { "type": "string" } },
     "budgetCaps": {
       "type": "object",

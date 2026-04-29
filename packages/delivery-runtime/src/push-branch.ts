@@ -35,17 +35,32 @@ type FetchResult = Awaited<ReturnType<typeof git.fetch>>;
 type PushOptions = Parameters<typeof git.push>[0];
 type IsomorphicPushResult = Awaited<ReturnType<typeof git.push>>;
 type ResolveRefOptions = Parameters<typeof git.resolveRef>[0];
+type BranchOptions = Parameters<typeof git.branch>[0];
+type StatusMatrixOptions = Parameters<typeof git.statusMatrix>[0];
+type AddOptions = Parameters<typeof git.add>[0];
+type RemoveOptions = Parameters<typeof git.remove>[0];
+type CommitOptions = Parameters<typeof git.commit>[0];
 
 interface PushBranchDependencies {
+  readonly add: (options: AddOptions) => Promise<void>;
+  readonly branch: (options: BranchOptions) => Promise<void>;
+  readonly commit: (options: CommitOptions) => Promise<string>;
   readonly fetch: (options: FetchOptions) => Promise<FetchResult>;
   readonly push: (options: PushOptions) => Promise<IsomorphicPushResult>;
+  readonly remove: (options: RemoveOptions) => Promise<void>;
   readonly resolveRef: (options: ResolveRefOptions) => Promise<string>;
+  readonly statusMatrix: (options: StatusMatrixOptions) => Promise<Awaited<ReturnType<typeof git.statusMatrix>>>;
 }
 
 let dependencies: PushBranchDependencies = {
+  add: git.add,
+  branch: git.branch,
+  commit: git.commit,
   fetch: git.fetch,
   push: git.push,
-  resolveRef: git.resolveRef
+  remove: git.remove,
+  resolveRef: git.resolveRef,
+  statusMatrix: git.statusMatrix
 };
 
 export function buildPushOnAuth(token: string, signal: AbortSignal): AuthCallback {
@@ -89,6 +104,20 @@ export async function pushBranch(input: PushBranchInput): Promise<PushResult> {
 
   const force = remoteSha !== null && remoteSha === input.expectedRemoteSha;
   try {
+    await dependencies.branch({
+      fs,
+      dir: input.workspaceDir,
+      ref: input.branchName,
+      checkout: true
+    });
+    const commitResult = await commitTrackedWorkspaceChanges({
+      fs,
+      dir: input.workspaceDir,
+      branchName: input.branchName
+    });
+    if (!commitResult.ok) {
+      return commitResult;
+    }
     const result = await dependencies.push({
       fs,
       http,
@@ -120,10 +149,57 @@ export function __setPushBranchDependenciesForTests(nextDependencies: PushBranch
 
 export function __resetPushBranchDependenciesForTests(): void {
   dependencies = {
+    add: git.add,
+    branch: git.branch,
+    commit: git.commit,
     fetch: git.fetch,
     push: git.push,
-    resolveRef: git.resolveRef
+    remove: git.remove,
+    resolveRef: git.resolveRef,
+    statusMatrix: git.statusMatrix
   };
+}
+
+async function commitTrackedWorkspaceChanges(input: {
+  readonly fs: PushOptions["fs"];
+  readonly dir: string;
+  readonly branchName: BranchName;
+}): Promise<{ readonly ok: true } | { readonly ok: false; readonly refusal: DeliveryRefusal }> {
+  const matrix = await dependencies.statusMatrix({ fs: input.fs, dir: input.dir });
+  const trackedChanges = matrix.filter(([_filepath, head, workdir, stage]) => {
+    if (head === 0) return false;
+    return head !== workdir || head !== stage || workdir !== stage;
+  });
+
+  if (trackedChanges.length === 0) {
+    return {
+      ok: false,
+      refusal: {
+        kind: "push-failed",
+        evidence: { phase: "push", message: "no tracked workspace changes to commit" }
+      }
+    };
+  }
+
+  for (const [filepath, _head, workdir] of trackedChanges) {
+    if (workdir === 0) {
+      await dependencies.remove({ fs: input.fs, dir: input.dir, filepath });
+    } else {
+      await dependencies.add({ fs: input.fs, dir: input.dir, filepath });
+    }
+  }
+
+  await dependencies.commit({
+    fs: input.fs,
+    dir: input.dir,
+    message: `protostar delivery ${input.branchName}`,
+    author: {
+      name: "Protostar Factory",
+      email: "protostar-factory@users.noreply.github.com"
+    }
+  });
+
+  return { ok: true };
 }
 
 async function readRemoteSha(input: {

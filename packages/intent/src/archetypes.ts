@@ -223,7 +223,7 @@ export const GOAL_ARCHETYPE_POLICY_TABLE = {
       allowedRiskLevels: ["low"]
     },
     toolPermissionGrants: {
-      allowedTools: ["node:test", "typescript", "shell"],
+      allowedTools: ["node:test", "typescript", "shell", "network"],
       allowedPermissionLevels: ["read", "use"],
       maxPermissionLevel: "use"
     },

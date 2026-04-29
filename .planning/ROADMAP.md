@@ -332,7 +332,7 @@ Plans (wave structure: W1 = {02, 03}; W2 = {01}; W3 = {04, 05, 06, 08}; W4 = {07
 
 Plans (wave structure: W1 = {01, 02}; W2 = {03, 04, 05, 06, 07}; W3 = {08}):
 - [x] 10-01-PLAN.md — [W1] DOG-01: toy repo scaffold + CI on `../protostar-toy-ttt` + dedicated PAT (autonomous: false)
-- [ ] 10-02-PLAN.md — [W1; deps: 01] DOG-03: 3-seed library + single end-to-end run + Phase 7 deferred PR catch-up + prune scope to `.protostar/dogfood/` (autonomous: false)
+- [x] 10-02-PLAN.md — [W1; deps: 01] DOG-03: 3-seed library + single end-to-end run + Phase 7 deferred PR catch-up + prune scope to `.protostar/dogfood/` (autonomous: false)
 - [ ] 10-03-PLAN.md — [W2; deps: 02] DOG-02: 7-row fixture matrix + `regen-matrix.sh` + coverage/age contracts
 - [ ] 10-04-PLAN.md — [W2; deps: 02] DOG-05: root README + lifecycle mermaid + run-bundle appendix + CLI snapshots + drift contract + PROJECT.md lock-revision (owns full Phase 10 dev-dep entry)
 - [ ] 10-05-PLAN.md — [W2; deps: 02] DOG-06: knip + `pnpm verify` + per-package READMEs + coverage contract
@@ -340,7 +340,7 @@ Plans (wave structure: W1 = {01, 02}; W2 = {03, 04, 05, 06, 07}; W3 = {08}):
 - [ ] 10-07-PLAN.md — [W2; deps: 02] DOG-08: SECURITY.md + SECURITY-REVIEW.md + authority-boundary AST contract
 - [ ] 10-08-PLAN.md — [W3; deps: 01..07] DOG-04: dogfood driver + ≥10×≥80% exit gate + calibration justification (autonomous: false)
 
-**Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs.
+**Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs. Plan 10-02 completed 2026-04-29 with `zakkeown/protostar-toy-ttt#1` and green `build-and-test`; screenshot PNG capture remains deferred.
 
 ### Phase 10.1: boundary hygiene pass (INSERTED)
 

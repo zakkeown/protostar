@@ -17,6 +17,7 @@ function envelope(overrides: Partial<CapabilityEnvelope> = {}): CapabilityEnvelo
     ],
     ...(overrides.executeGrants !== undefined ? { executeGrants: overrides.executeGrants } : {}),
     workspace: overrides.workspace ?? { allowDirty: false },
+    network: overrides.network ?? { allow: "loopback" },
     budget: overrides.budget ?? {
       maxUsd: 10,
       maxTokens: 10_000,
@@ -42,6 +43,7 @@ test("empty tiers produce a no-conflict wide-open default", () => {
   assert.deepEqual(witness.resolvedEnvelope.repoScopes, []);
   assert.deepEqual(witness.resolvedEnvelope.toolPermissions, []);
   assert.deepEqual(witness.resolvedEnvelope.workspace, { allowDirty: false });
+  assert.deepEqual(witness.resolvedEnvelope.network, { allow: "none" });
   assert.deepEqual(witness.resolvedEnvelope.budget, {});
   assert.deepEqual(witness.blockedBy, []);
 });
@@ -75,12 +77,38 @@ test("compatible stricter tier resolves by strict intersection", () => {
     { tool: "shell", permissionLevel: "read", reason: "inspect", risk: "low" }
   ]);
   assert.deepEqual(decision.resolvedEnvelope.workspace, { allowDirty: false });
+  assert.deepEqual(decision.resolvedEnvelope.network, { allow: "loopback" });
   assert.deepEqual(decision.resolvedEnvelope.budget, {
     maxUsd: 3,
     maxTokens: 1_000,
     timeoutMs: 5_000,
     maxRepairLoops: 1
   });
+});
+
+test("network authority survives strict precedence intersection", () => {
+  const decision = intersectEnvelopes([
+    tier({
+      tier: "confirmed-intent",
+      envelope: envelope({
+        network: { allow: "allowlist", allowedHosts: ["api.github.com", "github.com"] },
+        toolPermissions: [{ tool: "network", permissionLevel: "use", reason: "call services", risk: "low" }]
+      })
+    }),
+    tier({
+      tier: "policy",
+      envelope: envelope({
+        network: { allow: "allowlist", allowedHosts: ["api.github.com"] },
+        toolPermissions: [{ tool: "network", permissionLevel: "use", reason: "call services", risk: "low" }]
+      })
+    })
+  ]);
+
+  assert.equal(decision.status, "resolved");
+  assert.deepEqual(decision.resolvedEnvelope.network, { allow: "allowlist", allowedHosts: ["api.github.com"] });
+  assert.deepEqual(decision.resolvedEnvelope.toolPermissions, [
+    { tool: "network", permissionLevel: "use", reason: "call services", risk: "low" }
+  ]);
 });
 
 test("repo-policy deniedTools blocks the denied tool with evidence", () => {

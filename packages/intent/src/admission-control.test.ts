@@ -881,7 +881,7 @@ describe("intent admission policy", () => {
       allowedRiskLevels: ["low"]
     });
     assert.deepEqual(cosmeticPolicy.toolPermissionGrants, {
-      allowedTools: ["node:test", "typescript", "shell"],
+      allowedTools: ["node:test", "typescript", "shell", "network"],
       allowedPermissionLevels: ["read", "use"],
       maxPermissionLevel: "use"
     });
@@ -3825,7 +3825,7 @@ describe("intent admission policy", () => {
           requestedTool: "browser",
           requestedRisk: "high",
           requestedPermissionLevel: "admin",
-          allowedTools: ["node:test", "typescript", "shell"],
+          allowedTools: ["node:test", "typescript", "shell", "network"],
           allowedRiskLevels: ["low"],
           maxRisk: "low",
           allowedPermissionLevels: ["read", "use"],
@@ -3839,7 +3839,7 @@ describe("intent admission policy", () => {
             permissionLevel: "admin"
           },
           overageAllowed: {
-            tools: ["node:test", "typescript", "shell"]
+            tools: ["node:test", "typescript", "shell", "network"]
           }
         },
         {
@@ -3852,7 +3852,7 @@ describe("intent admission policy", () => {
           requestedTool: "browser",
           requestedRisk: "high",
           requestedPermissionLevel: "admin",
-          allowedTools: ["node:test", "typescript", "shell"],
+          allowedTools: ["node:test", "typescript", "shell", "network"],
           allowedRiskLevels: ["low"],
           maxRisk: "low",
           allowedPermissionLevels: ["read", "use"],
@@ -3880,7 +3880,7 @@ describe("intent admission policy", () => {
           requestedTool: "browser",
           requestedRisk: "high",
           requestedPermissionLevel: "admin",
-          allowedTools: ["node:test", "typescript", "shell"],
+          allowedTools: ["node:test", "typescript", "shell", "network"],
           allowedRiskLevels: ["low"],
           maxRisk: "low",
           allowedPermissionLevels: ["read", "use"],
@@ -4303,7 +4303,7 @@ describe("intent admission policy", () => {
           requestedTool: "browser",
           requestedRisk: "low",
           requestedPermissionLevel: "use",
-          allowedTools: ["node:test", "typescript", "shell"],
+          allowedTools: ["node:test", "typescript", "shell", "network"],
           allowedPermissionLevels: ["read", "use"],
           maxPermissionLevel: "use"
         },
@@ -4317,7 +4317,7 @@ describe("intent admission policy", () => {
           requestedTool: "typescript",
           requestedRisk: "low",
           requestedPermissionLevel: "admin",
-          allowedTools: ["node:test", "typescript", "shell"],
+          allowedTools: ["node:test", "typescript", "shell", "network"],
           allowedPermissionLevels: ["read", "use"],
           maxPermissionLevel: "use"
         }
@@ -4340,7 +4340,7 @@ describe("intent admission policy", () => {
             permissionLevel: "use"
           },
           allowed: {
-            tools: ["node:test", "typescript", "shell"]
+            tools: ["node:test", "typescript", "shell", "network"]
           }
         },
         {

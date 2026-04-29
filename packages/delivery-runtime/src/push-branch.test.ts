@@ -37,6 +37,16 @@ describe("pushBranch", () => {
   it("pushes a first-time branch and returns the local branch SHA", async (t) => {
     const calls: string[] = [];
     __setPushBranchDependenciesForTests({
+      add: async (options) => {
+        calls.push(`add-${options.filepath}`);
+      },
+      branch: async (options) => {
+        calls.push(`branch-${options.ref}-checkout-${String(options.checkout)}`);
+      },
+      commit: async () => {
+        calls.push("commit");
+        return "local-new-sha";
+      },
       fetch: async () => {
         calls.push("fetch");
         const error = new Error("not found");
@@ -47,7 +57,11 @@ describe("pushBranch", () => {
         calls.push(`push-force-${String(options.force)}`);
         return { ok: true, error: null, refs: { [`refs/heads/${branchName}`]: { ok: true, error: "" } } };
       },
-      resolveRef: async () => "local-new-sha"
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async () => "local-new-sha",
+      statusMatrix: async () => [["src/Button.tsx", 1, 2, 1]]
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -62,12 +76,27 @@ describe("pushBranch", () => {
     });
 
     assert.deepEqual(result, { ok: true, newSha: "local-new-sha" });
-    assert.deepEqual(calls, ["fetch", "push-force-false"]);
+    assert.deepEqual(calls, [
+      "fetch",
+      `branch-${branchName}-checkout-true`,
+      "add-src/Button.tsx",
+      "commit",
+      "push-force-false"
+    ]);
   });
 
   it("refuses before fetch or push when the parent signal is already aborted", async (t) => {
     let pushed = false;
     __setPushBranchDependenciesForTests({
+      add: async () => {
+        throw new Error("add should not be called");
+      },
+      branch: async () => {
+        throw new Error("branch should not be called");
+      },
+      commit: async () => {
+        throw new Error("commit should not be called");
+      },
       fetch: async () => {
         throw new Error("fetch should not be called");
       },
@@ -75,7 +104,13 @@ describe("pushBranch", () => {
         pushed = true;
         throw new Error("push should not be called");
       },
-      resolveRef: async () => "unused"
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async () => "unused",
+      statusMatrix: async () => {
+        throw new Error("statusMatrix should not be called");
+      }
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -97,11 +132,26 @@ describe("pushBranch", () => {
 
   it("refuses remote-diverged when the remote SHA is not the expected lease", async (t) => {
     __setPushBranchDependenciesForTests({
+      add: async () => {
+        throw new Error("add should not be called");
+      },
+      branch: async () => {
+        throw new Error("branch should not be called");
+      },
+      commit: async () => {
+        throw new Error("commit should not be called");
+      },
       fetch: async () => ({ defaultBranch: null, fetchHead: "remote-sha-x", fetchHeadDescription: null }),
       push: async () => {
         throw new Error("push should not be called");
       },
-      resolveRef: async (options) => (options.ref.startsWith("refs/remotes/") ? "remote-sha-x" : "local-new-sha")
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async (options) => (options.ref.startsWith("refs/remotes/") ? "remote-sha-x" : "local-new-sha"),
+      statusMatrix: async () => {
+        throw new Error("statusMatrix should not be called");
+      }
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -126,6 +176,15 @@ describe("pushBranch", () => {
 
   it("maps empty-token auth failure to a push-failed refusal", async (t) => {
     __setPushBranchDependenciesForTests({
+      add: async () => {
+        throw new Error("add should not be called");
+      },
+      branch: async () => {
+        throw new Error("branch should not be called");
+      },
+      commit: async () => {
+        throw new Error("commit should not be called");
+      },
       fetch: async (options) => {
         const auth = await options.onAuth?.("https://github.com/owner/repo.git", {});
         assert.deepEqual(auth, { cancel: true });
@@ -134,7 +193,13 @@ describe("pushBranch", () => {
       push: async () => {
         throw new Error("push should not be called");
       },
-      resolveRef: async () => "unused"
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async () => "unused",
+      statusMatrix: async () => {
+        throw new Error("statusMatrix should not be called");
+      }
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -156,6 +221,9 @@ describe("pushBranch", () => {
   it("maps auth-loop abort during push to a cancellation refusal", async (t) => {
     const controller = new AbortController();
     __setPushBranchDependenciesForTests({
+      add: async () => undefined,
+      branch: async () => undefined,
+      commit: async () => "unused",
       fetch: async () => {
         const error = new Error("not found");
         Object.assign(error, { code: "NotFoundError" });
@@ -167,7 +235,9 @@ describe("pushBranch", () => {
         assert.deepEqual(await options.onAuth?.("https://github.com/owner/repo.git", {}), { cancel: true });
         throw new Error("Authentication cancelled");
       },
-      resolveRef: async () => "unused"
+      remove: async () => undefined,
+      resolveRef: async () => "unused",
+      statusMatrix: async () => [["src/Button.tsx", 1, 2, 1]]
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 
@@ -189,6 +259,9 @@ describe("pushBranch", () => {
 
   it("maps non-abort push throws to a push-failed refusal", async (t) => {
     __setPushBranchDependenciesForTests({
+      add: async () => undefined,
+      branch: async () => undefined,
+      commit: async () => "unused",
       fetch: async () => {
         const error = new Error("not found");
         Object.assign(error, { code: "NotFoundError" });
@@ -197,7 +270,9 @@ describe("pushBranch", () => {
       push: async () => {
         throw new Error("remote rejected ghp_123456789012345678901234567890123456");
       },
-      resolveRef: async () => "unused"
+      remove: async () => undefined,
+      resolveRef: async () => "unused",
+      statusMatrix: async () => [["src/Button.tsx", 1, 2, 1]]
     });
     t.after(() => __resetPushBranchDependenciesForTests());
 

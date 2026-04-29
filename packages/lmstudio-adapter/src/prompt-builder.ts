@@ -17,7 +17,7 @@ export type CoderMessage =
   | { readonly role: "user"; readonly content: string }
   | { readonly role: "assistant"; readonly content: string };
 
-const DIFF_ONLY_NUDGE = "Output ONLY a single fenced ```diff block. No prose.";
+const JSON_ONLY_NUDGE = "Output ONLY a single fenced ```json block. No prose.";
 
 export function buildCoderMessages(input: PromptBuilderInput): CoderMessages {
   return {
@@ -25,16 +25,23 @@ export function buildCoderMessages(input: PromptBuilderInput): CoderMessages {
       {
         role: "system",
         content: [
-          "You are a coder agent producing a unified diff against the workspace.",
-          DIFF_ONLY_NUDGE,
-          "All file changes go in ONE fence. Use standard unified-diff multi-file headers (--- a/path / +++ b/path).",
+          "You are a coder agent producing full-file replacements against the workspace.",
+          JSON_ONLY_NUDGE,
+          "The JSON object must match this schema exactly:",
+          '{ "entries": [{ "path": "relative/path.ext", "content": "full replacement UTF-8 file content" }] }',
+          "Only include files listed in scope. Preserve all unchanged content inside each replacement content string.",
+          "The replacement must type-check: do not reference undeclared symbols, and update imports for every new symbol you use.",
+          "Prefer the smallest valid edit that satisfies the acceptance criteria.",
           "Example:",
-          "```diff",
-          "--- a/src/example.ts",
-          "+++ b/src/example.ts",
-          "@@ -1 +1 @@",
-          "-old",
-          "+new",
+          "```json",
+          JSON.stringify({
+            entries: [
+              {
+                path: "src/example.ts",
+                content: "export const value = 2;\n"
+              }
+            ]
+          }),
           "```",
           `Archetype: ${input.archetype}`
         ].join("\n")
@@ -57,7 +64,8 @@ export function buildReformatNudgeMessages(
       { role: "assistant", content: priorAssistantContent },
       {
         role: "user",
-        content: "Output ONLY a single fenced ```diff block containing your patch. No prose."
+        content:
+          'Output ONLY a single fenced ```json block containing {"entries":[{"path":"...","content":"full replacement UTF-8 file content"}]}. No prose.'
       }
     ]
   };

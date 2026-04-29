@@ -13,7 +13,7 @@ const MODEL = "qwen3-coder-next-mlx-4bit";
 describe("createLmstudioCoderAdapter", () => {
   it("streams tokens and returns a change-set with target pre-image hashes", async (t) => {
     const server = await startStubLmstudio({
-      chunks: chunkString(cosmeticTweakFixture.expectedDiffSample, 9)
+      chunks: chunkString(cosmeticTweakFixture.expectedJsonChangeSetSample, 9)
     });
     t.after(() => void server.close());
     const ctx = createAdapterContext();
@@ -40,8 +40,8 @@ describe("createLmstudioCoderAdapter", () => {
 
   it("performs one parse-reformat retry when the first attempt has prose drift", async () => {
     const responses = [
-      cosmeticTweakFixture.proseDriftDiffSample,
-      cosmeticTweakFixture.expectedDiffSample
+      cosmeticTweakFixture.proseDriftJsonSample,
+      cosmeticTweakFixture.expectedJsonChangeSetSample
     ];
     const adapter = createLmstudioCoderAdapter({
       baseUrl: "http://127.0.0.1:1234/v1",
@@ -56,6 +56,35 @@ describe("createLmstudioCoderAdapter", () => {
     assert.equal(final.result.outcome, "change-set");
     assert.equal(final.result.evidence.attempts, 2);
     assert.equal(final.result.evidence.retries[0]?.retryReason, "parse-reformat");
+  });
+
+  it("accepts an already-applied full-file replacement as an empty change-set", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([
+        [
+          "```json",
+          JSON.stringify({
+            entries: [
+              {
+                path: "src/Button.tsx",
+                content: new TextDecoder().decode(cosmeticTweakFixture.preImageBytes["src/Button.tsx"])
+              }
+            ]
+          }),
+          "```"
+        ].join("\n")
+      ])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.deepEqual(entriesOf(final.result.changeSet), []);
   });
 
   it("fails when the reformat retry also returns prose-only content", async () => {
@@ -126,7 +155,7 @@ describe("createLmstudioCoderAdapter", () => {
       model: MODEL,
       apiKey: "lm-studio",
       auxReadBudget: -1,
-      fetchImpl: createStreamingFetch([cosmeticTweakFixture.expectedDiffSample])
+      fetchImpl: createStreamingFetch([cosmeticTweakFixture.expectedJsonChangeSetSample])
     });
 
     const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
@@ -138,7 +167,7 @@ describe("createLmstudioCoderAdapter", () => {
   });
 
   it("appends every token delta to the adapter journal", async () => {
-    const chunks = chunkString(cosmeticTweakFixture.expectedDiffSample, 7);
+    const chunks = chunkString(cosmeticTweakFixture.expectedJsonChangeSetSample, 7);
     const journalTokens: string[] = [];
     const adapter = createLmstudioCoderAdapter({
       baseUrl: "http://127.0.0.1:1234/v1",
@@ -155,7 +184,7 @@ describe("createLmstudioCoderAdapter", () => {
       .map((event) => event.text)
       .join("");
 
-    assert.equal(tokenText, cosmeticTweakFixture.expectedDiffSample);
+    assert.equal(tokenText, cosmeticTweakFixture.expectedJsonChangeSetSample);
     assert.equal(journalTokens.join(""), tokenText);
   });
 
@@ -165,7 +194,7 @@ describe("createLmstudioCoderAdapter", () => {
       baseUrl: "http://127.0.0.1:1234/v1",
       model: MODEL,
       apiKey: "lm-studio",
-      fetchImpl: createStreamingFetch([cosmeticTweakFixture.expectedDiffSample])
+      fetchImpl: createStreamingFetch([cosmeticTweakFixture.expectedJsonChangeSetSample])
     });
 
     const events = await collectEvents(

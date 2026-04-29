@@ -8,12 +8,18 @@
     { "workspace": "*", "path": "apps/factory-cli", "access": "write" },
     { "workspace": "*", "path": "packages/intent", "access": "write" },
     { "workspace": "*", "path": "packages/policy", "access": "write" },
-    { "workspace": "*", "path": "examples/intents", "access": "write" }
+    { "workspace": "*", "path": "examples/intents", "access": "write" },
+    { "workspace": "protostar-toy-ttt", "path": "src/components/PrimaryButton.tsx", "access": "write" }
   ],
   "toolPermissions": [
     { "tool": "node:test", "permissionLevel": "use" },
     { "tool": "typescript", "permissionLevel": "use" },
-    { "tool": "shell", "permissionLevel": "use" }
+    { "tool": "shell", "permissionLevel": "use" },
+    { "tool": "network", "permissionLevel": "use" }
   ],
+  "network": {
+    "allow": "allowlist",
+    "allowedHosts": ["github.com", "api.github.com", "127.0.0.1", "localhost"]
+  },
   "trustOverride": "trusted"
 }

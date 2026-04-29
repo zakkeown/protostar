@@ -317,6 +317,10 @@ function patchesFromChangeSet(changeSet: unknown, input: RunRealExecutionInput):
       path: entry.path,
       op: {
         ...authorization.authorized,
+        workspace: {
+          ...authorization.authorized.workspace,
+          root: input.workspaceRoot
+        },
         path: isAbsolute(entry.path) ? entry.path : resolve(input.workspaceRoot, entry.path)
       },
       diff: entry.diff,
