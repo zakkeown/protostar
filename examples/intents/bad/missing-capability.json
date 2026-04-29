@@ -22,7 +22,10 @@
       "allow": "loopback"
     },
     "mechanical": {
-      "allowed": ["verify", "lint"]
+      "allowed": [
+        "verify",
+        "lint"
+      ]
     },
     "budget": {
       "adapterRetriesPerTask": 4,
@@ -69,9 +72,9 @@
   "signature": {
     "algorithm": "sha256",
     "canonicalForm": "json-c14n@1.0",
-    "value": "82f77f8f749d48f022fc575c3386cb81e8afb6878a5e7f2f75109850b226dee0",
-    "intentHash": "aea6d34ee45f14e002936aa7d51e8039d6edb18de6cdc6ed184285142b954bfb",
-    "envelopeHash": "9fc98800d140c9c486e48c772eeb3149b2e8a4e810b168ebc8b6906e70673cd4",
-    "policySnapshotHash": "5c875dd1883273fb42e22880057062271835e6a1b3a664358bfa9a3b4704dc73"
+    "value": "70efbe1820e5c038581c5e566be7f5ae2d4a84686cb4c6630b7889f991135b84",
+    "intentHash": "6e25e1fd1a25e0381d499ece03c0fed7ec72a07e4fd0921518c4eeb241225404",
+    "envelopeHash": "8f5c70d5a2455664dba5e2dfa83e7905f321c26882ce0a14c398c4ed9a5188be",
+    "policySnapshotHash": "b0b1daf84355b30ffc52563ed711cdd3836b7decc63fb18a2fd5c1a008cfb3ad"
   }
 }

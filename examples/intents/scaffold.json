@@ -50,7 +50,10 @@
       "allow": "loopback"
     },
     "mechanical": {
-      "allowed": ["verify", "lint"]
+      "allowed": [
+        "verify",
+        "lint"
+      ]
     },
     "budget": {
       "adapterRetriesPerTask": 4,
@@ -104,9 +107,9 @@
   "signature": {
     "algorithm": "sha256",
     "canonicalForm": "json-c14n@1.0",
-    "value": "86af56d0aab00c516b17294c0815b0fc9605864fec38c45be37b020f34929844",
-    "intentHash": "5c4e954bd045b0eb93fa579d71548d101b7b1e38567a61707044e77dab94e4cf",
-    "envelopeHash": "5c41e155d69de82f6383b5374dbf8f6d39faa7ef3d84e61a09bfdd3dd95152eb",
-    "policySnapshotHash": "c6280cfdd6b4ae75aeded9e3d87050a8d29109c28777032361c089fbeef43b82"
+    "value": "d91eaad8bde00cd01237200666b04a22c4ad8ef94cdcf33d458058b26abe23c5",
+    "intentHash": "54de91c7fe666694889c6e6b0a89bd07ba2124fbaaee97704a0fa1dab4dcaa73",
+    "envelopeHash": "f8dfd6dfa0df3a4a86b8798b1c487f36f2ea1d592a78eef5e0f92a985aec2412",
+    "policySnapshotHash": "cf144899600286066c19c6149410c1c3fb3299da9561700da59b7a61d8c226a7"
   }
 }
