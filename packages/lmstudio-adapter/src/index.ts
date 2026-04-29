@@ -2,6 +2,7 @@ export {
   resolveFactoryConfig,
   type ExecutionCoordinationPileConfig,
   type FactoryConfig,
+  type HeadlessMode,
   type PileKindConfig,
   type PileMode,
   type PilesConfig,

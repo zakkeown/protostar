@@ -23,8 +23,9 @@ describe("run command headless options", () => {
       nonInteractive: true
     });
 
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok) assert.fail(parsed.error);
+    if (!parsed.ok) {
+      assert.fail(parsed.error);
+    }
     assert.equal(parsed.options.headlessMode, "github-hosted");
     assert.equal(parsed.options.nonInteractive, true);
   });

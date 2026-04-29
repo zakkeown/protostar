@@ -1,4 +1,5 @@
 import { MAX_EVOLUTION_GENERATIONS } from "@protostar/evaluation";
+import type { HeadlessMode } from "@protostar/lmstudio-adapter";
 
 export type TrustLevel = "untrusted" | "trusted";
 
@@ -7,6 +8,12 @@ export const TRUST_LEVELS: readonly TrustLevel[] = Object.freeze(["untrusted", "
 export type PileMode = "fixture" | "live";
 
 export const PILE_MODES: readonly PileMode[] = Object.freeze(["fixture", "live"]);
+
+export const HEADLESS_MODES: readonly HeadlessMode[] = Object.freeze([
+  "github-hosted",
+  "self-hosted-runner",
+  "local-daemon"
+]);
 
 export interface ParsedCliArgs {
   readonly trust: TrustLevel;
@@ -32,6 +39,8 @@ export interface ParsedCliArgs {
   readonly generation?: number;
   readonly semanticJudgeModel?: string;
   readonly consensusJudgeModel?: string;
+  readonly headlessMode?: HeadlessMode;
+  readonly nonInteractive?: boolean;
 }
 
 const FLAG_NAMES = new Set([
@@ -45,6 +54,7 @@ const FLAG_NAMES = new Set([
   "--executor",
   "--fail-task-ids",
   "--generation",
+  "--headless-mode",
   "--intent",
   "--intent-draft",
   "--intent-mode",
@@ -56,11 +66,12 @@ const FLAG_NAMES = new Set([
   "--review-mode",
   "--run-id",
   "--semantic-judge-model",
+  "--non-interactive",
   "--trust"
 ]);
 
 const PILE_MODE_FLAGS = new Set(["--planning-mode", "--review-mode", "--exec-coord-mode"]);
-const BOOLEAN_FLAGS = new Set(["--evolve-code"]);
+const BOOLEAN_FLAGS = new Set(["--evolve-code", "--non-interactive"]);
 
 export class ArgvError extends Error {
   constructor(
@@ -128,6 +139,14 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
       }
     }
 
+    if (flag === "--headless-mode") {
+      if (!isHeadlessMode(value)) {
+        throw new ArgvError(flag, `expected one of ${HEADLESS_MODES.join("|")}, got "${value}"`);
+      }
+      setFlag(flags, "headlessMode", value);
+      continue;
+    }
+
     if (flag === "--generation") {
       setFlag(flags, "generation", parseGenerationArg(value));
       continue;
@@ -156,6 +175,10 @@ function splitInlineFlag(arg: string): { readonly flag: string; readonly value?:
 
 function flagName(flag: string): keyof ParsedCliArgs {
   return flag.slice(2).replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase()) as keyof ParsedCliArgs;
+}
+
+function isHeadlessMode(value: string): value is HeadlessMode {
+  return (HEADLESS_MODES as readonly string[]).includes(value);
 }
 
 type WritableParsedCliArgs = {

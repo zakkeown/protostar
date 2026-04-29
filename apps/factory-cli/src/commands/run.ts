@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import { InvalidArgumentError } from "commander";
 import type { IntentAmbiguityMode } from "@protostar/intent/ambiguity";
+import type { HeadlessMode } from "@protostar/lmstudio-adapter";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { parseGenerationArg, type PileMode, type TrustLevel } from "../cli-args.js";
@@ -17,7 +18,7 @@ import {
 import { validateTwoKeyLaunch } from "../two-key-launch.js";
 import type { DeliveryMode } from "../load-factory-config.js";
 
-interface CommanderRunOptions {
+export interface CommanderRunOptions {
   readonly allowedAdapters?: string;
   readonly confirmedIntent?: string;
   readonly confirmedIntentOutput?: string;
@@ -29,6 +30,7 @@ interface CommanderRunOptions {
   readonly executor?: string;
   readonly failTaskIds?: string;
   readonly generation?: string;
+  readonly headlessMode?: HeadlessMode;
   readonly intent?: string;
   readonly intentDraft?: string;
   readonly intentMode?: string;
@@ -40,6 +42,7 @@ interface CommanderRunOptions {
   readonly reviewMode?: string;
   readonly runId?: string;
   readonly semanticJudgeModel?: string;
+  readonly nonInteractive?: boolean;
   readonly trust?: string;
 }
 
@@ -57,6 +60,7 @@ export function buildRunCommand(): Command {
     .option("--executor <mode>", "executor mode: dry-run or real")
     .option("--fail-task-ids <ids>", "comma-separated task ids to fail in dry-run mode")
     .option("--generation <n>", "evolution generation override")
+    .option("--headless-mode <mode>", "github-hosted | self-hosted-runner | local-daemon", parseHeadlessModeOption)
     .option("--intent <path>", "unsupported legacy confirmed intent flag")
     .option("--intent-draft <path>", "intent draft JSON file")
     .option("--intent-mode <mode>", "intent ambiguity mode: greenfield or brownfield")
@@ -68,6 +72,7 @@ export function buildRunCommand(): Command {
     .option("--review-mode <mode>", "review pile mode: fixture or live")
     .option("--run-id <id>", "explicit run id")
     .option("--semantic-judge-model <model>", "override the semantic judge model")
+    .option("--non-interactive", "refuse instead of prompting in headless execution")
     .option("--trust <level>", "workspace trust: untrusted or trusted")
     .exitOverride()
     .configureOutput({
@@ -117,7 +122,7 @@ async function executeRunCommand(opts: CommanderRunOptions): Promise<void> {
   }
 }
 
-function buildRunOptions(opts: CommanderRunOptions):
+export function buildRunOptions(opts: CommanderRunOptions):
   | { readonly ok: true; readonly options: RunCommandOptions }
   | { readonly ok: false; readonly error: string } {
   const draftPath = opts.intentDraft ?? opts.draft;
@@ -185,9 +190,18 @@ function buildRunOptions(opts: CommanderRunOptions):
       ...(opts.evolveCode !== undefined ? { evolveCode: opts.evolveCode } : {}),
       ...(generation.value !== undefined ? { generation: generation.value } : {}),
       ...(opts.semanticJudgeModel !== undefined ? { semanticJudgeModel: opts.semanticJudgeModel } : {}),
-      ...(opts.consensusJudgeModel !== undefined ? { consensusJudgeModel: opts.consensusJudgeModel } : {})
+      ...(opts.consensusJudgeModel !== undefined ? { consensusJudgeModel: opts.consensusJudgeModel } : {}),
+      ...(opts.headlessMode !== undefined ? { headlessMode: opts.headlessMode } : {}),
+      ...(opts.nonInteractive !== undefined ? { nonInteractive: opts.nonInteractive } : {})
     }
   };
+}
+
+function parseHeadlessModeOption(value: string): HeadlessMode {
+  if (value === "github-hosted" || value === "self-hosted-runner" || value === "local-daemon") {
+    return value;
+  }
+  throw new InvalidArgumentError("--headless-mode must be github-hosted, self-hosted-runner, or local-daemon.");
 }
 
 function parseDeliveryModeOption(value: string): DeliveryMode {

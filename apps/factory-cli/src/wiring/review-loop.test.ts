@@ -243,6 +243,18 @@ function factoryConfig() {
           model: "judge",
           apiKeyEnv: "LMSTUDIO_API_KEY"
         }
+      },
+      factory: {
+        headlessMode: "local-daemon",
+        nonInteractive: false,
+        stress: {
+          caps: {
+            tttDelivery: { maxAttempts: 50, maxWallClockDays: 14 },
+            sustainedLoad: { maxRuns: 500, maxWallClockDays: 7 },
+            concurrency: { maxSessions: 20, maxWallClockDays: 3 },
+            faultInjection: { maxFaults: 100, maxWallClockDays: 3 }
+          }
+        }
       }
     },
     configHash: "hash",

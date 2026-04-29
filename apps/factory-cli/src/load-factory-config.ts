@@ -6,13 +6,20 @@ import {
   ONTOLOGY_CONVERGENCE_THRESHOLD
 } from "@protostar/evaluation";
 import type { ConfirmedIntent } from "@protostar/intent";
-import { resolveFactoryConfig, type ResolvedFactoryConfig } from "@protostar/lmstudio-adapter";
+import { resolveFactoryConfig, type HeadlessMode, type ResolvedFactoryConfig } from "@protostar/lmstudio-adapter";
 
 export type CodeEvolutionMode = "opt-in" | "disabled";
 export type DeliveryMode = "auto" | "gated";
+export type { HeadlessMode };
 export interface FactoryConfigDeliverySource {
   readonly delivery?: {
     readonly mode?: DeliveryMode;
+  };
+}
+export interface FactoryConfigHeadlessSource {
+  readonly factory?: {
+    readonly headlessMode?: HeadlessMode;
+    readonly nonInteractive?: boolean;
   };
 }
 export interface ChainGenerationSource {
@@ -106,4 +113,18 @@ export function resolveDeliveryMode(
   cliOverride: DeliveryMode | undefined
 ): DeliveryMode {
   return cliOverride ?? config.delivery?.mode ?? "auto";
+}
+
+export function resolveHeadlessMode(
+  config: FactoryConfigHeadlessSource,
+  cliOverride: HeadlessMode | undefined
+): HeadlessMode {
+  return cliOverride ?? config.factory?.headlessMode ?? "local-daemon";
+}
+
+export function resolveNonInteractive(
+  config: FactoryConfigHeadlessSource,
+  cliOverride: boolean | undefined
+): boolean {
+  return cliOverride ?? config.factory?.nonInteractive ?? false;
 }

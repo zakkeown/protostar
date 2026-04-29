@@ -7,6 +7,7 @@ export interface FactoryConfig {
     readonly coder: LmstudioAdapterConfig;
     readonly judge?: LmstudioAdapterConfig;
   };
+  readonly factory: FactoryRuntimeConfig;
   // Phase 7 Q-15: operator-named CI check allowlist; absence means the
   // delivery runtime reports ciVerdict="no-checks-configured".
   readonly delivery?: DeliveryConfig;
@@ -17,6 +18,45 @@ export interface FactoryConfig {
   // Phase 6 Plan 06-07 Task 1 — piles config block (Q-04). Optional; absence
   // means all piles default to mode="fixture" (Q-05).
   readonly piles?: PilesConfig;
+}
+
+export type HeadlessMode = "github-hosted" | "self-hosted-runner" | "local-daemon";
+
+export interface FactoryRuntimeConfig {
+  readonly headlessMode: HeadlessMode;
+  readonly nonInteractive: boolean;
+  readonly stress: FactoryStressConfig;
+}
+
+export interface FactoryStressConfig {
+  readonly caps: FactoryStressCaps;
+}
+
+export interface FactoryStressCaps {
+  readonly tttDelivery: TttDeliveryStressCaps;
+  readonly sustainedLoad: SustainedLoadStressCaps;
+  readonly concurrency: ConcurrencyStressCaps;
+  readonly faultInjection: FaultInjectionStressCaps;
+}
+
+export interface TttDeliveryStressCaps {
+  readonly maxAttempts: number;
+  readonly maxWallClockDays: number;
+}
+
+export interface SustainedLoadStressCaps {
+  readonly maxRuns: number;
+  readonly maxWallClockDays: number;
+}
+
+export interface ConcurrencyStressCaps {
+  readonly maxSessions: number;
+  readonly maxWallClockDays: number;
+}
+
+export interface FaultInjectionStressCaps {
+  readonly maxFaults: number;
+  readonly maxWallClockDays: number;
 }
 
 export interface DeliveryConfig {
@@ -100,12 +140,30 @@ interface PartialFactoryConfig {
     readonly coder?: PartialLmstudioAdapterConfig;
     readonly judge?: PartialLmstudioAdapterConfig;
   };
+  readonly factory?: PartialFactoryRuntimeConfig;
   readonly delivery?: PartialDeliveryConfig;
   readonly evaluation?: EvaluationConfig;
   readonly evolution?: EvolutionConfig;
   readonly operator?: OperatorConfig;
   readonly mechanicalChecks?: MechanicalChecksConfig;
   readonly piles?: PilesConfig;
+}
+
+interface PartialFactoryRuntimeConfig {
+  readonly headlessMode?: HeadlessMode;
+  readonly nonInteractive?: boolean;
+  readonly stress?: PartialFactoryStressConfig;
+}
+
+interface PartialFactoryStressConfig {
+  readonly caps?: PartialFactoryStressCaps;
+}
+
+interface PartialFactoryStressCaps {
+  readonly tttDelivery?: Partial<TttDeliveryStressCaps>;
+  readonly sustainedLoad?: Partial<SustainedLoadStressCaps>;
+  readonly concurrency?: Partial<ConcurrencyStressCaps>;
+  readonly faultInjection?: Partial<FaultInjectionStressCaps>;
 }
 
 interface PartialDeliveryConfig {
@@ -138,11 +196,36 @@ const DEFAULT_FACTORY_CONFIG: FactoryConfig = Object.freeze({
       model: "qwen3-80b-a3b-mlx-4bit",
       apiKeyEnv: "LMSTUDIO_API_KEY"
     })
+  }),
+  factory: Object.freeze({
+    headlessMode: "local-daemon",
+    nonInteractive: false,
+    stress: Object.freeze({
+      caps: Object.freeze({
+        tttDelivery: Object.freeze({
+          maxAttempts: 50,
+          maxWallClockDays: 14
+        }),
+        sustainedLoad: Object.freeze({
+          maxRuns: 500,
+          maxWallClockDays: 7
+        }),
+        concurrency: Object.freeze({
+          maxSessions: 20,
+          maxWallClockDays: 3
+        }),
+        faultInjection: Object.freeze({
+          maxFaults: 100,
+          maxWallClockDays: 3
+        })
+      })
+    })
   })
 });
 
 const TOP_LEVEL_KEYS = new Set([
   "adapters",
+  "factory",
   "delivery",
   "evaluation",
   "evolution",
@@ -152,6 +235,14 @@ const TOP_LEVEL_KEYS = new Set([
 ]);
 const ADAPTERS_KEYS = new Set(["coder", "judge"]);
 const LMSTUDIO_ADAPTER_KEYS = new Set(["provider", "baseUrl", "model", "apiKeyEnv", "temperature", "topP"]);
+const FACTORY_KEYS = new Set(["headlessMode", "nonInteractive", "stress"]);
+const FACTORY_STRESS_KEYS = new Set(["caps"]);
+const STRESS_CAPS_KEYS = new Set(["tttDelivery", "sustainedLoad", "concurrency", "faultInjection"]);
+const TTT_DELIVERY_CAP_KEYS = new Set(["maxAttempts", "maxWallClockDays"]);
+const SUSTAINED_LOAD_CAP_KEYS = new Set(["maxRuns", "maxWallClockDays"]);
+const CONCURRENCY_CAP_KEYS = new Set(["maxSessions", "maxWallClockDays"]);
+const FAULT_INJECTION_CAP_KEYS = new Set(["maxFaults", "maxWallClockDays"]);
+const HEADLESS_MODE_VALUES = new Set(["github-hosted", "self-hosted-runner", "local-daemon"]);
 const DELIVERY_KEYS = new Set(["mode", "requiredChecks"]);
 const EVALUATION_KEYS = new Set(["semanticJudge", "consensusJudge"]);
 const EVALUATION_JUDGE_KEYS = new Set(["model", "baseUrl"]);
@@ -213,6 +304,7 @@ export function resolveFactoryConfig(input: {
       coder,
       judge
     },
+    factory: resolveFactoryRuntimeConfig(fileConfig.factory),
     ...(fileConfig.delivery !== undefined
       ? {
           delivery: {
@@ -270,6 +362,24 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
       if (config.adapters.judge !== undefined) {
         validateLmstudioAdapter("$.adapters.judge", config.adapters.judge, errors);
       }
+    }
+  }
+
+  if (config.factory !== undefined) {
+    if (!isPlainRecord(config.factory)) {
+      errors.push("$.factory must be an object");
+    } else {
+      errors.push(...unknownKeyErrors("$.factory", config.factory, FACTORY_KEYS));
+      if (
+        config.factory.headlessMode !== undefined &&
+        !HEADLESS_MODE_VALUES.has(config.factory.headlessMode as string)
+      ) {
+        errors.push("$.factory.headlessMode must be one of github-hosted|self-hosted-runner|local-daemon");
+      }
+      if (config.factory.nonInteractive !== undefined && typeof config.factory.nonInteractive !== "boolean") {
+        errors.push("$.factory.nonInteractive must be a boolean");
+      }
+      validateFactoryStress("$.factory.stress", config.factory.stress, errors);
     }
   }
 
@@ -392,6 +502,53 @@ function validatePartialFactoryConfig(config: PartialFactoryConfig): readonly st
   return errors;
 }
 
+function validateFactoryStress(path: string, stress: unknown, errors: string[]): void {
+  if (stress === undefined) return;
+  if (!isPlainRecord(stress)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  errors.push(...unknownKeyErrors(path, stress, FACTORY_STRESS_KEYS));
+  if (stress["caps"] !== undefined) {
+    validateFactoryStressCaps(`${path}.caps`, stress["caps"], errors);
+  }
+}
+
+function validateFactoryStressCaps(path: string, caps: unknown, errors: string[]): void {
+  if (!isPlainRecord(caps)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  errors.push(...unknownKeyErrors(path, caps, STRESS_CAPS_KEYS));
+  validatePositiveIntegerObject(`${path}.tttDelivery`, caps["tttDelivery"], TTT_DELIVERY_CAP_KEYS, errors);
+  validatePositiveIntegerObject(`${path}.sustainedLoad`, caps["sustainedLoad"], SUSTAINED_LOAD_CAP_KEYS, errors);
+  validatePositiveIntegerObject(`${path}.concurrency`, caps["concurrency"], CONCURRENCY_CAP_KEYS, errors);
+  validatePositiveIntegerObject(`${path}.faultInjection`, caps["faultInjection"], FAULT_INJECTION_CAP_KEYS, errors);
+}
+
+function validatePositiveIntegerObject(
+  path: string,
+  value: unknown,
+  allowedKeys: ReadonlySet<string>,
+  errors: string[]
+): void {
+  if (value === undefined) return;
+  if (!isPlainRecord(value)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  errors.push(...unknownKeyErrors(path, value, allowedKeys));
+  for (const key of allowedKeys) {
+    const fieldValue = value[key];
+    if (
+      fieldValue !== undefined &&
+      (typeof fieldValue !== "number" || !Number.isInteger(fieldValue) || fieldValue <= 0)
+    ) {
+      errors.push(`${path}.${key} must be a positive integer`);
+    }
+  }
+}
+
 function validateMechanicalCommands(path: string, commands: unknown, errors: string[]): void {
   if (commands === undefined) return;
   if (!Array.isArray(commands)) {
@@ -501,6 +658,33 @@ function resolveAdapterConfig(input: {
     Object.assign(adapter, { topP });
   }
   return adapter;
+}
+
+function resolveFactoryRuntimeConfig(partial: PartialFactoryRuntimeConfig | undefined): FactoryRuntimeConfig {
+  return {
+    headlessMode: partial?.headlessMode ?? DEFAULT_FACTORY_CONFIG.factory.headlessMode,
+    nonInteractive: partial?.nonInteractive ?? DEFAULT_FACTORY_CONFIG.factory.nonInteractive,
+    stress: {
+      caps: {
+        tttDelivery: {
+          ...DEFAULT_FACTORY_CONFIG.factory.stress.caps.tttDelivery,
+          ...partial?.stress?.caps?.tttDelivery
+        },
+        sustainedLoad: {
+          ...DEFAULT_FACTORY_CONFIG.factory.stress.caps.sustainedLoad,
+          ...partial?.stress?.caps?.sustainedLoad
+        },
+        concurrency: {
+          ...DEFAULT_FACTORY_CONFIG.factory.stress.caps.concurrency,
+          ...partial?.stress?.caps?.concurrency
+        },
+        faultInjection: {
+          ...DEFAULT_FACTORY_CONFIG.factory.stress.caps.faultInjection,
+          ...partial?.stress?.caps?.faultInjection
+        }
+      }
+    }
+  };
 }
 
 function unknownKeyErrors(

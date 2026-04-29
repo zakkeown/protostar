@@ -139,6 +139,7 @@ import {
   resolveLineageId,
   resolveSemanticJudgeModel
 } from "./load-factory-config.js";
+import type { HeadlessMode } from "./load-factory-config.js";
 import { appendCalibrationEntry, CALIBRATION_LOG_PATH } from "./calibration-log.js";
 import { appendChainLine, chainIndexPath, readLatestChainLine, type ChainIndexLine } from "./evolution-chain-index.js";
 import { writeEvolutionSnapshot } from "./evolution-snapshot-writer.js";
@@ -186,6 +187,8 @@ export interface RunCommandOptions {
   readonly reviewMode?: PileMode;
   readonly execCoordMode?: PileMode;
   readonly deliveryMode?: "auto" | "gated";
+  readonly headlessMode?: HeadlessMode;
+  readonly nonInteractive?: boolean;
   readonly lineage?: string;
   readonly evolveCode?: boolean;
   readonly generation?: number;

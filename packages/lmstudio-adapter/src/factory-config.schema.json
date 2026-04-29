@@ -15,6 +15,68 @@
         "judge": { "$ref": "#/definitions/lmstudioAdapterConfig" }
       }
     },
+    "factory": {
+      "type": "object",
+      "description": "Phase 11 Q-04/Q-03: headless execution posture and bounded stress caps. CLI flags --headless-mode and --non-interactive take precedence over this config.",
+      "additionalProperties": false,
+      "properties": {
+        "headlessMode": {
+          "type": "string",
+          "enum": ["github-hosted", "self-hosted-runner", "local-daemon"],
+          "default": "local-daemon",
+          "description": "github-hosted, self-hosted-runner, or local-daemon. local-daemon is the default to preserve ordinary local LM Studio runs."
+        },
+        "nonInteractive": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, headless paths refuse instead of prompting. Defaults false for normal local operator runs."
+        },
+        "stress": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "caps": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "tttDelivery": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxAttempts": { "type": "integer", "minimum": 1, "default": 50 },
+                    "maxWallClockDays": { "type": "integer", "minimum": 1, "default": 14 }
+                  }
+                },
+                "sustainedLoad": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxRuns": { "type": "integer", "minimum": 1, "default": 500 },
+                    "maxWallClockDays": { "type": "integer", "minimum": 1, "default": 7 }
+                  }
+                },
+                "concurrency": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxSessions": { "type": "integer", "minimum": 1, "default": 20 },
+                    "maxWallClockDays": { "type": "integer", "minimum": 1, "default": 3 }
+                  }
+                },
+                "faultInjection": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxFaults": { "type": "integer", "minimum": 1, "default": 100 },
+                    "maxWallClockDays": { "type": "integer", "minimum": 1, "default": 3 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "delivery": {
       "type": "object",
       "description": "Phase 7 Q-15: operator-named CI check allowlist; empty/absent -> 'no-checks-configured' verdict. Phase 9 Q-20: delivery.mode controls ready-to-release delivery behavior.",
