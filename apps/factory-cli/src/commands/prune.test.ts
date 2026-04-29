@@ -235,7 +235,7 @@ describe("prune command", () => {
     await stat(join(workspace, ".protostar", "dogfood", "dogfood_active"));
   });
 
-  it("reports old terminal stress sessions as dry-run candidates with events.jsonl hash evidence", async () => {
+  it("reports old terminal session artifacts as dry-run candidates with events.jsonl hash evidence", async () => {
     const workspace = await tempWorkspace();
     const sessionDir = await createStressSession(workspace, {
       sessionId: "stress_20260429_001",
@@ -258,7 +258,7 @@ describe("prune command", () => {
     assert.equal(await sha256(eventsPath), expectedHash);
   });
 
-  it("protects active stress sessions with active-stress-session", async () => {
+  it("protects active session artifacts with active-stress-session", async () => {
     const workspace = await tempWorkspace();
     await createStressSession(workspace, {
       sessionId: "stress_20260429_002",
@@ -276,7 +276,7 @@ describe("prune command", () => {
     await stat(join(workspace, ".protostar", "stress", "stress_20260429_002"));
   });
 
-  it("deletes only selected terminal stress session directories when confirmed", async () => {
+  it("deletes only selected terminal session artifact directories when confirmed", async () => {
     const workspace = await tempWorkspace();
     await createStressSession(workspace, {
       sessionId: "stress_20260429_003",

@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 
 import { Command } from "@commander-js/extra-typings";
 import type { FactoryRunManifest, FactoryRunStatus } from "@protostar/artifacts";
@@ -21,8 +22,9 @@ interface CommanderPruneOptions {
 interface PruneCandidate {
   readonly runId: string;
   readonly mtimeMs: number;
-  readonly status: FactoryRunStatus | "unknown";
+  readonly status: FactoryRunStatus | StressSessionStatus | "unknown";
   readonly archetype: string | null;
+  readonly eventsJsonlSha256?: string;
 }
 
 interface InternalPruneCandidate {
@@ -44,6 +46,7 @@ interface PruneOutput {
 }
 
 type ManifestWithArchetype = FactoryRunManifest & { readonly archetype?: string };
+type StressSessionStatus = "running" | "completed" | "aborted" | "cancelled";
 
 const activeStatuses = new Set<FactoryRunStatus>([
   "created",
@@ -53,6 +56,7 @@ const activeStatuses = new Set<FactoryRunStatus>([
   "ready-to-release",
   "orphaned"
 ]);
+const terminalStressStatuses = new Set<StressSessionStatus>(["completed", "aborted", "cancelled"]);
 
 export function buildPruneCommand(): Command {
   const command = new Command("prune")
@@ -63,7 +67,7 @@ export function buildPruneCommand(): Command {
     .option("--confirm", "actually delete candidate runs/<id> directories")
     .addHelpText(
       "after",
-      "\nSafety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ or .protostar/dogfood/<sessionId>/ directories."
+      "\nSafety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/, .protostar/dogfood/<sessionId>/, or .protostar/stress/<sessionId>/ directories."
     )
     .exitOverride()
     .configureOutput({
@@ -91,6 +95,7 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
   const workspaceRoot = resolveWorkspaceRoot();
   const runsRoot = join(workspaceRoot, ".protostar", "runs");
   const dogfoodRoot = join(workspaceRoot, ".protostar", "dogfood");
+  const stressRoot = join(workspaceRoot, ".protostar", "stress");
   const thresholdMs = Date.now() - parsedDuration.ms;
   const entries = (
     await listRuns({
@@ -102,6 +107,13 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
   const dogfoodEntries = (
     await listRuns({
       runsRoot: dogfoodRoot,
+      runIdRegex: RUN_ID_REGEX,
+      all: true
+    })
+  ).filter((entry) => entry.mtimeMs <= thresholdMs);
+  const stressEntries = (
+    await listRuns({
+      runsRoot: stressRoot,
       runIdRegex: RUN_ID_REGEX,
       all: true
     })
@@ -166,11 +178,41 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
     });
   }
 
+  for (const entry of stressEntries) {
+    if (opts.archetype !== undefined) {
+      continue;
+    }
+
+    const cursor = await readStressCursor(join(entry.path, "cursor.json"));
+    if (!cursor.ok) {
+      protectedRuns.push({ runId: entry.runId, reason: "cursor-unreadable" });
+      continue;
+    }
+
+    const report = await readStressReport(join(entry.path, "stress-report.json"));
+    const finishedAt = cursor.value.finishedAt ?? report.finishedAt;
+    if (!terminalStressStatuses.has(cursor.value.status) || finishedAt === undefined) {
+      protectedRuns.push({ runId: entry.runId, reason: "active-stress-session" });
+      continue;
+    }
+
+    candidates.push({
+      candidate: {
+        runId: entry.runId,
+        mtimeMs: entry.mtimeMs,
+        status: cursor.value.status,
+        archetype: null,
+        ...(await hashFileIfExists(join(entry.path, "events.jsonl")))
+      },
+      path: entry.path
+    });
+  }
+
   const dryRun = opts.confirm !== true;
   const outputCandidates = candidates.map((candidate) => candidate.candidate);
   if (dryRun) {
     writeStdoutJson({
-      scanned: entries.length + dogfoodEntries.length,
+      scanned: entries.length + dogfoodEntries.length + stressEntries.length,
       candidates: outputCandidates,
       protected: protectedRuns,
       deleted: [],
@@ -192,7 +234,7 @@ async function executePrune(opts: CommanderPruneOptions): Promise<number> {
   }
 
   writeStdoutJson({
-    scanned: entries.length + dogfoodEntries.length,
+    scanned: entries.length + dogfoodEntries.length + stressEntries.length,
     candidates: outputCandidates,
     protected: protectedRuns,
     deleted,
@@ -229,5 +271,63 @@ async function readDogfoodCursor(
     return { ok: false };
   } catch {
     return { ok: false };
+  }
+}
+
+async function readStressCursor(
+  cursorPath: string
+): Promise<{
+  readonly ok: true;
+  readonly value: {
+    readonly status: StressSessionStatus;
+    readonly finishedAt?: string;
+  };
+} | { readonly ok: false }> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(cursorPath, "utf8")) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { ok: false };
+    }
+    const record = parsed as Record<string, unknown>;
+    const status = record["status"];
+    if (status !== "running" && status !== "completed" && status !== "aborted" && status !== "cancelled") {
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      value: {
+        status,
+        ...(typeof record["finishedAt"] === "string" ? { finishedAt: record["finishedAt"] } : {})
+      }
+    };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function readStressReport(
+  reportPath: string
+): Promise<{ readonly finishedAt?: string }> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(reportPath, "utf8")) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+    const finishedAt = (parsed as Record<string, unknown>)["finishedAt"];
+    return typeof finishedAt === "string" ? { finishedAt } : {};
+  } catch {
+    return {};
+  }
+}
+
+async function hashFileIfExists(
+  filePath: string
+): Promise<{ readonly eventsJsonlSha256?: string }> {
+  try {
+    return {
+      eventsJsonlSha256: createHash("sha256").update(await fs.readFile(filePath)).digest("hex")
+    };
+  } catch {
+    return {};
   }
 }
