@@ -375,25 +375,26 @@ Plans:
 - Phase 11 stress evidence is written to `.protostar/stress/<sessionId>/stress-report.json` and append-only `.protostar/stress/<sessionId>/events.jsonl`; no HTTP dashboard/server is added in Phase 11
 - The final gate is the Boolean conjunction `(ttt-delivered AND stress-clean)`
 
-**Plans:** 14 plans across 7 waves
+**Plans:** 15 plans across 8 waves
 
 Plans:
 - [ ] 11-01-requirements-traceability-PLAN.md — W0 — STRESS-01 requirements/roadmap/validation traceability
 - [ ] 11-02-archetype-admission-lift-PLAN.md — W1; deps: 11-01 — all-three narrow `feature-add`/`bugfix`/`refactor` admission lift with exact repair-loop caps
-- [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal for immutable toy verification files
-- [ ] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `--headless-mode`, and non-interactive CLI support
+- [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal plus operator-authored setup gate for immutable toy verification files
+- [ ] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `factory.stress.caps`, `--headless-mode`, non-interactive CLI support, and all-three headless setup docs
 - [ ] 11-08-stress-artifact-schema-and-events-PLAN.md — W1; deps: 11-01 — canonical `stress-report.json`, append-only `events.jsonl`, and R2 no-dashboard contract
 - [ ] 11-03-seed-library-ttt-PLAN.md — W2; deps: 11-01, 11-02 — per-archetype seed library and `feature-add/ttt-game` seed
 - [ ] 11-06-llm-backend-selection-PLAN.md — W2; deps: 11-05 — `factory.llmBackend`, `--llm-backend`, and LM Studio default-preserving selector
-- [ ] 11-09-stress-session-core-PLAN.md — W2; deps: 11-08 — shared stress session paths, append writer, wedge/cap evidence, and prune extension
-- [ ] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02 — repo-owned exact `pnpm add` allowlist
-- [ ] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible and deterministic mock adapter packages
-- [ ] 11-10-sustained-load-bash-driver-PLAN.md — W4; deps: 11-05, 11-07, 11-09 — `scripts/stress.sh` for sustained-load only
-- [ ] 11-11-concurrency-fault-ts-driver-PLAN.md — W4; deps: 11-07, 11-09 — TypeScript concurrency and fault-injection stress runner
-- [ ] 11-13-ci-headless-security-gates-PLAN.md — W5; deps: 11-05, 11-07, 11-10, 11-11, 11-12 — headless workflow, no-prompt, secret-redaction, no-merge, and security review gates
-- [ ] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W6; deps: 11-02, 11-03, 11-04, 11-07, 11-09, 11-10, 11-11, 11-12, 11-13 — final `(ttt-delivered AND stress-clean)` gate
+- [ ] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02, 11-04 — feature-add `pnpm.allowedAdds`, bounded multi-file admission, immutable-file refusal, and repo-owned exact `pnpm add` allowlist
+- [ ] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible adapter package and hosted package wiring
+- [ ] 11-09-stress-session-core-PLAN.md — W3; deps: 11-06, 11-08 — shared stress session paths, seed/draft/sign input preparation, append writer, stress cap resolver/breach evidence, and prune extension
+- [ ] 11-15-mock-adapter-selector-wiring-PLAN.md — W4; deps: 11-06, 11-07 — deterministic mock adapter package plus hosted/mock selector wiring
+- [ ] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only
+- [ ] 11-11-concurrency-fault-ts-driver-PLAN.md — W5; deps: 11-09, 11-15 — TypeScript concurrency and fault-injection stress runner covering `network-drop`, `llm-timeout`, `disk-full`, and `abort-signal`
+- [ ] 11-13-ci-headless-security-gates-PLAN.md — W6; deps: 11-05, 11-07, 11-10, 11-11, 11-12, 11-15 — PR mock smokes, all-three headless-mode setup contracts, no-prompt, secret-redaction, no-merge, and security review gates
+- [ ] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W7; deps: 11-02, 11-03, 11-04, 11-09, 11-10, 11-11, 11-12, 11-13, 11-15 — final non-autonomous `(ttt-delivered AND stress-clean)` evidence gate, TTT 50-attempt/14-day caps, and all four fault scenarios
 
-**Notes:** Phase 11 chooses Q-17 R2: append-only `.protostar/stress/<sessionId>/events.jsonl` and no HTTP dashboard/server. LM Studio remains the default backend; hosted OpenAI-compatible and deterministic mock backends are sibling packages behind the existing `ExecutionAdapter` contract. The toy repo verification files are preconditions and immutable from factory-generated plans.
+**Notes:** Phase 11 chooses Q-17 R2: append-only `.protostar/stress/<sessionId>/events.jsonl` and no HTTP dashboard/server. LM Studio remains the default backend; hosted OpenAI-compatible and deterministic mock backends are sibling packages behind the existing `ExecutionAdapter` contract. The toy repo verification files are operator-authored preconditions and immutable from factory-generated plans. Stress and TTT runs use materialized draft files plus signed confirmed-intent files before `protostar-factory run`. PR CI gets fast mock smokes; full stress caps are manual/scheduled phase-gate evidence.
 
 ## Phase 12 — Authority Boundary Stabilization
 
@@ -421,6 +422,120 @@ Plans:
 - Done-criteria: secret-leak attack test green (sentinel token absent from persisted artifacts; shares `TOKEN_PATTERNS` with the runtime filter); Phase 10 dogfood loop re-runs end-to-end ≥3 times on protostar-toy-ttt with ≥2/3 reaching pr-ready.
 
 **Notes:** Seeded by post-v1 review findings (verify-gate divergence, mechanical-argv bypass, env leakage, apply-change-set display-vs-write split, manifest-vs-contract drift). Decomposition allowed for `apps/factory-cli/src/wiring/{command-execution,delivery}.ts` only — `packages/planning/src/index.ts` (5701 LOC) decomposition is explicitly deferred to Phase 13. AUTH-16 (Phase ordering: 12 runs after 11) is a pre-phase orchestrator check with no test artifact.
+
+## Phase 13 — Replay-with-Edit for Run Bundles
+
+**Goal:** Take a failed Protostar run bundle, let an operator edit a single recorded artifact (judge verdict, reviewer comment, task result, LLM completion), and replay the run deterministically from that point forward — reusing every prior recorded artifact unchanged. Counterfactual debugging without re-running upstream stages.
+
+**Requirements:** *(to be derived from `13-CONTEXT.md`; tentative theme: REPLAY-01..REPLAY-N covering bundle addressing, edit surface, determinism contract, downstream replay scope, CLI ergonomics, authority-boundary behaviour, eval integration)*
+
+**Depends on:** Phase 9 (operator surface + run-bundle layout), Phase 12 (authority boundary stable so replay cannot accidentally re-enter delivery)
+
+**Success criteria:**
+- Operator can replay a run from `.protostar/runs/<run-id>/` with one or more recorded artifacts swapped, and the replayed run is deterministic — identical edited prefix → identical downstream artifacts (verified by content-hash comparison on a fixture)
+- Edit surface covers at minimum: judge verdict, reviewer comment, task result, raw LLM completion — schema and CLI contract pinned in SEED
+- Replay-with-edit defaults to **no delivery** — no PRs, no pushes; opt-in flag required and audited
+- A failing-run regression fixture is committed to `packages/admission-e2e/` (or successor) showing edit→replay→pass and edit→replay→still-fail paths
+- Replayed runs are stored as a sibling artifact addressable from the original run bundle (overlay manifest vs. sibling bundle decided in CONTEXT) — original bundle is never mutated
+- Eval integration path is decided (Phase 8 counterfactual signal in-scope vs. deferred) and documented
+
+**Notes:** Seeded by the dogfood post-mortem cost observed in Phase 10 + 11 — failed runs currently require hand-reading bundle JSON to reason about "would judge X have unblocked this?". Replay-with-edit turns that into a one-command experiment. Builds on the content-addressed append-only run-bundle layout from Phase 9. Must compose cleanly with Phase 12's authority hardening: replay cannot bypass admission, cannot reach delivery without explicit opt-in, and must surface refusal evidence the same way a fresh run does.
+
+## Phase 14 — Pluggable Validation Reports
+
+**Goal:** Add a save-time validation style alongside the existing admission gates: given an intent / plan / config / change-set, return a *report* that lists **all** blockers and warnings anchored to specific nodes (JSON pointers, plan IDs, capability fields, config paths) instead of failing on the first issue. Validators are pluggable and reports are first-class, schema-versioned artifacts. Admission posture (default-DENY, fail-closed) is preserved — reports compose with gates, they do not replace them.
+
+**Requirements:** *(to be derived from `14-CONTEXT.md`; tentative theme: VALID-01..VALID-N covering validator plugin contract, report schema, anchor format, severity model, admission-gate composition, artifact persistence, CLI/operator rendering, determinism + version pinning)*
+
+**Depends on:** Phase 1 (intent admission contracts), Phase 2 (authority/governance — capability + repo policy are validation targets), Phase 12 (authority boundary stable so validator chain has a single truth source)
+
+**Success criteria:**
+- A single validation pass over a malformed intent / plan / capability envelope / repo policy returns **all** findings in one report — operators no longer have to fix-one, re-run, repeat
+- Each finding is anchored to a specific node (JSON Pointer or domain path like `plans[03].waves[2]`) and carries severity, validator id+version, and a stable code
+- Validators are registered through a plugin contract in a `@protostar/validation` (or equivalent) workspace; adding a new validator does not require changes to the gate runner or admission packages
+- Report schema is versioned (`schemaVersion`) and persisted as a first-class artifact (location decided in CONTEXT — e.g. `.protostar/runs/<id>/validation/<artifact>.report.json`); the original artifact is never mutated by validation
+- Admission gates compose with reports — gate outcome = `report.blockers.length === 0` for the validated artifact, with no behaviour regression vs. existing fail-closed posture (proven by contract test)
+- Determinism: same input + same registered validators (with pinned versions) → byte-identical report (verified by content-hash on a fixture)
+- CLI renders reports grouped by severity and anchor path; an operator-surface entry can diff two reports for an edited artifact (composes with Phase 13 replay-with-edit)
+
+**Notes:** Seeded by author-experience cost observed during Phases 10–11: a single bad config field can take 3–5 round-trips to discover all issues under the current first-fail gate UX. This phase is intentionally *additive* — gates keep their fail-closed posture; reports surface the same constraints earlier and in bulk. Composes naturally with Phase 13's replay-with-edit, which becomes substantially more useful when each replayed artifact carries a full validation report rather than a single first-fail message.
+
+## Phase 15 — Prompt Partials / Pinned Prompt Modules
+
+**Goal:** Versioned, reusable prompt fragments for reviewer / producer / evaluator roles so Protostar's model-facing contracts can be evolved safely. Replace ad-hoc inline prompt strings with a registry of pinned partials addressed by id+version, composed into role prompts at runtime, and persisted to run bundles so every artifact records exactly which prompt fragments produced it.
+
+**Requirements:** *(to be derived from `15-CONTEXT.md`; tentative theme: PROMPT-01..PROMPT-N covering partial registry + addressing, role-prompt composition contract, version pinning + change policy, run-bundle provenance, evaluation/diff tooling, authority-boundary behaviour, determinism)*
+
+**Depends on:** Phase 8 (evaluation harness — needs to evaluate prompt deltas), Phase 9 (run-bundle layout — partial provenance is recorded there), Phase 13 (replay-with-edit composes with prompt-partial swaps)
+
+**Success criteria:**
+- Reviewer / producer / evaluator role prompts are composed from a registry of addressable partials (id + semver-or-content-hash); no role prompt is constructed from raw inline strings outside the registry
+- Every run bundle records the exact partial id+version set that produced each model-facing artifact — `.protostar/runs/<id>/...` is sufficient to reconstruct the prompt without re-reading source
+- Partial changes are versioned and reviewable as artifacts (not silent string edits); a contract test fails if a partial is mutated in place without a version bump
+- Determinism: same partial set + same inputs → byte-identical composed prompt (verified by content-hash on a fixture)
+- Eval integration (Phase 8): comparing two runs that differ only in one partial version produces a clean A/B signal — partial id is a first-class dimension in eval reports
+- Replay integration (Phase 13): replay-with-edit can swap a partial version on a recorded run and replay deterministically downstream
+- Authority boundary preserved: partial registry lives in a pure-tier package; only the factory-cli composes prompts at the boundary
+
+**Notes:** Seeded as a `/gsd-add-phase` capture from the operator — model-facing contracts are currently inline strings scattered across reviewer/producer/evaluator code paths, which makes safe evolution of those prompts hard to review and impossible to A/B cleanly. Phase 15 turns prompts into versioned artifacts the same way Phase 14 turns validation findings into versioned reports.
+
+## Phase 16 — Trace / Dataflow Inspector
+
+**Goal:** `protostar inspect` should feel closer to a real trace debugger than a directory dump — surface stage inputs/outputs, authority decisions, variable bindings, refusal reasons, and repair-loop history along a single navigable timeline anchored to the run bundle.
+
+**Requirements:** *(to be derived from `16-CONTEXT.md`; tentative theme: INSPECT-01..INSPECT-N covering timeline model, stage I/O addressing, authority-decision rendering, variable/binding scopes, refusal-evidence linkage, repair-loop history, navigation/diff ergonomics, determinism + offline operation)*
+
+**Depends on:** Phase 9 (operator surface + run-bundle layout — inspector reads bundles), Phase 12 (authority boundary stable so authority-decision view has a single truth source), Phase 13 (replay-with-edit — inspector is the natural launchpad for picking the artifact to edit), Phase 14 (validation reports — anchors render in the same timeline)
+
+**Success criteria:**
+- A single `protostar inspect <run-id>` view walks every stage in order with inputs, outputs, authority decisions, refusal artifacts, and repair-loop iterations linked inline — operator no longer hand-reads bundle JSON
+- Each timeline node is addressable (run-id + stable node id) and links back to the underlying artifact path under `.protostar/runs/<run-id>/...` — no inspector-only state
+- Variable / binding scopes (ConfirmedIntent fields, capability envelope, repo policy resolution) render at the point they're consumed, not just where they're produced
+- Refusal reasons render with their evidence artifact + per-gate decision — no "denied" without a clickable why
+- Repair-loop history shows iteration N → N+1 deltas (changed task results, changed reviewer comments) instead of dumping every iteration as a sibling directory
+- Inspector is read-only and offline: no network, no model calls, no mutation of the run bundle (verified by no-net + no-fs-write contract tests in the inspector workspace)
+- Composes with Phase 13: an inspector node can be passed directly to replay-with-edit as the edit target; composes with Phase 14: validation reports render as anchors on the same timeline
+
+**Notes:** Seeded by author cost observed across Phases 10–12 dogfood — debugging a failed run today means hand-walking JSON across `.protostar/runs/<id>/...`. The inspector turns the run bundle into a first-class debugging surface and becomes the operator entry point that Phases 13 (replay-with-edit) and 14 (validation reports) compose into.
+
+## Phase 17 — Happy-Path Prune Policy
+
+**Goal:** Absorb the operational rule *"delete on happy path, preserve failed runs, sweep old dirs"* into Protostar's prune direction. Make `.protostar/runs/` self-maintaining: successful runs that have already produced their evidence bundle (and, where applicable, a delivered PR) are reaped automatically, failed / blocked / refused runs are retained for forensic replay, and stale directories beyond a configured horizon are swept regardless of verdict.
+
+**Requirements:** *(to be derived from `17-CONTEXT.md`; tentative theme: PRUNE-01..PRUNE-N covering happy-path detection, failure-preservation predicate, sweep horizon + active-guard, dry-run + audit log, CLI surface, eval/replay composition, authority-boundary behaviour)*
+
+**Depends on:** Phase 9 (operator surface — `prune` command and run-bundle layout), Phase 13 (replay-with-edit — preserved failed runs are replay inputs), Phase 16 (trace inspector — preserved failed runs are inspector inputs)
+
+**Success criteria:**
+- `protostar-factory prune` reaps successful runs by default — definition of "successful" is a single predicate (verdict + delivery state) pinned in CONTEXT and contract-tested; no manual `--all` flag required for the happy path
+- Failed / blocked / refused / cancelled / orphaned runs are **never** auto-deleted — preservation predicate is contract-tested against the full `FactoryRunStatus` enum so a new status defaults to *preserve*, not *delete*
+- A separate sweep horizon (`--older-than`, default decided in CONTEXT) deletes runs of any verdict past the horizon, with the active-guard from Phase 9 OP-08 still honored
+- Pruning is observable: every reaped/preserved/swept decision lands in an audit JSONL alongside the run-bundle root, and `--dry-run` prints the same plan without filesystem effects
+- A scheduled / idle-trigger prune mode is wired so `.protostar/runs/` doesn't accumulate (Phase 9 OP-08 risk register entry — observed 208 runs/day during scaffold work — is closed)
+- Replay (Phase 13) and inspect (Phase 16) regression fixtures show that a preserved failed run remains addressable after a happy-path prune cycle (verified by content-hash on the preserved bundle)
+- Authority boundary preserved: prune logic lives behind `@protostar/repo`'s filesystem authority; CLI composes the policy, repo enforces the writes
+
+**Notes:** Seeded by an operator capture on 2026-04-29 — the v0.1 dogfood loop demonstrated that successful cosmetic-tweak runs are cheap to reproduce but expensive to store, while failed runs are the only artifacts worth keeping for replay/inspect. Phase 17 turns that asymmetry into Protostar's default disk posture instead of a manual operator chore. Composes naturally with Phases 13 and 16 (preserved failures are the corpus those tools operate on) and closes the open OP-08 risk-register entry.
+
+## Phase 18 — Typed Factory Recipes (Paved-Road Templates)
+
+**Goal:** Ship a small, source-backed library of typed factory **recipes** that emit known-safe artifacts — intent draft skeletons, factory config fragments, mechanical check profiles, review/eval policy defaults, operator docs — for the most common Protostar paths. Recipes are *materializers*, not a workflow authoring surface: every recipe still goes through normal admission (capability envelope, signed intent, repo policy, review authorization, delivery gates). The steal from CodeFlow's visual templates (review-loop-pair, hitl-approval-gate, setup-loop-finalize, lifecycle-wrapper) is **paved roads, not a second control plane**.
+
+**Requirements:** *(to be derived from `18-CONTEXT.md`; tentative theme: RECIPE-01..RECIPE-N covering recipe registry + addressing, materializer contract, admission-pass-through guarantee, artifact-set schema, operator CLI surface, version pinning + provenance, authority-boundary behaviour)*
+
+**Depends on:** Phase 1 (intent admission contracts — recipes emit drafts that must admit), Phase 2 (capability envelope — recipes set defaults but never bypass), Phase 7 (delivery gates — `human-delivery-gate` recipe composes here), Phase 10 (dogfood harness — `dogfood-batch` recipe encodes the existing repeat-run shape), Phase 12 (authority boundary stable so recipes target a single truth source)
+
+**Success criteria:**
+- `protostar-factory recipes list` and `protostar-factory recipes materialize <name>` are wired with a typed registry; no string-keyed lookup outside the registry
+- Five recipes ship in v1: `cosmetic-pr` (single-file cap, pnpm verify, gated PR delivery, no auto-merge), `review-repair-loop` (default `maxRepairLoops`, judge prompts, repair-evidence shape, refusal handling), `human-delivery-gate` (always pause before PR creation / final delivery evidence publication), `dogfood-batch` (N attempts, pass-rate record, preserved failed workdirs, calibration notes), `phase-lifecycle` (intent → plan → execute → review → evaluate → deliver with stage evidence expectations predeclared)
+- **Admission-pass-through** is contract-tested: a recipe-materialized run takes the same admission path as a hand-authored run — capability envelope, signed intent, repo policy, review authorization, and delivery gates all fire identically (proven by per-recipe e2e fixture)
+- Recipes **never** mutate authority defaults toward looser; a recipe attempting to widen capability envelope, skip review, or auto-merge fails a static check at registration time
+- Every materialized artifact set carries provenance: recipe id + version + content-hash recorded in the run bundle so an operator can answer "which recipe produced this run" from `.protostar/runs/<id>/...` alone
+- Recipes are versioned; mutating a recipe in place without a version bump fails a contract test (matches the Phase 15 prompt-partial change-policy pattern)
+- No visual / graph authoring surface ships with this phase — recipes are typed code, not data the operator can freely compose into new stage graphs (explicit non-goal documented in CONTEXT)
+- Operator docs render alongside the materialized artifacts (per-recipe README emitted into the target directory) so a new contributor can run `cosmetic-pr` end-to-end without hand-reading the factory source
+
+**Notes:** Seeded by an operator capture on 2026-04-29 comparing CodeFlow's source-backed templates (review-loop-pair, hitl-approval-gate, setup-loop-finalize, lifecycle-wrapper) against Protostar's current "hand-author every intent + config" cost. The translation is deliberate: CodeFlow uses templates as a *visual workflow authoring* affordance; Protostar uses recipes as *paved-road materializers* over its existing admission graph. Visual stage-graph authoring is an **explicit non-goal** for v1 — Protostar's strongest property right now is that authority is boring and explicit, and arbitrary graph authoring would create a second policy language before the current one is fully hardened. The `cosmetic-pr` recipe directly absorbs the v0.1 thin-slice (locked 2026-04-24) so the happy-path starter stops being a bespoke fixture. `dogfood-batch` directly encodes the Phase 10/11 dogfood harness shape so calibration runs become a one-command operation. `phase-lifecycle` is a `.planning`-scoped recipe — useful for new contributors orienting on the factory lifecycle without hand-reading half the repo.
 
 ## Cross-Phase Constraints
 

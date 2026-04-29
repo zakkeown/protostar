@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 10 Plan 08 implementation checkpoint)
+**Last updated:** 2026-04-29 (Phase 11 planning complete)
 
 ## Project
 
@@ -24,13 +24,13 @@
 
 ## Current Phase
 
-**Phase 10.1 — Boundary Hygiene Pass** (complete)
+**Phase 11 — Headless Mode + E2E Stress** (planned; ready to execute)
 
-Phase 10.1 completed all 7 boundary hygiene plans across 4 waves. Every workspace manifest declares `protostar.tier`; AGENTS.md now mirrors the tier contract and accepted back-edges; phantom deps were removed from intent/repo; review tsconfig refs were aligned; lmstudio-adapter has a local no-fs contract; every pure-tier package has a no-net contract; package engines/sideEffects/publish posture are enforced; subpath export checking runs in verify; factory-cli has a pack smoke script; and admission-e2e now has a workspace-wide tier-conformance gate.
+Phase 11 planning is complete. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
 
-Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. Plan 08 implementation is ready up to the live checkpoint: `scripts/dogfood.sh`, the hidden `__dogfood-step` command, cursor/report schemas, and the report byte-stability contract are green. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-02 added the seven-row fixture matrix plus coverage/age contracts; DOG-05 added operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement; DOG-06 added knip to verify plus per-package README coverage; DOG-07 wired Changesets release tooling, public package metadata, an initial `0.1.0` changeset, and a changeset-required PR workflow without running npm publish; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
+Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around executable stress inputs, observed fault mechanisms, feature-add envelope expansion, stress caps, and all-three headless modes. `gsd-sdk query` validation was unavailable in this checkout, so deterministic local checks and checker agents were used instead.
 
-**Next action:** Commit Phase 10.1 boundary hygiene changes, then continue to Phase 11 planning/execution as appropriate. Phase 10 Plan 08 live DOG-04 gate remains a separate dogfood follow-up if not already captured in the latest Phase 10 commits.
+**Next action:** Execute Phase 11 starting with `11-01-requirements-traceability-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
 
 ## Phase Status
 
@@ -47,7 +47,7 @@ Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 complete
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
-| 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
+| 11 | Headless Mode + E2E Stress | Planned — 15 plans across 8 waves; plan-checker PASS (2026-04-29); ready for execution |
 
 ## Active Documents
 
@@ -58,6 +58,8 @@ Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 complete
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Planned Phase 11 (`11-headless-mode-e2e-stress`) with 15 plans across 8 waves plus `11-RESEARCH.md`, `11-PATTERNS.md`, and `11-VALIDATION.md`. Checker convergence closed blockers for executable seed/draft/signing/run wiring, all four observed fault-injection mechanisms, feature-add `pnpm.allowedAdds`, `factory.stress.caps`, and all-three headless setup contracts. Final gate remains non-autonomous and requires TTT delivery evidence plus sustained-load, concurrency, and fault-injection reports before Phase 11 can be marked complete. Local deterministic checks passed: 15 plan files present, no stale `dist/src/scripts/stress.js` references, required fault/cap/headless markers present, and `git diff --check` clean.
 
 - **2026-04-29:** Completed Phase 10.1 (`10.1-boundary-hygiene-pass`) across all 7 plans. Added `protostar.tier` to every workspace manifest, expanded AGENTS.md authority tiers and accepted back-edge documentation, removed phantom `intent->authority` / `repo->authority` / `repo->paths` deps, aligned `@protostar/review` and `@protostar/factory-cli` tsconfig references, added lmstudio-adapter `no-fs` plus pure-tier `no-net` contracts, added `tools/check-subpath-exports.ts`, added factory-cli pack smoke tooling, and landed the flat-top admission-e2e `tier-conformance.contract.test.ts`. Verification passed: subpath checker, `pnpm --filter @protostar/lmstudio-adapter test` with loopback binding, `pnpm --filter @protostar/admission-e2e test` (143 tests), `git diff --check`, and `pnpm run verify`.
 
@@ -160,6 +162,12 @@ Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 complete
 
 ## Roadmap Evolution
 
+- **2026-04-29:** Phase 18 added — Typed Factory Recipes / Paved-Road Templates (typed registry of recipe materializers — `cosmetic-pr`, `review-repair-loop`, `human-delivery-gate`, `dogfood-batch`, `phase-lifecycle` — emitting known-safe intent drafts + factory config + check profiles + review/eval policy defaults + operator docs; every recipe still goes through normal admission; visual stage-graph authoring is an explicit non-goal; absorbs CodeFlow's source-backed templates as paved roads, not a second control plane). Stub directory at `.planning/phases/18-typed-factory-recipes/`.
+- **2026-04-29:** Phase 17 added — Happy-Path Prune Policy (delete on happy path, preserve failed/blocked/refused runs, sweep stale dirs past horizon; absorbs operational rule into Protostar's prune direction; closes OP-08 risk; depends on Phases 9, 13, 16). Stub directory at `.planning/phases/17-happy-path-prune-policy/`.
+- **2026-04-29:** Phase 16 added — Trace / Dataflow Inspector (`protostar inspect` becomes a real trace debugger over the run bundle: stage I/O, authority decisions, variable scopes, refusal evidence, repair-loop deltas; read-only + offline; composes with Phases 13 replay and 14 validation reports; depends on Phases 9, 12, 13, 14). Stub directory at `.planning/phases/16-trace-dataflow-inspector/`.
+- **2026-04-29:** Phase 15 added — Prompt Partials / Pinned Prompt Modules (versioned reusable reviewer/producer/evaluator prompt fragments; addressable registry, run-bundle provenance, deterministic composition; depends on Phases 8, 9, 13). Stub at `.planning/phases/15-prompt-partials-pinned-modules/15-CONTEXT.md`.
+- **2026-04-29:** Phase 14 added — Pluggable Validation Reports (save-time validators that return all blockers + warnings anchored to specific nodes/config fields, additive to admission gates, first-class report artifacts; depends on Phases 1, 2, 12). Stub at `.planning/phases/14-pluggable-validation-reports/14-CONTEXT.md`.
+- **2026-04-29:** Phase 13 added — Replay-with-Edit for Run Bundles (edit a recorded judge/reviewer/task/LLM artifact in a failed run bundle and deterministically replay downstream stages from there; depends on Phase 9 bundle layout + Phase 12 authority stability; default no-delivery). Stub at `.planning/phases/13-replay-with-edit-run-bundles/13-CONTEXT.md`.
 - **2026-04-29:** Phase 12 added — Authority Boundary Stabilization (verify:full parity, mechanical-argv via repo runner, env scrubbing default, apply-change-set path/op/diff invariant, manifest↔contract single source of truth). Seeded by post-v1 review findings; see `.planning/phases/12-authority-boundary-stabilization/12-SEED.md`.
 
 ## Key Locks (Carried Forward)
