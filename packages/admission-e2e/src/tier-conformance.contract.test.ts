@@ -18,7 +18,8 @@ const AGENTS_TIER_TO_MANIFEST: Readonly<Record<string, string>> = Object.freeze(
 });
 const EXPECTED_AGENTS_TIER_LABELS = Object.freeze(Object.keys(AGENTS_TIER_TO_MANIFEST));
 
-const TIER_LINE_PATTERN = /^-\s+\*\*([^(*]+?)\b[^:]*:\*\*\s+(.+)$/gm;
+// Captures tier label up to ` (` (auth qualifier) or `:` (no qualifier, e.g., `test-only`).
+const TIER_LINE_PATTERN = /^-\s+\*\*([^(*:]+?)(?:\s+\([^)]*\))?:\*\*\s+(.+)$/gm;
 const PKG_NAME_PATTERN = /(?:@protostar\/[\w\-]+|apps\/[\w\-]+|packages\/[\w\-]+)/g;
 
 // AUTH-12 (D-12): Hardcoded mirror of authority-boundary.contract.test.ts PACKAGE_RULES tier derivation.
@@ -246,8 +247,36 @@ describe("tier-conformance contract", () => {
 });
 
 async function parseAgentsMdTiers(): Promise<Map<string, string>> {
-  // RED stub: returns empty map; GREEN will implement AGENTS.md parser.
-  return new Map();
+  const repoRoot = await findRepoRoot(__dirname);
+  const content = await readFile(resolve(repoRoot, "AGENTS.md"), "utf8");
+
+  const start = content.indexOf("## Authority Tiers");
+  if (start === -1) throw new Error("AGENTS.md missing `## Authority Tiers` heading");
+  const remainder = content.slice(start);
+  // Skip the heading itself, then locate the next `^## ` heading.
+  const afterHeading = remainder.slice("## Authority Tiers".length);
+  const nextRel = afterHeading.search(/\n## /m);
+  const section = nextRel === -1 ? remainder : remainder.slice(0, "## Authority Tiers".length + nextRel);
+
+  const tierMap = new Map<string, string>();
+  for (const match of section.matchAll(TIER_LINE_PATTERN)) {
+    const label = (match[1] ?? "").trim().toLowerCase();
+    if (!EXPECTED_AGENTS_TIER_LABELS.includes(label)) {
+      throw new Error(`AGENTS.md unrecognized tier label: "${label}". Update AGENTS_TIER_TO_MANIFEST or fix AGENTS.md.`);
+    }
+    const manifestTier = AGENTS_TIER_TO_MANIFEST[label]!;
+    const rest = match[2] ?? "";
+    for (const pkgMatch of rest.matchAll(PKG_NAME_PATTERN)) {
+      const raw = pkgMatch[0];
+      const name = raw.startsWith("packages/")
+        ? `@protostar/${raw.slice("packages/".length)}`
+        : raw.startsWith("apps/")
+          ? `@protostar/${raw.slice("apps/".length)}`
+          : raw;
+      tierMap.set(name, manifestTier);
+    }
+  }
+  return tierMap;
 }
 
 async function packageMap(): Promise<Map<string, WorkspacePackage>> {
