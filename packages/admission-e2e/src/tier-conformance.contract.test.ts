@@ -6,6 +6,46 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TIERS = new Set(["pure", "fs", "network", "orchestration", "test-only"]);
+
+// AUTH-12 (D-12): AGENTS.md `## Authority Tiers` table parsed into a map of pkg name → manifest tier.
+// Manifest is canonical (D-11); AGENTS.md mirror + authority-boundary rules are derived assertions.
+const AGENTS_TIER_TO_MANIFEST: Readonly<Record<string, string>> = Object.freeze({
+  "orchestration": "orchestration",
+  "filesystem": "fs",
+  "domain network": "network",
+  "pure": "pure",
+  "test-only": "test-only"
+});
+const EXPECTED_AGENTS_TIER_LABELS = Object.freeze(Object.keys(AGENTS_TIER_TO_MANIFEST));
+
+const TIER_LINE_PATTERN = /^-\s+\*\*([^(*]+?)\b[^:]*:\*\*\s+(.+)$/gm;
+const PKG_NAME_PATTERN = /(?:@protostar\/[\w\-]+|apps\/[\w\-]+|packages\/[\w\-]+)/g;
+
+// AUTH-12 (D-12): Hardcoded mirror of authority-boundary.contract.test.ts PACKAGE_RULES tier derivation.
+// Update when authority-boundary.contract.test.ts rules change. See packages/admission-e2e/src/contracts/authority-boundary.contract.test.ts.
+const AUTHORITY_BOUNDARY_DERIVED_TIERS: Readonly<Record<string, string>> = Object.freeze({
+  "@protostar/admission-e2e": "test-only",
+  "@protostar/artifacts": "pure",
+  "@protostar/authority": "pure",
+  "@protostar/delivery": "pure",
+  "@protostar/delivery-runtime": "network",
+  "@protostar/dogpile-adapter": "network",
+  "@protostar/dogpile-types": "pure",
+  "@protostar/evaluation": "pure",
+  "@protostar/evaluation-runner": "network",
+  "@protostar/execution": "pure",
+  "@protostar/fixtures": "pure",
+  "@protostar/intent": "pure",
+  "@protostar/lmstudio-adapter": "network",
+  "@protostar/mechanical-checks": "pure",
+  "@protostar/paths": "fs",
+  "@protostar/planning": "pure",
+  "@protostar/policy": "pure",
+  "@protostar/repair": "pure",
+  "@protostar/repo": "fs",
+  "@protostar/review": "pure"
+});
+
 const ACCEPTED_AUTHORITY_EDGES = new Set([
   "@protostar/authority -> @protostar/repo",
   "@protostar/execution -> @protostar/repo",
@@ -151,6 +191,49 @@ describe("tier-conformance contract", () => {
     assert.deepEqual(offenders, []);
   });
 
+  it("three-way tier conformance: manifest == AGENTS.md == authority-boundary contract", async () => {
+    const packages = await loadPackages();
+    const agentsTiers = await parseAgentsMdTiers();
+    const offenders: string[] = [];
+
+    // Test B: manifest == AGENTS.md per package.
+    for (const pkg of packages) {
+      const agentsTier = agentsTiers.get(pkg.name);
+      if (agentsTier === undefined) {
+        offenders.push(`${pkg.name}: missing from AGENTS.md ## Authority Tiers table`);
+        continue;
+      }
+      if (pkg.tier !== agentsTier) {
+        offenders.push(`${pkg.name}: manifest=${String(pkg.tier)} but AGENTS.md=${agentsTier}`);
+      }
+    }
+
+    // Test C: authority-boundary derived tier == manifest tier.
+    const byName = new Map(packages.map((pkg) => [pkg.name, pkg]));
+    for (const [name, derivedTier] of Object.entries(AUTHORITY_BOUNDARY_DERIVED_TIERS)) {
+      const pkg = byName.get(name);
+      if (!pkg) {
+        offenders.push(`${name}: in AUTHORITY_BOUNDARY_DERIVED_TIERS but no manifest found`);
+        continue;
+      }
+      if (pkg.tier !== derivedTier) {
+        offenders.push(`${name}: authority-boundary derived=${derivedTier} but manifest=${String(pkg.tier)}`);
+      }
+    }
+
+    // Test D: factory-cli orchestration sanity.
+    const factoryCli = byName.get("@protostar/factory-cli");
+    assert.equal(factoryCli?.tier, "orchestration", "@protostar/factory-cli manifest tier must be orchestration");
+    assert.equal(agentsTiers.get("@protostar/factory-cli"), "orchestration", "AGENTS.md must list apps/factory-cli as orchestration");
+
+    assert.deepEqual(offenders, []);
+  });
+
+  it("AGENTS.md tier labels are recognized (Pitfall 6 — fail loud on drift)", async () => {
+    // parseAgentsMdTiers() throws on unknown tier labels.
+    await parseAgentsMdTiers();
+  });
+
   it("published packages declare the Node 22 engine floor", async () => {
     const packages = await loadPackages();
     const offenders = packages
@@ -161,6 +244,11 @@ describe("tier-conformance contract", () => {
     assert.deepEqual(offenders, []);
   });
 });
+
+async function parseAgentsMdTiers(): Promise<Map<string, string>> {
+  // RED stub: returns empty map; GREEN will implement AGENTS.md parser.
+  return new Map();
+}
 
 async function packageMap(): Promise<Map<string, WorkspacePackage>> {
   const packages = await loadPackages();
