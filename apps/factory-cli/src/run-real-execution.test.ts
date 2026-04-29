@@ -533,6 +533,7 @@ function envelope(): CapabilityEnvelope {
     ],
     workspace: { allowDirty: false },
     network: { allow: "loopback" },
+    mechanical: { allowed: ["verify", "lint"] },
     budget: { adapterRetriesPerTask: 4, taskWallClockMs: 180_000, deliveryWallClockMs: 600_000, maxRepairLoops: 3 },
     toolPermissions: []
   };
@@ -540,7 +541,7 @@ function envelope(): CapabilityEnvelope {
 
 function confirmedIntent(capabilityEnvelope: CapabilityEnvelope): ConfirmedIntent {
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     id: "intent_real",
     title: "Real execution",
     problem: "Run real execution",

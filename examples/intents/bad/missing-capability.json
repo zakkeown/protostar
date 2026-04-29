@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "id": "intent_bad_missing_capability",
   "title": "Clarify factory intake routing",
   "problem": "Exercise a confirmed intent shape whose capability envelope is structurally present but missing the authority and budget details required for admission.",
@@ -20,6 +20,9 @@
     },
     "network": {
       "allow": "loopback"
+    },
+    "mechanical": {
+      "allowed": ["verify", "lint"]
     },
     "budget": {
       "adapterRetriesPerTask": 4,

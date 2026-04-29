@@ -59,6 +59,7 @@ const PERMISSIVE_ENVELOPE: CapabilityEnvelope = {
   executeGrants: [{ command: "pnpm", scope: "." }],
   workspace: { allowDirty: false },
   network: { allow: "loopback" },
+  mechanical: { allowed: ["verify", "lint"] },
   budget: {
     maxUsd: 10,
     maxTokens: 1000,
@@ -74,6 +75,7 @@ const EMPTY_ENVELOPE: CapabilityEnvelope = Object.freeze({
   repoScopes: [],
   toolPermissions: [],
   workspace: { allowDirty: false },
+  mechanical: { allowed: ["verify", "lint"] as const },
   budget: {}
 });
 
@@ -232,7 +234,7 @@ describe("Phase 2 - verified two-key launch: confirmedIntent()", () => {
     const intent = await reader.confirmedIntent();
 
     assert.equal(intent.id, signedIntent.id);
-    assert.equal(intent.schemaVersion, "1.5.0");
+    assert.equal(intent.schemaVersion, "1.6.0");
   });
 
   it("confirmedIntent() fails when the persisted intent body is mutated", async () => {

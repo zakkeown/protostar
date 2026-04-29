@@ -6,6 +6,7 @@ interface CapabilityEnvelope15 {
   readonly toolPermissions: readonly unknown[];
   readonly workspace: { readonly allowDirty: boolean };
   readonly network: { readonly allow: "loopback" };
+  readonly mechanical: { readonly allowed: readonly ("verify" | "lint")[] };
   readonly budget: {
     readonly taskWallClockMs: 180000;
     readonly deliveryWallClockMs: 600000;
@@ -107,6 +108,7 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
       ]),
       workspace: Object.freeze({ allowDirty: false }),
       network: Object.freeze({ allow: "loopback" }),
+      mechanical: Object.freeze({ allowed: Object.freeze(["verify", "lint"] as const) }),
       budget: Object.freeze({
         taskWallClockMs: 180_000,
         deliveryWallClockMs: 600_000,
@@ -119,7 +121,7 @@ export const cosmeticTweakFixture: CosmeticTweakFixture = Object.freeze({
       "Return one fenced JSON full-file replacement object."
     ]),
     stopConditions: Object.freeze([]),
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     signature: Object.freeze({
       algorithm: "sha256",
       canonicalForm: "json-c14n@1.0",

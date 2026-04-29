@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "id": "intent_dark_factory_scaffold",
   "sourceDraftId": "draft_dark_factory_scaffold",
   "mode": "brownfield",
@@ -48,6 +48,9 @@
     },
     "network": {
       "allow": "loopback"
+    },
+    "mechanical": {
+      "allowed": ["verify", "lint"]
     },
     "budget": {
       "adapterRetriesPerTask": 4,

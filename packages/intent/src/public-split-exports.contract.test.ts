@@ -50,7 +50,7 @@ describe("intent split public entrypoints", () => {
 
     const intent = buildConfirmedIntentForTest({
       // Phase 3 Plan 03 hard-bumped confirmed-intent artifacts; Phase 7 Plan 01 bumps to 1.5.0 (delivery.target + deliveryWallClockMs).
-      schemaVersion: "1.5.0",
+      schemaVersion: "1.6.0",
       signature: null,
       id: "intent_split_surface",
       ...(draft.draftId !== undefined ? { sourceDraftId: draft.draftId } : {}),
@@ -83,6 +83,7 @@ describe("intent split public entrypoints", () => {
         network: {
           allow: "loopback"
         },
+        mechanical: { allowed: ["verify", "lint"] },
         budget: {
           adapterRetriesPerTask: 4,
           timeoutMs: 300_000,
@@ -97,7 +98,7 @@ describe("intent split public entrypoints", () => {
 
     assert.equal(parseConfirmedIntent(intent).ok, true);
     // Phase 3 Plan 03 hard-bumped confirmed-intent artifacts; Phase 7 Plan 01 bumps to 1.5.0 (delivery.target + deliveryWallClockMs).
-    assert.equal(intent.schemaVersion, "1.5.0");
+    assert.equal(intent.schemaVersion, "1.6.0");
     assert.equal(intent.signature, null);
   });
 });

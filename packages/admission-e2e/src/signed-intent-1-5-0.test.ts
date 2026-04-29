@@ -48,6 +48,7 @@ describe("signed ConfirmedIntent 1.5.0 envelope", () => {
           allow: "allowlist",
           allowedHosts: ["api.github.com"]
         },
+        mechanical: { allowed: ["verify", "lint"] },
         budget: {
           adapterRetriesPerTask: 4,
           taskWallClockMs: 180_000,
@@ -93,7 +94,7 @@ describe("signed ConfirmedIntent 1.5.0 envelope", () => {
     );
 
     assert.equal(verified.ok, true, verified.ok ? "" : verified.errors.join("; "));
-    assert.equal(signed.intent.schemaVersion, "1.5.0");
+    assert.equal(signed.intent.schemaVersion, "1.6.0");
     assert.equal(signed.intent.capabilityEnvelope.budget.adapterRetriesPerTask, 4);
     assert.equal(signed.intent.capabilityEnvelope.budget.taskWallClockMs, 180_000);
     assert.equal(signed.intent.capabilityEnvelope.budget.deliveryWallClockMs, 600_000);

@@ -157,10 +157,10 @@ const intentFixture = {
   acceptanceCriteria: [
     { id: "AC-1", statement: "Evaluation runner completes without fs authority.", verification: "contract" }
   ],
-  capabilityEnvelope: { repoScopes: [], toolPermissions: [], budget: {} },
+  capabilityEnvelope: { repoScopes: [], toolPermissions: [], mechanical: { allowed: ["verify", "lint"] }, budget: {} },
   constraints: [],
   stopConditions: [],
-  schemaVersion: "1.5.0",
+  schemaVersion: "1.6.0",
   signature: null
 } as unknown as ConfirmedIntent;
 
