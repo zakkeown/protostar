@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { describe, it } from "node:test";
 
 import { buildAuthorizedWorkspaceOpForTest } from "@protostar/authority/internal/test-builders";
-import { applyChangeSet, type PatchRequest } from "@protostar/repo";
+import { applyChangeSet, mintPatchRequest, type PatchRequest } from "@protostar/repo";
 import { buildSacrificialRepo } from "@protostar/repo/internal/test-fixtures";
 
 import {
@@ -27,7 +27,7 @@ describe("repo-runtime best-effort patch evidence contract", () => {
     const patches = files.map(({ path, before, after }, index) => {
       const request = patchFor(repo.dir, path, before, after);
       return index === 2
-        ? { ...request, preImageSha256: sha256Hex(Buffer.from("wrong-preimage\n")) }
+        ? ({ ...request, preImageSha256: sha256Hex(Buffer.from("wrong-preimage\n")) } as PatchRequest)
         : request;
     });
 
@@ -58,7 +58,7 @@ describe("repo-runtime best-effort patch evidence contract", () => {
 
 function patchFor(workspaceRoot: string, relativePath: string, before: string, after: string): PatchRequest {
   const absolutePath = resolve(workspaceRoot, relativePath);
-  return {
+  const minted = mintPatchRequest({
     path: relativePath,
     op: buildAuthorizedWorkspaceOpForTest({
       workspace: { root: workspaceRoot, trust: "trusted" },
@@ -68,7 +68,11 @@ function patchFor(workspaceRoot: string, relativePath: string, before: string, a
     }),
     diff: unifiedOneLinePatch(relativePath, before.trimEnd(), after.trimEnd()),
     preImageSha256: sha256Hex(Buffer.from(before))
-  };
+  });
+  if (!minted.ok) {
+    throw new Error(`patchFor: mint refused with ${minted.error}`);
+  }
+  return minted.request;
 }
 
 function envelopeFor(path: string) {

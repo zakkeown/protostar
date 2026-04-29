@@ -376,6 +376,9 @@ importers:
       '@protostar/delivery':
         specifier: workspace:*
         version: link:../delivery
+      '@protostar/paths':
+        specifier: workspace:*
+        version: link:../paths
       diff:
         specifier: 9.0.0
         version: 9.0.0

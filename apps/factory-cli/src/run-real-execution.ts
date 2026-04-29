@@ -21,6 +21,7 @@ import {
 } from "@protostar/execution";
 import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
 import type { RepairContext } from "@protostar/planning";
+import { mintPatchRequest } from "@protostar/repo";
 import type { applyChangeSet as defaultApplyChangeSet, ApplyResult, PatchRequest } from "@protostar/repo";
 import type { RepairPlan } from "@protostar/review";
 
@@ -328,7 +329,7 @@ function patchesFromChangeSet(changeSet: unknown, input: RunRealExecutionInput):
       throw new Error(`workspace write not authorized for ${entry.path}: ${authorization.errors.join("; ")}`);
     }
 
-    return {
+    const minted = mintPatchRequest({
       path: entry.path,
       op: {
         ...authorization.authorized,
@@ -340,7 +341,11 @@ function patchesFromChangeSet(changeSet: unknown, input: RunRealExecutionInput):
       },
       diff: entry.diff,
       preImageSha256: entry.preImageSha256
-    };
+    });
+    if (!minted.ok) {
+      throw new Error(`patch request rejected for ${entry.path}: ${minted.error}`);
+    }
+    return minted.request;
   });
 }
 

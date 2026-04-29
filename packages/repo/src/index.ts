@@ -35,8 +35,15 @@ export { cleanupWorkspace } from "./cleanup-workspace.js";
 export type { CleanupOptions, CleanupReason, TombstoneRecord } from "./cleanup-workspace.js";
 export { deleteFile, FsAdapterError, readFile, writeFile } from "./fs-adapter.js";
 export type { AuthorizedWorkspaceOp, FsAdapter, FsAdapterErrorReason } from "./fs-adapter.js";
-export { applyChangeSet } from "./apply-change-set.js";
-export type { ApplyError, ApplyResult, ApplyStatus, PatchRequest } from "./apply-change-set.js";
+export { applyChangeSet, mintPatchRequest } from "./apply-change-set.js";
+export type {
+  ApplyError,
+  ApplyResult,
+  ApplyStatus,
+  PatchRequest,
+  PatchRequestMintError,
+  PatchRequestMintInput
+} from "./apply-change-set.js";
 export { applyOuterPatternGuard, ArgvViolation } from "./argv-pattern-guard.js";
 export type { ArgvViolationReason, OuterGuardSchema } from "./argv-pattern-guard.js";
 export { computeDiffNameOnly } from "./diff-name-only.js";

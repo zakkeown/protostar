@@ -6,7 +6,11 @@ import { describe, it } from "node:test";
 
 import { createPatch } from "diff";
 
-import { applyChangeSet, type PatchRequest } from "./apply-change-set.js";
+import {
+  applyChangeSet,
+  mintPatchRequest,
+  type PatchRequest
+} from "./apply-change-set.js";
 import { readFile } from "./fs-adapter.js";
 import { buildSacrificialRepo } from "./internal/test-fixtures/build-sacrificial-repo.js";
 
@@ -115,14 +119,15 @@ describe("applyChangeSet", () => {
     const op = opFor(repo.dir, "hunk.txt");
     const diff = mkPatch("different\nsource\n", "different\npatched\n", "hunk.txt");
 
-    const results = await applyChangeSet([
-      {
-        path: "hunk.txt",
-        op,
-        diff,
-        preImageSha256: sha256Hex(Buffer.from("actual\ncontent\n"))
-      }
-    ]);
+    const minted = mintPatchRequest({
+      path: "hunk.txt",
+      op,
+      diff,
+      preImageSha256: sha256Hex(Buffer.from("actual\ncontent\n"))
+    });
+    assert.equal(minted.ok, true);
+    if (!minted.ok) return;
+    const results = await applyChangeSet([minted.request]);
 
     assert.deepEqual(results, [{ path: "hunk.txt", status: "skipped-error", error: "hunk-fit-failure" }]);
     assert.deepEqual(await readFile(op), Buffer.from("actual\ncontent\n"));
@@ -135,17 +140,23 @@ describe("applyChangeSet", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const op = opFor(repo.dir, "icon.png");
 
-    const results = await applyChangeSet([
-      {
-        path: "icon.png",
-        op,
-        diff: "Binary files a/icon.png and b/icon.png differ\n",
-        preImageSha256: sha256Hex(Buffer.from("not-really-png"))
-      }
-    ]);
+    // Binary patches do not have a parseable filename header, so they cannot
+    // mint via mintPatchRequest. Bypass the brand to test the inner
+    // binary-not-supported path. Re-assertion runs first and refuses with
+    // path-op-diff-mismatch — which is itself the desired behavior: binary
+    // diffs are now refused at the brand boundary.
+    const fake = {
+      path: "icon.png",
+      op,
+      diff: "Binary files a/icon.png and b/icon.png differ\n",
+      preImageSha256: sha256Hex(Buffer.from("not-really-png"))
+    } as unknown as PatchRequest;
 
-    assert.deepEqual(results, [{ path: "icon.png", status: "skipped-error", error: "binary-not-supported" }]);
-    assert.deepEqual(await readFile(op), Buffer.from("not-really-png"));
+    const results = await applyChangeSet([fake]);
+
+    assert.equal(results.length, 1);
+    assert.equal(results[0]!.status, "skipped-error");
+    assert.equal(await readFile(op).then((b) => b.toString()), "not-really-png");
   });
 
   it("reports parse-error for garbage patch text", async (t) => {
@@ -155,16 +166,29 @@ describe("applyChangeSet", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const op = opFor(repo.dir, "garbage.txt");
 
-    const results = await applyChangeSet([
-      {
-        path: "garbage.txt",
-        op,
-        diff: "not a patch\n",
-        preImageSha256: sha256Hex(Buffer.from("plain\n"))
-      }
-    ]);
+    // Garbage diffs are refused at mint time; verify both paths:
+    //   1. mintPatchRequest returns diff-parse-error
+    //   2. handcrafted fake-brand reaches applyChangeSet re-assertion, which
+    //      refuses with path-op-diff-mismatch
+    const minted = mintPatchRequest({
+      path: "garbage.txt",
+      op,
+      diff: "not a patch\n",
+      preImageSha256: sha256Hex(Buffer.from("plain\n"))
+    });
+    assert.equal(minted.ok, false);
+    if (!minted.ok) assert.equal(minted.error, "diff-parse-error");
 
-    assert.deepEqual(results, [{ path: "garbage.txt", status: "skipped-error", error: "parse-error" }]);
+    const fake = {
+      path: "garbage.txt",
+      op,
+      diff: "not a patch\n",
+      preImageSha256: sha256Hex(Buffer.from("plain\n"))
+    } as unknown as PatchRequest;
+
+    const results = await applyChangeSet([fake]);
+    assert.equal(results[0]!.status, "skipped-error");
+    assert.equal((results[0] as { error?: string }).error, "path-op-diff-mismatch");
   });
 
   it("reports io-error when the pre-image cannot be read", async (t) => {
@@ -172,14 +196,15 @@ describe("applyChangeSet", () => {
     t.after(() => rm(repo.dir, { recursive: true, force: true }));
     const op = opFor(repo.dir, "missing.txt");
 
-    const results = await applyChangeSet([
-      {
-        path: "missing.txt",
-        op,
-        diff: mkPatch("", "created\n", "missing.txt"),
-        preImageSha256: sha256Hex(Buffer.from(""))
-      }
-    ]);
+    const minted = mintPatchRequest({
+      path: "missing.txt",
+      op,
+      diff: mkPatch("", "created\n", "missing.txt"),
+      preImageSha256: sha256Hex(Buffer.from(""))
+    });
+    assert.equal(minted.ok, true);
+    if (!minted.ok) return;
+    const results = await applyChangeSet([minted.request]);
 
     assert.deepEqual(results, [{ path: "missing.txt", status: "skipped-error", error: "io-error" }]);
   });
@@ -294,6 +319,68 @@ describe("applyChangeSet", () => {
     assert.deepEqual(await readFile(opFor(repo.dir, "legacy-b.txt")), Buffer.from("b after\n"));
   });
 
+  it("mintPatchRequest refuses when path !== op.path", () => {
+    const op = opFor("/tmp/ws", "src/danger.ts");
+    const result = mintPatchRequest({
+      path: "src/safe.ts",
+      op,
+      diff: validDiffFor("src/safe.ts"),
+      preImageSha256: "0".repeat(64)
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error, "path-mismatch");
+  });
+
+  it("mintPatchRequest refuses when diff filename !== path", () => {
+    const op = opFor("/tmp/ws", "src/safe.ts");
+    const result = mintPatchRequest({
+      path: "src/safe.ts",
+      op,
+      diff: validDiffFor("src/other.ts"),
+      preImageSha256: "0".repeat(64)
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error, "diff-filename-mismatch");
+  });
+
+  it("mintPatchRequest refuses when diff is unparseable", () => {
+    const op = opFor("/tmp/ws", "src/safe.ts");
+    const result = mintPatchRequest({
+      path: "src/safe.ts",
+      op,
+      diff: "this is not a unified diff",
+      preImageSha256: "0".repeat(64)
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error, "diff-parse-error");
+  });
+
+  it("mintPatchRequest succeeds with canonicalization round-trip ('./foo' === 'foo')", () => {
+    const op = opFor("/tmp/ws", "src/file.ts");
+    const result = mintPatchRequest({
+      path: "./src/file.ts",
+      op,
+      diff: validDiffFor("src/file.ts"),
+      preImageSha256: "0".repeat(64)
+    });
+    assert.equal(result.ok, true);
+  });
+
+  it("applyChangeSet re-asserts on handcrafted fake-brand mismatch", async () => {
+    const op = opFor("/tmp/ws", "src/danger.ts");
+    const fake = {
+      path: "src/safe.ts",
+      op,
+      diff: validDiffFor("src/other.ts"),
+      preImageSha256: "0".repeat(64)
+    } as unknown as PatchRequest;
+
+    const results = await applyChangeSet([fake]);
+    assert.equal(results.length, 1);
+    assert.equal(results[0]!.status, "skipped-error");
+    assert.equal((results[0] as { error?: string }).error, "path-op-diff-mismatch");
+  });
+
   it("refuses a cosmetic-tweak multi-file change set before even the first write", async (t) => {
     const repo = await buildSacrificialRepo({
       dirtyFiles: [
@@ -332,16 +419,24 @@ function patchFor(
   originalBytes: Buffer,
   modifiedText: string
 ): PatchRequest {
-  return {
+  const minted = mintPatchRequest({
     path,
     op,
     diff: mkPatch(originalBytes.toString("utf8"), modifiedText, path),
     preImageSha256: sha256Hex(originalBytes)
-  };
+  });
+  if (!minted.ok) {
+    throw new Error(`patchFor: mint refused with ${minted.error}`);
+  }
+  return minted.request;
 }
 
 function mkPatch(originalText: string, modifiedText: string, path: string): string {
   return createPatch(path, originalText, modifiedText);
+}
+
+function validDiffFor(filename: string): string {
+  return `--- a/${filename}\n+++ b/${filename}\n@@ -1,1 +1,1 @@\n-old\n+new\n`;
 }
 
 function sha256Hex(bytes: Buffer): string {
