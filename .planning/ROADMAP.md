@@ -380,7 +380,7 @@ Plans:
 Plans:
 - [x] 11-01-requirements-traceability-PLAN.md — W0 — STRESS-01 requirements/roadmap/validation traceability
 - [x] 11-02-archetype-admission-lift-PLAN.md — W1; deps: 11-01 — all-three narrow `feature-add`/`bugfix`/`refactor` admission lift with exact repair-loop caps
-- [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal plus operator-authored setup gate for immutable toy verification files
+- [x] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal plus operator-authored setup gate for immutable toy verification files
 - [x] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `factory.stress.caps`, `--headless-mode`, non-interactive CLI support, and all-three headless setup docs
 - [x] 11-08-stress-artifact-schema-and-events-PLAN.md — W1; deps: 11-01 — canonical `stress-report.json`, append-only `events.jsonl`, and R2 no-dashboard contract
 - [ ] 11-03-seed-library-ttt-PLAN.md — W2; deps: 11-01, 11-02 — per-archetype seed library and `feature-add/ttt-game` seed
