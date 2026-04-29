@@ -1,0 +1,47 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["apps/factory-cli/src/main.ts"],
+      "project": ["**/*.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts", "src/**/*.test.ts", "src/**/*.contract.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/factory-cli": {
+      "entry": ["src/main.ts", "src/commands/*.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignore": [
+    "docs/run-bundle.appendix.md",
+    "docs/cli/*.txt",
+    "packages/fixtures/__fixtures__/**",
+    "**/dist/**",
+    "**/dist-scripts/**"
+  ],
+  "ignoreFiles": [
+    "**/*.contract.ts",
+    "packages/fixtures/src/matrix/get-matrix-row.ts"
+  ],
+  "ignoreDependencies": [
+    "@protostar/policy",
+    "@protostar/execution",
+    "@protostar/intent",
+    "@protostar/authority",
+    "@protostar/artifacts",
+    "@protostar/paths"
+  ],
+  "ignoreIssues": {
+    "apps/factory-cli/src/**/*.ts": ["exports", "types"],
+    "packages/admission-e2e/src/**/*.ts": ["exports", "types"],
+    "packages/authority/src/**/*.ts": ["types"],
+    "packages/intent/src/capability-grant-admission.ts": ["exports"],
+    "packages/intent/src/example-intent-fixtures.test-support.ts": ["exports", "types"],
+    "packages/policy/src/admission-contracts.ts": ["exports", "types"],
+    "packages/repo/src/**/*.ts": ["types"]
+  },
+  "exclude": ["types", "duplicates"],
+  "ignoreBinaries": ["pnpm", "node", "tsc", "tsx", "gh", "git"]
+}

@@ -335,12 +335,12 @@ Plans (wave structure: W1 = {01, 02}; W2 = {03, 04, 05, 06, 07}; W3 = {08}):
 - [x] 10-02-PLAN.md — [W1; deps: 01] DOG-03: 3-seed library + single end-to-end run + Phase 7 deferred PR catch-up + prune scope to `.protostar/dogfood/` (autonomous: false)
 - [x] 10-03-PLAN.md — [W2; deps: 02] DOG-02: 7-row fixture matrix + `regen-matrix.sh` + coverage/age contracts
 - [x] 10-04-PLAN.md — [W2; deps: 02] DOG-05: root README + lifecycle mermaid + run-bundle appendix + CLI snapshots + drift contract + PROJECT.md lock-revision (owns full Phase 10 dev-dep entry)
-- [ ] 10-05-PLAN.md — [W2; deps: 02] DOG-06: knip + `pnpm verify` + per-package READMEs + coverage contract
+- [x] 10-05-PLAN.md — [W2; deps: 02] DOG-06: knip + `pnpm verify` + per-package READMEs + coverage contract
 - [ ] 10-06-PLAN.md — [W2; deps: 02] DOG-07: changesets + public `@protostar/*` publish + `pnpm release` + changeset-required CI gate (autonomous: false)
 - [x] 10-07-PLAN.md — [W2; deps: 02] DOG-08: SECURITY.md + SECURITY-REVIEW.md + authority-boundary AST contract
 - [ ] 10-08-PLAN.md — [W3; deps: 01..07] DOG-04: dogfood driver + ≥10×≥80% exit gate + calibration justification (autonomous: false)
 
-**Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs. Plan 10-02 completed 2026-04-29 with `zakkeown/protostar-toy-ttt#1` and green `build-and-test`; screenshot PNG capture remains deferred. Plan 10-03 completed 2026-04-29 with the seven-row fixture matrix, typed accessors, regeneration script, and coverage/age contracts. Plan 10-04 completed 2026-04-29 with operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement. Plan 10-07 completed 2026-04-29 with public/internal security artifacts and an authority-boundary admission-e2e contract.
+**Notes:** This is where the v0.1 cosmetic-tweak loop from the 2026-04-24 lock actually ships — as the first row of DOG-02's fixture matrix and the seed for DOG-04's repeat runs. Plan 10-02 completed 2026-04-29 with `zakkeown/protostar-toy-ttt#1` and green `build-and-test`; screenshot PNG capture remains deferred. Plan 10-03 completed 2026-04-29 with the seven-row fixture matrix, typed accessors, regeneration script, and coverage/age contracts. Plan 10-04 completed 2026-04-29 with operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement. Plan 10-05 completed 2026-04-29 with knip in verify, per-package READMEs, and README coverage enforcement. Plan 10-07 completed 2026-04-29 with public/internal security artifacts and an authority-boundary admission-e2e contract.
 
 ### Phase 10.1: boundary hygiene pass (INSERTED)
 
