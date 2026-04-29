@@ -1,6 +1,6 @@
 import type { Seed } from "../index.js";
 
-export const tttGameAcceptanceCriteria = Object.freeze([
+const tttGameAcceptanceCriteria = Object.freeze([
   "3x3 grid with 9 clickable cells",
   "X moves first and players alternate",
   "eight win conditions",
