@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 11 Plan 03 seed library TTT complete)
+**Last updated:** 2026-04-29 (Phase 11 Plan 06 LLM backend selection complete)
 
 ## Project
 
@@ -26,11 +26,11 @@
 
 **Phase 11 — Headless Mode + E2E Stress** (in progress; Wave 2 started)
 
-Phase 11 planning is complete, Wave 0 traceability is committed, Wave 1 is complete, and Plan 11-03 has started Wave 2 by adding the per-archetype seed library plus the `feature-add/ttt-game` seed. Plan 11-02 has lifted `feature-add`, `bugfix`, and `refactor` into wired admission archetypes with exact repair-loop caps of 9, 5, and 5; Plan 11-04 has added immutable toy verification target-file refusal, factory-cli missing-file preflight, and the operator-authored external toy verification gate; Plan 11-05 has added validated headless-mode config/CLI selection plus all-three setup paths; and Plan 11-08 has added strict canonical `stress-report.json` / append-only-compatible `events.jsonl` artifact schemas plus the R2 no-dashboard contract. `factory-scaffold` remains a blocked stub. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
+Phase 11 planning is complete, Wave 0 traceability is committed, Wave 1 is complete, and Wave 2 now has Plan 11-03 plus Plan 11-06 complete. Plan 11-03 added the per-archetype seed library plus the `feature-add/ttt-game` seed; Plan 11-06 added strict `factory.llmBackend` / `--llm-backend` selection, preserved LM Studio as the default backend, and introduced the factory-cli execution adapter selector with typed unavailable errors for later hosted/mock plans. Plan 11-02 has lifted `feature-add`, `bugfix`, and `refactor` into wired admission archetypes with exact repair-loop caps of 9, 5, and 5; Plan 11-04 has added immutable toy verification target-file refusal, factory-cli missing-file preflight, and the operator-authored external toy verification gate; Plan 11-05 has added validated headless-mode config/CLI selection plus all-three setup paths; and Plan 11-08 has added strict canonical `stress-report.json` / append-only-compatible `events.jsonl` artifact schemas plus the R2 no-dashboard contract. `factory-scaffold` remains a blocked stub. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
 
 Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around executable stress inputs, observed fault mechanisms, feature-add envelope expansion, stress caps, and all-three headless modes. `gsd-sdk query` validation was unavailable in this checkout, so deterministic local checks and checker agents were used instead.
 
-**Next action:** Continue Wave 2 with `11-06-llm-backend-selection-PLAN.md` and `11-12-pnpm-add-allowlist-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
+**Next action:** Continue Wave 2 with `11-12-pnpm-add-allowlist-PLAN.md`, then proceed to Wave 3 (`11-07-hosted-and-mock-adapters-PLAN.md` and `11-09-stress-session-core-PLAN.md`) once dependencies are satisfied. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
 
 ## Phase Status
 
@@ -47,7 +47,7 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
-| 11 | Headless Mode + E2E Stress | In progress — Plans 11-01, 11-02, 11-03, 11-04, 11-05, and 11-08 complete; Wave 2 started; feature-add/bugfix/refactor admission wired; TTT seed library ready; immutable toy verification gate recorded; headless config/CLI/docs ready; stress artifact schema/events locked |
+| 11 | Headless Mode + E2E Stress | In progress — Plans 11-01, 11-02, 11-03, 11-04, 11-05, 11-06, and 11-08 complete; Wave 2 continues with 11-12; feature-add/bugfix/refactor admission wired; TTT seed library ready; immutable toy verification gate recorded; headless config/CLI/docs ready; LLM backend selector ready; stress artifact schema/events locked |
 
 ## Active Documents
 
@@ -58,6 +58,8 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 11 Plan 06 (`11-06-llm-backend-selection-PLAN.md`). Added strict `factory.llmBackend` config with `lmstudio`, `hosted-openai-compatible`, and `mock` literals; wired `protostar-factory run --llm-backend` with CLI > config > default precedence; added `selectExecutionAdapter` in factory-cli so LM Studio remains the default through the existing `ExecutionAdapter` contract; and kept hosted/mock as typed unavailable branches for Plans 11-07 and 11-15. Verification passed: focused RED/GREEN backend tests, `pnpm --filter @protostar/factory-cli test`, `pnpm --filter @protostar/lmstudio-adapter test` after approved loopback escalation, `pnpm run verify`; `pnpm run factory` built and stopped at the expected workspace-trust gate. Commits: `adb7eae`, `14a9773`.
 
 - **2026-04-29:** Completed Phase 11 Plan 03 (`11-03-seed-library-ttt-PLAN.md`). Converted `@protostar/fixtures` seed exports into a frozen per-archetype record while preserving the Phase 10 cosmetic seed order, added the `feature-add/ttt-game` seed plus typed/JSON fixtures and expectations for `../protostar-toy-ttt`, and added admission-e2e contracts for seed-library shape plus TTT ambiguity admission at the canonical `0.2` threshold. Verification passed: `pnpm --filter @protostar/fixtures test`, `pnpm --filter @protostar/admission-e2e test`, focused TTT ambiguity contract, `pnpm knip --no-config-hints`, `pnpm run verify`; `pnpm run factory` built and stopped at the expected workspace-trust gate. Commits: `748f182`, `d12b190`, `81c7cfd`, `01bc1ae`, `917ac5d`.
 

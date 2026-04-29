@@ -156,7 +156,7 @@ Create the headless/stress traceability foundation before source-code implementa
 - [x] **STRESS-03**: Per-archetype seed library with TTT feature seed
 - [x] **STRESS-04**: Immutable toy verification preflight/refusal
 - [x] **STRESS-05**: Headless mode config and CLI selection
-- [ ] **STRESS-06**: LLM backend selector while preserving LM Studio default
+- [x] **STRESS-06**: LLM backend selector while preserving LM Studio default
 - [ ] **STRESS-07**: Deterministic mock backend
 - [ ] **STRESS-08**: Hosted OpenAI-compatible backend
 - [ ] **STRESS-09**: Bounded `pnpm add` allowlist
@@ -298,7 +298,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | STRESS-03 | Phase 11 | Complete |
 | STRESS-04 | Phase 11 | Complete |
 | STRESS-05 | Phase 11 | Complete |
-| STRESS-06 | Phase 11 | Pending |
+| STRESS-06 | Phase 11 | Complete |
 | STRESS-07 | Phase 11 | Pending |
 | STRESS-08 | Phase 11 | Pending |
 | STRESS-09 | Phase 11 | Pending |
