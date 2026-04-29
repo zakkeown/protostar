@@ -18,6 +18,7 @@
     "docs/run-bundle.appendix.md",
     "docs/cli/*.txt",
     "packages/fixtures/__fixtures__/**",
+    ".claude/worktrees/**",
     "**/dist/**",
     "**/dist-scripts/**"
   ],

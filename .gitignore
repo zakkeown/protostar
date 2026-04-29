@@ -13,6 +13,7 @@ dist/
 .env.*
 !.env.example
 .ouroboros_eval_artifact.md
+.claude/worktrees/
 .claude/scheduled_tasks.lock
 .protostar/refusals.jsonl
 .pnpm-store
