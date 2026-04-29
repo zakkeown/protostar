@@ -122,6 +122,9 @@ importers:
       '@protostar/factory-cli':
         specifier: workspace:*
         version: link:../../apps/factory-cli
+      '@protostar/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent

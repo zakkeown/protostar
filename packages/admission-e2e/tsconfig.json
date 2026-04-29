@@ -22,6 +22,7 @@
     { "path": "../evaluation" },
     { "path": "../evaluation-runner" },
     { "path": "../artifacts" },
+    { "path": "../fixtures" },
     { "path": "../review" },
     { "path": "../../apps/factory-cli" }
   ]
