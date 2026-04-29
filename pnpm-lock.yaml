@@ -56,6 +56,9 @@ importers:
       '@protostar/fixtures':
         specifier: workspace:*
         version: link:../../packages/fixtures
+      '@protostar/hosted-llm-adapter':
+        specifier: workspace:*
+        version: link:../../packages/hosted-llm-adapter
       '@protostar/intent':
         specifier: workspace:*
         version: link:../../packages/intent
@@ -274,6 +277,15 @@ importers:
         version: link:../repo
 
   packages/fixtures: {}
+
+  packages/hosted-llm-adapter:
+    dependencies:
+      '@protostar/execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@protostar/lmstudio-adapter':
+        specifier: workspace:*
+        version: link:../lmstudio-adapter
 
   packages/intent: {}
 

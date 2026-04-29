@@ -21,6 +21,7 @@
     { "path": "packages/dogpile-types" },
     { "path": "packages/dogpile-adapter" },
     { "path": "packages/lmstudio-adapter" },
+    { "path": "packages/hosted-llm-adapter" },
     { "path": "apps/factory-cli" }
   ]
 }

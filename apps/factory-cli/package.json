@@ -50,6 +50,7 @@
     "@protostar/evaluation-runner": "workspace:*",
     "@protostar/execution": "workspace:*",
     "@protostar/fixtures": "workspace:*",
+    "@protostar/hosted-llm-adapter": "workspace:*",
     "@protostar/intent": "workspace:*",
     "@protostar/lmstudio-adapter": "workspace:*",
     "@protostar/mechanical-checks": "workspace:*",

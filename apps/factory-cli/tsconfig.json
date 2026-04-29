@@ -27,6 +27,7 @@
     { "path": "../../packages/dogpile-adapter" },
     { "path": "../../packages/dogpile-types" },
     { "path": "../../packages/lmstudio-adapter" },
+    { "path": "../../packages/hosted-llm-adapter" },
     { "path": "../../packages/repair" }
   ]
 }
