@@ -26,6 +26,15 @@ that references factory-cli's tsconfig (e.g., `@protostar/admission-e2e`). They 
 12-05 verification: ran new contract test directly via `node --test
 dist/contracts/apply-change-set-mismatch.contract.test.js` — all 5 cases pass.
 
+## CLI prune --help snapshot drift (Phase 11 regression, observed wave-1 post-merge)
+
+`prune --help` actual output now lists `.protostar/stress/<sessionId>/` (added by
+Phase 11 stress work) but `factory-cli-help.contract.test.ts` and
+`cli-help-snapshot-drift.contract.test.ts` still expect the pre-stress fixture.
+This is Phase 11 ownership, not a Phase 12 regression. Failing tests:
+`factory-cli help snapshots - Phase 9 Q-04/OP-07 lock` (#28) and
+`cli-help-snapshot-drift` (#14).
+
 ## paths package — pre-existing test failure (observed during 12-05)
 
 `resolve-workspace-root.test.js` "uses pnpm-workspace.yaml as the sentinel rather than a
