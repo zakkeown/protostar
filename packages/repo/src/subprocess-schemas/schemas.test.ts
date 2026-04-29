@@ -36,6 +36,36 @@ describe("subprocess command schemas", () => {
     );
   });
 
+  it("accepts only exact curated pnpm add argv shapes", () => {
+    assert.deepEqual(
+      requiredMembers(PNPM_SCHEMA.allowedSubcommands, ["add"]),
+      []
+    );
+
+    for (const argv of [
+      ["add", "@playwright/test@^1.59.1", "-D"],
+      ["add", "fast-check@^4.7.0", "-D"],
+      ["add", "clsx@^2.1.1"],
+      ["add", "zustand@^5.0.8"],
+      ["add", "react-aria-components@^1.13.0"]
+    ]) {
+      assert.doesNotThrow(() => validatePnpmArgv(argv), `pnpm ${argv.join(" ")} should be accepted.`);
+    }
+  });
+
+  it("rejects unallowlisted pnpm add argv shapes", () => {
+    for (const argv of [
+      ["add", "left-pad"],
+      ["add", "@playwright/test@latest"],
+      ["add", "@playwright/test", "--ignore-scripts"],
+      ["add", "fast-check;rm", "-rf", "."],
+      ["add", "-g", "fast-check"],
+      ["add", "nanoid@^5.0.0"]
+    ]) {
+      assert.throws(() => validatePnpmArgv(argv), `pnpm ${argv.join(" ")} should be rejected.`);
+    }
+  });
+
   it("pins node as a script-path command with top-level flags", () => {
     assert.equal(NODE_SCHEMA.command, "node");
     assert.deepEqual(NODE_SCHEMA.allowedSubcommands, []);
@@ -63,4 +93,15 @@ describe("subprocess command schemas", () => {
 
 function requiredMembers(actual: readonly string[], expected: readonly string[]): string[] {
   return expected.filter((member) => !actual.includes(member));
+}
+
+function validatePnpmArgv(argv: readonly string[]): void {
+  const validateArgv = (PNPM_SCHEMA as typeof PNPM_SCHEMA & {
+    readonly validateArgv?: (argv: readonly string[]) => void;
+  }).validateArgv;
+
+  if (validateArgv === undefined) {
+    assert.fail("PNPM_SCHEMA.validateArgv must pin exact pnpm add argv.");
+  }
+  validateArgv(argv);
 }
