@@ -147,6 +147,25 @@ Align package manifests + dep-boundary enforcement with source-level architectur
 - [x] **BOUNDARY-11**: Audit four flagged back-edges; produce per-edge fix/flip/accept resolution. Phantom deps (`intent->authority`, `repo->authority`, `repo->paths`) removed; real edges (`review->delivery`, `review->repair`, `delivery-runtime->review`) accepted + documented in AGENTS.md
 - [x] **BOUNDARY-12**: Fix tsconfig project-reference drift: remove phantom refs/deps on `intent` + `repo`; add `delivery` + `repair` refs to `@protostar/review/tsconfig.json`
 
+### Phase 11 - Headless Mode + E2E Stress
+
+Create the headless/stress traceability foundation before source-code implementation begins.
+
+- [ ] **STRESS-01**: Requirements traceability
+- [ ] **STRESS-02**: All-three narrow archetype admission lift
+- [ ] **STRESS-03**: Per-archetype seed library with TTT feature seed
+- [ ] **STRESS-04**: Immutable toy verification preflight/refusal
+- [ ] **STRESS-05**: Headless mode config and CLI selection
+- [ ] **STRESS-06**: LLM backend selector while preserving LM Studio default
+- [ ] **STRESS-07**: Deterministic mock backend
+- [ ] **STRESS-08**: Hosted OpenAI-compatible backend
+- [ ] **STRESS-09**: Bounded `pnpm add` allowlist
+- [ ] **STRESS-10**: Stress report schema plus append-only event artifacts
+- [ ] **STRESS-11**: Shared stress session core
+- [ ] **STRESS-12**: Sustained-load bash driver
+- [ ] **STRESS-13**: TypeScript concurrency/fault driver
+- [ ] **STRESS-14**: CI/headless/security and final TTT plus stress gate
+
 
 ## Deferred (post-v1)
 
@@ -274,10 +293,24 @@ Explicitly excluded. Documented to prevent scope creep.
 | BOUNDARY-10 | Phase 10.1 | Complete |
 | BOUNDARY-11 | Phase 10.1 | Complete |
 | BOUNDARY-12 | Phase 10.1 | Complete |
+| STRESS-01 | Phase 11 | Pending |
+| STRESS-02 | Phase 11 | Pending |
+| STRESS-03 | Phase 11 | Pending |
+| STRESS-04 | Phase 11 | Pending |
+| STRESS-05 | Phase 11 | Pending |
+| STRESS-06 | Phase 11 | Pending |
+| STRESS-07 | Phase 11 | Pending |
+| STRESS-08 | Phase 11 | Pending |
+| STRESS-09 | Phase 11 | Pending |
+| STRESS-10 | Phase 11 | Pending |
+| STRESS-11 | Phase 11 | Pending |
+| STRESS-12 | Phase 11 | Pending |
+| STRESS-13 | Phase 11 | Pending |
+| STRESS-14 | Phase 11 | Pending |
 
 **Coverage:**
-- v1 requirements: 65 total + 12 Phase 10.1 (BOUNDARY-01..12)
-- Mapped to phases: 77
+- v1 requirements: 65 total + 12 Phase 10.1 (BOUNDARY-01..12) + 14 Phase 11 (STRESS-01..14)
+- Mapped to phases: 91
 - Unmapped: 0
 
 ---
