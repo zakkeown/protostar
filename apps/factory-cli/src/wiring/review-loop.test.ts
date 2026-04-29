@@ -117,10 +117,7 @@ describe("buildReviewRepairServices", () => {
   });
 
   it("defaults cosmetic-tweak mechanical commands when config omits commands", () => {
-    assert.deepEqual(defaultMechanicalCommandsForArchetype("cosmetic-tweak"), [
-      { id: "verify", argv: ["pnpm", "verify"] },
-      { id: "lint", argv: ["pnpm", "lint"] }
-    ]);
+    assert.deepEqual(defaultMechanicalCommandsForArchetype("cosmetic-tweak"), ["verify", "lint"]);
   });
 
   it("persists review artifacts under runsRoot/runId/review", async () => {

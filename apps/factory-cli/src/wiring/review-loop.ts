@@ -1,7 +1,7 @@
 import type { AdapterContext, ExecutionAdapter, ExecutionAdapterTaskInput } from "@protostar/execution";
-import { createMechanicalChecksAdapter, type MechanicalChecksAdapterConfig, type MechanicalChecksCommandConfig, type MechanicalChecksSubprocessRunner } from "@protostar/mechanical-checks";
+import { createMechanicalChecksAdapter, type MechanicalChecksAdapterConfig, type MechanicalChecksSubprocessRunner } from "@protostar/mechanical-checks";
 import type { AdmittedPlanExecutionArtifact, ExecutionRunResult } from "@protostar/planning";
-import { computeDiffNameOnly } from "@protostar/repo";
+import { computeDiffNameOnly, type MechanicalCommandName } from "@protostar/repo";
 import type { FsAdapter } from "@protostar/repo";
 
 type GitFs = Parameters<typeof computeDiffNameOnly>[0]["fs"];
@@ -38,6 +38,13 @@ export interface BuildReviewRepairServicesInput {
   readonly baseRef: string;
   readonly executor: TaskExecutorService;
   readonly subprocess: MechanicalChecksSubprocessRunner;
+  /**
+   * Phase 12 D-03/D-04: capability envelope's mechanical.allowed[] —
+   * the upper bound on what mechanical commands this run may invoke.
+   * `configuredMechanicalCommands` intersects operator config with
+   * this allowlist; absent/empty means archetype default applies.
+   */
+  readonly allowedMechanicalCommands?: readonly MechanicalCommandName[];
   readonly mechanicalChecksFactory?: (config: MechanicalChecksAdapterConfig) => ExecutionAdapter;
   readonly computeDiffNameOnly?: (input: {
     readonly fs: GitFs;
@@ -125,14 +132,11 @@ export async function runReviewRepairLoopWithDurablePersistence(
 
 export function defaultMechanicalCommandsForArchetype(
   archetype: ReviewLoopArchetype
-): readonly MechanicalChecksCommandConfig[] {
+): readonly MechanicalCommandName[] {
   if (archetype === "cosmetic-tweak") {
-    return [
-      { id: "verify", argv: ["pnpm", "verify"] },
-      { id: "lint", argv: ["pnpm", "lint"] }
-    ];
+    return ["verify", "lint"];
   }
-  return [{ id: "verify", argv: ["pnpm", "verify"] }];
+  return ["verify"];
 }
 
 async function mechanicalAdapterConfig(
@@ -153,9 +157,19 @@ function mechanicalAdapterConfigSync(
   attempt: number,
   diffNameOnly: readonly string[]
 ): MechanicalChecksAdapterConfig {
+  const fromConfig = configuredMechanicalCommands(input.factoryConfig);
+  const archetypeDefault = defaultMechanicalCommandsForArchetype(input.archetype);
+  const requested = fromConfig ?? archetypeDefault;
+  // D-03/D-04: operator config can only INTERSECT the capability envelope's
+  // mechanical.allowed[]. When the envelope upper bound is provided, drop
+  // names that aren't in it. Absent envelope = no intersection (legacy callers).
+  const commands =
+    input.allowedMechanicalCommands === undefined
+      ? requested
+      : requested.filter((name) => input.allowedMechanicalCommands!.includes(name));
   return {
     workspaceRoot: input.workspaceRoot,
-    commands: configuredMechanicalCommands(input.factoryConfig) ?? defaultMechanicalCommandsForArchetype(input.archetype),
+    commands,
     archetype: input.archetype,
     baseRef: input.baseRef,
     runId: input.runId,
@@ -238,10 +252,10 @@ function adapterContext(input: BuildReviewRepairServicesInput, attempt: number) 
 
 function configuredMechanicalCommands(
   factoryConfig: ResolvedFactoryConfig
-): readonly MechanicalChecksCommandConfig[] | undefined {
+): readonly MechanicalCommandName[] | undefined {
   const config = factoryConfig.config as unknown as {
     readonly mechanicalChecks?: {
-      readonly commands?: readonly MechanicalChecksCommandConfig[];
+      readonly commands?: readonly MechanicalCommandName[];
     };
   };
   return config.mechanicalChecks?.commands;

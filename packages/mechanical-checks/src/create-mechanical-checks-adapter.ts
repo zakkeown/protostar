@@ -4,7 +4,11 @@ import type {
   AdapterResult,
   ExecutionAdapter
 } from "@protostar/execution";
-import type { RepoChangeSet } from "@protostar/repo";
+import {
+  MECHANICAL_COMMAND_BINDINGS,
+  type MechanicalCommandName,
+  type RepoChangeSet
+} from "@protostar/repo";
 import type {
   MechanicalCheckCommandResult,
   MechanicalCheckResult,
@@ -20,15 +24,16 @@ import {
   type MechanicalChecksPlanInput
 } from "./findings.js";
 
-export interface MechanicalChecksCommandConfig {
-  readonly id: string;
-  readonly argv: readonly string[];
-  readonly cwd?: string;
-}
+/**
+ * Phase 12 D-03/D-04: command config is a closed-enum name. Operators do not
+ * supply argv — the runtime binds argv from the name via @protostar/repo's
+ * MECHANICAL_COMMAND_BINDINGS table.
+ */
+export type MechanicalChecksCommandConfig = MechanicalCommandName;
 
 export interface MechanicalChecksSubprocessRunner {
   runCommand(input: {
-    readonly argv: readonly string[];
+    readonly name: MechanicalCommandName;
     readonly cwd: string;
     readonly signal: AbortSignal;
     readonly timeoutMs: number;
@@ -65,18 +70,20 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
       const timeoutFindings: ReviewFinding[] = [];
       let testStdout = "";
 
-      for (const command of commandsFor(config)) {
+      for (const name of commandsFor(config)) {
+        const binding = MECHANICAL_COMMAND_BINDINGS[name];
+        const argv = [binding.command, ...binding.args] as readonly string[];
         const startedAt = Date.now();
         try {
           const result = await config.subprocess.runCommand({
-            argv: command.argv,
-            cwd: command.cwd ?? config.workspaceRoot,
+            name,
+            cwd: config.workspaceRoot,
             signal: ctx.signal,
             timeoutMs: ctx.budget.taskWallClockMs
           });
           const commandResult: MechanicalCheckCommandResult = {
-            id: command.id,
-            argv: result.argv ?? command.argv,
+            id: name,
+            argv: result.argv ?? argv,
             exitCode: result.exitCode,
             durationMs: result.durationMs ?? Date.now() - startedAt,
             stdoutPath: result.stdoutPath,
@@ -84,26 +91,26 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
           };
           commandResults.push(commandResult);
 
-          if (isTestOutputCommand(command.id)) {
+          if (isTestOutputCommand(name)) {
             testStdout += await config.readFile(result.stdoutPath);
           }
 
           yield {
             kind: "progress",
-            message: `${command.id} exit=${result.exitCode} stdoutBytes=${result.stdoutBytes ?? 0} stderrBytes=${result.stderrBytes ?? 0}`
+            message: `${name} exit=${result.exitCode} stdoutBytes=${result.stdoutBytes ?? 0} stderrBytes=${result.stderrBytes ?? 0}`
           };
         } catch (error) {
           if (isTimeoutError(error)) {
             commandResults.push({
-              id: command.id,
-              argv: command.argv,
+              id: name,
+              argv,
               exitCode: 124,
               durationMs: Date.now() - startedAt,
               stdoutPath: "",
               stderrPath: ""
             });
-            timeoutFindings.push(buildMechanicalCommandTimeoutFinding({ commandId: command.id }));
-            yield { kind: "progress", message: `${command.id} timeout` };
+            timeoutFindings.push(buildMechanicalCommandTimeoutFinding({ commandId: name }));
+            yield { kind: "progress", message: `${name} timeout` };
             continue;
           }
           throw error;
@@ -148,17 +155,14 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
   };
 }
 
-function commandsFor(config: MechanicalChecksAdapterConfig): readonly MechanicalChecksCommandConfig[] {
+function commandsFor(config: MechanicalChecksAdapterConfig): readonly MechanicalCommandName[] {
   if (config.commands.length > 0) {
     return config.commands;
   }
   if (config.archetype === "cosmetic-tweak") {
-    return [
-      { id: "verify", argv: ["pnpm", "verify"] },
-      { id: "lint", argv: ["pnpm", "lint"] }
-    ];
+    return ["verify", "lint"];
   }
-  return [{ id: "verify", argv: ["pnpm", "verify"] }];
+  return ["verify"];
 }
 
 function isTestOutputCommand(commandId: string): boolean {
