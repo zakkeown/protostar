@@ -20,8 +20,7 @@
     "@protostar/execution": "workspace:*",
     "@protostar/repo": "workspace:*",
     "@protostar/intent": "workspace:*",
-    "@protostar/review": "workspace:*",
-    "isomorphic-git": "1.37.6"
+    "@protostar/review": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

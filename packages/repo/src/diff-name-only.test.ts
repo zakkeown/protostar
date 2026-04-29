@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import git from "isomorphic-git";
 
-import { buildSacrificialRepo } from "@protostar/repo/internal/test-fixtures";
+import { buildSacrificialRepo } from "./internal/test-fixtures/build-sacrificial-repo.js";
 
 import { computeDiffNameOnly } from "./diff-name-only.js";
 
