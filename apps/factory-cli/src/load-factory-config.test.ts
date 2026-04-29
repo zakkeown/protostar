@@ -259,12 +259,13 @@ describe("evaluation/evolution config resolvers", () => {
     ],
     constraints: [],
     stopConditions: [],
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     signature: null,
     capabilityEnvelope: {
       filesystem: { readable: [], writable: [] },
       network: { allowedHosts: [] },
-      tools: { allowed: [] }
+      tools: { allowed: [] },
+      mechanical: { allowed: ["verify", "lint"] }
     }
   } as unknown as ConfirmedIntent;
 

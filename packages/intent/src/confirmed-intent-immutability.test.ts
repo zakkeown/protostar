@@ -92,7 +92,7 @@ void compileTimeReadonlyMutationChecks;
 function buildImmutabilityFixture(): ConfirmedIntent {
   return buildConfirmedIntentForTest({
     // Phase 3 Plan 03 hard-bumped confirmed-intent artifacts; Phase 7 Plan 01 bumps to 1.5.0 (delivery.target + deliveryWallClockMs).
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     signature: null,
     id: "intent_confirmed_immutability" as IntentId,
     sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
@@ -127,6 +127,7 @@ function buildImmutabilityFixture(): ConfirmedIntent {
           risk: "low"
         }
       ],
+      mechanical: { allowed: ["verify", "lint"] },
       budget: {
         maxRepairLoops: 1,
         timeoutMs: 30_000
@@ -155,7 +156,7 @@ describe("ConfirmedIntent immutability", () => {
     assert.equal(Object.isFrozen(intent.stopConditions), true);
 
     // Phase 3 Plan 03 hard-bumped confirmed-intent artifacts; Phase 7 Plan 01 bumps to 1.5.0 (delivery.target + deliveryWallClockMs).
-    assert.equal(intent.schemaVersion, "1.5.0");
+    assert.equal(intent.schemaVersion, "1.6.0");
     assert.equal(intent.signature, null);
 
     assert.throws(() => {
@@ -219,7 +220,7 @@ describe("ConfirmedIntent immutability", () => {
 
     const intent = buildConfirmedIntentForTest({
       // Phase 3 Plan 03 hard-bumped confirmed-intent artifacts; Phase 7 Plan 01 bumps to 1.5.0 (delivery.target + deliveryWallClockMs).
-      schemaVersion: "1.5.0",
+      schemaVersion: "1.6.0",
       signature: null,
       id: "intent_confirmed_immutability_copy" as IntentId,
       sourceDraftId: "draft_confirmed_immutability" as IntentDraftId,
@@ -248,6 +249,7 @@ describe("ConfirmedIntent immutability", () => {
             risk: "low"
           }
         ],
+        mechanical: { allowed: ["verify", "lint"] },
         budget: {
           maxRepairLoops: 1,
           timeoutMs: 30_000

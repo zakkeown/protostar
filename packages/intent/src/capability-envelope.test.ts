@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 
 import { parseConfirmedIntent, type CapabilityEnvelope } from "./index.js";
 
-describe("ConfirmedIntent 1.5.0 capability envelope schema", () => {
-  it("pins schemaVersion to exactly 1.5.0", async () => {
+describe("ConfirmedIntent 1.6.0 capability envelope schema", () => {
+  it("pins schemaVersion to exactly 1.6.0", async () => {
     const schema = await readConfirmedIntentSchema();
     const properties = schema["properties"] as Record<string, Record<string, unknown>>;
 
-    assert.equal(properties["schemaVersion"]?.["const"], "1.5.0");
+    assert.equal(properties["schemaVersion"]?.["const"], "1.6.0");
     assert.equal("enum" in (properties["schemaVersion"] ?? {}), false);
     assert.equal("oneOf" in (properties["schemaVersion"] ?? {}), false);
   });
@@ -255,7 +255,7 @@ describe("ConfirmedIntent 1.5.0 capability envelope schema", () => {
     );
   });
 
-  it("CapabilityEnvelope type matches the 1.5.0 shape", () => {
+  it("CapabilityEnvelope type matches the 1.6.0 shape", () => {
     const envelope = {
       repoScopes: [
         {
@@ -274,6 +274,7 @@ describe("ConfirmedIntent 1.5.0 capability envelope schema", () => {
         }
       ],
       network: { allow: "allowlist", allowedHosts: ["api.github.com"] },
+      mechanical: { allowed: ["verify", "lint"] },
       budget: {
         adapterRetriesPerTask: 4,
         taskWallClockMs: 180_000,
@@ -300,7 +301,7 @@ async function readConfirmedIntentSchema(): Promise<Record<string, unknown>> {
 
 function buildConfirmedIntentFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     id: "intent_capability_envelope",
     sourceDraftId: "draft_capability_envelope",
     mode: "brownfield",
@@ -343,6 +344,7 @@ function buildCapabilityEnvelopeFixture(): Record<string, unknown> {
       }
     ],
     network: { allow: "loopback" },
+    mechanical: { allowed: ["verify", "lint"] },
     budget: {
       adapterRetriesPerTask: 4,
       taskWallClockMs: 180_000,

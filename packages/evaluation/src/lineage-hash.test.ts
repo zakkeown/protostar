@@ -24,11 +24,12 @@ function intent(input: {
       toolPermissions: [],
       workspace: { allowDirty: false },
       network: { allow: "loopback" },
+      mechanical: { allowed: ["verify", "lint"] },
       budget: {}
     },
     constraints: [],
     stopConditions: [],
-    schemaVersion: "1.5.0",
+    schemaVersion: "1.6.0",
     signature: null
   } as unknown as ConfirmedIntent;
 }

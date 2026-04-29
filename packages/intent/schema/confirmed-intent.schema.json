@@ -18,7 +18,7 @@
     "signature"
   ],
   "properties": {
-    "schemaVersion": { "const": "1.5.0" },
+    "schemaVersion": { "const": "1.6.0" },
     "id": { "type": "string", "pattern": "^intent_.+" },
     "sourceDraftId": { "type": "string", "pattern": "^draft_.+" },
     "mode": { "enum": ["greenfield", "brownfield"] },
@@ -129,6 +129,18 @@
             "allowedAdds": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "mechanical": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "enum": ["verify", "typecheck", "lint", "test"] },
+              "uniqueItems": true,
+              "default": []
             }
           }
         },
