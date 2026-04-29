@@ -387,7 +387,7 @@ Plans:
 - [x] 11-06-llm-backend-selection-PLAN.md — W2; deps: 11-05 — `factory.llmBackend`, `--llm-backend`, and LM Studio default-preserving selector
 - [x] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02, 11-04 — feature-add `pnpm.allowedAdds`, bounded multi-file admission, immutable-file refusal, and repo-owned exact `pnpm add` allowlist
 - [x] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible adapter package and hosted package wiring
-- [ ] 11-09-stress-session-core-PLAN.md — W3; deps: 11-06, 11-08 — shared stress session paths, seed/draft/sign input preparation, append writer, stress cap resolver/breach evidence, and prune extension
+- [x] 11-09-stress-session-core-PLAN.md — W3; deps: 11-06, 11-08 — shared stress session paths, seed/draft/sign input preparation, append writer, stress cap resolver/breach evidence, and prune extension
 - [ ] 11-15-mock-adapter-selector-wiring-PLAN.md — W4; deps: 11-06, 11-07 — deterministic mock adapter package plus hosted/mock selector wiring
 - [ ] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only
 - [ ] 11-11-concurrency-fault-ts-driver-PLAN.md — W5; deps: 11-09, 11-15 — TypeScript concurrency and fault-injection stress runner covering `network-drop`, `llm-timeout`, `disk-full`, and `abort-signal`
