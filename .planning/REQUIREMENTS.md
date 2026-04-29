@@ -166,6 +166,27 @@ Create the headless/stress traceability foundation before source-code implementa
 - [ ] **STRESS-13**: TypeScript concurrency/fault driver
 - [ ] **STRESS-14**: CI/headless/security and final TTT plus stress gate
 
+### Phase 12 — Authority Boundary Stabilization (inserted)
+
+Re-seal the authority boundary after the v1 dogfood pass. Verify-gate parity, mechanical command authority, env scrubbing, applyChangeSet path/op/diff invariant, three-way tier truth source.
+
+- [ ] **AUTH-01**: Unified `verify` script — local and CI run the same command (D-01)
+- [ ] **AUTH-02**: `@protostar/mechanical-checks` no-net contract holds in production — `diff-name-only` relocates to `@protostar/repo`; mechanical-checks consumes injected diff names (D-02)
+- [ ] **AUTH-03**: Mechanical commands run through `@protostar/repo`'s allowlist + per-command schema; raw `spawn` removed from `apps/factory-cli/src/main.ts` (D-03)
+- [ ] **AUTH-04**: `confirmedIntent` schema 1.5.0 → 1.6.0 with `capabilityEnvelope.mechanical.allowed[]` (closed enum); full fixture cascade re-signed (D-04)
+- [ ] **AUTH-05**: Mechanical command cwd is the cloned target-repo workspaceRoot (status-quo, contract-pinned) (D-05)
+- [ ] **AUTH-06**: `subprocess-runner.ts` defaults child env to POSIX baseline (`PATH`, `HOME`, `LANG`, `USER`) + per-call `inheritEnv` allowlist; allowlist logged in evidence (D-06)
+- [ ] **AUTH-07**: `PROTOSTAR_GITHUB_TOKEN` cannot cross the subprocess boundary; pinned by static contract test against `inheritEnv: [...]` literals (D-07)
+- [ ] **AUTH-08**: Token-shape redaction filter on persisted/evidence reads (lifted shared `TOKEN_PATTERNS` constant in `@protostar/delivery/redact.ts`) (D-08)
+- [ ] **AUTH-09**: `PatchRequest` becomes a brand whose `mintPatchRequest` constructor refuses path/op/diff disagreement; `applyChangeSet` re-asserts at entry (D-09)
+- [ ] **AUTH-10**: Equality is exact-string after canonicalization through one shared `canonicalizeRelativePath` helper (D-10)
+- [ ] **AUTH-11**: `package.json` `protostar.tier` is canonical; AGENTS.md table and `authority-boundary.contract.test.ts` derive from / assert against it (D-11)
+- [ ] **AUTH-12**: `tier-conformance.contract.test.ts` cross-asserts manifest tier == AGENTS.md tier == authority-boundary contract entry, per package (D-12)
+- [ ] **AUTH-13**: `evaluation-runner` tier reconciled — manifest stays `network`; `authority-boundary.contract.test.ts:77` flips from `PURE_PACKAGE_RULE` to a network-shaped rule (D-13)
+- [ ] **AUTH-14**: `apps/factory-cli/src/wiring/{command-execution,delivery}.ts` extracted from `main.ts`; `wiring/review-loop.ts` `configuredMechanicalCommands` rewritten (D-14)
+- [ ] **AUTH-15**: Done-criteria — all new contract tests green; `verify` green; Phase 10 dogfood loop re-runs end-to-end on `protostar-toy-ttt`; secret-leak attack test passes (D-15)
+- [ ] **AUTH-16**: Phase 12 runs after Phase 11 (no test artifact — pre-phase orchestrator check) (D-16)
+
 
 ## Deferred (post-v1)
 
@@ -307,10 +328,26 @@ Explicitly excluded. Documented to prevent scope creep.
 | STRESS-12 | Phase 11 | Pending |
 | STRESS-13 | Phase 11 | Pending |
 | STRESS-14 | Phase 11 | Pending |
+| AUTH-01 | Phase 12 | Pending |
+| AUTH-02 | Phase 12 | Pending |
+| AUTH-03 | Phase 12 | Pending |
+| AUTH-04 | Phase 12 | Pending |
+| AUTH-05 | Phase 12 | Pending |
+| AUTH-06 | Phase 12 | Pending |
+| AUTH-07 | Phase 12 | Pending |
+| AUTH-08 | Phase 12 | Pending |
+| AUTH-09 | Phase 12 | Pending |
+| AUTH-10 | Phase 12 | Pending |
+| AUTH-11 | Phase 12 | Pending |
+| AUTH-12 | Phase 12 | Pending |
+| AUTH-13 | Phase 12 | Pending |
+| AUTH-14 | Phase 12 | Pending |
+| AUTH-15 | Phase 12 | Pending |
+| AUTH-16 | Phase 12 | Pending (no test artifact) |
 
 **Coverage:**
-- v1 requirements: 65 total + 12 Phase 10.1 (BOUNDARY-01..12) + 14 Phase 11 (STRESS-01..14)
-- Mapped to phases: 91
+- v1 requirements: 65 total + 12 Phase 10.1 (BOUNDARY-01..12) + 14 Phase 11 (STRESS-01..14) + 16 Phase 12 (AUTH-01..16)
+- Mapped to phases: 107
 - Unmapped: 0
 
 ---
