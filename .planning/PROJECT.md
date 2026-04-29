@@ -42,7 +42,7 @@ Excise humans from everything except intent capture and final evidence review �
 - **Numeric calibration of harsh consensus thresholds** — set empirically once 0.1 ships, not pre-tuned
 - **Token-budget unit** — empirical ($/GPU-hour likely), not a v0.1 deliverable
 - **Cloud / hosted judges** — heterogeneous-local only (LM Studio); no cloud judge cost
-- **Non-cosmetic archetypes for v0.1** — `feature-add`, `refactor`, `bugfix` archetypes are scaffolded as `stub` deliberately; only `cosmetic-tweak` is wired in v0.1 (per `packages/policy/src/admission-paths.ts`)
+- **Factory-scaffold archetype for v0.1** — `factory-scaffold` remains out of scope until a later policy wiring pass; Phase 11 intentionally wires only the bounded `feature-add`, `bugfix`, and `refactor` archetypes alongside the existing cosmetic path
 - **GUI intake / TUI wizard / 9-role architecture** — explicitly rebound away from 2026-04-22 design; CLI-only intake
 - **Ouroboros (`ooo`) workflow as part of factory runtime** — Ouroboros is the design conversation tool, not a runtime dependency of the factory
 
@@ -69,6 +69,7 @@ Excise humans from everything except intent capture and final evidence review �
 - **Domain-first packaging**: No `utils`, `agents`, `factory`, or other catch-all packages (`AGENTS.md` rule)
 - **Runtime dependency posture (rephrased Phase 3, 2026-04-27):** Protostar maintains minimal external runtime deps. Phase 3 introduces two carve-outs on `@protostar/repo` — `isomorphic-git@1.37.6` (Q-01: pure-JS git mechanics) and `diff@9.0.0` (CONFLICT-01: unified-diff parse/apply mechanics). Plus `@dogpile/sdk@0.2.0` on `@protostar/dogpile-adapter` (REPO-08). Plus `commander@14.0.3` + `@commander-js/extra-typings@14.0.0` on `apps/factory-cli` (Phase 9 Q-02: subcommand DSL + auditable --help output). Plus `zod@^3.25.76` on `apps/factory-cli` (Phase 10 Plan 08 DOG-04 cursor/report validation for the internal dogfood driver). Any further runtime-dep additions require an explicit lock-revision note here.
 - **Phase 10 dev-dep additions (lock revision 2026-04-29; dev-only, not runtime deps):** `zod-to-json-schema@^3` and `zod@^3` on `@protostar/artifacts` (DOG-05 schema appendix generator), `knip@^5` on root (DOG-06 unused-export/dep enforcement), `@changesets/cli@^2` on root (DOG-07 release tooling).
+- **Phase 11 archetype lift (2026-04-29):** `feature-add`, `bugfix`, and `refactor` are wired admission archetypes with iteration-count repair-loop caps of `9`, `5`, and `5`, respectively. `factory-scaffold` remains out of scope. Phase 10 cosmetic dogfood artifacts and the existing `cosmetic-tweak` cap remain unchanged.
 - **Local-only judges**: Judge panel is heterogeneous-local via LM Studio (Qwen3-80B + another family). No cloud-LLM judges
 - **Autonomy line**: Dark except hard failures; no progress logs, no human pings except policy-defined stop gates
 - **Ambiguity gate**: 0.2 threshold is a hard contract (`INTENT_AMBIGUITY_THRESHOLD`); changing it is a v1.0 calibration task, not a v0.1 task
