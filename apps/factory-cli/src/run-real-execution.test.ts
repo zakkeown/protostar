@@ -495,7 +495,7 @@ function changeSetResult(path: string, preImageSha256 = sha("before")): AdapterR
   return {
     outcome: "change-set",
     changeSet: {
-      entries: [{ path, op: "modify", diff: "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-before\n+after", preImageSha256 }]
+      entries: [{ path, op: "modify", diff: `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-before\n+after`, preImageSha256 }]
     } as never,
     evidence: evidence()
   };
