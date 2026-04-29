@@ -13,6 +13,10 @@
     "./authorization-payload": {
       "types": "./dist/authorization-payload.d.ts",
       "import": "./dist/authorization-payload.js"
+    },
+    "./redact": {
+      "types": "./dist/redact.d.ts",
+      "import": "./dist/redact.js"
     }
   },
   "scripts": {
