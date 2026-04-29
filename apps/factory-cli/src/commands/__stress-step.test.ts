@@ -56,6 +56,120 @@ describe("__stress-step", () => {
     assert.equal(output.cursorPath.endsWith("/.protostar/stress/stress_20260429_010/cursor.json"), true);
   });
 
+  it("supports the sustained-load bash driver action flags", async () => {
+    const workspace = await tempWorkspace();
+    await writePermissiveRepoPolicy(workspace);
+    await writeFactoryConfig(workspace);
+    const sessionId = "stress_20260429_012";
+    const runIndex = "3";
+    const runId = "stress_stress_20260429_012_0004";
+
+    await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "begin",
+      "--shape",
+      "sustained-load"
+    ]);
+
+    const nextSeed = await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "next-seed",
+      "--seed-archetypes",
+      "cosmetic-tweak,feature-add",
+      "--run-index",
+      runIndex,
+      "--json"
+    ]);
+    const selected = JSON.parse(nextSeed.stdout) as { readonly seedId: string; readonly archetype: string };
+    assert.equal(selected.seedId, "ttt-game");
+    assert.equal(selected.archetype, "feature-add");
+
+    const materialized = await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "materialize-draft",
+      "--seed-archetypes",
+      "cosmetic-tweak,feature-add",
+      "--seed-id",
+      selected.seedId,
+      "--run-index",
+      runIndex,
+      "--run-id",
+      runId,
+      "--json"
+    ]);
+    const draft = JSON.parse(materialized.stdout) as { readonly draftPath: string };
+    assert.equal(draft.draftPath.endsWith("/intent.draft.json"), true);
+
+    const signed = await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "sign-intent",
+      "--run-id",
+      runId,
+      "--draft",
+      draft.draftPath,
+      "--json"
+    ]);
+    const confirmed = JSON.parse(signed.stdout) as { readonly confirmedIntentPath: string };
+    assert.equal(confirmed.confirmedIntentPath.endsWith("/confirmed-intent.json"), true);
+
+    await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "record-run",
+      "--run-id",
+      runId,
+      "--seed-id",
+      selected.seedId,
+      "--archetype",
+      selected.archetype,
+      "--outcome",
+      "pass",
+      "--duration-ms",
+      "0"
+    ]);
+
+    const capBreach = await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "cap-breach",
+      "--shape",
+      "sustained-load",
+      "--cap-kind",
+      "run-count",
+      "--cap-value",
+      "501",
+      "--cap-limit",
+      "500",
+      "--cap-source",
+      "q03-default",
+      "--json"
+    ]);
+    assert.equal(JSON.parse(capBreach.stdout).breach.kind, "run-count");
+
+    const finalized = await runStep(workspace, [
+      "--session",
+      sessionId,
+      "--action",
+      "finalize",
+      "--headless-mode",
+      "local-daemon",
+      "--llm-backend",
+      "mock",
+      "--json"
+    ]);
+    assert.equal(JSON.parse(finalized.stdout).totalRuns, 1);
+  });
+
   it("exposes next-seed, materialize-draft, sign-intent, append-event, record-run, finalize, cap-breach, and wedge actions", async () => {
     const workspace = await tempWorkspace();
     await writePermissiveRepoPolicy(workspace);

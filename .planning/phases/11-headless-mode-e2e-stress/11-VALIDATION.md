@@ -31,6 +31,7 @@ created: 2026-04-29
 - **After every plan wave:** Run `pnpm run verify`.
 - **Before `$gsd-verify-work`:** Run `pnpm run verify` and `pnpm run verify:full`.
 - **Live stress gate:** Run small mock-backed smokes in local/CI validation; full stress caps are phase-gate evidence, not per-task feedback.
+- **Sustained-load shortcut:** `pnpm stress:sustained -- --runs 1 --llm-backend mock --headless-mode local-daemon`.
 - **Max feedback latency:** 10 minutes for automated checks; live TTT delivery and full stress sessions are manual-only evidence gates.
 
 ---

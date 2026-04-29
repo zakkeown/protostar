@@ -11,6 +11,7 @@
     "verify": "pnpm run typecheck && node --experimental-strip-types tools/check-subpath-exports.ts && pnpm -r test && pnpm knip --no-config-hints",
     "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --draft examples/intents/scaffold.draft.json --out .protostar/runs",
     "dogfood:matrix": "bash scripts/regen-matrix.sh",
+    "stress:sustained": "bash scripts/stress.sh --shape sustained-load",
     "release": "pnpm changeset version && pnpm -r build && pnpm -r test && pnpm changeset publish"
   },
   "devDependencies": {
