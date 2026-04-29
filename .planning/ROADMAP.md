@@ -389,8 +389,8 @@ Plans:
 - [x] 11-07-hosted-and-mock-adapters-PLAN.md — W3; deps: 11-06 — hosted OpenAI-compatible adapter package and hosted package wiring
 - [x] 11-09-stress-session-core-PLAN.md — W3; deps: 11-06, 11-08 — shared stress session paths, seed/draft/sign input preparation, append writer, stress cap resolver/breach evidence, and prune extension
 - [x] 11-15-mock-adapter-selector-wiring-PLAN.md — W4; deps: 11-06, 11-07 — deterministic mock adapter package plus hosted/mock selector wiring
-- [ ] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only
-- [ ] 11-11-concurrency-fault-ts-driver-PLAN.md — W5; deps: 11-09, 11-15 — TypeScript concurrency and fault-injection stress runner covering `network-drop`, `llm-timeout`, `disk-full`, and `abort-signal`
+- [x] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only
+- [x] 11-11-concurrency-fault-ts-driver-PLAN.md — W5; deps: 11-09, 11-15 — TypeScript concurrency and fault-injection stress runner covering `network-drop`, `llm-timeout`, `disk-full`, and `abort-signal`
 - [ ] 11-13-ci-headless-security-gates-PLAN.md — W6; deps: 11-05, 11-07, 11-10, 11-11, 11-12, 11-15 — PR mock smokes, all-three headless-mode setup contracts, no-prompt, secret-redaction, no-merge, and security review gates
 - [ ] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W7; deps: 11-02, 11-03, 11-04, 11-09, 11-10, 11-11, 11-12, 11-13, 11-15 — final non-autonomous `(ttt-delivered AND stress-clean)` evidence gate, TTT 50-attempt/14-day caps, and all four fault scenarios
 
