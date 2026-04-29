@@ -1,6 +1,17 @@
 import type { IntentId } from "@protostar/intent";
 
 export { sortJsonValue } from "./canonical-json.js";
+export {
+  formatStressEventLine,
+  formatStressReport,
+  parseStressEvent,
+  parseStressReport,
+  StressEventSchema,
+  StressOutcomeSchema,
+  StressReportSchema,
+  StressShapeSchema
+} from "./stress-report.schema.js";
+export type { StressEvent, StressOutcome, StressReport, StressShape } from "./stress-report.schema.js";
 
 export type FactoryStage = "intent" | "planning" | "execution" | "review" | "release";
 export type FactoryRunStatus =

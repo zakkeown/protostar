@@ -143,10 +143,10 @@ importers:
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent
-    devDependencies:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
       zod-to-json-schema:
         specifier: ^3.24.6
         version: 3.25.2(zod@3.25.76)

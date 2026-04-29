@@ -45,7 +45,7 @@ describe("stress-report-snapshot contract", () => {
     const second = formatStressReport(parseStressReport(JSON.parse(first)));
 
     assert.equal(second, first);
-    assert.equal(first, "{\"capBreached\":{\"kind\":\"wall-clock\",\"limit\":259200000,\"value\":259201000},\"finishedAt\":\"2026-04-29T01:05:00Z\",\"headlessMode\":\"github-hosted\",\"llmBackend\":\"mock\",\"perArchetype\":[{\"archetype\":\"feature-add\",\"met\":false,\"passRate\":0,\"passes\":0,\"runs\":1,\"threshold\":0.3}],\"perRun\":[{\"archetype\":\"feature-add\",\"ciVerdict\":\"skipped\",\"durationMs\":95000,\"faultInjected\":\"disk-full\",\"outcome\":\"blocked\",\"runId\":\"run_fault_1\",\"seedId\":\"ttt-game\"}],\"sessionId\":\"stress_session_snapshot\",\"shape\":\"fault-injection\",\"startedAt\":\"2026-04-29T01:00:00Z\",\"totalRuns\":1}\n");
+    assert.equal(first, "{\"capBreached\":{\"kind\":\"wall-clock\",\"limit\":259200000,\"value\":259201000},\"finishedAt\":\"2026-04-29T01:05:00Z\",\"headlessMode\":\"github-hosted\",\"llmBackend\":\"mock\",\"perArchetype\":[{\"archetype\":\"feature-add\",\"met\":false,\"passes\":0,\"passRate\":0,\"runs\":1,\"threshold\":0.3}],\"perRun\":[{\"archetype\":\"feature-add\",\"ciVerdict\":\"skipped\",\"durationMs\":95000,\"faultInjected\":\"disk-full\",\"outcome\":\"blocked\",\"runId\":\"run_fault_1\",\"seedId\":\"ttt-game\"}],\"sessionId\":\"stress_session_snapshot\",\"shape\":\"fault-injection\",\"startedAt\":\"2026-04-29T01:00:00Z\",\"totalRuns\":1}\n");
   });
 
   it("rejects malformed reports", () => {
