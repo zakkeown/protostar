@@ -378,7 +378,7 @@ Plans:
 **Plans:** 15 plans across 8 waves
 
 Plans:
-- [ ] 11-01-requirements-traceability-PLAN.md — W0 — STRESS-01 requirements/roadmap/validation traceability
+- [x] 11-01-requirements-traceability-PLAN.md — W0 — STRESS-01 requirements/roadmap/validation traceability
 - [ ] 11-02-archetype-admission-lift-PLAN.md — W1; deps: 11-01 — all-three narrow `feature-add`/`bugfix`/`refactor` admission lift with exact repair-loop caps
 - [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal plus operator-authored setup gate for immutable toy verification files
 - [ ] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `factory.stress.caps`, `--headless-mode`, non-interactive CLI support, and all-three headless setup docs

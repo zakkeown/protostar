@@ -151,7 +151,7 @@ Align package manifests + dep-boundary enforcement with source-level architectur
 
 Create the headless/stress traceability foundation before source-code implementation begins.
 
-- [ ] **STRESS-01**: Requirements traceability
+- [x] **STRESS-01**: Requirements traceability
 - [ ] **STRESS-02**: All-three narrow archetype admission lift
 - [ ] **STRESS-03**: Per-archetype seed library with TTT feature seed
 - [ ] **STRESS-04**: Immutable toy verification preflight/refusal
@@ -293,7 +293,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | BOUNDARY-10 | Phase 10.1 | Complete |
 | BOUNDARY-11 | Phase 10.1 | Complete |
 | BOUNDARY-12 | Phase 10.1 | Complete |
-| STRESS-01 | Phase 11 | Pending |
+| STRESS-01 | Phase 11 | Complete |
 | STRESS-02 | Phase 11 | Pending |
 | STRESS-03 | Phase 11 | Pending |
 | STRESS-04 | Phase 11 | Pending |
