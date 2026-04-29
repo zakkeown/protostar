@@ -42,6 +42,7 @@ describe("tier-conformance contract", () => {
 
     assert.equal(packages.get("@protostar/paths")?.tier, "fs");
     assert.equal(packages.get("@protostar/repo")?.tier, "fs");
+    assert.equal(packages.get("@protostar/hosted-llm-adapter")?.tier, "network");
     assert.equal(packages.get("@protostar/factory-cli")?.tier, "orchestration");
     assert.equal(packages.get("@protostar/admission-e2e")?.tier, "test-only");
   });
