@@ -415,21 +415,22 @@ function emptyToUndefined<T extends string>(input: T | "" | undefined): T | unde
 }
 
 function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): unknown {
+  const targetDescription = `In the protostar-toy-ttt sibling repository, ${seed.intent.toLowerCase()} without changing gameplay behavior or broadening the requested cosmetic scope.`;
   return {
     draftId: `draft_dogfood_${seed.id.replaceAll("-", "_")}_${index}`,
     title: `Dogfood ${seed.id}`,
-    problem: seed.intent,
+    problem: `${targetDescription} This validates that Protostar can take a bounded brownfield cosmetic request from admission through implementation, review, delivery, and CI evidence.`,
     requester: "phase-10-dogfood",
     mode: "brownfield",
     goalArchetype: seed.archetype,
-    context: "Protostar is running against the protostar-toy-ttt sibling repository to validate the dark factory cosmetic-tweak loop.",
+    context: "Protostar is running against the protostar-toy-ttt sibling repository. The target app is a small toy tic-tac-toe project, and this dogfood run must keep the edit inside the app source for one cosmetic tweak.",
     acceptanceCriteria: [
       {
-        statement: "The requested toy app cosmetic tweak is implemented in the target repository.",
+        statement: `The protostar-toy-ttt app source implements this bounded cosmetic request: ${seed.intent}.`,
         verification: "evidence"
       },
       {
-        statement: "The toy repository build-and-test GitHub Actions check succeeds after the PR opens.",
+        statement: "The delivered PR includes evidence that the toy repository build-and-test check reaches a successful terminal state.",
         verification: "evidence"
       }
     ],
@@ -451,21 +452,21 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
       ],
       toolPermissions: [
         {
-          tool: "pnpm",
+          tool: "shell",
           permissionLevel: "use",
-          reason: "Run the toy repository build-and-test checks.",
+          reason: "Run bounded local commands needed to inspect and verify the toy app change.",
           risk: "low"
         },
         {
-          tool: "gh",
+          tool: "network",
           permissionLevel: "use",
-          reason: "Open and inspect the dogfood PR.",
-          risk: "medium"
+          reason: "Open the dogfood PR and inspect its required CI result.",
+          risk: "low"
         }
       ],
       budget: {
-        timeoutMs: 600000,
-        maxRepairLoops: 2
+        timeoutMs: 300000,
+        maxRepairLoops: 1
       }
     },
     metadata: {
