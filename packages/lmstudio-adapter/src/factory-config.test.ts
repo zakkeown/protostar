@@ -29,6 +29,7 @@ describe("resolveFactoryConfig", () => {
       },
       factory: {
         headlessMode: "local-daemon",
+        llmBackend: "lmstudio",
         nonInteractive: false,
         stress: {
           caps: defaultStressCaps()
@@ -353,6 +354,37 @@ describe("resolveFactoryConfig", () => {
     }
   });
 
+  it("accepts exactly the three Phase 11 LLM backends from file config", () => {
+    for (const backend of ["lmstudio", "hosted-openai-compatible", "mock"] as const) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: { llmBackend: backend }
+        }),
+        env: {}
+      });
+
+      const resolved = unwrapResolved(result);
+
+      assert.equal(resolved.config.factory.llmBackend, backend);
+      assert.equal(resolved.config.factory.headlessMode, "local-daemon");
+    }
+  });
+
+  it("rejects ambiguous hosted provider aliases openai and anthropic", () => {
+    for (const backend of ["openai", "anthropic"] as const) {
+      const result = resolveFactoryConfig({
+        fileBytes: JSON.stringify({
+          factory: { llmBackend: backend }
+        }),
+        env: {}
+      });
+
+      assert.equal(result.ok, false, `${backend} should be rejected`);
+      assert.match(result.errors.join("\n"), /llmBackend/);
+      assert.match(result.errors.join("\n"), /lmstudio\|hosted-openai-compatible\|mock/);
+    }
+  });
+
   it("rejects ambiguous headless mode aliases dashboard and ci", () => {
     for (const mode of ["dashboard", "ci"] as const) {
       const result = resolveFactoryConfig({
@@ -495,6 +527,8 @@ describe("resolveFactoryConfig", () => {
     assert.equal(factory.additionalProperties, false);
     assert.deepEqual(factory.properties.headlessMode.enum, ["github-hosted", "self-hosted-runner", "local-daemon"]);
     assert.equal(factory.properties.headlessMode.default, "local-daemon");
+    assert.deepEqual(factory.properties.llmBackend.enum, ["lmstudio", "hosted-openai-compatible", "mock"]);
+    assert.equal(factory.properties.llmBackend.default, "lmstudio");
     assert.equal(factory.properties.nonInteractive.default, false);
     assert.equal(factory.properties.stress.additionalProperties, false);
     assert.equal(caps.additionalProperties, false);
@@ -563,6 +597,10 @@ interface FactoryConfigSchema {
       readonly additionalProperties: boolean;
       readonly properties: {
         readonly headlessMode: {
+          readonly enum: readonly string[];
+          readonly default: string;
+        };
+        readonly llmBackend: {
           readonly enum: readonly string[];
           readonly default: string;
         };

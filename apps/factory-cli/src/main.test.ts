@@ -201,6 +201,16 @@ describe("factory CLI draft admission hardening", () => {
     assert.match(source, /trust:\s*options\.trust/);
   });
 
+  it("routes default real execution composition through the LM Studio backend selector", async () => {
+    const source = await readFile(resolve(repoRoot, "apps/factory-cli/src/main.ts"), "utf8");
+
+    assert.match(source, /selectExecutionAdapter/);
+    assert.match(source, /resolveLlmBackend\(factoryConfig\.config,\s*options\.llmBackend\)/);
+    assert.match(source, /backend:\s*resolvedLlmBackend/);
+    assert.match(source, /createLmstudioCoderAdapter:\s*dependencies\.createLmstudioCoderAdapter/);
+    assert.doesNotMatch(source, /dependencies\.createLmstudioCoderAdapter\(\{\s*baseUrl:/s);
+  });
+
   it("clones the delivery target repository for delivery-backed repo-runtime runs", async () => {
     const source = await readFile(resolve(repoRoot, "apps/factory-cli/src/main.ts"), "utf8");
 
