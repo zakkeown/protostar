@@ -1,9 +1,9 @@
 import type { DeliveryRefusal } from "@protostar/delivery";
+import { redactTokens } from "@protostar/delivery/redact";
 import type { DeliveryTarget } from "./preflight-full.js";
 
 export type OctokitDeliveryPhase = "preflight" | "push" | "pr-create" | "comment" | "poll";
 
-export const TOKEN_PATTERN = /\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59,})\b/g;
 const SENSITIVE_HEADER_PATTERN = /auth|token|cookie/i;
 
 export function mapOctokitErrorToRefusal(
@@ -86,7 +86,7 @@ function scrubSensitiveHeaders(headers: Record<string, unknown>): void {
 }
 
 function redact(value: string): string {
-  return value.replace(TOKEN_PATTERN, "***");
+  return redactTokens(value);
 }
 
 function boundedMessage(value: string): string {
