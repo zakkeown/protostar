@@ -389,8 +389,7 @@ async function spawnGhChecks(input: {
       input.prNumber,
       "--repo",
       "zakkeown/protostar-toy-ttt",
-      "--watch",
-      "--required"
+      "--watch"
     ], {
       stdio: ["ignore", "ignore", "ignore"]
     });
@@ -481,6 +480,7 @@ function emptyToUndefined<T extends string>(input: T | "" | undefined): T | unde
 }
 
 function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): unknown {
+  const dogfoodTargetFile = "src/components/PrimaryButton.tsx";
   const targetDescription = `In the protostar-toy-ttt sibling repository, ${seed.intent.toLowerCase()} without changing gameplay behavior or broadening the requested cosmetic scope.`;
   return {
     draftId: `draft_dogfood_${seed.id.replaceAll("-", "_")}_${index}`,
@@ -490,7 +490,7 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
     requester: "phase-10-dogfood",
     mode: "brownfield",
     goalArchetype: seed.archetype,
-    context: "Protostar is running against the protostar-toy-ttt sibling repository. The target app is a small toy tic-tac-toe project, and this dogfood run must keep the edit inside the app source for one cosmetic tweak.",
+    context: `Protostar is running against the protostar-toy-ttt sibling repository. The target app is a small toy tic-tac-toe project, and this dogfood run must keep the edit inside ${dogfoodTargetFile} for one cosmetic tweak.`,
     acceptanceCriteria: [
       {
         statement: `The protostar-toy-ttt app source implements this bounded cosmetic request: ${seed.intent}.`,
@@ -502,7 +502,7 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
       }
     ],
     constraints: [
-      "Keep the change scoped to the protostar-toy-ttt application source.",
+      `Keep the change scoped to ${dogfoodTargetFile}.`,
       "Do not edit CI configuration, package metadata, or generated build output."
     ],
     stopConditions: [
@@ -513,7 +513,7 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
       repoScopes: [
         {
           workspace: "protostar-toy-ttt",
-          path: "src",
+          path: dogfoodTargetFile,
           access: "write"
         }
       ],
@@ -534,6 +534,13 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
       budget: {
         timeoutMs: 300000,
         maxRepairLoops: 1
+      },
+      delivery: {
+        target: {
+          owner: "zakkeown",
+          repo: "protostar-toy-ttt",
+          baseBranch: "main"
+        }
       }
     },
     metadata: {

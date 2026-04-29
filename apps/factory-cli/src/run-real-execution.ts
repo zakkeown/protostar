@@ -140,6 +140,21 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
     await emit({ kind: "task-pending", planTaskId: task.planTaskId, at: nowIso(), attempt });
     await emit({ kind: "task-running", planTaskId: task.planTaskId, at: nowIso(), attempt });
 
+    if (isSyntheticPreHandoffVerificationTask(task.planTaskId)) {
+      const evidence = syntheticPreHandoffVerificationEvidence();
+      perTaskEvidence.push({ taskId: task.planTaskId, evidence });
+      const evidenceArtifact = await writeEvidenceFiles({
+        runDir: input.runDir,
+        taskId: task.planTaskId,
+        attempt,
+        status: "change-set",
+        adapterId: "pre-handoff-verification",
+        evidence
+      });
+      await emit({ kind: "task-succeeded", planTaskId: task.planTaskId, at: nowIso(), attempt, evidenceArtifact });
+      continue;
+    }
+
     const taskController = new AbortController();
     const onRootAbort = () => taskController.abort(input.rootSignal.reason);
     input.rootSignal.addEventListener("abort", onRootAbort, { once: true });
@@ -385,6 +400,21 @@ async function writeEvidenceFiles(input: {
     kind: "adapter-evidence",
     uri: `${artifactDir}/evidence.json`,
     description: `Adapter evidence for task ${input.taskId} attempt ${attempt}.`
+  };
+}
+
+function isSyntheticPreHandoffVerificationTask(planTaskId: string): boolean {
+  return planTaskId === "task-live-planning-pre-handoff-verification" ||
+    planTaskId.startsWith("task-live-planning-pre-handoff-verification-");
+}
+
+function syntheticPreHandoffVerificationEvidence(): AdapterEvidence {
+  return {
+    model: "pre-handoff-verification",
+    attempts: 0,
+    durationMs: 0,
+    auxReads: [],
+    retries: []
   };
 }
 

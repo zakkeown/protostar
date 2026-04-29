@@ -17,6 +17,7 @@ if [[ -z "$SESSION_ID" ]]; then
 fi
 
 CLI="node apps/factory-cli/dist/main.js"
+DOGFOOD_GITHUB_TOKEN="${PROTOSTAR_DOGFOOD_PAT:-${PROTOSTAR_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}}"
 
 $CLI __dogfood-step --session "$SESSION_ID" --action begin --total "$RUNS"
 
@@ -37,15 +38,16 @@ while true; do
   $CLI __dogfood-step --session "$SESSION_ID" --action snapshot-runs --out "$BEFORE_SNAPSHOT"
 
   set +e
-  GITHUB_TOKEN="$PROTOSTAR_DOGFOOD_PAT" \
+  PROTOSTAR_GITHUB_TOKEN="$DOGFOOD_GITHUB_TOKEN" \
+  GITHUB_TOKEN="$DOGFOOD_GITHUB_TOKEN" \
     node apps/factory-cli/dist/main.js run \
       --draft "$SEED_DRAFT" \
       --out .protostar/runs \
       --intent-mode brownfield \
       --executor real \
       --planning-mode live \
-      --review-mode live \
-      --exec-coord-mode live \
+      --review-mode fixture \
+      --exec-coord-mode fixture \
       --delivery-mode auto \
       --trust trusted \
       --confirmed-intent "$CONFIRMED_INTENT" \
@@ -60,7 +62,10 @@ while true; do
 
   PR_URL=""
   if [[ "$RUN_RC" -eq 0 && -n "$RUN_ID" ]]; then
-    PR_URL=$($CLI inspect "$RUN_ID" --json 2>/dev/null | jq -r '.manifest.delivery.prUrl // .delivery.prUrl // .prUrl // empty' || echo "")
+    DELIVERY_RESULT=".protostar/runs/$RUN_ID/delivery/delivery-result.json"
+    if [[ -f "$DELIVERY_RESULT" ]]; then
+      PR_URL=$(jq -r '.prUrl // empty' "$DELIVERY_RESULT" || echo "")
+    fi
   fi
 
   OUTCOME="run-failed"

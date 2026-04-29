@@ -73,11 +73,7 @@ async function* executeCoderTask(
   const preImages = new Map<string, PreImage>();
   const auxReadBudget = config.auxReadBudget ?? 3;
 
-  for (const path of task.targetFiles) {
-    // Hash 1 of 2 — see Phase 4 Q-06. Do not collapse with apply-time hash in repo.applyChangeSet (Hash 2 of 2 — Phase 3 Q-10).
-    const read = await ctx.repoReader.readFile(path);
-    preImages.set(path, read);
-  }
+  await readTargetPreImages(task, ctx, preImages);
 
   if (auxReadBudget < 0) {
     yield finalFailure("aux-read-budget-exceeded", config, startedAt, 0, retries);
@@ -87,8 +83,12 @@ async function* executeCoderTask(
   const fileContents = new Map(
     [...preImages.entries()].map(([path, image]) => [path, new TextDecoder().decode(image.bytes)])
   );
+  const promptTask = {
+    ...task,
+    targetFiles: [...fileContents.keys()]
+  };
   let messages = buildCoderMessages({
-    task,
+    task: promptTask,
     fileContents,
     acceptanceCriteria: ctx.confirmedIntent.acceptanceCriteria.map((criterion) =>
       typeof criterion === "string" ? criterion : (criterion.statement ?? "")
@@ -237,34 +237,84 @@ async function* executeCoderTask(
   yield finalFailure("retries-exhausted", config, startedAt, attempts, retries);
 }
 
-const ANY_JSON_FENCE_RE = /```json\s*\n[\s\S]*?\n```/gm;
-const JSON_FENCE_RE = /^```json\s*\n([\s\S]*?)\n```\s*$/m;
+async function readTargetPreImages(
+  task: ExecutionAdapterTaskInput,
+  ctx: AdapterContext,
+  preImages: Map<string, PreImage>
+): Promise<void> {
+  for (const target of task.targetFiles) {
+    if (isGlobTarget(target)) {
+      const matches = await sourceFileMatches(ctx, target);
+      if (matches.length === 0) {
+        // Hash 1 of 2 — see Phase 4 Q-06. Do not collapse with apply-time hash in repo.applyChangeSet (Hash 2 of 2 — Phase 3 Q-10).
+        const read = await ctx.repoReader.readFile(target);
+        preImages.set(target, read);
+        continue;
+      }
+      await readPreImagesForPaths(matches, ctx, preImages);
+      continue;
+    }
+
+    try {
+      // Hash 1 of 2 — see Phase 4 Q-06. Do not collapse with apply-time hash in repo.applyChangeSet (Hash 2 of 2 — Phase 3 Q-10).
+      const read = await ctx.repoReader.readFile(target);
+      preImages.set(target, read);
+    } catch (error) {
+      const matches = await sourceFileMatches(ctx, `${target.replace(/\/+$/u, "")}/**/*`);
+      if (matches.length === 0) throw error;
+      await readPreImagesForPaths(matches, ctx, preImages);
+    }
+  }
+}
+
+async function readPreImagesForPaths(
+  paths: readonly string[],
+  ctx: AdapterContext,
+  preImages: Map<string, PreImage>
+): Promise<void> {
+  for (const path of paths) {
+    if (preImages.has(path)) continue;
+    // Hash 1 of 2 — see Phase 4 Q-06. Do not collapse with apply-time hash in repo.applyChangeSet (Hash 2 of 2 — Phase 3 Q-10).
+    const read = await ctx.repoReader.readFile(path);
+    preImages.set(path, read);
+  }
+}
+
+async function sourceFileMatches(ctx: AdapterContext, pattern: string): Promise<readonly string[]> {
+  const matches = await ctx.repoReader.glob(pattern);
+  const sourceMatches = matches.filter(isPromptableSourceFile);
+  return sourceMatches.length > 0 ? sourceMatches : matches;
+}
+
+function isGlobTarget(path: string): boolean {
+  return /[*?[\]{}]/u.test(path);
+}
+
+function isPromptableSourceFile(path: string): boolean {
+  return /\.(?:cjs|css|cts|html|js|json|jsx|mjs|mts|scss|ts|tsx)$/u.test(path);
+}
 
 function parseReplacementChangeSetBlock(
   content: string
 ):
   | { readonly ok: true; readonly changeSet: ReplacementChangeSet }
   | { readonly ok: false; readonly reason: "parse-no-block" | "parse-multiple-blocks" } {
-  const matches = [...content.matchAll(ANY_JSON_FENCE_RE)];
-  if (matches.length === 0) {
+  const trimmed = content.trim();
+  const jsonFenceOpenings = [...trimmed.matchAll(/```json\b/gm)];
+  if (jsonFenceOpenings.length === 0) {
     return { ok: false, reason: "parse-no-block" };
   }
-  if (matches.length > 1) {
+  if (jsonFenceOpenings.length > 1) {
     return { ok: false, reason: "parse-multiple-blocks" };
   }
 
-  const fencedBlock = matches[0]?.[0];
-  if (fencedBlock === undefined || content.trim() !== fencedBlock.trim()) {
-    return { ok: false, reason: "parse-no-block" };
-  }
-
-  const parsed = fencedBlock.match(JSON_FENCE_RE);
-  if (parsed === null) {
+  const jsonBody = unwrapJsonFence(trimmed) ?? unwrapUnclosedJsonFence(trimmed);
+  if (jsonBody === undefined) {
     return { ok: false, reason: "parse-no-block" };
   }
 
   try {
-    const value: unknown = JSON.parse(parsed[1] ?? "");
+    const value: unknown = JSON.parse(jsonBody);
     if (!isReplacementChangeSet(value)) {
       return { ok: false, reason: "parse-no-block" };
     }
@@ -272,6 +322,65 @@ function parseReplacementChangeSetBlock(
   } catch {
     return { ok: false, reason: "parse-no-block" };
   }
+}
+
+function unwrapJsonFence(fencedBlock: string): string | undefined {
+  const trimmed = fencedBlock.trim();
+  if (!trimmed.startsWith("```json")) return undefined;
+  if (!trimmed.endsWith("```")) return undefined;
+  const firstLineEnd = trimmed.indexOf("\n");
+  if (firstLineEnd < 0) return undefined;
+  return trimmed.slice(firstLineEnd + 1, -"```".length).replace(/\n$/u, "");
+}
+
+function unwrapUnclosedJsonFence(fencedBlock: string): string | undefined {
+  const trimmed = fencedBlock.trim();
+  if (!trimmed.startsWith("```json")) return undefined;
+  const firstLineEnd = trimmed.indexOf("\n");
+  if (firstLineEnd < 0) return undefined;
+  return extractBalancedJsonObject(trimmed.slice(firstLineEnd + 1).trim());
+}
+
+function extractBalancedJsonObject(input: string): string | undefined {
+  if (!input.startsWith("{")) return undefined;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = inString;
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return input.slice(0, index + 1);
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function isReplacementChangeSet(value: unknown): value is ReplacementChangeSet {

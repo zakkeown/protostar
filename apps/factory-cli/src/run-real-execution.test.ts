@@ -52,6 +52,51 @@ describe("runRealExecution", () => {
     assert.equal(evidence.transcriptArtifact, "execution/task-task-1/transcript.json");
   });
 
+  it("marks the synthetic pre-handoff verification task succeeded without invoking the coder adapter", async () => {
+    const ctx = await testContext();
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    let adapterCalls = 0;
+    const result = await runRealExecution({
+      ...ctx.input,
+      runPlan: {
+        ...ctx.input.runPlan,
+        tasks: [
+          {
+            planTaskId: "task-live-planning-pre-handoff-verification",
+            title: "Verify confirmed authority before execution handoff",
+            status: "pending",
+            dependsOn: [],
+            targetFiles: ["src"]
+          }
+        ]
+      },
+      journalWriter: writer,
+      adapter: {
+        id: "stub",
+        async *execute() {
+          adapterCalls += 1;
+          yield { kind: "final", result: failedResult("parse-reformat-failed") };
+        }
+      },
+      applyChangeSet: async () => {
+        throw new Error("synthetic verification task should not apply patches");
+      }
+    });
+    await writer.close();
+
+    assert.equal(result.outcome, "complete");
+    assert.equal(adapterCalls, 0);
+    assert.deepEqual(result.events.map((event) => event.type), ["task-pending", "task-running", "task-succeeded"]);
+    const evidence = JSON.parse(
+      await readFile(
+        join(ctx.runDir, "execution", "task-task-live-planning-pre-handoff-verification", "evidence.json"),
+        "utf8"
+      )
+    ) as { readonly adapter?: string; readonly attempts?: number };
+    assert.equal(evidence.adapter, "pre-handoff-verification");
+    assert.equal(evidence.attempts, 0);
+  });
+
   it("authorizes patch writes before applying a change set", async () => {
     const ctx = await testContext({
       envelope: { ...envelope(), repoScopes: [] }

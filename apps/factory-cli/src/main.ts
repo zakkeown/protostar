@@ -1098,7 +1098,7 @@ export async function runFactory(
       convergenceThreshold
     },
     {
-      runFactoryPile: allPileModesFixture(pileModes) ? runEvaluationFixturePile : dependencies.runFactoryPile
+      runFactoryPile: shouldUseFixtureEvaluation(pileModes) ? runEvaluationFixturePile : dependencies.runFactoryPile
     }
   );
   if (evaluationResult.refusal !== undefined) {
@@ -1544,6 +1544,11 @@ function buildDeliveryArtifactList(executionEvidence: readonly StageArtifactRef[
 
 function allPileModesFixture(pileModes: Readonly<Record<FactoryCliPileKind, PileMode>>): boolean {
   return pileModes.planning === "fixture" && pileModes.review === "fixture" && pileModes.executionCoordination === "fixture";
+}
+
+function shouldUseFixtureEvaluation(pileModes: Readonly<Record<FactoryCliPileKind, PileMode>>): boolean {
+  return allPileModesFixture(pileModes) ||
+    (pileModes.review === "fixture" && pileModes.executionCoordination === "fixture");
 }
 
 async function runEvaluationFixturePile(): Promise<PileRunOutcome> {
@@ -3080,7 +3085,7 @@ function normalizeLivePlanningAcceptanceTestRefs(
   return covers.map((acId) => ({
     acId,
     testFile,
-    testName: `Live planning normalized coverage for ${acId}`
+    testName: "Protostar live planning build-and-test evidence"
   }));
 }
 

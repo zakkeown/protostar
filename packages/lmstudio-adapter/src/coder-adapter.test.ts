@@ -87,6 +87,68 @@ describe("createLmstudioCoderAdapter", () => {
     assert.deepEqual(entriesOf(final.result.changeSet), []);
   });
 
+  it("accepts a JSON replacement fence without a newline before the closing backticks", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([
+        [
+          "```json",
+          `${JSON.stringify({
+            entries: [
+              {
+                path: "src/Button.tsx",
+                content: new TextDecoder().decode(cosmeticTweakFixture.preImageBytes["src/Button.tsx"]).replace(
+                  "bg-blue-500",
+                  "bg-red-500"
+                )
+              }
+            ]
+          })}\`\`\``
+        ].join("\n")
+      ])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.equal(entriesOf(final.result.changeSet)[0]?.path, "src/Button.tsx");
+  });
+
+  it("accepts a JSON replacement fence with a missing closing fence", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([
+        [
+          "```json",
+          JSON.stringify({
+            entries: [
+              {
+                path: "src/Button.tsx",
+                content: new TextDecoder().decode(cosmeticTweakFixture.preImageBytes["src/Button.tsx"]).replace(
+                  "bg-blue-500",
+                  "bg-red-500"
+                )
+              }
+            ]
+          })
+        ].join("\n")
+      ])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.equal(entriesOf(final.result.changeSet)[0]?.path, "src/Button.tsx");
+  });
+
   it("fails when the reformat retry also returns prose-only content", async () => {
     const adapter = createLmstudioCoderAdapter({
       baseUrl: "http://127.0.0.1:1234/v1",
@@ -213,19 +275,62 @@ describe("createLmstudioCoderAdapter", () => {
       /Hash 1 of 2/
     );
   });
+
+  it("expands directory-like target files before reading pre-images", async () => {
+    const reads: string[] = [];
+    const globs: string[] = [];
+    let requestBody: { readonly messages?: readonly { readonly content?: string }[] } | undefined;
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: async (_url, init) => {
+        requestBody = JSON.parse(String(init?.body ?? "{}")) as typeof requestBody;
+        return new Response(sseStream([cosmeticTweakFixture.expectedJsonChangeSetSample]), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" }
+        });
+      }
+    });
+
+    const events = await collectEvents(
+      adapter.execute(
+        toAdapterTask({ targetFiles: ["src"] }),
+        createAdapterContext({
+          reads,
+          globs,
+          globResults: { "src/**/*": ["src/Button.tsx", "src/notes.md"] }
+        })
+      )
+    );
+    const final = finalEvent(events);
+
+    assert.deepEqual(globs, ["src/**/*"]);
+    assert.deepEqual(reads, ["src", "src/Button.tsx"]);
+    assert.match(requestBody?.messages?.at(1)?.content ?? "", /### src\/Button\.tsx/);
+    assert.doesNotMatch(requestBody?.messages?.at(1)?.content ?? "", /### src\n```text\n\n```/);
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.equal(entriesOf(final.result.changeSet)[0]?.path, "src/Button.tsx");
+  });
 });
 
-function toAdapterTask() {
+function toAdapterTask(opts: { readonly targetFiles?: readonly string[] } = {}) {
   return {
     planTaskId: cosmeticTweakFixture.task.id,
     title: cosmeticTweakFixture.task.title,
-    targetFiles: cosmeticTweakFixture.task.targetFiles,
+    targetFiles: opts.targetFiles ?? cosmeticTweakFixture.task.targetFiles,
     adapterRef: cosmeticTweakFixture.task.adapterRef
   };
 }
 
 function createAdapterContext(
-  opts: { readonly journalTokens?: string[]; readonly reads?: string[] } = {}
+  opts: {
+    readonly journalTokens?: string[];
+    readonly reads?: string[];
+    readonly globs?: string[];
+    readonly globResults?: Readonly<Record<string, readonly string[]>>;
+  } = {}
 ): AdapterContext {
   return {
     signal: new AbortController().signal,
@@ -243,8 +348,9 @@ function createAdapterContext(
         if (bytes === undefined) throw new Error(`unexpected read: ${path}`);
         return { bytes, sha256: sha256Hex(bytes) };
       },
-      async glob() {
-        return [];
+      async glob(pattern) {
+        opts.globs?.push(pattern);
+        return opts.globResults?.[pattern] ?? [];
       }
     },
     journal: {

@@ -50,7 +50,23 @@ describe("__dogfood-step", () => {
     const first = await runStep(workspace, ["--session", "session_2", "--action", "next-seed", "--json"]);
     const firstJson = JSON.parse(first.stdout) as { readonly seedId: string; readonly draftPath: string };
     assert.equal(firstJson.seedId, seedLibrary[0]?.id);
-    assert.match(await readFile(firstJson.draftPath, "utf8"), /button-color-hover/);
+    const draft = JSON.parse(await readFile(firstJson.draftPath, "utf8")) as {
+      readonly capabilityEnvelope?: {
+        readonly repoScopes?: readonly { readonly workspace?: string; readonly path?: string; readonly access?: string }[];
+        readonly delivery?: { readonly target?: Record<string, string> };
+      };
+    };
+    assert.match(JSON.stringify(draft), /button-color-hover/);
+    assert.deepEqual(draft.capabilityEnvelope?.repoScopes?.[0], {
+      workspace: "protostar-toy-ttt",
+      path: "src/components/PrimaryButton.tsx",
+      access: "write"
+    });
+    assert.deepEqual(draft.capabilityEnvelope?.delivery?.target, {
+      owner: "zakkeown",
+      repo: "protostar-toy-ttt",
+      baseBranch: "main"
+    });
 
     await record(workspace, "session_2", "run_one", "pr-ready");
     const second = await runStep(workspace, ["--session", "session_2", "--action", "next-seed", "--json"]);
