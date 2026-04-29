@@ -230,7 +230,14 @@ function buildCosmeticDraft(seed: Seed, runIndex: number): IntentDraft {
     mode: "brownfield",
     goalArchetype: seed.archetype,
     context: `Protostar is preparing a stress run input for the protostar-toy-ttt sibling repository, scoped to ${targetFile}.`,
-    acceptanceCriteria: seed.acceptanceCriteria.map((statement) => ({ statement, verification: "evidence" as const })),
+    acceptanceCriteria: [
+      ...seed.acceptanceCriteria.map((statement) => ({ statement, verification: "evidence" as const })),
+      {
+        statement:
+          "The final stress report or verification evidence shows the cosmetic change landed while non-cosmetic behavior stayed unchanged.",
+        verification: "evidence" as const
+      }
+    ],
     constraints: [
       `Keep the change scoped to ${targetFile}.`,
       "Do not edit CI configuration, package metadata, or generated build output."

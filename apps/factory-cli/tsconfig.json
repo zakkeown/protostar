@@ -29,6 +29,7 @@
     { "path": "../../packages/lmstudio-adapter" },
     { "path": "../../packages/hosted-llm-adapter" },
     { "path": "../../packages/mock-llm-adapter" },
+    { "path": "../../packages/stress-harness" },
     { "path": "../../packages/repair" }
   ]
 }

@@ -9,6 +9,7 @@ dist/
 .protostar/calibration/
 .protostar/evolution/
 .protostar/dogfood/
+.protostar/stress/
 .env
 .env.*
 !.env.example
