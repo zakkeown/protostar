@@ -173,6 +173,8 @@ function validateBeforeSpawn(op: AuthorizedSubprocessOp, options: RunCommandOpti
         `subcommand "${subcommand}" is not allowed for command "${op.command}"`
       );
     }
+
+    schema.validateArgv?.(op.args);
   } catch (error) {
     if (error instanceof ArgvViolation) {
       throw new SubprocessRefusedError("argv-violation", error.message);

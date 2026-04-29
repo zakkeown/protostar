@@ -116,6 +116,9 @@ export type IntentDraftCapabilityEnvelope = {
   repoScopes?: readonly IntentDraftRepoScopeGrant[];
   toolPermissions?: readonly IntentDraftToolPermissionGrant[];
   executeGrants?: readonly IntentDraftExecuteGrant[];
+  pnpm?: {
+    allowedAdds?: readonly string[];
+  };
   workspace?: {
     allowDirty?: boolean;
   };

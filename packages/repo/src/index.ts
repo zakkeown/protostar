@@ -42,6 +42,8 @@ export type { ArgvViolationReason, OuterGuardSchema } from "./argv-pattern-guard
 export { dirtyWorktreeStatus } from "./dirty-worktree-status.js";
 export type { DirtyWorktreeStatus } from "./dirty-worktree-status.js";
 export { intersectAllowlist, SUBPROCESS_BASELINE_ALLOWLIST } from "./subprocess-allowlist.js";
+export { PNPM_ADD_ALLOWLIST, formatPnpmAddAllowlistSpec } from "./pnpm-add-allowlist.js";
+export type { PnpmAddAllowlistEntry } from "./pnpm-add-allowlist.js";
 export { DEFAULT_REPO_POLICY, loadRepoPolicy, parseRepoPolicy } from "./repo-policy.js";
 export type { ParseRepoPolicyResult, RepoPolicy } from "./repo-policy.js";
 export { runCommand, SubprocessRefusedError } from "./subprocess-runner.js";

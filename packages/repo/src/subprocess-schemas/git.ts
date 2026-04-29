@@ -3,6 +3,7 @@ export interface CommandSchema {
   readonly allowedSubcommands: readonly string[];
   readonly allowedFlags: Readonly<Record<string, readonly string[]>>;
   readonly refValuePattern: RegExp;
+  readonly validateArgv?: (argv: readonly string[]) => void;
 }
 
 export const GIT_SCHEMA: CommandSchema = Object.freeze({

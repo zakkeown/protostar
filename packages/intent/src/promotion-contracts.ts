@@ -36,7 +36,8 @@ export type IntentAdmissionPolicyFindingCode =
   | "repo-authority-overage"
   | "execute-authority-overage"
   | "tool-authority-overage"
-  | "budget-authority-overage";
+  | "budget-authority-overage"
+  | "unallowlisted-pnpm-add";
 
 export type IntentAdmissionIssueCode =
   | IntentDraftPresenceValidationFailure["code"]

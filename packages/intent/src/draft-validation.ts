@@ -55,6 +55,9 @@ export type IntentDraftFieldPath =
   | `capabilityEnvelope.executeGrants.${number}.scope`
   | `capabilityEnvelope.executeGrants.${number}.executionScope`
   | `capabilityEnvelope.executeGrants.${number}.reason`
+  | "capabilityEnvelope.pnpm"
+  | "capabilityEnvelope.pnpm.allowedAdds"
+  | `capabilityEnvelope.pnpm.allowedAdds.${number}`
   | "capabilityEnvelope.budget"
   | "capabilityEnvelope.budget.maxUsd"
   | "capabilityEnvelope.budget.maxTokens"

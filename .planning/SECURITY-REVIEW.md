@@ -45,6 +45,12 @@ matching file path in this ledger.
 - No outstanding findings as of the signoff date.
 - Future findings are appended below with date, finding, and disposition.
 
+## Phase 11 Addendum - pnpm add allowlist
+
+| Surface | What was reviewed | Status | Notes |
+|---------|-------------------|--------|-------|
+| `pnpm add` allowlist | Authority lives in `packages/repo`; model-proposed dependency installs are admitted only when both feature-add intent admission and the repo subprocess schema accept them. | Pass | Runner uses `shell:false`; accepted exact specs: `@playwright/test@^1.59.1 -D`, `fast-check@^4.7.0 -D`, `clsx@^2.1.1`, `zustand@^5.0.8`, `react-aria-components@^1.13.0`; arbitrary dependency install is refused with structured subprocess refusal evidence before spawn. |
+
 ## Signoff
 
 - **Audit completed:** 2026-04-29

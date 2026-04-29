@@ -52,6 +52,10 @@ export interface CapabilityEnvelopeDelivery {
   readonly target: DeliveryTarget;
 }
 
+export interface CapabilityEnvelopePnpm {
+  readonly allowedAdds?: readonly string[];
+}
+
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD = "repair_loop_count";
 
 export const CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_ADMISSION_FAILURE_CODES = [
@@ -107,6 +111,7 @@ export interface CapabilityEnvelope {
   readonly repoScopes: readonly RepoScopeGrant[];
   readonly toolPermissions: readonly ToolPermissionGrant[];
   readonly executeGrants?: readonly ExecuteGrant[];
+  readonly pnpm?: CapabilityEnvelopePnpm;
   readonly workspace?: CapabilityEnvelopeWorkspace;
   readonly network?: CapabilityEnvelopeNetwork;
   readonly budget: FactoryBudget;
@@ -217,7 +222,7 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
 
   rejectUnknownKeys(
     value,
-    ["repoScopes", "toolPermissions", "executeGrants", "workspace", "network", "budget", "delivery"],
+    ["repoScopes", "toolPermissions", "executeGrants", "pnpm", "workspace", "network", "budget", "delivery"],
     "capabilityEnvelope",
     errors
   );
@@ -226,11 +231,56 @@ export function parseCapabilityEnvelope(value: unknown, errors: string[]): Capab
     repoScopes: parseRepoScopes(value["repoScopes"], errors),
     toolPermissions: parseToolPermissions(value["toolPermissions"], errors),
     ...optionalExecuteGrants(value["executeGrants"], errors),
+    ...optionalPnpm(value["pnpm"], errors),
     workspace: parseWorkspace(value["workspace"], errors),
     network: parseNetwork(value["network"], errors),
     budget: parseBudget(value["budget"], errors),
     ...optionalDelivery(value["delivery"], errors)
   };
+}
+
+function optionalPnpm(
+  value: unknown,
+  errors: string[]
+): Pick<CapabilityEnvelope, "pnpm"> | Record<string, never> {
+  if (value === undefined) {
+    return {};
+  }
+
+  return {
+    pnpm: parsePnpm(value, errors)
+  };
+}
+
+function parsePnpm(value: unknown, errors: string[]): CapabilityEnvelopePnpm {
+  if (!isRecord(value)) {
+    errors.push("capabilityEnvelope.pnpm must be an object.");
+    return {};
+  }
+
+  rejectUnknownKeys(value, ["allowedAdds"], "capabilityEnvelope.pnpm", errors);
+  const allowedAdds = readAllowedAdds(value["allowedAdds"], errors);
+  return allowedAdds === undefined ? {} : { allowedAdds };
+}
+
+function readAllowedAdds(value: unknown, errors: string[]): readonly string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    errors.push("capabilityEnvelope.pnpm.allowedAdds must be a string array.");
+    return undefined;
+  }
+
+  const adds: string[] = [];
+  for (const [index, add] of value.entries()) {
+    if (typeof add !== "string" || add.trim().length === 0) {
+      errors.push(`capabilityEnvelope.pnpm.allowedAdds[${index}] must be a non-empty string.`);
+      continue;
+    }
+    adds.push(add);
+  }
+  return adds.length === value.length ? adds : undefined;
 }
 
 function parseWorkspace(value: unknown, errors: string[]): CapabilityEnvelopeWorkspace {

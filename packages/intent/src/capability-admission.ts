@@ -16,6 +16,14 @@ import { validateCapabilityEnvelopeRepoScopes } from "./repo-scope-admission.js"
 
 import { validateCapabilityEnvelopeBudgetLimits, validateCapabilityEnvelopeExecuteGrants, validateCapabilityEnvelopeToolPermissions } from "./capability-grant-admission.js";
 
+const FEATURE_ADD_ALLOWED_PNPM_ADDS = Object.freeze([
+  "@playwright/test@^1.59.1 -D",
+  "fast-check@^4.7.0 -D",
+  "clsx@^2.1.1",
+  "zustand@^5.0.8",
+  "react-aria-components@^1.13.0"
+] as const);
+
 export function evaluateIntentDraftPolicy(draft: IntentDraft): readonly IntentAdmissionPolicyFinding[] {
   return validateIntentDraftCapabilityEnvelopeAdmission({ draft }).findings;
 }
@@ -35,6 +43,7 @@ export function validateIntentDraftCapabilityEnvelopeAdmission(
     ...refactorAdmissionPathFindings(goalArchetype, policyTable),
     ...bugfixAdmissionPathFindings(goalArchetype, policyTable),
     ...stubGoalArchetypeAdmissionPathFindings(goalArchetype, policyTable),
+    ...validateFeatureAddPnpmAllowedAdds(goalArchetype, input.draft.capabilityEnvelope),
     ...detection.findings
   ];
   const blockingFindings = findings.filter((finding) => finding.severity === "block");
@@ -51,6 +60,69 @@ export function validateIntentDraftCapabilityEnvelopeAdmission(
     unresolvedFindings,
     blockingFindings,
     unoverriddenOverageFindings
+  };
+}
+
+function validateFeatureAddPnpmAllowedAdds(
+  goalArchetype: string,
+  capabilityEnvelope: IntentDraft["capabilityEnvelope"]
+): readonly IntentAdmissionPolicyFinding[] {
+  const pnpm = capabilityEnvelope?.pnpm;
+  if (pnpm === undefined) {
+    return [];
+  }
+
+  if (goalArchetype !== FEATURE_ADD_GOAL_ARCHETYPE) {
+    return [
+      unallowlistedPnpmAddFinding({
+        fieldPath: "capabilityEnvelope.pnpm",
+        message: "unallowlisted-pnpm-add: capabilityEnvelope.pnpm.allowedAdds is only admitted for feature-add."
+      })
+    ];
+  }
+
+  if (pnpm.allowedAdds === undefined) {
+    return [];
+  }
+  if (!Array.isArray(pnpm.allowedAdds)) {
+    return [
+      unallowlistedPnpmAddFinding({
+        fieldPath: "capabilityEnvelope.pnpm.allowedAdds",
+        message: "unallowlisted-pnpm-add: capabilityEnvelope.pnpm.allowedAdds must be an array of exact specs."
+      })
+    ];
+  }
+
+  return pnpm.allowedAdds.flatMap((requestedAdd, index): IntentAdmissionPolicyFinding[] => {
+    if (
+      typeof requestedAdd === "string" &&
+      FEATURE_ADD_ALLOWED_PNPM_ADDS.includes(requestedAdd as typeof FEATURE_ADD_ALLOWED_PNPM_ADDS[number])
+    ) {
+      return [];
+    }
+
+    return [
+      unallowlistedPnpmAddFinding({
+        fieldPath: `capabilityEnvelope.pnpm.allowedAdds.${index}`,
+        message:
+          `unallowlisted-pnpm-add: capabilityEnvelope.pnpm.allowedAdds.${index} '${String(requestedAdd)}' is not an exact curated feature-add dependency spec.`
+      })
+    ];
+  });
+}
+
+function unallowlistedPnpmAddFinding(input: {
+  readonly fieldPath: IntentAdmissionPolicyFinding["fieldPath"];
+  readonly message: string;
+}): IntentAdmissionPolicyFinding {
+  return {
+    code: "unallowlisted-pnpm-add",
+    fieldPath: input.fieldPath,
+    severity: "block",
+    message: input.message,
+    overridable: false,
+    overridden: false,
+    ambiguityDimension: "constraints"
   };
 }
 

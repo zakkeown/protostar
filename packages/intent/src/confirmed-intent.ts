@@ -165,6 +165,15 @@ function copyCapabilityEnvelope(envelope: CapabilityEnvelope): CapabilityEnvelop
           }))
       }
       : {}),
+    ...(envelope.pnpm !== undefined
+      ? {
+          pnpm: {
+            ...(envelope.pnpm.allowedAdds !== undefined
+              ? { allowedAdds: envelope.pnpm.allowedAdds.map((add) => add) }
+              : {})
+          }
+        }
+      : {}),
     workspace: {
       allowDirty: envelope.workspace?.allowDirty ?? false
     },

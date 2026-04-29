@@ -122,6 +122,16 @@
             }
           }
         },
+        "pnpm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowedAdds": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
         "delivery": {
           "type": "object",
           "additionalProperties": false,

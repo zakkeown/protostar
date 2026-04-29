@@ -86,6 +86,7 @@ export function normalizeDraftCapabilityEnvelope(
     }
   );
   const executeGrants = normalizeDraftExecuteGrants(envelope.executeGrants, errors);
+  const pnpm = normalizeDraftPnpm(envelope.pnpm, errors);
 
   const budget = normalizeBudget(envelope.budget);
   if (!hasBudgetLimit(budget)) {
@@ -103,6 +104,7 @@ export function normalizeDraftCapabilityEnvelope(
       repoScopes,
       toolPermissions,
       ...(executeGrants !== undefined ? { executeGrants } : {}),
+      ...(pnpm !== undefined ? { pnpm } : {}),
       workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
       network: normalizeNetwork(envelope.network),
       budget,
@@ -120,6 +122,33 @@ export function normalizeDraftCapabilityEnvelope(
     },
     errors: []
   };
+}
+
+function normalizeDraftPnpm(
+  pnpm: IntentDraftCapabilityEnvelope["pnpm"],
+  errors: string[]
+): CapabilityEnvelope["pnpm"] | undefined {
+  if (pnpm === undefined) {
+    return undefined;
+  }
+  if (pnpm.allowedAdds === undefined) {
+    return {};
+  }
+  if (!Array.isArray(pnpm.allowedAdds)) {
+    errors.push("capabilityEnvelope.pnpm.allowedAdds must be an array when pnpm is provided.");
+    return {};
+  }
+
+  const allowedAdds = pnpm.allowedAdds.flatMap((add, index): string[] => {
+    const normalized = normalizeText(add);
+    if (normalized === undefined) {
+      errors.push(`capabilityEnvelope.pnpm.allowedAdds.${index} must be non-empty.`);
+      return [];
+    }
+    return [normalized];
+  });
+
+  return allowedAdds.length === pnpm.allowedAdds.length ? { allowedAdds } : {};
 }
 
 function normalizeDraftExecuteGrants(
