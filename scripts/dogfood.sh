@@ -30,6 +30,8 @@ while true; do
   fi
 
   SEED_DRAFT=$(echo "$SEED_JSON" | jq -r .draftPath)
+  CONFIRMED_JSON=$($CLI __dogfood-step --session "$SESSION_ID" --action sign-intent --json)
+  CONFIRMED_INTENT=$(echo "$CONFIRMED_JSON" | jq -r .confirmedIntentPath)
   RUN_START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   BEFORE_SNAPSHOT=$(mktemp)
   $CLI __dogfood-step --session "$SESSION_ID" --action snapshot-runs --out "$BEFORE_SNAPSHOT"
@@ -45,6 +47,8 @@ while true; do
       --review-mode live \
       --exec-coord-mode live \
       --delivery-mode auto \
+      --trust trusted \
+      --confirmed-intent "$CONFIRMED_INTENT" \
       >/dev/null 2>/dev/null
   RUN_RC=$?
   set -e

@@ -4,7 +4,10 @@ import { spawn } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { Command } from "@commander-js/extra-typings";
+import { buildPolicySnapshot, buildSignatureEnvelope, hashPolicySnapshot, intersectEnvelopes } from "@protostar/authority";
 import { seedLibrary } from "@protostar/fixtures";
+import { promoteAndSignIntent, promoteIntentDraft } from "@protostar/intent";
+import type { ConfirmedIntent } from "@protostar/intent";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 import { z } from "zod";
 
@@ -12,6 +15,9 @@ import { formatCursor, parseCursor, type Cursor, type CursorRun } from "../dogfo
 import { formatReport, parseReport, type Report } from "../dogfood/report-schema.js";
 import { ExitCode } from "../exit-codes.js";
 import { writeStderr, writeStdoutJson } from "../io.js";
+import { loadFactoryConfig } from "../load-factory-config.js";
+import { loadRepoPolicy } from "../load-repo-policy.js";
+import { buildTierConstraints } from "../precedence-tier-loader.js";
 import { RUN_ID_REGEX } from "../run-id.js";
 
 interface DogfoodStepOptions {
@@ -30,7 +36,7 @@ interface DogfoodStepOptions {
   readonly total?: string;
 }
 
-const ActionSchema = z.enum(["begin", "next-seed", "record", "discover-run-id", "snapshot-runs", "watch-ci", "finalize"]);
+const ActionSchema = z.enum(["begin", "next-seed", "sign-intent", "record", "discover-run-id", "snapshot-runs", "watch-ci", "finalize"]);
 const SessionSchema = z.string().regex(RUN_ID_REGEX, "session must be path-safe");
 const IsoDateSchema = z.string().datetime({ offset: true });
 const PrUrlSchema = z.string().regex(/^https:\/\/github\.com\/zakkeown\/protostar-toy-ttt\/pull\/[0-9]+$/);
@@ -82,6 +88,8 @@ async function executeDogfoodStep(opts: DogfoodStepOptions): Promise<number> {
         return await begin(paths, opts);
       case "next-seed":
         return await nextSeed(paths, opts);
+      case "sign-intent":
+        return await signIntent(workspaceRoot, paths, opts);
       case "record":
         return await record(paths, opts);
       case "discover-run-id":
@@ -103,6 +111,7 @@ function dogfoodPaths(workspaceRoot: string, sessionId: string): {
   readonly sessionDir: string;
   readonly cursorPath: string;
   readonly draftPath: string;
+  readonly confirmedIntentPath: string;
   readonly logPath: string;
   readonly reportPath: string;
 } {
@@ -115,6 +124,7 @@ function dogfoodPaths(workspaceRoot: string, sessionId: string): {
     sessionDir,
     cursorPath: join(sessionDir, "cursor"),
     draftPath: join(sessionDir, "next-draft.json"),
+    confirmedIntentPath: join(sessionDir, "confirmed-intent.json"),
     logPath: join(sessionDir, "log.jsonl"),
     reportPath: join(sessionDir, "report.json")
   };
@@ -214,6 +224,62 @@ async function record(paths: ReturnType<typeof dogfoodPaths>, opts: DogfoodStepO
 
   await writeTextAtomic(paths.cursorPath, formatCursor(nextCursor));
   await appendJsonLine(paths.logPath, logRow);
+  return ExitCode.Success;
+}
+
+async function signIntent(workspaceRoot: string, paths: ReturnType<typeof dogfoodPaths>, opts: DogfoodStepOptions): Promise<number> {
+  const draft = JSON.parse(await readFile(paths.draftPath, "utf8")) as Record<string, unknown>;
+  const promoted = promoteIntentDraft({ draft, mode: "brownfield" });
+  if (!promoted.ok) {
+    writeStderr(`cannot promote dogfood draft: ${promoted.errors.join("; ")}`);
+    return ExitCode.GenericError;
+  }
+
+  const unsignedIntent = promoted.intent;
+  const repoPolicy = await loadRepoPolicy(workspaceRoot);
+  const precedenceDecision = intersectEnvelopes(buildTierConstraints({
+    intent: unsignedIntent,
+    policy: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:policy" },
+    repoPolicy,
+    operatorSettings: { envelope: unsignedIntent.capabilityEnvelope, source: "factory-cli:operator-settings" }
+  }));
+  if (precedenceDecision.status === "blocked-by-tier") {
+    writeStderr("cannot sign dogfood draft: precedence decision blocked by tier");
+    return ExitCode.GenericError;
+  }
+
+  const factoryConfig = await loadFactoryConfig(workspaceRoot);
+  const policySnapshot = buildPolicySnapshot({
+    capturedAt: unsignedIntent.confirmedAt,
+    policy: {
+      allowDarkRun: true,
+      maxAutonomousRisk: "medium",
+      requiredHumanCheckpoints: [],
+      factoryConfigHash: factoryConfig.configHash
+    },
+    resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+    repoPolicy
+  });
+  const policySnapshotHash = hashPolicySnapshot(policySnapshot);
+  const { signature: _signature, ...intentBody } = unsignedIntent;
+  const signature = buildSignatureEnvelope({
+    intent: intentBody,
+    resolvedEnvelope: precedenceDecision.resolvedEnvelope,
+    policySnapshotHash
+  });
+  const signedPromotion = promoteAndSignIntent({ ...intentBody, signature });
+  if (!signedPromotion.ok) {
+    writeStderr(`cannot sign dogfood draft: ${signedPromotion.errors.join("; ")}`);
+    return ExitCode.GenericError;
+  }
+
+  await writeTextAtomic(paths.confirmedIntentPath, `${JSON.stringify(signedPromotion.intent, null, 2)}\n`);
+  if (opts.json === true) {
+    writeStdoutJson({
+      confirmedIntentPath: paths.confirmedIntentPath,
+      intentId: (signedPromotion.intent as ConfirmedIntent).id
+    });
+  }
   return ExitCode.Success;
 }
 
@@ -418,6 +484,7 @@ function buildDraftForSeed(seed: (typeof seedLibrary)[number], index: number): u
   const targetDescription = `In the protostar-toy-ttt sibling repository, ${seed.intent.toLowerCase()} without changing gameplay behavior or broadening the requested cosmetic scope.`;
   return {
     draftId: `draft_dogfood_${seed.id.replaceAll("-", "_")}_${index}`,
+    createdAt: "2026-04-29T00:00:00.000Z",
     title: `Dogfood ${seed.id}`,
     problem: `${targetDescription} This validates that Protostar can take a bounded brownfield cosmetic request from admission through implementation, review, delivery, and CI evidence.`,
     requester: "phase-10-dogfood",
