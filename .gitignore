@@ -2,13 +2,16 @@
 node_modules/
 dist/
 *.tsbuildinfo
+*.tgz
 .protostar/runs/
 .protostar/workspaces/
 .protostar/factory-config.json
 .protostar/calibration/
 .protostar/evolution/
+.protostar/dogfood/
 .env
 .env.*
 !.env.example
 .ouroboros_eval_artifact.md
 .claude/scheduled_tasks.lock
+.protostar/refusals.jsonl

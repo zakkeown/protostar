@@ -24,11 +24,13 @@
 
 ## Current Phase
 
-**Phase 10 — V1 Hardening + Dogfood** (in progress)
+**Phase 10.1 — Boundary Hygiene Pass** (complete)
 
-Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. Plan 08 implementation is ready up to the live checkpoint: `scripts/dogfood.sh`, the hidden `__dogfood-step` command, cursor/report schemas, and the report byte-stability contract are green. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-02 added the seven-row fixture matrix plus coverage/age contracts; DOG-05 added operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement; DOG-06 added knip to verify plus per-package README coverage; DOG-07 wired Changesets release tooling, public package metadata, an initial `0.1.0` changeset, and a changeset-required PR workflow without running npm publish; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
+Phase 10.1 completed all 7 boundary hygiene plans across 4 waves. Every workspace manifest declares `protostar.tier`; AGENTS.md now mirrors the tier contract and accepted back-edges; phantom deps were removed from intent/repo; review tsconfig refs were aligned; lmstudio-adapter has a local no-fs contract; every pure-tier package has a no-net contract; package engines/sideEffects/publish posture are enforced; subpath export checking runs in verify; factory-cli has a pack smoke script; and admission-e2e now has a workspace-wide tier-conformance gate.
 
-**Next action:** Run Phase 10 Plan 08 Task 4 live gate: `bash scripts/dogfood.sh --runs 10`, capture the qualifying report/session, and write the calibration justification.
+Previous Phase 10 status: Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. Plan 08 implementation is ready up to the live checkpoint: `scripts/dogfood.sh`, the hidden `__dogfood-step` command, cursor/report schemas, and the report byte-stability contract are green. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-02 added the seven-row fixture matrix plus coverage/age contracts; DOG-05 added operator docs, run-bundle schema appendix generation, CLI help snapshots, and drift enforcement; DOG-06 added knip to verify plus per-package README coverage; DOG-07 wired Changesets release tooling, public package metadata, an initial `0.1.0` changeset, and a changeset-required PR workflow without running npm publish; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
+
+**Next action:** Commit Phase 10.1 boundary hygiene changes, then continue to Phase 11 planning/execution as appropriate. Phase 10 Plan 08 live DOG-04 gate remains a separate dogfood follow-up if not already captured in the latest Phase 10 commits.
 
 ## Phase Status
 
@@ -44,7 +46,7 @@ Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. Plan 08 implementation 
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
-| 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
+| 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
 ## Active Documents
@@ -56,6 +58,8 @@ Phase 10 Plans 01, 02, 03, 04, 05, 06, and 07 completed. Plan 08 implementation 
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 10.1 (`10.1-boundary-hygiene-pass`) across all 7 plans. Added `protostar.tier` to every workspace manifest, expanded AGENTS.md authority tiers and accepted back-edge documentation, removed phantom `intent->authority` / `repo->authority` / `repo->paths` deps, aligned `@protostar/review` and `@protostar/factory-cli` tsconfig references, added lmstudio-adapter `no-fs` plus pure-tier `no-net` contracts, added `tools/check-subpath-exports.ts`, added factory-cli pack smoke tooling, and landed the flat-top admission-e2e `tier-conformance.contract.test.ts`. Verification passed: subpath checker, `pnpm --filter @protostar/lmstudio-adapter test` with loopback binding, `pnpm --filter @protostar/admission-e2e test` (143 tests), `git diff --check`, and `pnpm run verify`.
 
 - **2026-04-29:** Implemented Phase 10 Plan 08 (`10-08-PLAN.md`) through the live checkpoint. Added Zod-backed dogfood cursor/report schemas, the hidden internal `protostar-factory __dogfood-step` command for all `.protostar/dogfood/` writes and seed draft generation, executable `scripts/dogfood.sh` orchestration, the dogfood fs-authority CONTEXT addendum, and an admission-e2e `dogfood-report-byte-equality` contract. Used the actual toy-repo owner `zakkeown/protostar-toy-ttt` despite older plan text typoing `zkeown`. Verification passed: schema/command focused tests, script acceptance greps, `pnpm --filter @protostar/factory-cli test` (342 tests), `pnpm --filter @protostar/admission-e2e test` (134 tests), `pnpm knip --no-config-hints`, `git diff --check`, and `pnpm run verify`. Remaining: live ≥10-run DOG-04 session, evidence capture, and calibration justification.
 

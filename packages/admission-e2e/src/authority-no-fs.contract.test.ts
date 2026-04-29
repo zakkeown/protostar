@@ -7,6 +7,7 @@ import { readAll, walkAllTypeScriptFiles } from "./_helpers/barrel-walker.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const authoritySrcRoot = resolve(__dirname, "../../authority/src");
+const CONTRACT_TEST_BASENAMES = new Set(["no-net.contract.test.ts"]);
 
 describe("@protostar/authority - authority boundary lock", () => {
   it("no node:fs imports anywhere in src/", async () => {
@@ -18,6 +19,8 @@ describe("@protostar/authority - authority boundary lock", () => {
     ];
 
     for await (const file of walkAllTypeScriptFiles(authoritySrcRoot)) {
+      const basename = file.split("/").pop() ?? "";
+      if (CONTRACT_TEST_BASENAMES.has(basename)) continue;
       const contents = await readAll(file);
       const code = contents
         .replace(/\/\*[\s\S]*?\*\//g, "")

@@ -30,5 +30,12 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "protostar": {
+    "tier": "pure"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false
 }

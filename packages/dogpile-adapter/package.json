@@ -21,12 +21,17 @@
     "@protostar/intent": "workspace:*",
     "@protostar/planning": "workspace:*"
   },
-  "sideEffects": false,
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "protostar": {
+    "tier": "network"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

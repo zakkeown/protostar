@@ -5,16 +5,40 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
-    { "path": "../artifacts" },
-    { "path": "../dogpile-adapter" },
-    { "path": "../dogpile-types" },
-    { "path": "../intent" },
-    { "path": "../planning" },
-    { "path": "../repo" },
-    { "path": "../execution" }
+    {
+      "path": "../artifacts"
+    },
+    {
+      "path": "../dogpile-adapter"
+    },
+    {
+      "path": "../dogpile-types"
+    },
+    {
+      "path": "../intent"
+    },
+    {
+      "path": "../planning"
+    },
+    {
+      "path": "../repo"
+    },
+    {
+      "path": "../execution"
+    },
+    {
+      "path": "../delivery"
+    },
+    {
+      "path": "../repair"
+    }
   ]
 }

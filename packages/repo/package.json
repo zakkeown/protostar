@@ -29,13 +29,16 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@protostar/authority": "workspace:*",
-    "@protostar/paths": "workspace:*",
     "diff": "9.0.0",
     "isomorphic-git": "1.37.6"
   },
-  "sideEffects": false,
   "publishConfig": {
     "access": "public"
+  },
+  "protostar": {
+    "tier": "fs"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

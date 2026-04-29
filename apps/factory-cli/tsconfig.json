@@ -25,6 +25,7 @@
     { "path": "../../packages/evaluation" },
     { "path": "../../packages/evaluation-runner" },
     { "path": "../../packages/dogpile-adapter" },
+    { "path": "../../packages/dogpile-types" },
     { "path": "../../packages/lmstudio-adapter" },
     { "path": "../../packages/repair" }
   ]

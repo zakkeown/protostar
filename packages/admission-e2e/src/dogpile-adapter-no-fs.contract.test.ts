@@ -50,7 +50,8 @@ const typesSrcRoot = resolve(__dirname, "../../dogpile-types/src");
 // our walk preserves the contract that production call chains stay fs-free.
 const SELF_WALKER_BASENAMES = new Set<string>([
   "no-fs.contract.test.js",
-  "no-fs.contract.test.ts"
+  "no-fs.contract.test.ts",
+  "no-net.contract.test.ts"
 ]);
 
 const FORBIDDEN_FS_IMPORTS: readonly RegExp[] = [

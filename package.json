@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "verify": "pnpm run typecheck && pnpm --filter @protostar/repair test && pnpm --filter @protostar/evaluation-runner test && pnpm --filter @protostar/intent test && pnpm --filter @protostar/delivery-runtime test && pnpm --filter @protostar/factory-cli test && pnpm knip --no-config-hints",
+    "verify": "pnpm run typecheck && node --experimental-strip-types tools/check-subpath-exports.ts && pnpm --filter @protostar/repair test && pnpm --filter @protostar/evaluation-runner test && pnpm --filter @protostar/intent test && pnpm --filter @protostar/delivery-runtime test && pnpm --filter @protostar/factory-cli test && pnpm knip --no-config-hints",
     "verify:full": "pnpm run typecheck && pnpm -r test",
     "factory": "pnpm run build && pnpm --filter @protostar/factory-cli start -- run --draft examples/intents/scaffold.draft.json --out .protostar/runs",
     "dogfood:matrix": "bash scripts/regen-matrix.sh",

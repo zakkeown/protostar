@@ -30,12 +30,17 @@
     "@types/node": "^22.19.17",
     "nock": "^14.0.13"
   },
-  "sideEffects": false,
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "protostar": {
+    "tier": "network"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

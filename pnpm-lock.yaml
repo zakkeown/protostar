@@ -272,11 +272,7 @@ importers:
 
   packages/fixtures: {}
 
-  packages/intent:
-    dependencies:
-      '@protostar/authority':
-        specifier: workspace:*
-        version: link:../authority
+  packages/intent: {}
 
   packages/lmstudio-adapter:
     dependencies:
@@ -365,12 +361,6 @@ importers:
 
   packages/repo:
     dependencies:
-      '@protostar/authority':
-        specifier: workspace:*
-        version: link:../authority
-      '@protostar/paths':
-        specifier: workspace:*
-        version: link:../paths
       diff:
         specifier: 9.0.0
         version: 9.0.0

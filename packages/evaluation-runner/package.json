@@ -33,5 +33,11 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "protostar": {
+    "tier": "network"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

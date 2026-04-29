@@ -344,19 +344,21 @@ Plans (wave structure: W1 = {01, 02}; W2 = {03, 04, 05, 06, 07}; W3 = {08}):
 
 ### Phase 10.1: boundary hygiene pass (INSERTED)
 
+**Status:** ✅ Complete (2026-04-29)
+
 **Goal:** Align package manifests and dependency-boundary enforcement with the source-level architecture so the monorepo reads as deliberate separation of concerns, not accidental package sprawl.
 **Requirements:** BOUNDARY-01, BOUNDARY-02, BOUNDARY-03, BOUNDARY-04, BOUNDARY-05, BOUNDARY-06, BOUNDARY-07, BOUNDARY-08, BOUNDARY-09, BOUNDARY-10, BOUNDARY-11, BOUNDARY-12
 **Depends on:** Phase 10
 **Plans:** 7 plans across 4 waves (parallel within wave)
 
 Plans:
-- [ ] 10.1.1-tier-classification-PLAN.md — wave 1 — add `protostar.tier` to every package.json + rewrite AGENTS.md Authority Tiers table (BOUNDARY-01, BOUNDARY-02)
-- [ ] 10.1.2-back-edge-audit-PLAN.md — wave 2 — remove 3 phantom deps (intent->authority, repo->authority, repo->paths); add review tsconfig refs to delivery+repair; document 3 accepted back-edges in AGENTS.md (BOUNDARY-11, BOUNDARY-12)
-- [ ] 10.1.3-network-no-fs-contracts-PLAN.md — wave 3 — add no-fs.contract.test.ts to lmstudio-adapter; verify evaluation-runner contract preserved (BOUNDARY-03, BOUNDARY-04)
-- [ ] 10.1.4-pure-no-net-contracts-PLAN.md — wave 3 — add no-net.contract.test.ts to 12 pure-tier packages (BOUNDARY-05)
-- [ ] 10.1.5-manifest-hygiene-sweep-PLAN.md — wave 3 — public-flip + engines + sideEffects sweep across 19 packages/* manifests; install knip + tools/check-subpath-exports.ts; wire into verify (BOUNDARY-07, BOUNDARY-08, BOUNDARY-09; also lands Phase 10 Q-17 + Q-19)
-- [ ] 10.1.6-factory-cli-publish-wiring-PLAN.md — wave 3 — flip apps/factory-cli to publish-ready + tools/factory-cli-pack-smoke.sh (BOUNDARY-10)
-- [ ] 10.1.7-workspace-conformance-gate-PLAN.md — wave 4 — packages/admission-e2e/src/tier-conformance.contract.test.ts (flat top — NOT in subdirectory) asserting tier rules + dep-direction + tsconfig refs alignment + no-fs presence + sideEffects + engines + acyclic dep graph (BOUNDARY-06)
+- [x] 10.1.1-tier-classification-PLAN.md — wave 1 — add `protostar.tier` to every package.json + rewrite AGENTS.md Authority Tiers table (BOUNDARY-01, BOUNDARY-02)
+- [x] 10.1.2-back-edge-audit-PLAN.md — wave 2 — remove 3 phantom deps (intent->authority, repo->authority, repo->paths); add review tsconfig refs to delivery+repair; document 3 accepted back-edges in AGENTS.md (BOUNDARY-11, BOUNDARY-12)
+- [x] 10.1.3-network-no-fs-contracts-PLAN.md — wave 3 — add no-fs.contract.test.ts to lmstudio-adapter; verify evaluation-runner contract preserved (BOUNDARY-03, BOUNDARY-04)
+- [x] 10.1.4-pure-no-net-contracts-PLAN.md — wave 3 — add no-net.contract.test.ts to 12 pure-tier packages (BOUNDARY-05)
+- [x] 10.1.5-manifest-hygiene-sweep-PLAN.md — wave 3 — public-flip + engines + sideEffects sweep across 19 packages/* manifests; install knip + tools/check-subpath-exports.ts; wire into verify (BOUNDARY-07, BOUNDARY-08, BOUNDARY-09; also lands Phase 10 Q-17 + Q-19)
+- [x] 10.1.6-factory-cli-publish-wiring-PLAN.md — wave 3 — flip apps/factory-cli to publish-ready + tools/factory-cli-pack-smoke.sh (BOUNDARY-10)
+- [x] 10.1.7-workspace-conformance-gate-PLAN.md — wave 4 — packages/admission-e2e/src/tier-conformance.contract.test.ts (flat top — NOT in subdirectory) asserting tier rules + dep-direction + tsconfig refs alignment + no-fs presence + sideEffects + engines + acyclic dep graph (BOUNDARY-06)
 
 ## Phase 11 — Headless Mode + E2E Stress
 
