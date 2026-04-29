@@ -11,4 +11,4 @@ Options:
   --confirm                actually delete candidate runs/<id> directories
   -h, --help               display help for command
 
-Safety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ directories.
+Safety: default is dry-run. --confirm is required to remove .protostar/runs/<id>/ or .protostar/dogfood/<sessionId>/ directories.

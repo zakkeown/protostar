@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 10 Plan 02 complete)
+**Last updated:** 2026-04-29 (Phase 10 Plan 07 complete)
 
 ## Project
 
@@ -26,9 +26,9 @@
 
 **Phase 10 — V1 Hardening + Dogfood** (in progress)
 
-Phase 10 Plans 01-02 completed. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; the screenshot PNG remains an explicit artifact deviation for follow-up capture.
+Phase 10 Plans 01, 02, and 07 completed. The sibling toy repo exists at `../protostar-toy-ttt`, is public at `github.com/zakkeown/protostar-toy-ttt`, includes intentional rough-edge Tauri+React+TypeScript components, and has green CI on `main`. DOG-03 produced `zakkeown/protostar-toy-ttt#1` with `build-and-test` success; DOG-08 added public/internal security artifacts and an admission-e2e authority-boundary contract. The screenshot PNG remains an explicit artifact deviation for follow-up capture.
 
-**Next action:** Execute the unblocked Phase 10 W2 plans: 10-03 fixture matrix, 10-04 docs, 10-05 package hygiene, 10-06 release packaging, and 10-07 security review.
+**Next action:** Execute the remaining Phase 10 W2 foundations: 10-03 fixture matrix and 10-04 docs. 10-05 package hygiene waits on 10-04, and 10-06 release packaging waits on 10-04, 10-05, and 10-07.
 
 ## Phase Status
 
@@ -43,7 +43,7 @@ Phase 10 Plans 01-02 completed. The sibling toy repo exists at `../protostar-toy
 | 7 | Delivery | ✅ Complete (2026-04-28) — verified 10/11 active must-haves; real toy-repo PR + screenshots deferred to Phase 10 |
 | 8 | Evaluation + Evolution | ✅ Complete (2026-04-28) — verified 7/7 after DOG-04 calibration ownership clarified; review clean; security secured 29/29 |
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
-| 10 | V1 Hardening + Dogfood | In progress — Plans 10-01 and 10-02 complete; toy repo PR #1 opened with green `build-and-test`; screenshot PNG remains deferred |
+| 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, and 10-07 complete; toy repo PR #1 green; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | Pending — inserted after Phase 10 before Phase 11 |
 | 11 | Headless Mode + E2E Stress | Pending — discuss in progress (`--power` mode) |
 
@@ -56,6 +56,8 @@ Phase 10 Plans 01-02 completed. The sibling toy repo exists at `../protostar-toy
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 10 Plan 07 (`10-07-PLAN.md`). Added root `SECURITY.md`, internal `.planning/SECURITY-REVIEW.md` with a 10-surface checklist and authority-exception ledger, and `packages/admission-e2e/src/contracts/authority-boundary.contract.test.ts` to enforce per-package production-source import authority. Updated admission-e2e to execute nested contract tests and refreshed the prune help fixture for 10-02's `.protostar/dogfood/` safety text. Verification passed: `pnpm --filter @protostar/admission-e2e test` (125 tests), negative smoke for forbidden `node:fs` in `packages/intent/src/index.ts`, and `pnpm run verify`.
 
 - **2026-04-29:** Completed Phase 10 Plan 02 (`10-02-PLAN.md`) continuation. Added and verified the 3-seed DOG-03 fixture path, extended dogfood prune/config handling, allowed the toy-repo delivery scope, captured durable evidence for `zakkeown/protostar-toy-ttt#1`, and fixed live-planning duplicate task ID normalization so full factory-cli tests pass. The one-off `.protostar/factory-config.json` was quarantined into `10-02-EVIDENCE/` and ignored locally to keep ordinary tests fixture-driven. Verification passed: authority, lmstudio-adapter, delivery-runtime, factory-cli focused/full suites, and `pnpm run verify`. Screenshot PNG capture remains a documented artifact deviation.
 
