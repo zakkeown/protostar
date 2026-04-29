@@ -23,6 +23,7 @@
     { "path": "../evaluation-runner" },
     { "path": "../artifacts" },
     { "path": "../fixtures" },
+    { "path": "../hosted-llm-adapter" },
     { "path": "../review" },
     { "path": "../../apps/factory-cli" }
   ]

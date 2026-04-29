@@ -51,6 +51,18 @@ matching file path in this ledger.
 |---------|-------------------|--------|-------|
 | `pnpm add` allowlist | Authority lives in `packages/repo`; model-proposed dependency installs are admitted only when both feature-add intent admission and the repo subprocess schema accept them. | Pass | Runner uses `shell:false`; accepted exact specs: `@playwright/test@^1.59.1 -D`, `fast-check@^4.7.0 -D`, `clsx@^2.1.1`, `zustand@^5.0.8`, `react-aria-components@^1.13.0`; arbitrary dependency install is refused with structured subprocess refusal evidence before spawn. |
 
+## Phase 11 Addendum - headless stress gates
+
+| Surface | What was reviewed | Status | Notes |
+|---------|-------------------|--------|-------|
+| Hosted API key leakage | `PROTOSTAR_HOSTED_LLM_API_KEY` is env-only and must be redacted from adapter events, stress `events.jsonl`, stress reports, run bundles, and refusal evidence. | Pass | Admission-e2e hosted redaction contract uses sentinel `sk-test-protostar-leak-sentinel`. |
+| self-hosted runner residue | Trusted single-tenant runner setup, local backend assumptions, and prune cleanup posture are documented. | Pass | `docs/headless/self-hosted-runner.md` requires residue cleanup through prune and no checked-in secrets. |
+| no-interactive prompts | Headless production source must not import prompt libraries or read stdin. | Pass | Static contract scans production `apps/*/src/**/*.ts` and `packages/*/src/**/*.ts`; `no-prompt-exception` comments require this ledger. |
+| R2 stress observability | Phase 11 uses `.protostar/stress/<sessionId>/events.jsonl` for event-tail observability; no HTTP dashboard/server is introduced. | Pass | No-dashboard contract covers HTTP/WebSocket server surfaces. |
+| `pnpm add` allowlist | Feature-add dependency installs remain exact allowlist only. | Pass | See pnpm allowlist addendum above. |
+| Stress artifact concurrency corruption | Concurrent stress workers use append-only events and serialized cursor run-row updates. | Pass | Plan 11-11 tests cover concurrent rows and all fault mechanisms. |
+| No merge/update-branch authority | Phase 11 workflows and runner code must not add merge, update-branch, auto-merge, or `gh pr merge` authority. | Pass | Repo-wide no-merge contract scans production source for merge/update-branch surfaces. |
+
 ## Signoff
 
 - **Audit completed:** 2026-04-29

@@ -134,6 +134,9 @@ importers:
       '@protostar/fixtures':
         specifier: workspace:*
         version: link:../fixtures
+      '@protostar/hosted-llm-adapter':
+        specifier: workspace:*
+        version: link:../hosted-llm-adapter
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent

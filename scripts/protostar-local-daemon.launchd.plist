@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!-- Sample-only configuration. The repository does not install or load this plist. -->
 <dict>
   <key>Label</key>
   <string>local.protostar.factory</string>

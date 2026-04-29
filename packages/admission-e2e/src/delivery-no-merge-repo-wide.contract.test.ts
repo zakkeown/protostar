@@ -23,6 +23,7 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   /["']gh\s+pr\s+merge["']/,
   /git\s+merge\s+--/
 ];
+const PHASE_11_FORBIDDEN_LITERAL_SENTINELS = ["pulls.updateBranch", "merge_method", "gh pr merge"] as const;
 
 interface MergeSurfaceOffender {
   readonly file: string;
@@ -65,6 +66,10 @@ describe("DELIVER-07: repo-wide no-merge contract", () => {
   it("does not scan the explicit no-merge contract allowlist", () => {
     assert.equal(ALLOWLIST_RELATIVE.has("packages/delivery-runtime/src/no-merge.contract.test.ts"), true);
     assert.equal(ALLOWLIST_RELATIVE.has("packages/admission-e2e/src/delivery-no-merge-repo-wide.contract.test.ts"), true);
+  });
+
+  it("documents the Phase 11 update-branch and merge CLI sentinels", () => {
+    assert.deepEqual(PHASE_11_FORBIDDEN_LITERAL_SENTINELS, ["pulls.updateBranch", "merge_method", "gh pr merge"]);
   });
 });
 

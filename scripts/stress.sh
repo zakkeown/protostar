@@ -106,6 +106,9 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
+    --)
+      shift
+      ;;
     *)
       fail_usage "unknown arg: $1"
       ;;

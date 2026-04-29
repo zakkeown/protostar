@@ -13,7 +13,8 @@ vulnerabilities.
   The `@protostar/paths` package has a narrow path-resolution carve-out; see
   [AGENTS.md](./AGENTS.md).
 - Network authority lives only in `packages/dogpile-adapter` for local LM Studio
-  coordination and `packages/delivery-runtime` for GitHub delivery.
+  coordination, `packages/delivery-runtime` for GitHub delivery, and the
+  explicitly selected hosted execution adapter for OpenAI-compatible endpoints.
 - All other domain packages are pure: no filesystem authority and no network
   authority.
 
@@ -30,6 +31,9 @@ Authority decisions intersect the envelope with policy through the
 - GitHub tokens are read from the environment at delivery time and must never be
   logged. Phase 7 added redaction for delivery-runtime failures.
 - LM Studio is local-only in v0.1; no cloud LLM credentials are required.
+- Hosted execution reads `PROTOSTAR_HOSTED_LLM_API_KEY` from the environment
+  only. Values must never be logged, written to run bundles, stress
+  `events.jsonl`, stress reports, or refusal evidence.
 - The dogfood fine-grained PAT is scoped to the single toy repository
   `zakkeown/protostar-toy-ttt`.
 - Refusal and evidence logs should contain redacted failure context, not raw

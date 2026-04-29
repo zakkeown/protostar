@@ -30,3 +30,9 @@ jobs:
 
       - name: Run verify
         run: pnpm run verify
+
+      - name: Run fast headless mock stress smokes
+        run: |
+          pnpm stress:sustained -- --runs 1 --llm-backend mock --headless-mode github-hosted
+          node apps/factory-cli/dist/scripts/stress.js --shape concurrency --sessions 1 --concurrency 1 --runs 1 --llm-backend mock --headless-mode github-hosted
+          node apps/factory-cli/dist/scripts/stress.js --shape fault-injection --scenario llm-timeout --runs 1 --llm-backend mock --headless-mode github-hosted

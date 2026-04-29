@@ -32,6 +32,7 @@
     "@protostar/artifacts": "workspace:*",
     "@protostar/factory-cli": "workspace:*",
     "@protostar/fixtures": "workspace:*",
+    "@protostar/hosted-llm-adapter": "workspace:*",
     "@protostar/review": "workspace:*"
   },
   "sideEffects": false,

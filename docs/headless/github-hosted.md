@@ -2,7 +2,7 @@
 
 Mode literal: `github-hosted`
 
-Use this mode for GitHub-hosted Actions jobs that run without an attached operator terminal. The manual or scheduled workflow is introduced by Phase 11 Plan 13; this page pins the command and environment contract that workflow must call.
+Use this mode for GitHub-hosted Actions jobs that run without an attached operator terminal. The manual or scheduled workflow lives at `.github/workflows/headless-stress.yml`; this page pins the command and environment contract that workflow must call.
 
 ## Command
 

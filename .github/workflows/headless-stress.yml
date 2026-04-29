@@ -1,0 +1,112 @@
+name: headless-stress
+
+on:
+  workflow_dispatch:
+    inputs:
+      shape:
+        description: Stress shape to run
+        required: true
+        default: sustained-load
+        type: choice
+        options:
+          - sustained-load
+          - concurrency
+          - fault-injection
+      runs:
+        description: Run count
+        required: false
+        default: "1"
+      scenario:
+        description: Fault scenario for fault-injection
+        required: false
+        default: llm-timeout
+        type: choice
+        options:
+          - network-drop
+          - llm-timeout
+          - disk-full
+          - abort-signal
+      llm_backend:
+        description: LLM backend
+        required: false
+        default: mock
+        type: choice
+        options:
+          - mock
+          - lmstudio
+          - hosted-openai-compatible
+      headless_mode:
+        description: Headless mode
+        required: false
+        default: github-hosted
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted-runner
+          - local-daemon
+  schedule:
+    - cron: "0 8 * * 1"
+
+jobs:
+  headless-stress:
+    name: headless stress
+    runs-on: ubuntu-latest
+    env:
+      PROTOSTAR_HOSTED_LLM_API_KEY: ${{ secrets.PROTOSTAR_HOSTED_LLM_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Run headless stress
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            bash scripts/stress.sh --shape sustained-load --runs 1 --llm-backend mock --headless-mode github-hosted
+            node apps/factory-cli/dist/scripts/stress.js --shape concurrency --sessions 1 --concurrency 1 --runs 1 --llm-backend mock --headless-mode github-hosted
+            node apps/factory-cli/dist/scripts/stress.js --shape fault-injection --scenario llm-timeout --runs 1 --llm-backend mock --headless-mode github-hosted
+            exit 0
+          fi
+
+          SHAPE="${{ github.event.inputs.shape || 'sustained-load' }}"
+          RUNS="${{ github.event.inputs.runs || '1' }}"
+          SCENARIO="${{ github.event.inputs.scenario || 'llm-timeout' }}"
+          LLM_BACKEND="${{ github.event.inputs.llm_backend || 'mock' }}"
+          HEADLESS_MODE="${{ github.event.inputs.headless_mode || 'github-hosted' }}"
+
+          case "$SHAPE" in
+            sustained-load)
+              bash scripts/stress.sh --shape sustained-load --runs "$RUNS" --llm-backend "$LLM_BACKEND" --headless-mode "$HEADLESS_MODE"
+              ;;
+            concurrency)
+              node apps/factory-cli/dist/scripts/stress.js --shape concurrency --sessions "$RUNS" --concurrency 2 --runs 1 --llm-backend "$LLM_BACKEND" --headless-mode "$HEADLESS_MODE"
+              ;;
+            fault-injection)
+              node apps/factory-cli/dist/scripts/stress.js --shape fault-injection --scenario "$SCENARIO" --runs "$RUNS" --llm-backend "$LLM_BACKEND" --headless-mode "$HEADLESS_MODE"
+              ;;
+            *)
+              echo "unsupported shape: $SHAPE" >&2
+              exit 2
+              ;;
+          esac
+
+          # Final Phase 11 gate evidence runs all four fault scenarios:
+          # network-drop, llm-timeout, disk-full, and abort-signal.
