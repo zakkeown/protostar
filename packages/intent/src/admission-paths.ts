@@ -6,7 +6,7 @@ import { hasText, isKnownGoalArchetype } from "./admission-shared.js";
 
 import { ARCHETYPE_POLICY_TABLE, BUGFIX_GOAL_ARCHETYPE, COSMETIC_TWEAK_GOAL_ARCHETYPE, FEATURE_ADD_GOAL_ARCHETYPE, REFACTOR_GOAL_ARCHETYPE } from "./archetypes.js";
 
-import type { GoalArchetypePolicyTable } from "./archetypes.js";
+import type { GoalArchetype, GoalArchetypePolicyTable } from "./archetypes.js";
 
 export function evaluateGoalArchetypePolicySelection(draft: IntentDraft): readonly IntentAdmissionPolicyFinding[] {
   const archetype = draft.goalArchetype;
@@ -134,6 +134,39 @@ export function bugfixAdmissionPathFindings(
       fieldPath: "goalArchetype",
       severity: "block",
       message: decision.message,
+      overridable: false,
+      overridden: false
+    }
+  ];
+}
+
+export function stubGoalArchetypeAdmissionPathFindings(
+  goalArchetype: string,
+  policyTable: GoalArchetypePolicyTable = ARCHETYPE_POLICY_TABLE
+): readonly IntentAdmissionPolicyFinding[] {
+  if (
+    goalArchetype.length === 0 ||
+    !isKnownGoalArchetype(goalArchetype) ||
+    goalArchetype === COSMETIC_TWEAK_GOAL_ARCHETYPE ||
+    goalArchetype === FEATURE_ADD_GOAL_ARCHETYPE ||
+    goalArchetype === REFACTOR_GOAL_ARCHETYPE ||
+    goalArchetype === BUGFIX_GOAL_ARCHETYPE
+  ) {
+    return [];
+  }
+
+  const policy = policyTable[goalArchetype as GoalArchetype];
+  if (policy.status !== "stub") {
+    return [];
+  }
+
+  return [
+    {
+      code: "unsupported-goal-archetype",
+      fieldPath: "goalArchetype",
+      severity: "block",
+      message:
+        `The ${goalArchetype} admission path is not wired and cannot grant a capability envelope.`,
       overridable: false,
       overridden: false
     }

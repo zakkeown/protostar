@@ -8,7 +8,7 @@ import type { GoalArchetypePolicyEntry } from "./archetypes.js";
 
 import { authorityJustificationField, isKnownGoalArchetype, normalizeAuthorityJustification, normalizeText, uniqueOrdered } from "./admission-shared.js";
 
-import { bugfixAdmissionPathFindings, bugfixWrongPathFindings, cosmeticTweakAdmissionPathFindings, createBugfixUnsupportedDecision, createFeatureAddUnsupportedDecision, createRefactorUnsupportedDecision, evaluateGoalArchetypePolicySelection, featureAddAdmissionPathFindings, featureAddWrongPathFindings, refactorAdmissionPathFindings, refactorWrongPathFindings } from "./admission-paths.js";
+import { bugfixAdmissionPathFindings, bugfixWrongPathFindings, cosmeticTweakAdmissionPathFindings, createBugfixUnsupportedDecision, createFeatureAddUnsupportedDecision, createRefactorUnsupportedDecision, evaluateGoalArchetypePolicySelection, featureAddAdmissionPathFindings, featureAddWrongPathFindings, refactorAdmissionPathFindings, refactorWrongPathFindings, stubGoalArchetypeAdmissionPathFindings } from "./admission-paths.js";
 
 import { normalizeDraftCapabilityEnvelope } from "./capability-normalization.js";
 
@@ -34,6 +34,7 @@ export function validateIntentDraftCapabilityEnvelopeAdmission(
     ...featureAddAdmissionPathFindings(goalArchetype, policyTable),
     ...refactorAdmissionPathFindings(goalArchetype, policyTable),
     ...bugfixAdmissionPathFindings(goalArchetype, policyTable),
+    ...stubGoalArchetypeAdmissionPathFindings(goalArchetype, policyTable),
     ...detection.findings
   ];
   const blockingFindings = findings.filter((finding) => finding.severity === "block");

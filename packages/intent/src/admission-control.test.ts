@@ -1314,6 +1314,26 @@ describe("intent admission policy", () => {
     }
   });
 
+  it("keeps factory-scaffold blocked while its policy row remains a stub", () => {
+    const draft = factoryScaffoldDraft();
+    const admission = validateIntentDraftCapabilityEnvelopeAdmission({ draft });
+    const promotion = promoteIntentDraft({
+      draft,
+      mode: "brownfield",
+      confirmedAt: "2026-04-25T00:00:00.000Z"
+    });
+
+    assert.equal(GOAL_ARCHETYPE_POLICY_TABLE["factory-scaffold"].status, "stub");
+    assert.equal(admission.ok, false);
+    assert.deepEqual(admission.blockingFindings.map((finding) => finding.code), [
+      "unsupported-goal-archetype"
+    ]);
+    assertPromotionFailed(promotion, "checklist-only");
+    assert.deepEqual(promotion.policyFindings.map((finding) => finding.code), [
+      "unsupported-goal-archetype"
+    ]);
+  });
+
   it("auto-tags draft archetypes deterministically without live model calls", () => {
     const { goalArchetype: _cosmeticArchetype, ...cosmeticDraft } = clearCosmeticDraft();
     const cases = [
@@ -4558,6 +4578,28 @@ function clearBugfixDraft(): IntentDraft {
         maxRepairLoops: 1
       }
     }
+  };
+}
+
+function factoryScaffoldDraft(): IntentDraft {
+  return {
+    ...clearCosmeticDraft(),
+    draftId: "draft_factory_scaffold_block",
+    title: "Scaffold a new factory surface",
+    problem:
+      "Bootstrap a new factory surface with package boundaries and runtime wiring.",
+    goalArchetype: "factory-scaffold",
+    context:
+      "This draft exercises the unsupported factory-scaffold policy row without changing the existing cosmetic path.",
+    acceptanceCriteria: [
+      {
+        statement: "Factory-scaffold remains blocked while its policy row is a stub.",
+        verification: "test"
+      }
+    ],
+    stopConditions: [
+      "Stop if factory-scaffold produces a confirmed intent before its policy row is wired."
+    ]
   };
 }
 

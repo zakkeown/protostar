@@ -2140,7 +2140,7 @@ describe("factory CLI draft admission hardening", () => {
       },
       {
         label: "block",
-        draft: featureAddDraft(),
+        draft: factoryScaffoldDraft(),
         runId: "run_cli_admission_decision_block",
         expectedExitCode: 1,
         expectedDecision: "block",
@@ -2452,14 +2452,22 @@ describe("factory CLI draft admission hardening", () => {
     });
   });
 
-  it("routes feature-add drafts through the unsupported admission decision", async () => {
+  it("routes feature-add drafts through supported admission before planning", async () => {
     await withTempDir(async (tempDir) => {
+      const draft = {
+        ...featureAddDraft(),
+        createdAt: "2026-01-01T00:00:00.000Z"
+      };
       const draftPath = resolve(tempDir, "feature-add.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const confirmedIntentOutputPath = resolve(tempDir, "confirmed-intent.json");
-      const runId = "run_cli_feature_add_block";
+      const runId = "run_cli_feature_add_supported";
 
-      await writeJson(draftPath, featureAddDraft());
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
 
       const result = await runCli([
         "run",
@@ -2467,32 +2475,47 @@ describe("factory CLI draft admission hardening", () => {
         draftPath,
         "--out",
         outDir,
+        "--planning-fixture",
+        planningFixturePath,
         "--confirmed-intent-output",
         confirmedIntentOutputPath,
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
-      assert.equal(result.exitCode, 1);
-      assert.equal(result.stdout, "");
-      assert.match(result.stderr, /Draft intent refused by admission gate\./);
-      assert.match(result.stderr, /Feature-add admission path is unsupported in v0\.0\.1/);
-      assert.match(result.stderr, /Policy findings:/);
-      await assertIntentOutputFilesSuppressed(outDir, runId);
-      assert.equal(await pathExists(confirmedIntentOutputPath), false);
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.notEqual(result.stdout, "");
+      assert.equal(result.stderr, "");
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
+      assert.equal(admissionDecision["decision"], "allow");
+      assert.equal(admissionDecision["admitted"], true);
+      assert.equal(admissionDecision["goalArchetype"], "feature-add");
+      assert.equal(await pathExists(confirmedIntentOutputPath), true);
     });
   });
 
-  it("routes refactor drafts through the unsupported admission decision", async () => {
+  it("routes refactor drafts through supported admission before planning", async () => {
     await withTempDir(async (tempDir) => {
+      const draft = {
+        ...refactorDraft(),
+        createdAt: "2026-01-01T00:00:00.000Z"
+      };
       const draftPath = resolve(tempDir, "refactor.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const confirmedIntentOutputPath = resolve(tempDir, "confirmed-intent.json");
-      const runId = "run_cli_refactor_block";
+      const runId = "run_cli_refactor_supported";
 
-      await writeJson(draftPath, refactorDraft());
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
 
       const result = await runCli([
         "run",
@@ -2500,32 +2523,47 @@ describe("factory CLI draft admission hardening", () => {
         draftPath,
         "--out",
         outDir,
+        "--planning-fixture",
+        planningFixturePath,
         "--confirmed-intent-output",
         confirmedIntentOutputPath,
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
-      assert.equal(result.exitCode, 1);
-      assert.equal(result.stdout, "");
-      assert.match(result.stderr, /Draft intent refused by admission gate\./);
-      assert.match(result.stderr, /Refactor admission path is unsupported in v0\.0\.1/);
-      assert.match(result.stderr, /Policy findings:/);
-      await assertIntentOutputFilesSuppressed(outDir, runId);
-      assert.equal(await pathExists(confirmedIntentOutputPath), false);
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.notEqual(result.stdout, "");
+      assert.equal(result.stderr, "");
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
+      assert.equal(admissionDecision["decision"], "allow");
+      assert.equal(admissionDecision["admitted"], true);
+      assert.equal(admissionDecision["goalArchetype"], "refactor");
+      assert.equal(await pathExists(confirmedIntentOutputPath), true);
     });
   });
 
-  it("routes bugfix drafts through the unsupported admission decision", async () => {
+  it("routes bugfix drafts through supported admission before planning", async () => {
     await withTempDir(async (tempDir) => {
+      const draft = {
+        ...bugfixDraft(),
+        createdAt: "2026-01-01T00:00:00.000Z"
+      };
       const draftPath = resolve(tempDir, "bugfix.json");
+      const planningFixturePath = resolve(tempDir, "planning-fixture.json");
+      const confirmedIntentPath = resolve(tempDir, "intent.json");
       const outDir = resolve(tempDir, "out");
       const confirmedIntentOutputPath = resolve(tempDir, "confirmed-intent.json");
-      const runId = "run_cli_bugfix_block";
+      const runId = "run_cli_bugfix_supported";
 
-      await writeJson(draftPath, bugfixDraft());
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, cosmeticPlanningFixture(acceptanceCriterionIdsForDraft(draft)));
+      await writeJson(confirmedIntentPath, await buildSignedConfirmedIntentFile(draft));
 
       const result = await runCli([
         "run",
@@ -2533,21 +2571,28 @@ describe("factory CLI draft admission hardening", () => {
         draftPath,
         "--out",
         outDir,
+        "--planning-fixture",
+        planningFixturePath,
         "--confirmed-intent-output",
         confirmedIntentOutputPath,
         "--run-id",
         runId,
         "--intent-mode",
-        "brownfield"
+        "brownfield",
+        "--trust",
+        "trusted",
+        "--confirmed-intent",
+        confirmedIntentPath
       ]);
 
-      assert.equal(result.exitCode, 1);
-      assert.equal(result.stdout, "");
-      assert.match(result.stderr, /Draft intent refused by admission gate\./);
-      assert.match(result.stderr, /Bugfix admission path is unsupported in v0\.0\.1/);
-      assert.match(result.stderr, /Policy findings:/);
-      await assertIntentOutputFilesSuppressed(outDir, runId);
-      assert.equal(await pathExists(confirmedIntentOutputPath), false);
+      assert.equal(result.exitCode, 0, result.stderr);
+      assert.notEqual(result.stdout, "");
+      assert.equal(result.stderr, "");
+      const admissionDecision = await readIntentAdmissionEvidence(resolve(outDir, runId));
+      assert.equal(admissionDecision["decision"], "allow");
+      assert.equal(admissionDecision["admitted"], true);
+      assert.equal(admissionDecision["goalArchetype"], "bugfix");
+      assert.equal(await pathExists(confirmedIntentOutputPath), true);
     });
   });
 });
@@ -3107,7 +3152,7 @@ function featureAddDraft(): Record<string, unknown> {
     mode: "brownfield",
     goalArchetype: "feature-add",
     context:
-      "Protostar already has a factory CLI and intent admission packages; this draft exercises the v0.0.1 feature-add policy row.",
+      "Protostar already has a factory CLI and intent admission packages; this draft exercises the Phase 11 wired feature-add policy row.",
     acceptanceCriteria: [
       {
         statement: "The CLI accepts a draft input path and routes it through admission before creating a confirmed intent.",
@@ -3120,7 +3165,7 @@ function featureAddDraft(): Record<string, unknown> {
     ],
     constraints: ["Keep changes inside the intent front door and policy admission surface."],
     stopConditions: [
-      "Stop if feature-add admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if feature-add admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [
@@ -3156,20 +3201,20 @@ function refactorDraft(): Record<string, unknown> {
     mode: "brownfield",
     goalArchetype: "refactor",
     context:
-      "Protostar already has a factory CLI and intent admission packages; this draft exercises the v0.0.1 refactor policy row.",
+      "Protostar already has a factory CLI and intent admission packages; this draft exercises the Phase 11 wired refactor policy row.",
     acceptanceCriteria: [
       {
         statement: "The CLI routes refactor drafts through admission before any confirmed intent artifact is written.",
         verification: "test"
       },
       {
-        statement: "The admission refusal reports the selected refactor policy row and unsupported decision.",
+        statement: "The admission result reports the selected refactor policy row and wired decision.",
         verification: "evidence"
       }
     ],
     constraints: ["Keep changes inside the intent front door and policy admission surface."],
     stopConditions: [
-      "Stop if refactor admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if refactor admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [
@@ -3200,25 +3245,25 @@ function bugfixDraft(): Record<string, unknown> {
     draftId: "draft_cli_bugfix_block",
     title: "Fix policy admission regression",
     problem:
-      "The policy admission front door must report that bugfix requests use an unsupported v0.0.1 stub cap before any confirmed intent is written.",
+      "The policy admission front door must grant bugfix requests with the Phase 11 wired capability cap.",
     requester: "local-operator",
     mode: "brownfield",
     goalArchetype: "bugfix",
     context:
-      "Protostar already routes feature-add and refactor drafts through unsupported admission decisions; this draft exercises the bugfix policy row.",
+      "Protostar already routes feature-add and refactor drafts through wired admission decisions; this draft exercises the bugfix policy row.",
     acceptanceCriteria: [
       {
         statement: "The CLI routes bugfix drafts through admission before any confirmed intent artifact is written.",
         verification: "test"
       },
       {
-        statement: "The admission refusal reports the selected bugfix policy row and unsupported decision.",
+        statement: "The admission result reports the selected bugfix policy row and wired decision.",
         verification: "evidence"
       }
     ],
     constraints: ["Keep changes inside the intent front door and policy admission surface."],
     stopConditions: [
-      "Stop if bugfix admission remains unsupported or if the stub cap cannot be reported deterministically."
+      "Stop if bugfix admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
     ],
     capabilityEnvelope: {
       repoScopes: [
@@ -3241,6 +3286,28 @@ function bugfixDraft(): Record<string, unknown> {
         maxRepairLoops: 1
       }
     }
+  };
+}
+
+function factoryScaffoldDraft(): Record<string, unknown> {
+  return {
+    ...clearCosmeticDraft(),
+    draftId: "draft_cli_factory_scaffold_block",
+    title: "Scaffold factory workspace",
+    problem:
+      "Bootstrap a broad factory workspace surface that remains outside the v0.1 admission boundary.",
+    goalArchetype: "factory-scaffold",
+    context:
+      "This draft exercises the factory-scaffold policy row, which remains a stub after the Phase 11 archetype lift.",
+    acceptanceCriteria: [
+      {
+        statement: "The CLI blocks factory-scaffold while its policy row remains a stub.",
+        verification: "test"
+      }
+    ],
+    stopConditions: [
+      "Stop if factory-scaffold produces a confirmed intent before its policy row is wired."
+    ]
   };
 }
 
