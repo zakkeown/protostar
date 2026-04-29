@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-04-29 (Phase 11 Plan 05 headless config CLI complete)
+**Last updated:** 2026-04-29 (Phase 11 Plan 08 stress artifact schema/events complete)
 
 ## Project
 
@@ -26,11 +26,11 @@
 
 **Phase 11 — Headless Mode + E2E Stress** (in progress; Wave 1 partially complete)
 
-Phase 11 planning is complete, Wave 0 traceability is committed, Plan 11-02 has lifted `feature-add`, `bugfix`, and `refactor` into wired admission archetypes with exact repair-loop caps of 9, 5, and 5, and Plan 11-05 has added validated headless-mode config/CLI selection plus all-three setup paths. `factory-scaffold` remains a blocked stub. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
+Phase 11 planning is complete, Wave 0 traceability is committed, Plan 11-02 has lifted `feature-add`, `bugfix`, and `refactor` into wired admission archetypes with exact repair-loop caps of 9, 5, and 5, Plan 11-05 has added validated headless-mode config/CLI selection plus all-three setup paths, and Plan 11-08 has added strict canonical `stress-report.json` / append-only-compatible `events.jsonl` artifact schemas plus the R2 no-dashboard contract. `factory-scaffold` remains a blocked stub. The plan set contains 15 plans across 8 waves covering `STRESS-01` through `STRESS-14`, with research, pattern mapping, Nyquist validation, and plan-checker convergence complete. The final accepted plan set includes headless mode config plus all-three setup contracts, hosted/mock/backend selection, feature-add `pnpm.allowedAdds`, stress caps, seed materialization/signing/run wiring, observed fault-injection mechanisms, and a non-autonomous final `(ttt-delivered AND stress-clean)` evidence gate.
 
 Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around executable stress inputs, observed fault mechanisms, feature-add envelope expansion, stress caps, and all-three headless modes. `gsd-sdk query` validation was unavailable in this checkout, so deterministic local checks and checker agents were used instead.
 
-**Next action:** Continue Wave 1 with checkpointed `11-04-immutable-toy-verification-PLAN.md` once external toy repo verification files are available, and execute `11-08-stress-artifact-schema-and-events-PLAN.md`. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
+**Next action:** Continue Wave 1 with checkpointed `11-04-immutable-toy-verification-PLAN.md` once external toy repo verification files are available, then proceed through the remaining Phase 11 waves. Do not mark Phase 11 complete until `11-14-ttt-delivery-and-stress-gate-PLAN.md` records real TTT delivery evidence plus sustained-load, concurrency, and all four observed fault-injection reports.
 
 ## Phase Status
 
@@ -47,7 +47,7 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 | 9 | Operator Surface + Resumability | In progress — Plans 09-01 through 09-11 complete; commander dispatcher, canonical JSON, widened status enum, status, inspect, cancel, resume, gated authorization, deliver, prune, and admission-e2e CLI contracts are ready |
 | 10 | V1 Hardening + Dogfood | In progress — Plans 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, and 10-07 complete; Plan 10-08 driver/schema/contract implementation green, live ≥10×≥80% gate pending; toy repo PR #1 green; fixture matrix landed; operator docs/schema appendix/CLI snapshots landed; knip + package READMEs landed; Changesets release tooling landed with no npm publish; SECURITY.md and authority-boundary gate landed; screenshot PNG remains deferred |
 | 10.1 | boundary hygiene pass | ✅ Complete (2026-04-29) — manifests tiered, no-fs/no-net contracts added, conformance gate wired |
-| 11 | Headless Mode + E2E Stress | In progress — Plans 11-01, 11-02, and 11-05 complete; feature-add/bugfix/refactor admission wired; headless config/CLI/docs ready; continue Wave 1 (`11-04`, `11-08`) |
+| 11 | Headless Mode + E2E Stress | In progress — Plans 11-01, 11-02, 11-05, and 11-08 complete; feature-add/bugfix/refactor admission wired; headless config/CLI/docs ready; stress artifact schema/events locked; continue Wave 1 (`11-04`) |
 
 ## Active Documents
 
@@ -58,6 +58,8 @@ Plan-checker pass on 2026-04-29 returned PASS after resolving blockers around ex
 - `.planning/codebase/` — 7 codebase-map docs (committed `7922e3e`)
 
 ## Recent Sessions
+
+- **2026-04-29:** Completed Phase 11 Plan 08 (`11-08-stress-artifact-schema-and-events-PLAN.md`). Added strict canonical `stress-report.json` and append-only-compatible `events.jsonl` Zod schemas/formatters in `@protostar/artifacts`; pinned byte-stability and malformed-report admission contracts; moved `zod` to runtime dependencies for exported schemas; and added the R2 no-dashboard/no-server contract so Phase 11 observability stays file-tail based. Verification passed: `pnpm --filter @protostar/artifacts test`, `pnpm --filter @protostar/admission-e2e test`, `pnpm run verify`, `pnpm run factory` built and stopped at the expected workspace-trust gate, and `git diff --check`. Commits: `c1855a5`, `a0e7685`, `4035db6`, `5cd086d`.
 
 - **2026-04-29:** Completed Phase 11 Plan 05 (`11-05-headless-mode-config-cli-PLAN.md`). Added `factory.headlessMode`, `factory.nonInteractive`, and strict `factory.stress.caps` defaults; wired `protostar-factory run --headless-mode <mode>` and `--non-interactive` with CLI > config > default precedence; refreshed the run help snapshot; and added all-three setup docs plus an inert macOS launchd sample. Verification passed: `pnpm --filter @protostar/lmstudio-adapter test` after approved loopback escalation, `pnpm --filter @protostar/factory-cli test`, `pnpm run verify`; `pnpm run factory` built and stopped at the expected workspace-trust gate. Commits: `cdbf072`, `2359361`, `905f316`.
 

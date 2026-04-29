@@ -160,7 +160,7 @@ Create the headless/stress traceability foundation before source-code implementa
 - [ ] **STRESS-07**: Deterministic mock backend
 - [ ] **STRESS-08**: Hosted OpenAI-compatible backend
 - [ ] **STRESS-09**: Bounded `pnpm add` allowlist
-- [ ] **STRESS-10**: Stress report schema plus append-only event artifacts
+- [x] **STRESS-10**: Stress report schema plus append-only event artifacts
 - [x] **STRESS-11**: Shared stress session core
 - [ ] **STRESS-12**: Sustained-load bash driver
 - [ ] **STRESS-13**: TypeScript concurrency/fault driver
@@ -302,7 +302,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | STRESS-07 | Phase 11 | Pending |
 | STRESS-08 | Phase 11 | Pending |
 | STRESS-09 | Phase 11 | Pending |
-| STRESS-10 | Phase 11 | Pending |
+| STRESS-10 | Phase 11 | Complete |
 | STRESS-11 | Phase 11 | Complete |
 | STRESS-12 | Phase 11 | Pending |
 | STRESS-13 | Phase 11 | Pending |

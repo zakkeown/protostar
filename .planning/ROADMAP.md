@@ -382,7 +382,7 @@ Plans:
 - [x] 11-02-archetype-admission-lift-PLAN.md — W1; deps: 11-01 — all-three narrow `feature-add`/`bugfix`/`refactor` admission lift with exact repair-loop caps
 - [ ] 11-04-immutable-toy-verification-PLAN.md — W1; deps: 11-01 — Wave 1 preflight/refusal plus operator-authored setup gate for immutable toy verification files
 - [x] 11-05-headless-mode-config-cli-PLAN.md — W1; deps: 11-01 — `factory.headlessMode`, `factory.stress.caps`, `--headless-mode`, non-interactive CLI support, and all-three headless setup docs
-- [ ] 11-08-stress-artifact-schema-and-events-PLAN.md — W1; deps: 11-01 — canonical `stress-report.json`, append-only `events.jsonl`, and R2 no-dashboard contract
+- [x] 11-08-stress-artifact-schema-and-events-PLAN.md — W1; deps: 11-01 — canonical `stress-report.json`, append-only `events.jsonl`, and R2 no-dashboard contract
 - [ ] 11-03-seed-library-ttt-PLAN.md — W2; deps: 11-01, 11-02 — per-archetype seed library and `feature-add/ttt-game` seed
 - [ ] 11-06-llm-backend-selection-PLAN.md — W2; deps: 11-05 — `factory.llmBackend`, `--llm-backend`, and LM Studio default-preserving selector
 - [ ] 11-12-pnpm-add-allowlist-PLAN.md — W2; deps: 11-02, 11-04 — feature-add `pnpm.allowedAdds`, bounded multi-file admission, immutable-file refusal, and repo-owned exact `pnpm add` allowlist
