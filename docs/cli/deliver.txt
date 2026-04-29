@@ -1,0 +1,9 @@
+Usage: protostar-factory deliver [options] <runId>
+
+Deliver or retry a ready factory run
+
+Arguments:
+  runId       run id to deliver
+
+Options:
+  -h, --help  display help for command

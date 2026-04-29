@@ -131,6 +131,13 @@ importers:
       '@protostar/intent':
         specifier: workspace:*
         version: link:../intent
+    devDependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+      zod-to-json-schema:
+        specifier: ^3.24.6
+        version: 3.25.2(zod@3.25.76)
 
   packages/authority:
     dependencies:
@@ -748,6 +755,14 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  zod-to-json-schema@3.25.2:
+    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
+    peerDependencies:
+      zod: ^3.25.28 || ^4
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@commander-js/extra-typings@14.0.0(commander@14.0.3)':
@@ -1122,3 +1137,9 @@ snapshots:
       has-tostringtag: 1.0.2
 
   wrappy@1.0.2: {}
+
+  zod-to-json-schema@3.25.2(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
+
+  zod@3.25.76: {}

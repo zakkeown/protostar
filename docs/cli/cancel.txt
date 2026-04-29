@@ -1,0 +1,11 @@
+Usage: protostar-factory cancel [options] <runId>
+
+Request cooperative cancellation for a factory run
+
+Arguments:
+  runId       run id to cancel
+
+Options:
+  -h, --help  display help for command
+
+Race note: cancelling -> completed is allowed if the run loop finishes a stage before it observes the CANCEL sentinel.
