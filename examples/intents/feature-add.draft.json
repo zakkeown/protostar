@@ -5,7 +5,7 @@
   "requester": "ouroboros-ac-80301",
   "mode": "brownfield",
   "goalArchetype": "feature-add",
-  "context": "Protostar already has a factory CLI and intent admission packages; this draft exercises the v0.0.1 feature-add policy row.",
+  "context": "Protostar already has a factory CLI and intent admission packages; this draft exercises the Phase 11 wired feature-add policy row.",
   "acceptanceCriteria": [
     {
       "statement": "The CLI accepts a draft input path and routes it through admission before creating a confirmed intent.",
@@ -21,7 +21,7 @@
     "Do not change execution, review repair, delivery, or Dogpile planning internals."
   ],
   "stopConditions": [
-    "Stop if feature-add admission remains unsupported or if the stub cap cannot be reported deterministically."
+    "Stop if feature-add admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
   ],
   "capabilityEnvelope": {
     "repoScopes": [
@@ -47,13 +47,13 @@
   "metadata": {
     "fixtureKind": "feature-add-draft",
     "expectedGoalArchetype": "feature-add",
-    "expectedOutcome": "blocked",
-    "expectedBlockReasons": [
-      "feature-add policy row is unsupported in v0.0.1",
-      "draft remains unconfirmed while feature-add capability caps are stubbed"
+    "expectedOutcome": "promoted",
+    "expectedSuccessReasons": [
+      "feature-add policy row is wired in Phase 11",
+      "draft can be confirmed while feature-add capability caps are wired"
     ],
     "admissionExpectation": {
-      "expectedAdmissionOutcome": "blocked",
+      "expectedAdmissionOutcome": "promoted",
       "expectedAmbiguityStatus": {
         "mode": "brownfield",
         "threshold": 0.2,
@@ -62,12 +62,11 @@
         "structurallyMissingDimensions": []
       },
       "expectedCapabilityEnvelopeResult": {
-        "status": "unsupported",
+        "status": "allowed",
         "goalArchetype": "feature-add",
-        "policyStatus": "stub",
-        "blockingFindings": [
-          "unsupported-goal-archetype"
-        ]
+        "policyStatus": "wired",
+        "blockingFindings": [],
+        "unresolvedFindings": []
       }
     }
   }

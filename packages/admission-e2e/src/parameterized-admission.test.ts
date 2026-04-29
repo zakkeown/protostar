@@ -86,6 +86,45 @@ describe("parameterized admission e2e (directory-as-manifest)", () => {
     );
   });
 
+  it("admits feature-add, bugfix, and refactor intent fixtures without unsupported-goal-archetype", async () => {
+    const cases = [
+      {
+        relativePath: "intents/feature-add.draft.json",
+        goalArchetype: "feature-add"
+      },
+      {
+        relativePath: "intents/bugfix.draft.json",
+        goalArchetype: "bugfix"
+      },
+      {
+        relativePath: "intents/refactor.draft.json",
+        goalArchetype: "refactor"
+      }
+    ] as const;
+
+    for (const fixtureCase of cases) {
+      const draft = await readJson<IntentDraft>(
+        resolve(examplesRoot, fixtureCase.relativePath)
+      );
+      const result = promoteIntentDraft({ draft });
+
+      if (!result.ok) {
+        assert.fail(
+          `${fixtureCase.relativePath} should be admitted: ${result.errors.join("; ")}`
+        );
+      }
+      assert.equal(
+        result.intent.goalArchetype,
+        fixtureCase.goalArchetype,
+        fixtureCase.relativePath
+      );
+      assert.ok(
+        result.policyFindings.every((finding) => finding.code !== "unsupported-goal-archetype"),
+        `${fixtureCase.relativePath} must not emit unsupported-goal-archetype.`
+      );
+    }
+  });
+
   it("loops every fixture and asserts expected verdict end-to-end", async () => {
     const { fixtures, confirmedShapeIntentFollowups } = await discoverFixtures(examplesRoot);
     if (confirmedShapeIntentFollowups.length > 0) {

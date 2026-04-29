@@ -1,18 +1,18 @@
 {
   "draftId": "draft_bugfix_policy_admission",
   "title": "Fix bugfix policy admission path",
-  "problem": "The bugfix policy row exists in the policy table, but operators need deterministic admission to report that bugfix is still unsupported with a stub capability cap.",
+  "problem": "The bugfix policy row exists in the policy table, and operators need deterministic admission to grant bugfix with a wired capability cap.",
   "requester": "ouroboros-ac-80301",
   "mode": "brownfield",
   "goalArchetype": "bugfix",
-  "context": "Protostar already has unsupported feature-add and refactor admission paths; this draft exercises the v0.0.1 bugfix policy row.",
+  "context": "Protostar already has feature-add and refactor admission paths; this draft exercises the Phase 11 wired bugfix policy row.",
   "acceptanceCriteria": [
     {
-      "statement": "The bugfix admission response reports the selected bugfix policy row and its stub capability cap.",
+      "statement": "The bugfix admission response reports the selected bugfix policy row and its wired capability cap.",
       "verification": "evidence"
     },
     {
-      "statement": "Bugfix drafts remain unconfirmed while the bugfix policy row is unsupported.",
+      "statement": "Bugfix drafts can be confirmed when the bugfix policy row is wired.",
       "verification": "test"
     }
   ],
@@ -21,7 +21,7 @@
     "Do not change execution, review repair, delivery, or Dogpile planning internals."
   ],
   "stopConditions": [
-    "Stop if bugfix admission remains unsupported or if the stub cap cannot be reported deterministically."
+    "Stop if bugfix admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
   ],
   "capabilityEnvelope": {
     "repoScopes": [
@@ -47,13 +47,13 @@
   "metadata": {
     "fixtureKind": "bugfix-draft",
     "expectedGoalArchetype": "bugfix",
-    "expectedOutcome": "blocked",
-    "expectedBlockReasons": [
-      "bugfix policy row is unsupported in v0.0.1",
-      "draft remains unconfirmed while bugfix capability caps are stubbed"
+    "expectedOutcome": "promoted",
+    "expectedSuccessReasons": [
+      "bugfix policy row is wired in Phase 11",
+      "draft can be confirmed while bugfix capability caps are wired"
     ],
     "admissionExpectation": {
-      "expectedAdmissionOutcome": "blocked",
+      "expectedAdmissionOutcome": "promoted",
       "expectedAmbiguityStatus": {
         "mode": "brownfield",
         "threshold": 0.2,
@@ -62,12 +62,11 @@
         "structurallyMissingDimensions": []
       },
       "expectedCapabilityEnvelopeResult": {
-        "status": "unsupported",
+        "status": "allowed",
         "goalArchetype": "bugfix",
-        "policyStatus": "stub",
-        "blockingFindings": [
-          "unsupported-goal-archetype"
-        ]
+        "policyStatus": "wired",
+        "blockingFindings": [],
+        "unresolvedFindings": []
       }
     }
   }

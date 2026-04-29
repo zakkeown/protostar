@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_ADMISSION_FAILURE_CODES,
   CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD,
+  GOAL_ARCHETYPE_POLICY_TABLE,
   validateCapabilityEnvelopeRepairLoopCount,
   validateIntentDraftCapabilityEnvelopeRepairLoopCount,
   type IntentDraftCapabilityEnvelope
@@ -102,5 +103,75 @@ describe("capability-envelope repair_loop_count validation", () => {
         failures: []
       }
     );
+  });
+
+  it("accepts exact Phase 11 repair-loop caps: cosmetic-tweak 1, feature-add 9, bugfix 5, and refactor 5", () => {
+    const cases = [
+      ["cosmetic-tweak", 1],
+      ["feature-add", 9],
+      ["bugfix", 5],
+      ["refactor", 5]
+    ] as const;
+
+    for (const [goalArchetype, cap] of cases) {
+      assert.deepEqual(
+        validateCapabilityEnvelopeRepairLoopCount({
+          goalArchetype,
+          capabilityEnvelope: {
+            budget: {
+              maxRepairLoops: cap
+            }
+          },
+          selectedGoalArchetypePolicy: GOAL_ARCHETYPE_POLICY_TABLE[goalArchetype]
+        }),
+        {
+          ok: true,
+          goalArchetype,
+          failures: []
+        },
+        `${goalArchetype} should accept maxRepairLoops ${cap}.`
+      );
+    }
+  });
+
+  it("refuses one over Phase 11 repair-loop caps: cosmetic-tweak 2, feature-add 10, bugfix 6, and refactor 6", () => {
+    const cases = [
+      ["cosmetic-tweak", 2, 1],
+      ["feature-add", 10, 9],
+      ["bugfix", 6, 5],
+      ["refactor", 6, 5]
+    ] as const;
+
+    for (const [goalArchetype, requestedRepairLoopCount, allowedRepairLoopCount] of cases) {
+      assert.deepEqual(
+        validateCapabilityEnvelopeRepairLoopCount({
+          goalArchetype,
+          capabilityEnvelope: {
+            budget: {
+              maxRepairLoops: requestedRepairLoopCount
+            }
+          },
+          selectedGoalArchetypePolicy: GOAL_ARCHETYPE_POLICY_TABLE[goalArchetype]
+        }),
+        {
+          ok: false,
+          goalArchetype,
+          failures: [
+            {
+              code: "repair_loop_count_exceeds_cap",
+              goalArchetype,
+              fieldPath: "capabilityEnvelope.budget.maxRepairLoops",
+              severity: "ambiguity",
+              message:
+                `capabilityEnvelope.budget.maxRepairLoops requests ${requestedRepairLoopCount} repair loops above the ${goalArchetype} policy repair_loop_count cap of ${allowedRepairLoopCount}.`,
+              requestedRepairLoopCount,
+              allowedRepairLoopCount,
+              policyField: CAPABILITY_ENVELOPE_REPAIR_LOOP_COUNT_POLICY_FIELD
+            }
+          ]
+        },
+        `${goalArchetype} should refuse maxRepairLoops ${requestedRepairLoopCount}.`
+      );
+    }
   });
 });

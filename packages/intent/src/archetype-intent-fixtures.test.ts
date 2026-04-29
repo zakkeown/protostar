@@ -31,46 +31,46 @@ const archetypeFixtureCases = [
   {
     path: "examples/intents/feature-add.draft.json",
     expectedGoalArchetype: "feature-add",
-    expectedOutcome: "blocked",
-    expectedPolicyStatus: "stub"
+    expectedOutcome: "promoted",
+    expectedPolicyStatus: "wired"
   },
   {
     path: "examples/intents/refactor.draft.json",
     expectedGoalArchetype: "refactor",
-    expectedOutcome: "blocked",
-    expectedPolicyStatus: "stub"
+    expectedOutcome: "promoted",
+    expectedPolicyStatus: "wired"
   },
   {
     path: "examples/intents/bugfix.draft.json",
     expectedGoalArchetype: "bugfix",
-    expectedOutcome: "blocked",
-    expectedPolicyStatus: "stub"
+    expectedOutcome: "promoted",
+    expectedPolicyStatus: "wired"
   }
 ] as const satisfies readonly ArchetypeFixtureCase[];
 
-const stubArchetypeFixtureCases = [
+const wiredArchetypeFixtureCases = [
   {
     path: "examples/intents/feature-add.draft.json",
     expectedGoalArchetype: "feature-add",
     expectedAdmissionSource: "feature-add-policy-admission",
     expectedTimeoutMs: 900_000,
-    expectedMaxRepairLoops: 2
+    expectedMaxRepairLoops: 9
   },
   {
     path: "examples/intents/refactor.draft.json",
     expectedGoalArchetype: "refactor",
     expectedAdmissionSource: "refactor-policy-admission",
-    expectedTimeoutMs: 900_000,
-    expectedMaxRepairLoops: 2
+    expectedTimeoutMs: 600_000,
+    expectedMaxRepairLoops: 5
   },
   {
     path: "examples/intents/bugfix.draft.json",
     expectedGoalArchetype: "bugfix",
     expectedAdmissionSource: "bugfix-policy-admission",
     expectedTimeoutMs: 600_000,
-    expectedMaxRepairLoops: 2
+    expectedMaxRepairLoops: 5
   }
-] as const satisfies readonly StubArchetypeFixtureCase[];
+] as const satisfies readonly WiredArchetypeFixtureCase[];
 
 interface ArchetypeFixtureCase {
   readonly path: string;
@@ -79,17 +79,17 @@ interface ArchetypeFixtureCase {
   readonly expectedPolicyStatus: "wired" | "stub";
 }
 
-type StubGoalArchetype = "feature-add" | "refactor" | "bugfix";
+type WiredGoalArchetype = "feature-add" | "refactor" | "bugfix";
 
-type StubAdmissionSource =
+type WiredAdmissionSource =
   | "feature-add-policy-admission"
   | "refactor-policy-admission"
   | "bugfix-policy-admission";
 
-interface StubArchetypeFixtureCase {
+interface WiredArchetypeFixtureCase {
   readonly path: string;
-  readonly expectedGoalArchetype: StubGoalArchetype;
-  readonly expectedAdmissionSource: StubAdmissionSource;
+  readonly expectedGoalArchetype: WiredGoalArchetype;
+  readonly expectedAdmissionSource: WiredAdmissionSource;
   readonly expectedTimeoutMs: number;
   readonly expectedMaxRepairLoops: number;
 }
@@ -172,15 +172,15 @@ describe("archetype intent draft fixtures", () => {
     }
   });
 
-  it("recognizes feature-add, refactor, and bugfix fixtures but caps them to stub behavior", async () => {
-    for (const fixtureCase of stubArchetypeFixtureCases) {
+  it("recognizes supported feature-add cap 9, refactor cap 5, and bugfix cap 5 fixtures as wired admissions", async () => {
+    for (const fixtureCase of wiredArchetypeFixtureCases) {
       const draft = await readIntentDraftFixture(fixtureCase.path);
       const expectation = draft.metadata?.admissionExpectation;
       const capabilityExpectation = expectation?.expectedCapabilityEnvelopeResult;
       const registryEntry = INTENT_ARCHETYPE_REGISTRY[fixtureCase.expectedGoalArchetype];
       const policy = GOAL_ARCHETYPE_POLICY_TABLE[fixtureCase.expectedGoalArchetype];
       const suggestion = autoTagIntentDraftArchetype(draft);
-      const admission = admitStubArchetypeFixture(fixtureCase.expectedGoalArchetype, draft);
+      const admission = admitWiredArchetypeFixture(fixtureCase.expectedGoalArchetype, draft);
       const promotion = promoteIntentDraft({
         draft,
         mode: draft.mode ?? "brownfield",
@@ -188,9 +188,9 @@ describe("archetype intent draft fixtures", () => {
       });
 
       assert.equal(draft.goalArchetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
-      assert.equal(capabilityExpectation?.status, "unsupported", fixtureCase.path);
+      assert.equal(capabilityExpectation?.status, "allowed", fixtureCase.path);
       assert.equal(capabilityExpectation?.goalArchetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
-      assert.equal(capabilityExpectation?.policyStatus, "stub", fixtureCase.path);
+      assert.equal(capabilityExpectation?.policyStatus, "wired", fixtureCase.path);
 
       assert.equal(suggestion.archetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
       assert.ok(
@@ -203,42 +203,34 @@ describe("archetype intent draft fixtures", () => {
         `${fixtureCase.path} should be recognized from its explicit goalArchetype.`
       );
 
-      assert.equal(registryEntry.supportStatus, "unsupported", fixtureCase.path);
-      assert.equal(registryEntry.supported, false, fixtureCase.path);
-      assert.equal(registryEntry.capabilityCapStatus, "stub", fixtureCase.path);
+      assert.equal(registryEntry.supportStatus, "supported", fixtureCase.path);
+      assert.equal(registryEntry.supported, true, fixtureCase.path);
+      assert.equal(registryEntry.capabilityCapStatus, "wired", fixtureCase.path);
       assert.equal(registryEntry.policy, policy, fixtureCase.path);
-      assert.equal(policy.status, "stub", fixtureCase.path);
+      assert.equal(policy.status, "wired", fixtureCase.path);
       assert.equal(policy.budgets.timeoutMs, fixtureCase.expectedTimeoutMs, fixtureCase.path);
       assert.equal(policy.budgetCaps.maxRepairLoops, fixtureCase.expectedMaxRepairLoops, fixtureCase.path);
 
-      assert.equal(admission.ok, false, fixtureCase.path);
+      assert.equal(admission.ok, true, fixtureCase.path);
       assert.equal(admission.goalArchetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
-      assert.equal(admission.decision.source, fixtureCase.expectedAdmissionSource, fixtureCase.path);
-      assert.equal(admission.decision.decision, "unsupported", fixtureCase.path);
-      assert.equal(admission.decision.supportStatus, "unsupported", fixtureCase.path);
-      assert.equal(admission.decision.capabilityCapStatus, "stub", fixtureCase.path);
-      assert.equal(admission.decision.stubCap, policy, fixtureCase.path);
+      assert.equal(admission.grant.source, fixtureCase.expectedAdmissionSource, fixtureCase.path);
+      assert.equal(admission.grant.goalArchetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
+      assert.equal(admission.grant.policy, policy, fixtureCase.path);
+      assert.deepEqual(admission.admission.blockingFindings, [], fixtureCase.path);
+      assert.deepEqual(admission.admission.unresolvedFindings, [], fixtureCase.path);
       assert.deepEqual(
-        admission.admission.blockingFindings.map((finding) => finding.code),
-        ["unsupported-goal-archetype"],
+        admission.findings.map((finding) => finding.code),
+        [],
         fixtureCase.path
       );
-      assert.deepEqual(
-        admission.admission.unresolvedFindings.map((finding) => finding.code),
-        ["unsupported-goal-archetype"],
-        fixtureCase.path
-      );
-      assert.match(admission.errors[0] ?? "", /unsupported in v0\.0\.1/, fixtureCase.path);
+      assert.deepEqual(admission.errors, [], fixtureCase.path);
 
-      assertPromotionFailed(promotion, "checklist-only", fixtureCase.path);
-      assert.equal(promotion.failureDetails.confirmedIntentCreated, false, fixtureCase.path);
+      assertPromotionSucceeded(promotion, fixtureCase.path);
+      assert.equal(promotion.intent.goalArchetype, fixtureCase.expectedGoalArchetype, fixtureCase.path);
+      assert.equal(promotion.intent.capabilityEnvelope.budget.maxRepairLoops, 1, fixtureCase.path);
       assert.equal(promotion.ambiguityAssessment.accepted, true, fixtureCase.path);
       assert.equal(promotion.ambiguityAssessment.ambiguity, 0, fixtureCase.path);
-      assert.deepEqual(
-        promotion.policyFindings.map((finding) => finding.code),
-        ["unsupported-goal-archetype"],
-        fixtureCase.path
-      );
+      assert.deepEqual(promotion.policyFindings, [], fixtureCase.path);
     }
   });
 });
@@ -249,7 +241,7 @@ async function readIntentDraftFixture(path: string): Promise<DraftWithFixtureMet
   return JSON.parse(raw) as DraftWithFixtureMetadata;
 }
 
-function admitStubArchetypeFixture(archetype: StubGoalArchetype, draft: IntentDraft) {
+function admitWiredArchetypeFixture(archetype: WiredGoalArchetype, draft: IntentDraft) {
   if (archetype === "feature-add") {
     return admitFeatureAddCapabilityEnvelope({ draft });
   }

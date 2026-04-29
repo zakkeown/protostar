@@ -5,14 +5,14 @@
   "requester": "ouroboros-ac-80301",
   "mode": "brownfield",
   "goalArchetype": "refactor",
-  "context": "Protostar already has feature-add and cosmetic-tweak admission paths; this draft exercises the v0.0.1 refactor policy row.",
+  "context": "Protostar already has feature-add and cosmetic-tweak admission paths; this draft exercises the Phase 11 wired refactor policy row.",
   "acceptanceCriteria": [
     {
-      "statement": "The refactor admission response reports the selected refactor policy row and its stub capability cap.",
+      "statement": "The refactor admission response reports the selected refactor policy row and its wired capability cap.",
       "verification": "evidence"
     },
     {
-      "statement": "Refactor drafts remain unconfirmed while the refactor policy row is unsupported.",
+      "statement": "Refactor drafts can be confirmed when the refactor policy row is wired.",
       "verification": "test"
     }
   ],
@@ -21,7 +21,7 @@
     "Do not change execution, review repair, delivery, or Dogpile planning internals."
   ],
   "stopConditions": [
-    "Stop if refactor admission remains unsupported or if the stub cap cannot be reported deterministically."
+    "Stop if refactor admission refuses a wired policy row or if the capability cap cannot be reported deterministically."
   ],
   "capabilityEnvelope": {
     "repoScopes": [
@@ -47,13 +47,13 @@
   "metadata": {
     "fixtureKind": "refactor-draft",
     "expectedGoalArchetype": "refactor",
-    "expectedOutcome": "blocked",
-    "expectedBlockReasons": [
-      "refactor policy row is unsupported in v0.0.1",
-      "draft remains unconfirmed while refactor capability caps are stubbed"
+    "expectedOutcome": "promoted",
+    "expectedSuccessReasons": [
+      "refactor policy row is wired in Phase 11",
+      "draft can be confirmed while refactor capability caps are wired"
     ],
     "admissionExpectation": {
-      "expectedAdmissionOutcome": "blocked",
+      "expectedAdmissionOutcome": "promoted",
       "expectedAmbiguityStatus": {
         "mode": "brownfield",
         "threshold": 0.2,
@@ -62,12 +62,11 @@
         "structurallyMissingDimensions": []
       },
       "expectedCapabilityEnvelopeResult": {
-        "status": "unsupported",
+        "status": "allowed",
         "goalArchetype": "refactor",
-        "policyStatus": "stub",
-        "blockingFindings": [
-          "unsupported-goal-archetype"
-        ]
+        "policyStatus": "wired",
+        "blockingFindings": [],
+        "unresolvedFindings": []
       }
     }
   }
