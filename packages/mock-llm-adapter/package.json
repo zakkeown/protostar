@@ -1,0 +1,36 @@
+{
+  "name": "@protostar/mock-llm-adapter",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && node --test dist/**/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "@protostar/execution": "workspace:*"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "protostar": {
+    "tier": "pure"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
