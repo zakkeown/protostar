@@ -1,4 +1,5 @@
 import type { ExecutionAdapter } from "@protostar/execution";
+import type { HostedOpenAiCompatibleCoderAdapterConfig } from "@protostar/hosted-llm-adapter";
 import {
   createLmstudioCoderAdapter as defaultCreateLmstudioCoderAdapter,
   type LlmBackend,
@@ -22,6 +23,7 @@ export class LlmBackendUnavailableError extends Error {
 export interface SelectExecutionAdapterInput {
   readonly backend: LlmBackend;
   readonly lmstudio?: LmstudioAdapterConfig;
+  readonly hostedOpenAiCompatible?: HostedOpenAiCompatibleCoderAdapterConfig;
   readonly createLmstudioCoderAdapter?: (config: LmstudioAdapterConfig) => ExecutionAdapter;
 }
 
