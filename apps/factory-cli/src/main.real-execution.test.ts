@@ -9,6 +9,7 @@ import { parseCliArgs } from "./cli-args.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const mainSourcePath = resolve(repoRoot, "apps/factory-cli/src/main.ts");
 const runCommandSourcePath = resolve(repoRoot, "apps/factory-cli/src/commands/run.ts");
+const deliveryWiringSourcePath = resolve(repoRoot, "apps/factory-cli/src/wiring/delivery.ts");
 
 describe("factory-cli real executor integration", () => {
   it("parses --executor real and --allowed-adapters", () => {
@@ -68,10 +69,11 @@ describe("factory-cli real executor integration", () => {
   it("writes delivery authorization payloads before gated or auto delivery", async () => {
     const source = await readFile(mainSourcePath, "utf8");
     const runCommandSource = await readFile(runCommandSourcePath, "utf8");
+    const deliveryWiringSource = await readFile(deliveryWiringSourcePath, "utf8");
 
-    assert.match(source, /AuthorizationPayload/);
-    assert.match(source, /authorization\.json/);
-    assert.match(source, /gated: run .*protostar-factory deliver .* to push\./);
+    assert.match(deliveryWiringSource, /AuthorizationPayload/);
+    assert.match(deliveryWiringSource, /authorization\.json/);
+    assert.match(deliveryWiringSource, /gated: run .*protostar-factory deliver .* to push\./);
     assert.match(source, /resolveDeliveryMode/);
     assert.match(runCommandSource, /delivery-mode/);
   });
