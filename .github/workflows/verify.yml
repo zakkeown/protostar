@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: pnpm run verify:full
+    name: pnpm run verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,5 +28,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run verify:full
-        run: pnpm run verify:full
+      - name: Run verify
+        run: pnpm run verify
