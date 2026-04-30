@@ -119,6 +119,9 @@ export type IntentDraftCapabilityEnvelope = {
   pnpm?: {
     allowedAdds?: readonly string[];
   };
+  mechanical?: {
+    allowed?: readonly ("install" | "build" | "verify" | "typecheck" | "lint" | "test")[];
+  };
   workspace?: {
     allowDirty?: boolean;
   };

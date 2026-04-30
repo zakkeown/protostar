@@ -31,9 +31,21 @@ describe("subprocess command schemas", () => {
     assert.equal(PNPM_SCHEMA.command, "pnpm");
     assert.equal(PNPM_SCHEMA.refValuePattern.test("@scope/pkg"), true);
     assert.deepEqual(
-      requiredMembers(PNPM_SCHEMA.allowedSubcommands, ["install", "run", "build", "test", "--filter", "exec"]),
+      requiredMembers(PNPM_SCHEMA.allowedSubcommands, ["-r", "install", "run", "build", "test", "--filter", "exec"]),
       []
     );
+  });
+
+  it("admits closed pnpm install and local test bindings", () => {
+    const outerGuardSchema = {
+      allowedFlagPrefixes: Object.values(PNPM_SCHEMA.allowedFlags).flat(),
+      refValuePattern: PNPM_SCHEMA.refValuePattern
+    };
+
+    assert.doesNotThrow(() => applyOuterPatternGuard(["install", "--ignore-workspace", "--frozen-lockfile"], outerGuardSchema));
+    assert.doesNotThrow(() => validatePnpmArgv(["install", "--ignore-workspace", "--frozen-lockfile"]));
+    assert.doesNotThrow(() => validatePnpmArgv(["test"]));
+    assert.throws(() => validatePnpmArgv(["-r", "build"]));
   });
 
   it("accepts only exact curated pnpm add argv shapes", () => {

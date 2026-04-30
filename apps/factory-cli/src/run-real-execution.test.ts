@@ -20,6 +20,7 @@ import type { CapabilityEnvelope, ConfirmedIntent } from "@protostar/intent";
 import type { ApplyResult } from "@protostar/repo";
 
 import { createJournalWriter } from "./journal-writer.js";
+import { createFsRepoReader } from "./repo-reader-adapter.js";
 import { runRealExecution } from "./run-real-execution.js";
 
 describe("runRealExecution", () => {
@@ -141,6 +142,51 @@ describe("runRealExecution", () => {
     assert.equal(result.outcome, "complete");
     assert.equal(seenRoot, ctx.runDir);
     assert.equal(seenPath, resolve(ctx.runDir, "src/a.ts"));
+  });
+
+  it("materializes missing authorized write targets before adapter reads", async () => {
+    const ctx = await testContext({
+      workspaceName: "protostar-toy-ttt",
+      envelope: {
+        ...envelope(),
+        repoScopes: [
+          { workspace: "protostar-toy-ttt", path: "src/components/NewBoard.tsx", access: "write" },
+          { workspace: "protostar-toy-ttt", path: "src/lib/state.ts", access: "write" }
+        ]
+      }
+    });
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    const result = await runRealExecution({
+      ...ctx.input,
+      runPlan: {
+        ...ctx.input.runPlan,
+        tasks: [{
+          planTaskId: "task-1",
+          title: "Create missing targets",
+          status: "pending",
+          dependsOn: [],
+          targetFiles: ["src/components/NewBoard.tsx", "src/lib/state.ts"]
+        }]
+      },
+      repoReader: createFsRepoReader({ workspaceRoot: ctx.runDir }),
+      journalWriter: writer,
+      adapter: {
+        id: "reads-missing-targets",
+        async *execute(_task, adapterCtx) {
+          const board = await adapterCtx.repoReader.readFile("src/components/NewBoard.tsx");
+          const state = await adapterCtx.repoReader.readFile("src/lib/state.ts");
+          assert.equal(new TextDecoder().decode(board.bytes), "");
+          assert.equal(new TextDecoder().decode(state.bytes), "");
+          yield { kind: "final", result: changeSetResult("src/components/NewBoard.tsx", sha("")) };
+        }
+      },
+      applyChangeSet: async () => [{ path: "src/components/NewBoard.tsx", status: "applied" }]
+    });
+    await writer.close();
+
+    assert.equal(result.outcome, "complete");
+    assert.equal(await exists(join(ctx.runDir, "src", "components", "NewBoard.tsx")), true);
+    assert.equal(await exists(join(ctx.runDir, "src", "lib", "state.ts")), true);
   });
 
   it("bails with block on apply failure and does not execute downstream tasks", async () => {
@@ -388,6 +434,46 @@ describe("runRealExecution", () => {
     assert.equal((repairContexts[0] as any).repairContext.mechanicalCritiques[0].message, "Task 1 needs repair.");
     assert.equal((repairContexts[0] as any).repairContext.modelCritiques[0].rationale, "Task 1 missed the target.");
     assert.equal(await exists(join(ctx.runDir, "execution", "task-task-1-attempt-2", "evidence.json")), true);
+  });
+
+  it("stops repair execution after applying a non-empty change set so review can rerun", async () => {
+    const ctx = await testContext({ taskCount: 2 });
+    const writer = await createJournalWriter({ runDir: ctx.runDir });
+    const executedTasks: string[] = [];
+    const result = await runRealExecution({
+      ...ctx.input,
+      journalWriter: writer,
+      adapter: {
+        id: "repair-stub",
+        async *execute(task) {
+          executedTasks.push(task.planTaskId);
+          yield { kind: "final", result: changeSetResult(task.targetFiles[0] ?? "src/file-1.ts") };
+        }
+      },
+      applyChangeSet: async (patches) => [{ path: patches[0]?.path ?? "unknown", status: "applied" }],
+      repair: {
+        attempt: 2,
+        repairPlan: {
+          runId: "run_real",
+          attempt: 1,
+          repairs: [
+            { planTaskId: "task-1", mechanicalCritiques: [], modelCritiques: [] },
+            { planTaskId: "task-2", mechanicalCritiques: [], modelCritiques: [] }
+          ],
+          dependentTaskIds: ["task-1", "task-2"]
+        }
+      }
+    });
+    await writer.close();
+
+    assert.equal(result.outcome, "complete");
+    assert.deepEqual(executedTasks, ["task-1"]);
+    assert.deepEqual(result.events.map((event) => event.planTaskId), ["task-1", "task-1", "task-1"]);
+    assert.deepEqual(result.events.map((event) => event.type), [
+      "task-pending",
+      "task-running",
+      "task-succeeded"
+    ]);
   });
 
   it("keeps real executor lifecycle event types within dry-run vocabulary", async () => {

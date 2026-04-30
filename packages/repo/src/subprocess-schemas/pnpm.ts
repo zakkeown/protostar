@@ -3,7 +3,8 @@ import { ArgvViolation } from "../argv-pattern-guard.js";
 import { PNPM_ADD_ALLOWLIST, formatPnpmAddAllowlistSpec } from "../pnpm-add-allowlist.js";
 
 const PNPM_ALLOWED_FLAGS: CommandSchema["allowedFlags"] = Object.freeze({
-  install: Object.freeze(["--frozen-lockfile", "--no-frozen-lockfile", "--force"]),
+  "": Object.freeze(["-r"]),
+  install: Object.freeze(["--frozen-lockfile", "--no-frozen-lockfile", "--force", "--ignore-workspace"]),
   run: Object.freeze([]),
   build: Object.freeze([]),
   test: Object.freeze([]),
@@ -15,6 +16,7 @@ const PNPM_ALLOWED_FLAGS: CommandSchema["allowedFlags"] = Object.freeze({
 export const PNPM_SCHEMA: CommandSchema = Object.freeze({
   command: "pnpm",
   allowedSubcommands: Object.freeze([
+    "-r",
     "install",
     "run",
     "build",
@@ -34,6 +36,11 @@ function validatePnpmArgv(argv: readonly string[]): void {
     return;
   }
 
+  if (subcommand === "-r") {
+    validatePnpmRecursiveArgv(argv);
+    return;
+  }
+
   if (!PNPM_SCHEMA.allowedSubcommands.includes(subcommand)) {
     throw new ArgvViolation(
       "ref-pattern-violation",
@@ -47,6 +54,12 @@ function validatePnpmArgv(argv: readonly string[]): void {
   }
 
   validatePnpmSubcommandFlags(argv, subcommand);
+}
+
+function validatePnpmRecursiveArgv(argv: readonly string[]): void {
+  if (argv.length !== 2 || argv[1] !== "test") {
+    throw new ArgvViolation("ref-pattern-violation", "pnpm -r accepts only the closed test binding");
+  }
 }
 
 function validatePnpmSubcommandFlags(argv: readonly string[], subcommand: string): void {

@@ -88,11 +88,11 @@ export interface OperatorConfig {
 
 /**
  * Phase 12 D-03/D-04: operator-supplied mechanical commands are a closed enum.
- * Each entry must be a member of CLOSED_MECHANICAL_COMMAND_NAMES (verify,
- * typecheck, lint, test). Argv is bound by name in @protostar/repo's
+ * Each entry must be a member of CLOSED_MECHANICAL_COMMAND_NAMES (install,
+ * build, verify, typecheck, lint, test). Argv is bound by name in @protostar/repo's
  * MECHANICAL_COMMAND_BINDINGS — operators cannot supply free-form argv.
  */
-export type MechanicalChecksCommandConfig = "verify" | "typecheck" | "lint" | "test";
+export type MechanicalChecksCommandConfig = "install" | "build" | "verify" | "typecheck" | "lint" | "test";
 
 export interface MechanicalChecksConfig {
   readonly commands?: readonly MechanicalChecksCommandConfig[];
@@ -258,6 +258,8 @@ const EVOLUTION_KEYS = new Set(["lineage", "codeEvolution", "convergenceThreshol
 const OPERATOR_KEYS = new Set(["livenessThresholdMs"]);
 const MECHANICAL_CHECKS_KEYS = new Set(["commands"]);
 const ALLOWED_MECHANICAL_COMMAND_NAMES: ReadonlySet<string> = new Set([
+  "install",
+  "build",
   "verify",
   "typecheck",
   "lint",
@@ -579,7 +581,7 @@ function validateMechanicalCommands(path: string, commands: unknown, errors: str
     const commandPath = `${path}[${index}]`;
     if (typeof command !== "string" || !ALLOWED_MECHANICAL_COMMAND_NAMES.has(command)) {
       errors.push(
-        `${commandPath} must be one of "verify" | "typecheck" | "lint" | "test"`
+        `${commandPath} must be one of "install" | "build" | "verify" | "typecheck" | "lint" | "test"`
       );
     }
   }

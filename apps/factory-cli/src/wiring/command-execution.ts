@@ -73,6 +73,8 @@ export function createMechanicalSubprocessRunner(
         durationMs: result.durationMs,
         stdoutPath: result.stdoutPath,
         stderrPath: result.stderrPath,
+        stdoutTail: result.stdoutTail,
+        stderrTail: result.stderrTail,
         stdoutBytes: result.stdoutBytes,
         stderrBytes: result.stderrBytes
       };

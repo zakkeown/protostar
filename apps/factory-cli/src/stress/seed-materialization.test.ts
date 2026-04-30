@@ -82,15 +82,52 @@ describe("stress seed materialization", () => {
       readonly draftId?: string;
       readonly mode?: string;
       readonly goalArchetype?: string;
+      readonly context?: string;
+      readonly constraints?: readonly string[];
       readonly acceptanceCriteria?: readonly unknown[];
-      readonly capabilityEnvelope?: { readonly delivery?: { readonly target?: { readonly repo?: string } } };
+      readonly capabilityEnvelope?: {
+        readonly budget?: { readonly taskWallClockMs?: number };
+        readonly delivery?: { readonly target?: { readonly repo?: string; readonly baseBranch?: string } };
+        readonly mechanical?: { readonly allowed?: readonly string[] };
+        readonly repoScopes?: readonly { readonly path?: string; readonly access?: string }[];
+      };
       readonly metadata?: { readonly seedId?: string };
     };
     assert.match(draft.draftId ?? "", /^draft_stress_ttt_game_0$/);
     assert.equal(draft.mode, "brownfield");
     assert.equal(draft.goalArchetype, "feature-add");
     assert.equal(draft.acceptanceCriteria?.length, getSeed("ttt-game").acceptanceCriteria.length);
+    assert.deepEqual(
+      (draft.acceptanceCriteria as readonly { readonly statement?: string; readonly verification?: string }[])
+        .filter((criterion) => criterion.statement?.startsWith("The existing "))
+        .map((criterion) => criterion.verification),
+      ["evidence", "evidence"]
+    );
     assert.equal(draft.capabilityEnvelope?.delivery?.target?.repo, "protostar-toy-ttt");
+    assert.equal(draft.capabilityEnvelope?.delivery?.target?.baseBranch, "phase11-ttt-gate");
+    assert.equal(draft.capabilityEnvelope?.budget?.taskWallClockMs, 600000);
+    assert.deepEqual(draft.capabilityEnvelope?.mechanical?.allowed, ["install", "build", "test"]);
+    assert.match(draft.context ?? "", /ttt-cell-0 through ttt-cell-8/);
+    assert.match(draft.context ?? "", /ttt-status must mention X initially, O after X moves/);
+    assert.match(draft.context ?? "", /TttState\.nextPlayer/);
+    assert.match(draft.context ?? "", /playwright\.config\.ts only for the Playwright dev-server command/);
+    assert.deepEqual(
+      draft.capabilityEnvelope?.repoScopes?.map((scope) => `${scope.path}:${scope.access}`),
+      [
+        "src/App.tsx:write",
+        "src/components/TicTacToeBoard.tsx:write",
+        "src/ttt/state.ts:write",
+        "playwright.config.ts:write"
+      ]
+    );
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("data-testid=\"ttt-status\"")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("directly on rendered DOM elements")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("Keep occupied cells enabled")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("current next player")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("do not import Card, NavBar, or PrimaryButton")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("applyTttMove")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("nextPlayer")));
+    assert.ok(draft.constraints?.some((constraint) => constraint.includes("pnpm run dev --host 127.0.0.1 --port 1420")));
     assert.equal(draft.metadata?.seedId, "ttt-game");
   });
 
@@ -188,7 +225,7 @@ async function writePermissiveRepoPolicy(workspace: string): Promise<void> {
         },
         {
           workspace: "protostar-toy-ttt",
-          path: "src/lib/ttt-state.ts",
+          path: "src/ttt/state.ts",
           access: "write"
         }
       ],
@@ -208,7 +245,7 @@ async function writePermissiveRepoPolicy(workspace: string): Promise<void> {
       ],
       network: {
         allow: "allowlist",
-        allowedHosts: ["github.com"]
+        allowedHosts: ["github.com", "api.github.com", "localhost", "127.0.0.1"]
       },
       budgetCaps: {
         timeoutMs: 900000,

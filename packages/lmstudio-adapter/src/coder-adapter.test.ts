@@ -87,6 +87,117 @@ describe("createLmstudioCoderAdapter", () => {
     assert.deepEqual(entriesOf(final.result.changeSet), []);
   });
 
+  it("retries an identical full-file replacement during repair", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([
+        identicalButtonReplacement(),
+        cosmeticTweakFixture.expectedJsonChangeSetSample
+      ])
+    });
+
+    const events = await collectEvents(
+      adapter.execute(toAdapterTask(), createAdapterContext({ repairContext: repairContext() }))
+    );
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.equal(final.result.evidence.attempts, 2);
+    assert.equal(final.result.evidence.retries[0]?.retryReason, "repair");
+    assert.equal(entriesOf(final.result.changeSet)[0]?.path, "src/Button.tsx");
+  });
+
+  it("fails an exhausted identical full-file replacement during repair", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([identicalButtonReplacement()])
+    });
+
+    const events = await collectEvents(
+      adapter.execute(
+        toAdapterTask(),
+        createAdapterContext({
+          repairContext: repairContext(),
+          budget: { adapterRetriesPerTask: 2, taskWallClockMs: 180_000 }
+        })
+      )
+    );
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "adapter-failed");
+    if (final.result.outcome !== "adapter-failed") throw new Error("expected failure");
+    assert.equal(final.result.reason, "empty-repair-change-set");
+    assert.equal(final.result.evidence.attempts, 2);
+    assert.equal(final.result.evidence.retries[0]?.retryReason, "repair");
+  });
+
+  it("accepts an explicit empty replacement entries array as a no-op change-set", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([emptyReplacement()])
+    });
+
+    const events = await collectEvents(adapter.execute(toAdapterTask(), createAdapterContext()));
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.deepEqual(entriesOf(final.result.changeSet), []);
+  });
+
+  it("retries an explicit empty replacement entries array during repair", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([emptyReplacement(), cosmeticTweakFixture.expectedJsonChangeSetSample])
+    });
+
+    const events = await collectEvents(
+      adapter.execute(toAdapterTask(), createAdapterContext({ repairContext: repairContext() }))
+    );
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+    assert.equal(final.result.evidence.attempts, 2);
+    assert.equal(final.result.evidence.retries[0]?.retryReason, "repair");
+    assert.equal(entriesOf(final.result.changeSet)[0]?.path, "src/Button.tsx");
+  });
+
+  it("fails an exhausted explicit empty replacement entries array during repair", async () => {
+    const adapter = createLmstudioCoderAdapter({
+      baseUrl: "http://127.0.0.1:1234/v1",
+      model: MODEL,
+      apiKey: "lm-studio",
+      fetchImpl: createStreamingFetch([emptyReplacement()])
+    });
+
+    const events = await collectEvents(
+      adapter.execute(
+        toAdapterTask(),
+        createAdapterContext({
+          repairContext: repairContext(),
+          budget: { adapterRetriesPerTask: 2, taskWallClockMs: 180_000 }
+        })
+      )
+    );
+    const final = finalEvent(events);
+
+    assert.equal(final.result.outcome, "adapter-failed");
+    if (final.result.outcome !== "adapter-failed") throw new Error("expected failure");
+    assert.equal(final.result.reason, "empty-repair-change-set");
+    assert.equal(final.result.evidence.attempts, 2);
+    assert.equal(final.result.evidence.retries[0]?.retryReason, "repair");
+  });
+
   it("accepts a JSON replacement fence without a newline before the closing backticks", async () => {
     const adapter = createLmstudioCoderAdapter({
       baseUrl: "http://127.0.0.1:1234/v1",
@@ -330,13 +441,15 @@ function createAdapterContext(
     readonly reads?: string[];
     readonly globs?: string[];
     readonly globResults?: Readonly<Record<string, readonly string[]>>;
+    readonly repairContext?: AdapterContext["repairContext"];
+    readonly budget?: AdapterContext["budget"];
   } = {}
 ): AdapterContext {
   return {
     signal: new AbortController().signal,
     confirmedIntent: cosmeticTweakFixture.intent,
     resolvedEnvelope: cosmeticTweakFixture.intent.capabilityEnvelope,
-    budget: {
+    budget: opts.budget ?? {
       adapterRetriesPerTask: 4,
       taskWallClockMs: 180_000
     },
@@ -357,7 +470,51 @@ function createAdapterContext(
       async appendToken(_taskId, _attempt, text) {
         opts.journalTokens?.push(text);
       }
-    }
+    },
+    ...(opts.repairContext !== undefined ? { repairContext: opts.repairContext } : {})
+  };
+}
+
+function identicalButtonReplacement(): string {
+  return [
+    "```json",
+    JSON.stringify({
+      entries: [
+        {
+          path: "src/Button.tsx",
+          content: new TextDecoder().decode(cosmeticTweakFixture.preImageBytes["src/Button.tsx"])
+        }
+      ]
+    }),
+    "```"
+  ].join("\n");
+}
+
+function emptyReplacement(): string {
+  return [
+    "```json",
+    JSON.stringify({
+      entries: []
+    }),
+    "```"
+  ].join("\n");
+}
+
+function repairContext(): NonNullable<AdapterContext["repairContext"]> {
+  return {
+    previousAttempt: { planTaskId: cosmeticTweakFixture.task.id, attempt: 1 },
+    mechanicalCritiques: [
+      {
+        ruleId: "build-failure",
+        severity: "major",
+        message: "mechanical command build exited with code 2",
+        evidence: {
+          artifacts: {
+            stdoutTail: "src/Button.tsx(1,1): error TS2322"
+          }
+        }
+      }
+    ]
   };
 }
 

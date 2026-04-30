@@ -30,6 +30,47 @@ function isEvaluationVerdict(value: unknown): value is "pass" | "fail" {
   return value === "pass" || value === "fail";
 }
 
+function extractJsonObjectCandidates(text: string): readonly string[] {
+  const candidates: string[] = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      if (depth === 0) start = index;
+      depth += 1;
+      continue;
+    }
+    if (char === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        candidates.push(text.slice(start, index + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return candidates;
+}
+
 function validateRubric(
   rubric: Record<string, unknown>,
   critiquePath: string,
@@ -111,16 +152,50 @@ function validateCritique(value: unknown, index: number, errors: string[]): Eval
 }
 
 export function parseEvaluationPileResult(jsonText: string): EvaluationPileResult {
-  let parsed: unknown;
+  const parsedCandidates: unknown[] = [];
+  let directParseError: string | undefined;
   try {
-    parsed = JSON.parse(jsonText);
+    parsedCandidates.push(JSON.parse(jsonText));
   } catch (error: unknown) {
-    return {
-      ok: false,
-      errors: [`JSON.parse: ${error instanceof Error ? error.message : String(error)}`]
-    };
+    directParseError = `JSON.parse: ${error instanceof Error ? error.message : String(error)}`;
+    for (const candidate of extractJsonObjectCandidates(jsonText)) {
+      try {
+        parsedCandidates.push(JSON.parse(candidate));
+      } catch {
+        // Keep scanning. The returned error remains tied to EvaluationResult.
+      }
+    }
   }
 
+  if (parsedCandidates.length === 0) {
+    return { ok: false, errors: [directParseError ?? "JSON.parse: output is not valid JSON"] };
+  }
+
+  const bodies: EvaluationPileBody[] = [];
+  const errors: string[] = [];
+  for (const parsed of parsedCandidates) {
+    const parsedBody = parseEvaluationPileBody(parsed);
+    if (parsedBody.ok) {
+      bodies.push(parsedBody.body);
+    } else {
+      errors.push(...parsedBody.errors);
+    }
+  }
+
+  if (bodies.length === 0) {
+    if (directParseError !== undefined) errors.unshift(directParseError);
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    body: {
+      judgeCritiques: bodies.flatMap((body) => body.judgeCritiques)
+    }
+  };
+}
+
+function parseEvaluationPileBody(parsed: unknown): EvaluationPileResult {
   if (!isRecord(parsed)) {
     return { ok: false, errors: ["root must be object"] };
   }

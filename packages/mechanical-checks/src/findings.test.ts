@@ -8,19 +8,38 @@ import {
 } from "./findings.js";
 
 describe("buildFindings", () => {
-  it("emits a critical build-failure for a failing verify command", () => {
+  it("emits a repairable build-failure for a failing verify command", () => {
     const findings = buildFindings({
       commandResults: [commandResult("verify", 1)],
-      plan: planWithTasks([]),
+      plan: planWithTasks([
+        { id: "task-a", targetFiles: ["src/a.ts"] },
+        { id: "task-b", targetFiles: ["src/b.ts"] }
+      ]),
       archetype: "feature-add",
-      diffNameOnly: [],
+      diffNameOnly: ["src/a.ts"],
       testStdout: ""
     });
 
     assert.equal(findings.length, 1);
     assert.equal(findings[0]?.ruleId, "build-failure");
-    assert.equal(findings[0]?.severity, "critical");
-    assert.equal(findings[0]?.repairTaskId, undefined);
+    assert.equal(findings[0]?.severity, "major");
+    assert.equal(findings[0]?.repairTaskId, "task-a");
+  });
+
+  it("falls back to all plan tasks when a command failure cannot be matched to changed target files", () => {
+    const findings = buildFindings({
+      commandResults: [commandResult("build", 2)],
+      plan: planWithTasks([
+        { id: "task-a", targetFiles: ["src/a.ts"] },
+        { id: "task-b", targetFiles: ["src/b.ts"] }
+      ]),
+      archetype: "feature-add",
+      diffNameOnly: ["src/c.ts"],
+      testStdout: ""
+    });
+
+    assert.deepEqual(findings.map((finding) => finding.repairTaskId), ["task-a", "task-b"]);
+    assert.deepEqual(findings.map((finding) => finding.severity), ["major", "major"]);
   });
 
   it("emits a major lint-failure for a failing lint command", () => {
@@ -124,6 +143,69 @@ describe("buildFindings", () => {
     });
 
     assert.deepEqual(findings, []);
+  });
+
+  it("treats synthetic live-planning evidence as covered when a test command passes", () => {
+    const findings = buildFindings({
+      commandResults: [commandResult("test", 0)],
+      plan: planWithTasks([
+        {
+          id: "task-x",
+          acceptanceTestRefs: [
+            {
+              acId: "ac-1",
+              testFile: "src/App.tsx",
+              testName: "Protostar live planning build-and-test evidence"
+            }
+          ]
+        }
+      ]),
+      archetype: "feature-add",
+      diffNameOnly: ["src/App.tsx"],
+      testStdout: "2 passed"
+    });
+
+    assert.deepEqual(findings, []);
+  });
+
+  it("does not bury a failing test command under synthetic live-planning coverage findings", () => {
+    const findings = buildFindings({
+      commandResults: [commandResult("test", 1)],
+      plan: planWithTasks([
+        {
+          id: "task-x",
+          acceptanceTestRefs: [
+            {
+              acId: "ac-1",
+              testFile: "src/App.tsx",
+              testName: "Protostar live planning build-and-test evidence"
+            }
+          ]
+        }
+      ]),
+      archetype: "feature-add",
+      diffNameOnly: ["src/App.tsx"],
+      testStdout: "1 failed"
+    });
+
+    assert.deepEqual(findings.map((finding) => String(finding.ruleId)), ["generic-command-failure"]);
+  });
+
+  it("still emits ac-uncovered for a missing test file when tests fail", () => {
+    const findings = buildFindings({
+      commandResults: [commandResult("test", 1)],
+      plan: planWithTasks([
+        {
+          id: "task-x",
+          acceptanceTestRefs: [{ acId: "ac-1", testFile: "a.test.ts", testName: "renders" }]
+        }
+      ]),
+      archetype: "feature-add",
+      diffNameOnly: ["a.ts"],
+      testStdout: "1 failed"
+    });
+
+    assert.equal(findings.map((finding) => String(finding.ruleId)).includes("ac-uncovered"), true);
   });
 });
 

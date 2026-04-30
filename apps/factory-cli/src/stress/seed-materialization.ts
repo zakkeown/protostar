@@ -302,7 +302,12 @@ function buildTttDraft(seed: Seed, runIndex: number): IntentDraft {
     },
     {
       workspace: "protostar-toy-ttt",
-      path: "src/lib/ttt-state.ts",
+      path: "src/ttt/state.ts",
+      access: "write" as const
+    },
+    {
+      workspace: "protostar-toy-ttt",
+      path: "playwright.config.ts",
       access: "write" as const
     }
   ] as const;
@@ -317,7 +322,7 @@ function buildTttDraft(seed: Seed, runIndex: number): IntentDraft {
     mode: "brownfield",
     goalArchetype: seed.archetype,
     context:
-      "The target repository is ../protostar-toy-ttt. The implementation is bounded to ordinary source files while immutable operator verification files e2e/ttt.spec.ts and tests/ttt-state.property.test.ts already exist and must pass without factory edits.",
+      "The target repository is ../protostar-toy-ttt. The implementation is bounded to ordinary source files plus playwright.config.ts only for the Playwright dev-server command. Immutable operator verification files e2e/ttt.spec.ts and tests/ttt-state.property.test.ts already exist and must pass without factory edits. The Playwright spec expects data-testid values ttt-board, ttt-status, ttt-reset, and ttt-cell-0 through ttt-cell-8; ttt-status must mention X initially, O after X moves, the winning player after a win, and draw after a draw. The property test imports ../src/ttt/state and expects createInitialTttState, applyTttMove, TttMark, and TttState exports from that module, including TttState.nextPlayer.",
     acceptanceCriteria: [
       {
         statement: "The app renders a 3 by 3 tic-tac-toe grid with exactly 9 interactive cells.",
@@ -353,18 +358,26 @@ function buildTttDraft(seed: Seed, runIndex: number): IntentDraft {
       },
       {
         statement: "The existing e2e/ttt.spec.ts file remains unmodified and passes in the final run.",
-        verification: "test"
+        verification: "evidence"
       },
       {
         statement: "The existing tests/ttt-state.property.test.ts file remains unmodified and passes in the final run.",
-        verification: "test"
+        verification: "evidence"
       }
     ],
     constraints: [
-      "Keep implementation writes bounded to src/App.tsx, src/components/TicTacToeBoard.tsx, and src/lib/ttt-state.ts.",
+      "Keep implementation writes bounded to src/App.tsx, src/components/TicTacToeBoard.tsx, src/ttt/state.ts, and playwright.config.ts.",
+      "Only edit playwright.config.ts if needed to make the existing Playwright webServer command bind to http://127.0.0.1:1420; for pnpm scripts, prefer pnpm run dev --host 127.0.0.1 --port 1420 rather than inserting an extra literal --.",
+      "Do not create, modify, or plan new test files; final verification uses the existing operator-authored Playwright and property tests.",
       "Do not modify e2e/ttt.spec.ts.",
       "Do not modify tests/ttt-state.property.test.ts.",
-      "Keep game state in React state and avoid persistence."
+      "Keep game state in React state and avoid persistence.",
+      "Render data-testid=\"ttt-board\", data-testid=\"ttt-status\", data-testid=\"ttt-reset\", and data-testid=\"ttt-cell-0\" through data-testid=\"ttt-cell-8\" for the existing Playwright spec.",
+      "Place ttt-board, ttt-status, ttt-reset, and ttt-cell-* data-testid attributes directly on rendered DOM elements in scoped files; do not rely on Card, NavBar, PrimaryButton, or other custom components to forward data-testid.",
+      "Keep occupied cells enabled and clickable so the existing Playwright spec can click an occupied cell and observe that it remains unchanged; ignore occupied moves in applyTttMove or the click handler instead of disabling the button.",
+      "While TttState.status is playing, the rendered data-testid=\"ttt-status\" text must include the current next player (X on initial render, O after X moves); when terminal, it must include the winner or draw result.",
+      "Use native button elements for the tic-tac-toe cells and reset control unless the custom component source is also in scope and declares every passed prop; do not import Card, NavBar, or PrimaryButton for the tic-tac-toe board container or reset control.",
+      "Implement src/ttt/state.ts with exported TttMark, TttState, createInitialTttState, and applyTttMove. Use a 9-cell board of TttMark or null, expose TttState.nextPlayer, ignore occupied or terminal moves, detect all 8 winning lines, expose the winningLine, and represent status as playing, x-won, o-won, or draw."
     ],
     stopConditions: [
       "Stop if the immutable Playwright or property tests are missing.",
@@ -396,19 +409,25 @@ function buildTttDraft(seed: Seed, runIndex: number): IntentDraft {
           "react-aria-components@^1.13.0"
         ]
       },
+      mechanical: {
+        allowed: ["install", "build", "test"]
+      },
       network: {
         allow: "allowlist",
-        allowedHosts: ["github.com"]
+        allowedHosts: ["github.com", "api.github.com", "localhost", "127.0.0.1"]
       },
       budget: {
         timeoutMs: 900000,
+        adapterRetriesPerTask: 4,
+        taskWallClockMs: 600000,
+        deliveryWallClockMs: 600000,
         maxRepairLoops: seed.capabilityEnvelope?.budget?.maxRepairLoops ?? 9
       },
       delivery: {
         target: {
           owner: "zakkeown",
           repo: "protostar-toy-ttt",
-          baseBranch: "main"
+          baseBranch: "phase11-ttt-gate"
         }
       }
     },

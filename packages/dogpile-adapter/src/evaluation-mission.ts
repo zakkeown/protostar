@@ -24,6 +24,7 @@ export interface EvaluationMissionInput {
     readonly lintExitCode?: number;
     readonly stdoutTail?: string;
   };
+  readonly judgeId?: string;
 }
 
 const STDOUT_TAIL_LIMIT = 2000;
@@ -42,6 +43,7 @@ function truncateStdoutTail(stdoutTail: string | undefined): string | undefined 
 
 export function buildEvaluationMission(input: EvaluationMissionInput): FactoryPileMission {
   const stdoutTail = truncateStdoutTail(input.executionEvidence.stdoutTail);
+  const judgeId = input.judgeId ?? "eval-baseline";
 
   return {
     preset: evaluationPilePreset,
@@ -49,15 +51,21 @@ export function buildEvaluationMission(input: EvaluationMissionInput): FactoryPi
       "You are an evaluation judge. Score the completed factory run against this fixed rubric:",
       EVALUATION_RUBRIC_DIMENSIONS.join(", "),
       "",
-      "Each rubric value MUST be a number in [0,1].",
+      "Each rubric value MUST be a number in [0,1], where 1 is best/ready/safe and 0 is worst/not ready/unsafe.",
+      "For regressionRisk, score low regression risk near 1 and high regression risk near 0.",
+      'Set verdict to exactly "pass" or exactly "fail"; do not copy a union literal or any other value.',
+      `Use judgeId "${judgeId}" in every critique you return.`,
+      "The JSON object below is a schema example only. Replace the model, rubric numbers, verdict, and rationale with evidence-based values.",
+      "Never return placeholder all-zero rubric values unless the evidence is completely absent or failing.",
+      "Do not wrap the response in markdown fences.",
       "Return JSON only with this exact shape:",
       JSON.stringify({
         judgeCritiques: [
           {
-            judgeId: "eval-baseline",
+            judgeId,
             model: "model-name",
             rubric: Object.fromEntries(EVALUATION_RUBRIC_DIMENSIONS.map((dimension) => [dimension, 0])),
-            verdict: "pass|fail",
+            verdict: "pass",
             rationale: "brief explanation"
           }
         ]
@@ -78,8 +86,9 @@ export function buildEvaluationMission(input: EvaluationMissionInput): FactoryPi
       ...(input.diffNameOnly.length > 0 ? input.diffNameOnly.map((file) => `- ${file}`) : ["- none"]),
       "",
       "Execution evidence:",
-      `- build: ${input.executionEvidence.buildExitCode ?? "unknown"}`,
-      `- lint: ${input.executionEvidence.lintExitCode ?? "unknown"}`,
+      "Command evidence values are exit codes/status, not rubric scores: 0 means the command succeeded/passed; any nonzero exit code means the command failed.",
+      `- buildExitCode: ${input.executionEvidence.buildExitCode ?? "unknown"}`,
+      `- lintExitCode: ${input.executionEvidence.lintExitCode ?? "unknown"}`,
       ...(stdoutTail !== undefined ? ["", "stdoutTail:", stdoutTail] : [])
     ].join("\n")
   };

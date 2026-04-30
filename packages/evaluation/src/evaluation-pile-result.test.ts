@@ -51,6 +51,36 @@ describe("parseEvaluationPileResult", () => {
     }
   });
 
+  it("accepts a fenced JSON evaluation body", () => {
+    const result = parseEvaluationPileResult([
+      "```json",
+      JSON.stringify({ judgeCritiques: [critique({ judgeId: "eval-baseline" })] }),
+      "```"
+    ].join("\n"));
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.body.judgeCritiques[0]?.judgeId, "eval-baseline");
+    }
+  });
+
+  it("accepts role-prefixed broadcast JSON evaluation bodies", () => {
+    const result = parseEvaluationPileResult([
+      "semantic-judge:eval-baseline => " +
+        JSON.stringify({ judgeCritiques: [critique({ judgeId: "eval-baseline" })] }),
+      "consensus-judge:eval-consensus => " +
+        JSON.stringify({ judgeCritiques: [critique({ judgeId: "eval-consensus", model: "model-b" })] })
+    ].join("\n"));
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.deepEqual(result.body.judgeCritiques.map((item) => item.judgeId), [
+        "eval-baseline",
+        "eval-consensus"
+      ]);
+    }
+  });
+
   it("returns a parse error for malformed JSON", () => {
     const result = parseEvaluationPileResult("not json");
 

@@ -26,7 +26,7 @@ import type {
 
 import type { RefusalStage } from "./refusals-index.js";
 
-export type PileArtifactKind = "planning" | "review" | "execution-coordination";
+export type PileArtifactKind = "planning" | "review" | "execution-coordination" | "evaluation";
 
 export interface PileRefusalEnvelope {
   readonly reason: string;

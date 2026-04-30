@@ -226,7 +226,7 @@ describe("resolveFactoryConfig", () => {
       fileBytes: JSON.stringify({
         adapters: { coder: {}, judge: {} },
         mechanicalChecks: {
-          commands: ["verify", "test"]
+          commands: ["install", "build", "test"]
         }
       }),
       env: {}
@@ -234,7 +234,7 @@ describe("resolveFactoryConfig", () => {
 
     const resolved = unwrapResolved(result);
 
-    assert.deepEqual(resolved.config.mechanicalChecks?.commands, ["verify", "test"]);
+    assert.deepEqual(resolved.config.mechanicalChecks?.commands, ["install", "build", "test"]);
   });
 
   it("rejects mechanical check command names outside the closed enum", () => {
@@ -242,7 +242,7 @@ describe("resolveFactoryConfig", () => {
       fileBytes: JSON.stringify({
         adapters: { coder: {}, judge: {} },
         mechanicalChecks: {
-          commands: ["build"]
+          commands: ["format"]
         }
       }),
       env: {}

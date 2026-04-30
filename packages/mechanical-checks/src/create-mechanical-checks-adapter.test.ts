@@ -30,16 +30,20 @@ describe("createMechanicalChecksAdapter", () => {
     assert.deepEqual((final.result as any).evidence.findings, []);
   });
 
-  it("includes a critical build-failure finding when verify fails", async () => {
+  it("includes a repairable build-failure finding when verify fails", async () => {
     const adapter = createMechanicalChecksAdapter({
       ...baseConfig({ diffNameOnly: ["a.ts"] }),
-      subprocess: subprocessStub([subprocessResult("verify", 1, "/tmp/verify.stdout.log")])
+      subprocess: subprocessStub([
+        subprocessResult("verify", 1, "/tmp/verify.stdout.log", { stderrTail: "TypeScript failed" })
+      ])
     });
 
     const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
 
     assert.equal((final.result as any).evidence.findings[0].ruleId, "build-failure");
-    assert.equal((final.result as any).evidence.findings[0].severity, "critical");
+    assert.equal((final.result as any).evidence.findings[0].severity, "major");
+    assert.equal((final.result as any).evidence.findings[0].repairTaskId, "task-x");
+    assert.equal((final.result as any).evidence.findings[0].evidence.stderrTail, "TypeScript failed");
   });
 
   it("includes a cosmetic-archetype-violation when the run diff touches two files", async () => {
@@ -66,6 +70,28 @@ describe("createMechanicalChecksAdapter", () => {
     await collectEvents(adapter.execute(taskInput(), adapterContext()));
 
     assert.deepEqual(calls, ["pnpm verify", "pnpm lint"]);
+  });
+
+  it("treats an explicit empty command list as no mechanical commands", async () => {
+    const adapter = createMechanicalChecksAdapter({
+      ...baseConfig({ diffNameOnly: ["a.test.ts"] }),
+      commands: [] as const,
+      subprocess: {
+        async runCommand() {
+          throw new Error("unexpected subprocess call");
+        }
+      },
+      async readFile() {
+        throw new Error("unexpected readFile call");
+      }
+    });
+
+    const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
+    const evidence = (final.result as any).evidence;
+
+    assert.deepEqual(evidence.commands, []);
+    assert.deepEqual(evidence.findings, []);
+    assert.equal(evidence.mechanicalScores.acCoverage, 1);
   });
 
   it("converts subprocess timeouts into critical findings and still emits final", async () => {
@@ -135,6 +161,26 @@ describe("createMechanicalChecksAdapter", () => {
     });
   });
 
+  it("counts synthetic live-planning refs as covered when the test command passes", async () => {
+    const adapter = createMechanicalChecksAdapter({
+      workspaceRoot: "/workspace",
+      commands: ["test"] as const,
+      archetype: "feature-add",
+      baseRef: "HEAD",
+      runId: "run-1",
+      attempt: 0,
+      plan: planWithTask("task-x", "src/App.tsx", "Protostar live planning build-and-test evidence"),
+      readFile: async () => "2 passed",
+      diffNameOnly: ["src/App.tsx"],
+      subprocess: subprocessStub([subprocessResult("test", 0, "/tmp/test.stdout.log")])
+    });
+
+    const final = finalEvent(await collectEvents(adapter.execute(taskInput(), adapterContext())));
+
+    assert.deepEqual((final.result as any).evidence.findings, []);
+    assert.equal((final.result as any).evidence.mechanicalScores.acCoverage, 1);
+  });
+
   it("emits a failing lint mechanical score when lint exits non-zero", async () => {
     const adapter = createMechanicalChecksAdapter({
       ...baseConfig({ diffNameOnly: ["a.test.ts"] }),
@@ -187,7 +233,12 @@ function subprocessStub(results: readonly ReturnType<typeof subprocessResult>[])
   };
 }
 
-function subprocessResult(id: string, exitCode: number, stdoutPath: string) {
+function subprocessResult(
+  id: string,
+  exitCode: number,
+  stdoutPath: string,
+  tails: { readonly stdoutTail?: string; readonly stderrTail?: string } = {}
+) {
   return {
     id,
     argv: ["pnpm", id],
@@ -195,6 +246,7 @@ function subprocessResult(id: string, exitCode: number, stdoutPath: string) {
     durationMs: 10,
     stdoutPath,
     stderrPath: stdoutPath.replace("stdout", "stderr"),
+    ...tails,
     stdoutBytes: 0,
     stderrBytes: 0
   };
@@ -205,6 +257,7 @@ function planWithTask(planTaskId: string, testFile: string, testName: string) {
     tasks: [
       {
         planTaskId,
+        targetFiles: [testFile],
         acceptanceTestRefs: [{ acId: "ac-1", testFile, testName }]
       }
     ]

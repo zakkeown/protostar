@@ -39,6 +39,47 @@ export type ReviewPileParseResult =
 
 const REVIEW_VERDICTS: readonly ReviewVerdict[] = ["pass", "repair", "block"];
 
+function extractJsonObjectCandidates(text: string): readonly string[] {
+  const candidates: string[] = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      if (depth === 0) start = index;
+      depth += 1;
+      continue;
+    }
+    if (char === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        candidates.push(text.slice(start, index + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return candidates;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -105,18 +146,48 @@ export function parseReviewPileResult(input: ReviewPileResult): ReviewPileParseR
     return { ok: false, errors: ["output must be a string."] };
   }
 
-  let parsed: unknown;
+  const parsedCandidates: unknown[] = [];
+  let directParseError: string | undefined;
   try {
-    parsed = JSON.parse(input.output);
+    parsedCandidates.push(JSON.parse(input.output));
   } catch (error: unknown) {
-    return {
-      ok: false,
-      errors: [
-        `output is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
-      ]
-    };
+    directParseError = `output is not valid JSON: ${error instanceof Error ? error.message : String(error)}`;
+    for (const candidate of extractJsonObjectCandidates(input.output)) {
+      try {
+        parsedCandidates.push(JSON.parse(candidate));
+      } catch {
+        // Keep scanning. The final parse error reports the domain contract, not every brace pair.
+      }
+    }
   }
 
+  if (parsedCandidates.length === 0) {
+    return { ok: false, errors: [directParseError ?? "output is not valid JSON."] };
+  }
+
+  const bodies: ReviewPileBody[] = [];
+  const errors: string[] = directParseError === undefined ? [] : [];
+  for (const parsed of parsedCandidates) {
+    const parsedBody = parseReviewPileBody(parsed);
+    if (parsedBody.ok) {
+      bodies.push(parsedBody.body);
+    } else {
+      errors.push(...parsedBody.errors);
+    }
+  }
+
+  if (bodies.length === 0) {
+    if (directParseError !== undefined) errors.unshift(directParseError);
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    body: mergeReviewPileBodies(bodies)
+  };
+}
+
+function parseReviewPileBody(parsed: unknown): ReviewPileParseResult {
   if (!isRecord(parsed)) {
     return { ok: false, errors: ["output JSON body must be an object."] };
   }
@@ -157,4 +228,19 @@ export function parseReviewPileResult(input: ReviewPileResult): ReviewPileParseR
       aggregateVerdict: parsed.aggregateVerdict as ReviewVerdict
     }
   };
+}
+
+function mergeReviewPileBodies(bodies: readonly ReviewPileBody[]): ReviewPileBody {
+  const judgeCritiques = bodies.flatMap((body) => body.judgeCritiques);
+  const verdicts = [
+    ...bodies.map((body) => body.aggregateVerdict),
+    ...judgeCritiques.map((critique) => critique.verdict)
+  ];
+  const aggregateVerdict: ReviewVerdict = verdicts.includes("block")
+    ? "block"
+    : verdicts.includes("repair")
+      ? "repair"
+      : "pass";
+
+  return { judgeCritiques, aggregateVerdict };
 }

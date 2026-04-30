@@ -361,7 +361,7 @@ async function writePermissiveRepoPolicy(workspace: string): Promise<void> {
         },
         {
           workspace: "protostar-toy-ttt",
-          path: "src/lib/ttt-state.ts",
+          path: "src/ttt/state.ts",
           access: "write"
         }
       ],
@@ -381,7 +381,7 @@ async function writePermissiveRepoPolicy(workspace: string): Promise<void> {
       ],
       network: {
         allow: "allowlist",
-        allowedHosts: ["github.com"]
+        allowedHosts: ["github.com", "api.github.com", "localhost", "127.0.0.1"]
       },
       budgetCaps: {
         timeoutMs: 900000,

@@ -105,7 +105,7 @@ import {
 } from "@protostar/repo";
 import { applyChangeSet as defaultApplyChangeSet } from "@protostar/repo";
 import type { CloneResult, RepoPolicy as RepoRuntimePolicy } from "@protostar/repo";
-import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthorization, type JudgeCritique, type ReviewGate, type ReviewIterationRecord, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
+import { runReviewRepairLoop, createReviewPileModelReviewer, loadDeliveryAuthorization, type JudgeCritique, type ModelReviewInput, type ReviewGate, type ReviewIterationRecord, type ReviewVerdict, type ReviewRepairLoopResult, type TaskExecutorService } from "@protostar/review";
 import { resolveWorkspaceRoot } from "@protostar/paths";
 
 import { createConfirmedIntentHandoff } from "./confirmed-intent-handoff.js";
@@ -886,6 +886,7 @@ export async function runFactory(
         if ((options.executor ?? "dry-run") !== "real" || realExecutionAdapter === undefined) {
           return currentExecution;
         }
+        const repairExecutionAttempt = repairInput.attempt + 1;
         const repairJournalWriter = await createJournalWriter({ runDir });
         try {
           const repairResult = await dependencies.runRealExecution({
@@ -901,7 +902,7 @@ export async function runFactory(
             applyChangeSet: dependencies.applyChangeSet,
             checkSentinelBetweenTasks: cancel.checkSentinelBetweenTasks,
             repair: {
-              attempt: repairInput.attempt,
+              attempt: repairExecutionAttempt,
               repairPlan: repairInput.repairPlan
             }
           });
@@ -912,9 +913,9 @@ export async function runFactory(
           const repairedDry = realExecutionAsDryRunResult(execution, repairResult);
           currentExecution = mergeRepairExecutionResult({
             previous: currentExecution,
-            repaired: executionRunResultFromDry(repairedDry, repairInput.attempt),
+            repaired: executionRunResultFromDry(repairedDry, repairExecutionAttempt),
             repairedTaskIds: repairInput.repairPlan.dependentTaskIds,
-            attempt: repairInput.attempt
+            attempt: repairExecutionAttempt
           });
           executionResult = mergeRepairDryRunResult({
             previous: executionResult,
@@ -985,7 +986,11 @@ export async function runFactory(
               });
               return outcome;
             },
-            buildMission: () => buildReviewMission(intent, admittedPlanningOutput.planningAdmission),
+            buildMission: (modelInput) => buildReviewMission(
+              intent,
+              admittedPlanningOutput.planningAdmission,
+              reviewMissionEvidenceFromInput(modelInput)
+            ),
             buildContext: () => ({
               provider: createOpenAICompatibleProvider({
                 baseURL: factoryConfig.config.adapters.coder.baseUrl,
@@ -1096,6 +1101,29 @@ export async function runFactory(
     if (latest === undefined) return undefined;
     return readOntologySnapshot(latest.snapshotPath);
   };
+  let evaluationPileIteration = 0;
+  const liveEvaluationPileRunner: FactoryCompositionDependencies["runFactoryPile"] = async (mission, ctx) => {
+    const outcome = await dependencies.runFactoryPile(mission, ctx);
+    const iterationForThisCall = evaluationPileIteration;
+    evaluationPileIteration += 1;
+    await writePileArtifacts({
+      runDir,
+      runId,
+      kind: "evaluation",
+      iteration: iterationForThisCall,
+      outcome,
+      ...(outcome.ok
+        ? {}
+        : {
+            refusal: {
+              reason: formatPileFailureReason(outcome.failure),
+              stage: "pile-evaluation",
+              sourceOfTruth: "EvaluationResult"
+            }
+          })
+    });
+    return outcome;
+  };
   const evaluationResult = await dependencies.runEvaluationStages(
     {
       runId,
@@ -1138,7 +1166,7 @@ export async function runFactory(
       convergenceThreshold
     },
     {
-      runFactoryPile: shouldUseFixtureEvaluation(pileModes) ? runEvaluationFixturePile : dependencies.runFactoryPile
+      runFactoryPile: shouldUseFixtureEvaluation(pileModes) ? runEvaluationFixturePile : liveEvaluationPileRunner
     }
   );
   if (evaluationResult.refusal !== undefined) {
@@ -2081,6 +2109,10 @@ function workspaceAuthorityRootForIntent(intent: ConfirmedIntent): string {
   return intent.capabilityEnvelope.delivery?.target.repo ?? "main";
 }
 
+function cloneRefForRepoRuntime(intent: ConfirmedIntent): string | undefined {
+  return intent.capabilityEnvelope.delivery?.target.baseBranch;
+}
+
 async function admitRepoRuntime(input: {
   readonly projectRoot: string;
   readonly runDir: string;
@@ -2118,6 +2150,7 @@ async function admitRepoRuntime(input: {
 
   const policy = runtimePolicyResult.policy;
   const cloneDir = resolve(policy.workspaceRoot ?? join(input.projectRoot, ".protostar", "workspaces"), input.runId);
+  const cloneRef = cloneRefForRepoRuntime(input.intent);
   let cloneResult: CloneResult;
   try {
     await cleanupWorkspace(cloneDir, input.runId, { reason: "success" });
@@ -2127,7 +2160,8 @@ async function admitRepoRuntime(input: {
         intent: input.intent
       }),
       dir: cloneDir,
-      depth: 1
+      depth: 1,
+      ...(cloneRef !== undefined ? { ref: cloneRef } : {})
     });
   } catch (error: unknown) {
     const reason = repoRuntimeErrorReason("clone-failed", error);
@@ -2914,7 +2948,8 @@ function normalizeLivePlanningCovers(value: unknown, intent: ConfirmedIntent): r
   const covers = Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string" && validIds.has(entry))
     : [];
-  return covers.length > 0 ? covers : intent.acceptanceCriteria.map((criterion) => criterion.id);
+  const dedupedCovers = [...new Set(covers)];
+  return dedupedCovers.length > 0 ? dedupedCovers : intent.acceptanceCriteria.map((criterion) => criterion.id);
 }
 
 function normalizeLivePlanningTargetFiles(value: unknown, intent: ConfirmedIntent): readonly string[] {
@@ -3114,6 +3149,40 @@ function planningPileOutputSchemaProperties(): JsonObject {
       }
     }
   };
+}
+
+function reviewMissionEvidenceFromInput(input: ModelReviewInput) {
+  const scores = input.mechanicalGate.mechanicalScores;
+  return {
+    executionSummary: safeJsonForReview(input.executionResult),
+    mechanicalVerdict: input.mechanicalGate.verdict,
+    ...(scores !== undefined
+      ? {
+          mechanicalScores: {
+            build: scores.build,
+            lint: scores.lint,
+            diffSize: scores.diffSize,
+            acCoverage: scores.acCoverage
+          }
+        }
+      : {}),
+    mechanicalFindings: input.mechanicalGate.findings.map((finding) => ({
+      severity: finding.severity,
+      code: finding.ruleId,
+      message: finding.summary,
+      taskRefs: finding.repairTaskId === undefined ? [] : [finding.repairTaskId]
+    })),
+    diffNameOnly: input.diff.nameOnly,
+    unifiedDiff: input.diff.unifiedDiff
+  };
+}
+
+function safeJsonForReview(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return `unserializable execution result: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 // Phase 6 Plan 06-07 — turn a PileFailure into a one-line operator-readable

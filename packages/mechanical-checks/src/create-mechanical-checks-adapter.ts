@@ -17,6 +17,7 @@ import type {
 } from "@protostar/review";
 
 import {
+  acceptanceTestRefCoveredByMechanicalEvidence,
   buildFindings,
   buildMechanicalCommandTimeoutFinding,
   computeMechanicalScoresFromFindings,
@@ -43,6 +44,8 @@ export interface MechanicalChecksSubprocessRunner {
     readonly durationMs?: number;
     readonly stdoutPath: string;
     readonly stderrPath: string;
+    readonly stdoutTail?: string;
+    readonly stderrTail?: string;
     readonly stdoutBytes?: number;
     readonly stderrBytes?: number;
   }>;
@@ -69,6 +72,7 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
       const commandResults: MechanicalCheckCommandResult[] = [];
       const timeoutFindings: ReviewFinding[] = [];
       let testStdout = "";
+      let collectedTestOutput = false;
 
       for (const name of commandsFor(config)) {
         const binding = MECHANICAL_COMMAND_BINDINGS[name];
@@ -87,12 +91,15 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
             exitCode: result.exitCode,
             durationMs: result.durationMs ?? Date.now() - startedAt,
             stdoutPath: result.stdoutPath,
-            stderrPath: result.stderrPath
+            stderrPath: result.stderrPath,
+            ...(result.stdoutTail !== undefined ? { stdoutTail: result.stdoutTail } : {}),
+            ...(result.stderrTail !== undefined ? { stderrTail: result.stderrTail } : {})
           };
           commandResults.push(commandResult);
 
           if (isTestOutputCommand(name)) {
             testStdout += await config.readFile(result.stdoutPath);
+            collectedTestOutput = true;
           }
 
           yield {
@@ -125,7 +132,8 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
           plan: config.plan,
           archetype: config.archetype,
           diffNameOnly,
-          testStdout
+          testStdout,
+          evaluateAcceptanceCoverage: collectedTestOutput
         })
       ];
       const mechanicalScores = computeMechanicalScoresFromFindings({
@@ -133,7 +141,7 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
         lintExitCode: commandResults.find((result) => result.id.startsWith("lint"))?.exitCode,
         diffNameOnly,
         archetype: config.archetype,
-        ...acceptanceCoverageCounts(config.plan, diffNameOnly, testStdout)
+        ...acceptanceCoverageCounts(config.plan, diffNameOnly, testStdout, commandResults, collectedTestOutput)
       });
       const evidence: MechanicalCheckResult & { readonly mechanicalScores: MechanicalScores } = {
         schemaVersion: "1.0.0",
@@ -156,13 +164,7 @@ export function createMechanicalChecksAdapter(config: MechanicalChecksAdapterCon
 }
 
 function commandsFor(config: MechanicalChecksAdapterConfig): readonly MechanicalCommandName[] {
-  if (config.commands.length > 0) {
-    return config.commands;
-  }
-  if (config.archetype === "cosmetic-tweak") {
-    return ["verify", "lint"];
-  }
-  return ["verify"];
+  return config.commands;
 }
 
 function isTestOutputCommand(commandId: string): boolean {
@@ -176,18 +178,24 @@ function isBuildScoreCommand(commandId: string): boolean {
 function acceptanceCoverageCounts(
   plan: MechanicalChecksPlanInput,
   diffNameOnly: readonly string[],
-  testStdout: string
+  testStdout: string,
+  commandResults: readonly MechanicalCheckCommandResult[],
+  enabled: boolean
 ): {
   readonly totalAcCount: number;
   readonly coveredAcCount: number;
 } {
+  if (!enabled) {
+    return { totalAcCount: 0, coveredAcCount: 0 };
+  }
+
   let totalAcCount = 0;
   let coveredAcCount = 0;
 
   for (const task of plan.tasks) {
     for (const ref of task.acceptanceTestRefs ?? []) {
       totalAcCount += 1;
-      if (diffNameOnly.includes(ref.testFile) && testStdout.includes(ref.testName)) {
+      if (acceptanceTestRefCoveredByMechanicalEvidence({ ref, diffNameOnly, testStdout, commandResults })) {
         coveredAcCount += 1;
       }
     }

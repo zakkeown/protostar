@@ -136,7 +136,10 @@ export async function runEvaluationStages(
     };
   }
 
-  const consensusMission = withConsensusAgent(semanticMission);
+  const consensusMission = withConsensusAgent(buildEvaluationMission({
+    ...input,
+    judgeId: EVAL_CONSENSUS_AGENT_DEFAULT.id
+  }));
   const consensusOutcome = await callPile(runPile, consensusMission, input.providers.consensus, input);
   if (!consensusOutcome.ok) {
     const consensus = syntheticConsensusFailure();
@@ -319,7 +322,7 @@ function withConsensusAgent(mission: FactoryPileMission): FactoryPileMission {
     ...mission,
     preset: {
       ...evaluationPilePreset,
-      agents: [...evaluationPilePreset.agents, EVAL_CONSENSUS_AGENT_DEFAULT]
+      agents: [EVAL_CONSENSUS_AGENT_DEFAULT]
     }
   };
 }

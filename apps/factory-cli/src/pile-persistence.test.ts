@@ -127,6 +127,25 @@ describe("writePileArtifacts (Q-07/Q-08)", () => {
     }
   });
 
+  it("layout: writes evaluation pile results for parse-failure debugging", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pile-persistence-"));
+    try {
+      await writePileArtifacts({
+        runRoot: root,
+        runId: "run_eval",
+        kind: "evaluation",
+        iteration: 0,
+        outcome: okOutcome
+      });
+      const dir = resolve(root, "runs", "run_eval", "piles", "evaluation", "iter-0");
+      const files = await readdir(dir);
+      assert.ok(files.includes("result.json"));
+      assert.ok(files.includes("trace.json"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects runIds that escape the runs/ root (T-6-23 path traversal)", async () => {
     const root = await mkdtemp(join(tmpdir(), "pile-persistence-"));
     try {

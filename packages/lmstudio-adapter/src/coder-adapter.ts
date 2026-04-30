@@ -13,7 +13,12 @@ import { createTwoFilesPatch } from "diff";
 
 import { parseDiffBlock } from "./diff-parser.js";
 import { callLmstudioChatStream } from "./lmstudio-client.js";
-import { buildCoderMessages, buildReformatNudgeMessages, type CoderMessages } from "./prompt-builder.js";
+import {
+  buildCoderMessages,
+  buildReformatNudgeMessages,
+  buildRepairNoopNudgeMessages,
+  type CoderMessages
+} from "./prompt-builder.js";
 
 export interface LmstudioAdapterConfig {
   readonly baseUrl: string;
@@ -89,11 +94,16 @@ async function* executeCoderTask(
   };
   let messages = buildCoderMessages({
     task: promptTask,
+    intentTitle: ctx.confirmedIntent.title,
+    problem: ctx.confirmedIntent.problem,
+    ...(ctx.confirmedIntent.context !== undefined ? { context: ctx.confirmedIntent.context } : {}),
+    constraints: ctx.confirmedIntent.constraints,
     fileContents,
     acceptanceCriteria: ctx.confirmedIntent.acceptanceCriteria.map((criterion) =>
       typeof criterion === "string" ? criterion : (criterion.statement ?? "")
     ),
-    archetype: ctx.confirmedIntent.goalArchetype ?? "unknown"
+    archetype: ctx.confirmedIntent.goalArchetype ?? "unknown",
+    repairContext: ctx.repairContext
   });
 
   const maxAttempts = Math.max(1, Math.floor(ctx.budget.adapterRetriesPerTask));
@@ -160,6 +170,18 @@ async function* executeCoderTask(
         const changeSet = buildReplacementChangeSet(parsedReplacement.changeSet, preImages);
         if (!changeSet.ok) {
           yield finalFailure(changeSet.reason, config, startedAt, attempts, retries);
+          return;
+        }
+        if (
+          ctx.repairContext !== undefined &&
+          changeSet.changeSet.entries.length === 0
+        ) {
+          if (attempt < maxAttempts) {
+            messages = buildRepairNoopNudgeMessages(messages, assistantContent);
+            retries.push(retryEvidence(attempt, "repair", attemptStartedAt));
+            continue;
+          }
+          yield finalFailure("empty-repair-change-set", config, startedAt, attempts, retries);
           return;
         }
         yield {
@@ -388,7 +410,6 @@ function isReplacementChangeSet(value: unknown): value is ReplacementChangeSet {
   const entries = (value as { readonly entries?: unknown }).entries;
   return (
     Array.isArray(entries) &&
-    entries.length > 0 &&
     entries.every(
       (entry) =>
         typeof entry === "object" &&
@@ -514,7 +535,7 @@ function evidence(
 
 function retryEvidence(
   attempt: number,
-  retryReason: "transient" | "parse-reformat",
+  retryReason: "transient" | "parse-reformat" | "repair",
   startedAt: number,
   errorClass?: string
 ): AdapterEvidence["retries"][number] {

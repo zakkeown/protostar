@@ -57,6 +57,8 @@ export interface CapabilityEnvelopePnpm {
 }
 
 const CAPABILITY_ENVELOPE_MECHANICAL_ALLOWED_COMMANDS = [
+  "install",
+  "build",
   "verify",
   "typecheck",
   "lint",

@@ -138,7 +138,7 @@
           "properties": {
             "allowed": {
               "type": "array",
-              "items": { "enum": ["verify", "typecheck", "lint", "test"] },
+              "items": { "enum": ["install", "build", "verify", "typecheck", "lint", "test"] },
               "uniqueItems": true,
               "default": []
             }

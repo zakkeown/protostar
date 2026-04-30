@@ -86,12 +86,12 @@ function baseInput(overrides: Partial<RunEvaluationStagesInput> = {}): RunEvalua
 }
 
 function fakeRunner(outcomes: readonly PileRunOutcome[]) {
-  const calls: Array<{ agentCount: number; provider: ConfiguredModelProvider }> = [];
+  const calls: Array<{ agentCount: number; provider: ConfiguredModelProvider; intent: string }> = [];
   const runFactoryPile = async (
-    mission: { preset: { agents: readonly unknown[] } },
+    mission: { preset: { agents: readonly unknown[] }; intent: string },
     ctx: PileRunContext
   ): Promise<PileRunOutcome> => {
-    calls.push({ agentCount: mission.preset.agents.length, provider: ctx.provider });
+    calls.push({ agentCount: mission.preset.agents.length, provider: ctx.provider, intent: mission.intent });
     const outcome = outcomes[calls.length - 1];
     if (outcome === undefined) {
       throw new Error(`unexpected pile call ${calls.length}`);
@@ -121,7 +121,9 @@ describe("runEvaluationStages", () => {
     assert.equal(result.report.verdict, "pass");
     assert.equal(result.report.stages.length, 3);
     assert.equal(fake.calls.length, 2);
-    assert.equal(fake.calls[1]?.agentCount, 2);
+    assert.equal(fake.calls[1]?.agentCount, 1);
+    assert.match(fake.calls[1]?.intent ?? "", /Use judgeId "eval-consensus"/);
+    assert.doesNotMatch(fake.calls[1]?.intent ?? "", /Use judgeId "eval-baseline"/);
   });
 
   it("still attempts semantic evaluation when mechanical evaluation fails", async () => {

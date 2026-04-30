@@ -12,6 +12,8 @@
  */
 
 export const CLOSED_MECHANICAL_COMMAND_NAMES = Object.freeze([
+  "install",
+  "build",
   "verify",
   "typecheck",
   "lint",
@@ -28,10 +30,15 @@ export interface MechanicalCommandBinding {
 export const MECHANICAL_COMMAND_BINDINGS: Readonly<
   Record<MechanicalCommandName, MechanicalCommandBinding>
 > = Object.freeze({
+  install: Object.freeze({
+    command: "pnpm",
+    args: Object.freeze(["install", "--ignore-workspace", "--frozen-lockfile"] as const)
+  }),
+  build: Object.freeze({ command: "pnpm", args: Object.freeze(["build"] as const) }),
   verify: Object.freeze({ command: "pnpm", args: Object.freeze(["run", "verify"] as const) }),
   typecheck: Object.freeze({ command: "pnpm", args: Object.freeze(["run", "typecheck"] as const) }),
   lint: Object.freeze({ command: "pnpm", args: Object.freeze(["run", "lint"] as const) }),
-  test: Object.freeze({ command: "pnpm", args: Object.freeze(["-r", "test"] as const) })
+  test: Object.freeze({ command: "pnpm", args: Object.freeze(["test"] as const) })
 }) as Readonly<Record<MechanicalCommandName, MechanicalCommandBinding>>;
 
 export type MechanicalCommandRefusalReason =

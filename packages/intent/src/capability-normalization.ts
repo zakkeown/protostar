@@ -87,6 +87,7 @@ export function normalizeDraftCapabilityEnvelope(
   );
   const executeGrants = normalizeDraftExecuteGrants(envelope.executeGrants, errors);
   const pnpm = normalizeDraftPnpm(envelope.pnpm, errors);
+  const mechanical = normalizeDraftMechanical(envelope.mechanical, errors);
 
   const budget = normalizeBudget(envelope.budget);
   if (!hasBudgetLimit(budget)) {
@@ -105,6 +106,7 @@ export function normalizeDraftCapabilityEnvelope(
       toolPermissions,
       ...(executeGrants !== undefined ? { executeGrants } : {}),
       ...(pnpm !== undefined ? { pnpm } : {}),
+      ...(mechanical !== undefined ? { mechanical } : {}),
       workspace: { allowDirty: envelope.workspace?.allowDirty ?? false },
       network: normalizeNetwork(envelope.network),
       budget,
@@ -122,6 +124,42 @@ export function normalizeDraftCapabilityEnvelope(
     },
     errors: []
   };
+}
+
+function normalizeDraftMechanical(
+  mechanical: IntentDraftCapabilityEnvelope["mechanical"],
+  errors: string[]
+): CapabilityEnvelope["mechanical"] | undefined {
+  if (mechanical === undefined) {
+    return undefined;
+  }
+  if (mechanical.allowed === undefined) {
+    return {};
+  }
+  if (!Array.isArray(mechanical.allowed)) {
+    errors.push("capabilityEnvelope.mechanical.allowed must be an array when mechanical is provided.");
+    return {};
+  }
+
+  type MechanicalCommand = NonNullable<NonNullable<CapabilityEnvelope["mechanical"]>["allowed"]>[number];
+  const allowed = mechanical.allowed.flatMap((command, index): MechanicalCommand[] => {
+    if (
+      command === "install" ||
+      command === "build" ||
+      command === "verify" ||
+      command === "typecheck" ||
+      command === "lint" ||
+      command === "test"
+    ) {
+      return [command];
+    }
+    errors.push(
+      `capabilityEnvelope.mechanical.allowed.${index} must be install, build, verify, typecheck, lint, or test.`
+    );
+    return [];
+  });
+
+  return allowed.length === mechanical.allowed.length ? { allowed } : {};
 }
 
 function normalizeDraftPnpm(

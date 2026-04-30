@@ -10,8 +10,10 @@ import {
 } from "./mechanical-commands.js";
 
 describe("mechanical-commands closed allowlist", () => {
-  it("CLOSED_MECHANICAL_COMMAND_NAMES is the frozen 4-name tuple", () => {
+  it("CLOSED_MECHANICAL_COMMAND_NAMES is the frozen command tuple", () => {
     assert.deepEqual([...CLOSED_MECHANICAL_COMMAND_NAMES], [
+      "install",
+      "build",
       "verify",
       "typecheck",
       "lint",
@@ -28,10 +30,19 @@ describe("mechanical-commands closed allowlist", () => {
     assert.equal(Object.isFrozen(verify.args), true);
   });
 
-  it("MECHANICAL_COMMAND_BINDINGS.test resolves to pnpm -r test", () => {
+  it("MECHANICAL_COMMAND_BINDINGS.install and build resolve to closed pnpm bindings", () => {
+    const install = MECHANICAL_COMMAND_BINDINGS["install"];
+    assert.equal(install.command, "pnpm");
+    assert.deepEqual([...install.args], ["install", "--ignore-workspace", "--frozen-lockfile"]);
+    const build = MECHANICAL_COMMAND_BINDINGS["build"];
+    assert.equal(build.command, "pnpm");
+    assert.deepEqual([...build.args], ["build"]);
+  });
+
+  it("MECHANICAL_COMMAND_BINDINGS.test resolves to local pnpm test", () => {
     const t = MECHANICAL_COMMAND_BINDINGS["test"];
     assert.equal(t.command, "pnpm");
-    assert.deepEqual([...t.args], ["-r", "test"]);
+    assert.deepEqual([...t.args], ["test"]);
   });
 
   it("MECHANICAL_COMMAND_BINDINGS contains exactly the closed allowlist names", () => {
@@ -53,12 +64,17 @@ describe("inferMechanicalName", () => {
     assert.equal(inferMechanicalName(["pnpm", "run", "verify"]), "verify");
   });
 
+  it("recovers install and build from their closed bindings", () => {
+    assert.equal(inferMechanicalName(["pnpm", "install", "--ignore-workspace", "--frozen-lockfile"]), "install");
+    assert.equal(inferMechanicalName(["pnpm", "build"]), "build");
+  });
+
   it("recovers verify from legacy short-form pnpm verify", () => {
     assert.equal(inferMechanicalName(["pnpm", "verify"]), "verify");
   });
 
-  it("recovers test from pnpm -r test", () => {
-    assert.equal(inferMechanicalName(["pnpm", "-r", "test"]), "test");
+  it("recovers test from local pnpm test", () => {
+    assert.equal(inferMechanicalName(["pnpm", "test"]), "test");
   });
 
   it("recovers lint from pnpm lint", () => {

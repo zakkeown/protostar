@@ -228,6 +228,12 @@ describe("factory CLI draft admission hardening", () => {
       "execution workspace authority must be checked against the delivery target's logical workspace."
     );
     assert.match(source, /function workspaceAuthorityRootForIntent/);
+    assert.match(source, /function cloneRefForRepoRuntime/);
+    assert.match(
+      source,
+      /const cloneRef = cloneRefForRepoRuntime\(input\.intent\);[\s\S]*ref:\s*cloneRef/s,
+      "repo-runtime clone must honor the delivery target base branch when one is signed into the intent."
+    );
   });
 
   it("writes an escalation marker and exits 2 for escalate outcomes", async () => {
@@ -849,6 +855,71 @@ describe("factory CLI draft admission hardening", () => {
 
       assert.ok(capturedSignal, "ctx.signal must be supplied to runFactoryPile");
       assert.equal(typeof capturedSignal!.aborted, "boolean", "ctx.signal must be a real AbortSignal");
+    });
+  });
+
+  it("normalizes duplicate live-planning coverage links before plan admission", async () => {
+    await withTempDir(async (tempDir) => {
+      const draft = clearCosmeticDraft();
+      const draftPath = resolve(tempDir, "live-planning-duplicate-coverage.draft.json");
+      const planningFixturePath = resolve(tempDir, "unused-fixture.json");
+      const outDir = resolve(tempDir, "out");
+      const runId = "run_cli_live_planning_duplicate_coverage";
+      const acIds = acceptanceCriterionIdsForDraft(draft);
+      const fixture = cosmeticPlanningFixture(acIds);
+      const liveOutput = JSON.parse(String(fixture["output"])) as Record<string, unknown>;
+      const tasks = readObjectArrayProperty(liveOutput, "tasks").map((task, index) =>
+        index === 0
+          ? {
+              ...task,
+              covers: [acIds[0], acIds[0]]
+            }
+          : task
+      );
+      const livePileResult = {
+        kind: "planning-pile-result",
+        source: "dogpile",
+        output: {
+          ...liveOutput,
+          tasks
+        }
+      };
+
+      await writeJson(draftPath, draft);
+      await writeJson(planningFixturePath, { kind: "must-not-be-read" });
+
+      const runFactoryPileSpy = mock.fn<FactoryCompositionDependencies["runFactoryPile"]>(
+        async () => ({
+          ok: true as const,
+          result: { output: JSON.stringify(livePileResult), eventLog: { events: [] } } as never,
+          trace: { events: [] } as never,
+          accounting: { totalTokens: 0 } as never,
+          stopReason: null
+        })
+      );
+
+      await assert.rejects(() =>
+        runFactory(
+          {
+            intentDraftPath: draftPath,
+            outDir,
+            planningFixturePath,
+            failTaskIds: [],
+            intentMode: "brownfield",
+            runId,
+            planningMode: "live"
+          },
+          { runFactoryPile: runFactoryPileSpy }
+        )
+      );
+
+      const planningAdmission = await readJsonObject(resolve(outDir, runId, "planning-admission.json"));
+      assert.equal(planningAdmission["decision"], "allow");
+      const plan = await readJsonObject(resolve(outDir, runId, "plan.json"));
+      const admittedTasks = readObjectArrayProperty(plan, "tasks");
+      const normalizedTask = admittedTasks.find((task) => task["id"] === "task-cli-success-1");
+      assert.notEqual(normalizedTask, undefined, "expected the first live-planned task to be admitted");
+      assert.deepEqual(normalizedTask?.["covers"], [acIds[0]]);
     });
   });
 

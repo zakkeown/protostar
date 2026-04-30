@@ -87,6 +87,20 @@ export interface PriorGenerationSummary {
   readonly priorDiffNameOnly?: readonly string[];
 }
 
+export interface ReviewMissionEvidence {
+  readonly executionSummary?: string;
+  readonly mechanicalVerdict?: "pass" | "repair" | "block" | string;
+  readonly mechanicalScores?: Readonly<Record<string, number>>;
+  readonly mechanicalFindings?: readonly {
+    readonly severity?: string;
+    readonly code?: string;
+    readonly message?: string;
+    readonly taskRefs?: readonly string[];
+  }[];
+  readonly diffNameOnly?: readonly string[];
+  readonly unifiedDiff?: string;
+}
+
 export const planningPilePreset: FactoryPilePreset = {
   kind: "planning",
   description: "A planning coordinator integrates independent risk and verification input into one candidate-plan result.",
@@ -212,7 +226,8 @@ function previousGenerationSummaryLines(prior: PriorGenerationSummary | undefine
 
 export function buildReviewMission(
   intent: ConfirmedIntent,
-  planningAdmission: PlanningAdmissionAcceptedArtifactPayload
+  planningAdmission: PlanningAdmissionAcceptedArtifactPayload,
+  evidence: ReviewMissionEvidence = {}
 ): FactoryPileMission {
   return {
     preset: reviewPilePreset,
@@ -226,7 +241,53 @@ export function buildReviewMission(
       `Plan proof source: ${planningAdmission.candidateSource.sourceOfTruth} at ${planningAdmission.candidateSource.uri}`,
       "",
       "Review execution evidence quality, planning-admission consistency, unsafe authority expansion, and release readiness.",
-      "Do not consume candidate-plan objects; planning-admission.json is the review admission boundary."
+      "Do not consume candidate-plan objects; planning-admission.json is the review admission boundary.",
+      "",
+      "For the final broadcast contribution, return JSON only. No markdown, no prose, no code fence.",
+      "The JSON object must match this exact shape:",
+      JSON.stringify({
+        judgeCritiques: [
+          {
+            judgeId: "review-correctness",
+            model: "model-name",
+            rubric: { correctness: 0, security: 0, releaseReadiness: 0 },
+            verdict: "pass|repair|block",
+            rationale: "brief evidence-backed explanation",
+            taskRefs: ["plan-task-id"]
+          }
+        ],
+        aggregateVerdict: "pass|repair|block"
+      }),
+      "Use verdict=pass only when the supplied execution evidence and diff show the acceptance criteria are met. Use repair for fixable code or evidence gaps. Use block for unsafe authority expansion or missing critical evidence.",
+      ...reviewEvidenceLines(evidence)
     ].join("\n")
   };
+}
+
+function reviewEvidenceLines(evidence: ReviewMissionEvidence): readonly string[] {
+  const lines: string[] = [];
+  if (evidence.executionSummary !== undefined) {
+    lines.push("", "Execution summary:", truncate(evidence.executionSummary, 5000));
+  }
+  if (evidence.mechanicalVerdict !== undefined) {
+    lines.push("", `Mechanical verdict: ${evidence.mechanicalVerdict}`);
+  }
+  if (evidence.mechanicalScores !== undefined) {
+    lines.push(`Mechanical scores: ${JSON.stringify(evidence.mechanicalScores)}`);
+  }
+  if (evidence.mechanicalFindings !== undefined) {
+    lines.push("Mechanical findings:", JSON.stringify(evidence.mechanicalFindings.slice(0, 20)));
+  }
+  if (evidence.diffNameOnly !== undefined) {
+    lines.push("", "Diff name-only files:", ...(evidence.diffNameOnly.length > 0 ? evidence.diffNameOnly.map((file) => `- ${file}`) : ["- none"]));
+  }
+  if (evidence.unifiedDiff !== undefined) {
+    lines.push("", "Unified diff:", truncate(evidence.unifiedDiff, 12000));
+  }
+  return lines;
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}\n[truncated ${value.length - maxLength} chars]`;
 }

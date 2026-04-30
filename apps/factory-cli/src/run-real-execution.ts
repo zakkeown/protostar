@@ -1,5 +1,5 @@
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 import { authorizeWorkspaceOp } from "@protostar/authority";
 import type { StageArtifactRef } from "@protostar/artifacts";
@@ -162,6 +162,7 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
     const timer = setTimeout(() => taskController.abort("timeout"), taskWallClockMs(input.resolvedEnvelope));
 
     try {
+      await materializeMissingAuthorizedWriteTargets(input, task);
       const final = await executeToFinal(input, task, taskController.signal, attempt);
       perTaskEvidence.push({ taskId: task.planTaskId, evidence: final.evidence });
       const evidenceArtifact = await writeEvidenceFiles({
@@ -237,7 +238,8 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
         }
       }
 
-      const applyResults = await input.applyChangeSet(patchesFromChangeSet(final.changeSet, input));
+      const patches = patchesFromChangeSet(final.changeSet, input);
+      const applyResults = await input.applyChangeSet(patches);
       if (applyResults.some((result) => result.status !== "applied")) {
         await emit({
           kind: "task-failed",
@@ -253,6 +255,9 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
       }
 
       await emit({ kind: "task-succeeded", planTaskId: task.planTaskId, at: nowIso(), attempt, evidenceArtifact });
+      if (input.repair !== undefined && patches.length > 0) {
+        break;
+      }
     } finally {
       clearTimeout(timer);
       input.rootSignal.removeEventListener("abort", onRootAbort);
@@ -265,6 +270,48 @@ export async function runRealExecution(input: RunRealExecutionInput): Promise<Ru
     perTaskEvidence,
     ...(blockReason !== undefined ? { blockReason } : {})
   };
+}
+
+async function materializeMissingAuthorizedWriteTargets(
+  input: RunRealExecutionInput,
+  task: ExecutionRunPlan["tasks"][number]
+): Promise<void> {
+  for (const target of task.targetFiles ?? []) {
+    if (isAbsolute(target) || isGlobTarget(target)) continue;
+    const authorization = authorizeWorkspaceOp({
+      workspace: input.runPlan.workspace,
+      path: target,
+      access: "write",
+      resolvedEnvelope: input.resolvedEnvelope
+    });
+    if (!authorization.ok) continue;
+
+    const root = resolve(input.workspaceRoot);
+    const abs = resolve(root, target);
+    if (abs !== root && !abs.startsWith(root + sep)) {
+      throw new Error(`target path escapes workspace: ${target}`);
+    }
+    if (await exists(abs)) continue;
+
+    await mkdir(dirname(abs), { recursive: true });
+    await writeFile(abs, "", "utf8");
+  }
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch (error: unknown) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function isGlobTarget(path: string): boolean {
+  return /[*?[\]{}]/u.test(path);
 }
 
 async function executeToFinal(

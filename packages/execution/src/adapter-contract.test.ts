@@ -80,7 +80,8 @@ describe("ExecutionAdapter contract", () => {
       "retries-exhausted",
       "aborted",
       "timeout",
-      "aux-read-budget-exceeded"
+      "aux-read-budget-exceeded",
+      "empty-repair-change-set"
     ];
 
     assert.deepEqual(reasons.map(classifyFailureReason), reasons);
@@ -221,6 +222,7 @@ function classifyFailureReason(reason: AdapterFailureReason): string {
     case "aborted":
     case "timeout":
     case "aux-read-budget-exceeded":
+    case "empty-repair-change-set":
       return reason;
     default:
       return assertExhaustive(reason);

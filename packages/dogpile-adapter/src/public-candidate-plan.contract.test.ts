@@ -292,6 +292,60 @@ describe("Dogpile adapter planning result public boundary", () => {
     assert.match(mission.intent, /Planning admission decision: allow/);
     assert.match(mission.intent, /Plan proof source: PlanGraph at plan\.json/);
     assert.match(mission.intent, /Do not consume candidate-plan objects/);
+    assert.match(mission.intent, /return JSON only/i);
+    assert.match(mission.intent, /judgeCritiques/);
+  });
+
+  it("adds review execution evidence and diff context without admitting candidate plans", () => {
+    const intent = buildConfirmedIntentForTest({
+      id: "intent_dogpile_review_evidence",
+      title: "Review uses execution evidence",
+      problem: "Review missions must inspect execution output.",
+      requester: "contract-test",
+      confirmedAt: "2026-04-26T00:00:00.000Z",
+      acceptanceCriteria: [
+        {
+          id: "ac_review_execution_evidence",
+          statement: "Review mission input includes diff evidence.",
+          verification: "test"
+        }
+      ],
+      capabilityEnvelope: {
+        repoScopes: [],
+        toolPermissions: [],
+        budget: {
+          timeoutMs: 30_000,
+          maxRepairLoops: 0
+        }
+      },
+      constraints: ["Review must not consume candidate plan objects."]
+    });
+    const planningAdmission = acceptedPlanningAdmissionFixture({
+      planId: "plan_dogpile_review_evidence",
+      intentId: intent.id
+    });
+
+    const mission = buildReviewMission(intent, planningAdmission, {
+      executionSummary: "{\"status\":\"succeeded\"}",
+      mechanicalVerdict: "repair",
+      mechanicalScores: { build: 1, lint: 1, diffSize: 1, acCoverage: 0 },
+      mechanicalFindings: [
+        {
+          severity: "warning",
+          code: "ac-uncovered",
+          message: "missing test evidence",
+          taskRefs: ["task-a"]
+        }
+      ],
+      diffNameOnly: ["src/App.tsx"],
+      unifiedDiff: "diff --git a/src/App.tsx b/src/App.tsx"
+    });
+
+    assert.match(mission.intent, /Execution summary:/);
+    assert.match(mission.intent, /Mechanical verdict: repair/);
+    assert.match(mission.intent, /src\/App\.tsx/);
+    assert.match(mission.intent, /diff --git/);
+    assert.match(mission.intent, /Do not consume candidate-plan objects/);
   });
 });
 

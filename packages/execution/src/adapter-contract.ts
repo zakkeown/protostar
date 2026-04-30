@@ -68,7 +68,8 @@ export type AdapterFailureReason =
   | "retries-exhausted"
   | "aborted"
   | "timeout"
-  | "aux-read-budget-exceeded";
+  | "aux-read-budget-exceeded"
+  | "empty-repair-change-set";
 
 export interface AdapterEvidence {
   readonly model: string;

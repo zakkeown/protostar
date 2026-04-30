@@ -82,6 +82,46 @@ describe("buildEvaluationMission", () => {
     }
   });
 
+  it("states that all rubric scores are higher-is-better, including regression risk", () => {
+    const text = missionText();
+
+    assert.match(text, /1 is best\/ready\/safe/);
+    assert.match(text, /0 is worst\/not ready\/unsafe/);
+    assert.match(text, /regressionRisk, score low regression risk near 1/);
+    assert.match(text, /high regression risk near 0/);
+  });
+
+  it("uses concrete verdict examples instead of union literals", () => {
+    const text = missionText();
+
+    assert.match(text, /exactly "pass" or exactly "fail"/);
+    assert.doesNotMatch(text, /pass\|fail/);
+  });
+
+  it("pins the expected judge id and warns against copying placeholder scores", () => {
+    const text = missionText();
+
+    assert.match(text, /Use judgeId "eval-baseline"/);
+    assert.match(text, /schema example only/);
+    assert.match(text, /Replace the model, rubric numbers, verdict, and rationale/);
+    assert.match(text, /Never return placeholder all-zero rubric values/);
+    assert.match(text, /Do not wrap the response in markdown fences/);
+  });
+
+  it("can build a consensus mission with a consensus judge id", () => {
+    const text = buildEvaluationMission({
+      intent,
+      plan,
+      diffNameOnly: [],
+      executionEvidence: { buildExitCode: 0 },
+      judgeId: "eval-consensus"
+    }).intent;
+
+    assert.match(text, /Use judgeId "eval-consensus"/);
+    assert.match(text, /"judgeId":"eval-consensus"/);
+    assert.doesNotMatch(text, /Use judgeId "eval-baseline"/);
+  });
+
   it("contains the confirmed intent problem", () => {
     assert.match(missionText(), /primary button does not visually communicate completion/);
   });
@@ -103,8 +143,16 @@ describe("buildEvaluationMission", () => {
   it("contains build and lint exit-code evidence", () => {
     const text = missionText();
 
-    assert.match(text, /build: 0/);
-    assert.match(text, /lint: 1/);
+    assert.match(text, /buildExitCode: 0/);
+    assert.match(text, /lintExitCode: 1/);
+  });
+
+  it("explains that command evidence values are exit codes instead of scores", () => {
+    const text = missionText();
+
+    assert.match(text, /exit codes\/status, not rubric scores/);
+    assert.match(text, /0 means the command succeeded\/passed/);
+    assert.match(text, /nonzero exit code means the command failed/);
   });
 
   it("keeps the newest stdout tail when truncating long output", () => {

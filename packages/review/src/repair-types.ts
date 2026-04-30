@@ -29,6 +29,8 @@ export interface MechanicalCheckCommandResult {
   readonly durationMs: number;
   readonly stdoutPath: string;
   readonly stderrPath: string;
+  readonly stdoutTail?: string;
+  readonly stderrTail?: string;
 }
 
 export interface MechanicalCheckResult {

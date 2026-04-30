@@ -6,6 +6,7 @@ export interface MechanicalChecksPlanInput {
   readonly tasks: readonly {
     readonly id?: string;
     readonly planTaskId?: string;
+    readonly targetFiles?: readonly string[];
     readonly acceptanceTestRefs?: readonly {
       readonly acId: string;
       readonly testFile: string;
@@ -22,6 +23,8 @@ export interface MechanicalScoresInput {
   readonly totalAcCount: number;
   readonly coveredAcCount: number;
 }
+
+export const SYNTHETIC_LIVE_PLANNING_TEST_NAME = "Protostar live planning build-and-test evidence";
 
 type MechanicalRuleId =
   | "build-failure"
@@ -44,12 +47,23 @@ export function buildFindings(input: {
   readonly archetype: MechanicalChecksArchetype;
   readonly diffNameOnly: readonly string[];
   readonly testStdout: string;
+  readonly evaluateAcceptanceCoverage?: boolean;
 }): readonly ReviewFinding[] {
   const findings: MechanicalFinding[] = [];
+  const hasPassingTestCommand = input.commandResults.some(
+    (result) => isTestEvidenceCommand(result.id) && result.exitCode === 0
+  );
+  const hasFailingTestCommand = input.commandResults.some(
+    (result) => isTestEvidenceCommand(result.id) && result.exitCode !== 0
+  );
 
   for (const result of input.commandResults) {
     if (result.exitCode === 0) continue;
-    findings.push(findingForCommandFailure(result));
+    findings.push(...findingsForCommandFailure({
+      result,
+      plan: input.plan,
+      diffNameOnly: input.diffNameOnly
+    }));
   }
 
   if (input.archetype === "cosmetic-tweak" && input.diffNameOnly.length > 1) {
@@ -61,33 +75,55 @@ export function buildFindings(input: {
     });
   }
 
-  for (const task of input.plan.tasks) {
-    const taskId = task.planTaskId ?? task.id;
-    for (const ref of task.acceptanceTestRefs ?? []) {
-      if (!input.diffNameOnly.includes(ref.testFile)) {
-        findings.push({
-          ruleId: "ac-uncovered",
-          severity: "major",
-          summary: `acceptance criterion ${ref.acId} is missing its referenced test file`,
-          evidence: { acId: ref.acId, missingTestFile: ref.testFile },
-          ...(taskId !== undefined ? { repairTaskId: taskId } : {})
-        });
-        continue;
-      }
+  if (input.evaluateAcceptanceCoverage !== false) {
+    for (const task of input.plan.tasks) {
+      const taskId = task.planTaskId ?? task.id;
+      for (const ref of task.acceptanceTestRefs ?? []) {
+        if (ref.testName === SYNTHETIC_LIVE_PLANNING_TEST_NAME && hasPassingTestCommand) {
+          continue;
+        }
 
-      if (!input.testStdout.includes(ref.testName)) {
-        findings.push({
-          ruleId: "ac-uncovered",
-          severity: "major",
-          summary: `acceptance criterion ${ref.acId} test name did not appear in test output`,
-          evidence: { acId: ref.acId, missingTestName: ref.testName },
-          ...(taskId !== undefined ? { repairTaskId: taskId } : {})
-        });
+        if (!input.diffNameOnly.includes(ref.testFile)) {
+          findings.push({
+            ruleId: "ac-uncovered",
+            severity: "major",
+            summary: `acceptance criterion ${ref.acId} is missing its referenced test file`,
+            evidence: { acId: ref.acId, missingTestFile: ref.testFile },
+            ...(taskId !== undefined ? { repairTaskId: taskId } : {})
+          });
+          continue;
+        }
+
+        if (!hasFailingTestCommand && !input.testStdout.includes(ref.testName)) {
+          findings.push({
+            ruleId: "ac-uncovered",
+            severity: "major",
+            summary: `acceptance criterion ${ref.acId} test name did not appear in test output`,
+            evidence: { acId: ref.acId, missingTestName: ref.testName },
+            ...(taskId !== undefined ? { repairTaskId: taskId } : {})
+          });
+        }
       }
     }
   }
 
   return findings as unknown as readonly ReviewFinding[];
+}
+
+export function acceptanceTestRefCoveredByMechanicalEvidence(input: {
+  readonly ref: { readonly testFile: string; readonly testName: string };
+  readonly diffNameOnly: readonly string[];
+  readonly testStdout: string;
+  readonly commandResults: readonly MechanicalCheckCommandResult[];
+}): boolean {
+  if (
+    input.ref.testName === SYNTHETIC_LIVE_PLANNING_TEST_NAME &&
+    input.commandResults.some((result) => isTestEvidenceCommand(result.id) && result.exitCode === 0)
+  ) {
+    return true;
+  }
+
+  return input.diffNameOnly.includes(input.ref.testFile) && input.testStdout.includes(input.ref.testName);
 }
 
 /**
@@ -117,20 +153,52 @@ export function buildMechanicalCommandTimeoutFinding(input: {
   } as unknown as ReviewFinding;
 }
 
-function findingForCommandFailure(result: MechanicalCheckCommandResult): MechanicalFinding {
+function findingsForCommandFailure(input: {
+  readonly result: MechanicalCheckCommandResult;
+  readonly plan: MechanicalChecksPlanInput;
+  readonly diffNameOnly: readonly string[];
+}): readonly MechanicalFinding[] {
+  const base = commandFailureFinding(input.result);
+  const repairTaskIds = commandFailureRepairTaskIds(input.plan, input.diffNameOnly);
+  if (repairTaskIds.length === 0) {
+    return [base];
+  }
+  return repairTaskIds.map((repairTaskId) => ({ ...base, repairTaskId }));
+}
+
+function commandFailureFinding(result: MechanicalCheckCommandResult): MechanicalFinding {
   const ruleId = ruleIdForCommand(result.id);
   return {
     ruleId,
-    severity: ruleId === "build-failure" ? "critical" : "major",
+    severity: "major",
     summary: `mechanical command ${result.id} exited with code ${result.exitCode}`,
     evidence: {
       commandId: result.id,
       argv: [...result.argv],
       exitCode: result.exitCode,
       stdoutPath: result.stdoutPath,
-      stderrPath: result.stderrPath
+      stderrPath: result.stderrPath,
+      ...(result.stdoutTail !== undefined ? { stdoutTail: result.stdoutTail } : {}),
+      ...(result.stderrTail !== undefined ? { stderrTail: result.stderrTail } : {})
     }
   };
+}
+
+function commandFailureRepairTaskIds(
+  plan: MechanicalChecksPlanInput,
+  diffNameOnly: readonly string[]
+): readonly string[] {
+  const tasksWithIds = plan.tasks
+    .map((task) => ({ task, id: task.planTaskId ?? task.id }))
+    .filter((entry): entry is { readonly task: MechanicalChecksPlanInput["tasks"][number]; readonly id: string } =>
+      entry.id !== undefined
+    );
+  const changedFiles = new Set(diffNameOnly);
+  const matchedTasks = tasksWithIds.filter(({ task }) =>
+    (task.targetFiles ?? []).some((targetFile) => changedFiles.has(targetFile))
+  );
+  const repairableTasks = matchedTasks.length > 0 ? matchedTasks : tasksWithIds;
+  return [...new Set(repairableTasks.map((entry) => entry.id))];
 }
 
 function ruleIdForCommand(commandId: string): MechanicalRuleId {
@@ -141,4 +209,8 @@ function ruleIdForCommand(commandId: string): MechanicalRuleId {
     return "lint-failure";
   }
   return "generic-command-failure";
+}
+
+function isTestEvidenceCommand(commandId: string): boolean {
+  return commandId.includes("verify") || commandId.includes("test");
 }
