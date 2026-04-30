@@ -1,0 +1,598 @@
+{
+  "phase": "14-pluggable-validation-reports",
+  "generated_at": "2026-04-29T00:00:00Z",
+  "stats": {
+    "total": 21,
+    "answered": 21,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "scope-and-targets",
+      "title": "Scope & Target Artifacts",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Which artifact types get report-style validation in v1?",
+          "context": "Existing admission gates already validate intent (packages/intent), capability envelope (packages/intent/capability-admission.ts), plan (packages/planning), repo scope (packages/policy/src/admission), and change-set (apply-change-set / Phase 12 invariant). Each stage today is fail-on-first or partial.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Intent + Plan only",
+              "description": "Author-time UX where errors hurt most; defer capability/repo-policy/change-set to a later pass."
+            },
+            {
+              "id": "b",
+              "label": "Intent + Plan + Capability Envelope + Repo Policy",
+              "description": "All author-edited artifacts. Skips machine-derived change-sets."
+            },
+            {
+              "id": "c",
+              "label": "All five (incl. change-set)",
+              "description": "Maximum coverage; aligns with Phase 12 apply-change-set invariant work and Phase 13 replay-with-edit."
+            },
+            {
+              "id": "d",
+              "label": "Custom subset",
+              "description": "Specify in chat-more."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Author-time vs admission-time vs both?",
+          "context": "Author-time = `protostar validate <artifact>` returns a report on a file the operator is editing. Admission-time = the existing gate runs and emits its decision. CONTEXT stub says reports compose with gates, but the *invocation surface* is still open.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Author-time only",
+              "description": "New CLI surface. Admission gates keep their current decision artifacts unchanged."
+            },
+            {
+              "id": "b",
+              "label": "Both — gate decision wraps the same report",
+              "description": "Admission gate outcome derives from `report.blockers.length === 0`. Single source of truth, but requires refactoring existing decision artifacts."
+            },
+            {
+              "id": "c",
+              "label": "Both — separate but consistent",
+              "description": "Admission gates keep their existing decision artifacts; author-time validate emits a report. The same Finding shape is used in both, but persistence is separate."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "Migration vs. greenfield Finding type?",
+          "context": "`packages/intent/src/admission-decision.ts` already has `IntentAdmissionPolicyFinding`, `IntentAdmissionMissingFieldDetection`, `IntentAdmissionHardZeroReason`, `IntentAdmissionRequiredClarification`. `packages/intent/src/capability-admission.ts` uses a `findings` array with `severity: 'block' | 'ambiguity'`, `code`, `fieldPath`, `message`. Phase 14 either unifies or layers on top.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Unify — refactor existing findings to one Finding type",
+              "description": "Single Finding shape across intent, capability, plan, repo, change-set. Largest blast radius but cleanest endgame."
+            },
+            {
+              "id": "b",
+              "label": "Layer — adapter converts existing findings to Report at the boundary",
+              "description": "Existing types unchanged; `@protostar/validation` package owns adapter layer that produces unified Report from heterogeneous inputs."
+            },
+            {
+              "id": "c",
+              "label": "Greenfield — new Finding type for new validators only; existing gates untouched",
+              "description": "Lowest blast radius; but coexistence may confuse operators (two finding shapes)."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "report-schema",
+      "title": "Report Schema & Finding Shape",
+      "questions": [
+        {
+          "id": "Q-04",
+          "title": "Anchor format for findings",
+          "context": "Findings need to point at *where* in the artifact the issue is. Existing capability-admission uses dotted `fieldPath` like `capabilityEnvelope.pnpm.allowedAdds.0`. Plans have IDs like `01-09-parameterized-admission-e2e`.",
+          "options": [
+            {
+              "id": "a",
+              "label": "JSON Pointer (RFC 6901)",
+              "description": "Standard, tooling-friendly (`/capabilityEnvelope/pnpm/allowedAdds/0`). Less readable for plans."
+            },
+            {
+              "id": "b",
+              "label": "Dotted path",
+              "description": "Matches existing fieldPath convention. Ambiguous for keys with dots."
+            },
+            {
+              "id": "c",
+              "label": "Domain anchor (typed)",
+              "description": "Discriminated union: `{ kind: 'jsonPath', value }`, `{ kind: 'planId', value }`, `{ kind: 'fileLine', file, line }`. Most expressive, most code."
+            },
+            {
+              "id": "d",
+              "label": "Hybrid — JSON Pointer for fields + domain anchor for plans/files",
+              "description": "Pragmatic; one pointer type per artifact category."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-05",
+          "title": "Multi-anchor per finding?",
+          "context": "Some findings reference multiple locations (e.g. 'plan 03 wave 2 conflicts with plan 05 wave 1').",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single anchor per finding",
+              "description": "Simpler schema; cross-reference findings duplicate."
+            },
+            {
+              "id": "b",
+              "label": "Primary anchor + optional `relatedAnchors[]`",
+              "description": "Render renders primary; related cross-link in UI/CLI."
+            },
+            {
+              "id": "c",
+              "label": "`anchors[]` array (1..N)",
+              "description": "Most flexible; renderer must pick a primary heuristically."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "Severity levels",
+          "context": "CONTEXT stub asks: just `blocker | warning`, or add `info | suggestion`? Existing capability findings use `block | ambiguity`. Existing intent has `policyFindings`, `requiredClarifications`, `hardZeroReasons` — three implicit severities.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Two levels: blocker, warning",
+              "description": "Simplest. Maps cleanly to gate outcome (blockers === 0 → admit)."
+            },
+            {
+              "id": "b",
+              "label": "Three levels: blocker, warning, info",
+              "description": "info = render-only, no admission impact. Useful for 'tip: this could be tighter'."
+            },
+            {
+              "id": "c",
+              "label": "Four levels: blocker, warning, info, suggestion",
+              "description": "suggestion = actionable proposal with remediation hint. Larger schema, may rot if not used."
+            },
+            {
+              "id": "d",
+              "label": "Two + 'overridable' flag on warnings",
+              "description": "Models existing capability `ambiguity` severity which has an `overridden` flag."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Finding required fields",
+          "context": "Beyond anchor + severity + message, what's required? Existing findings already have `code` (stable identifier).",
+          "options": [
+            {
+              "id": "a",
+              "label": "code, severity, anchor, message, validatorId, validatorVersion",
+              "description": "Minimum for determinism + plugin attribution + machine grouping."
+            },
+            {
+              "id": "b",
+              "label": "Add: remediationHint (string), docsUrl (string)",
+              "description": "Author-experience win; adds schema surface to maintain."
+            },
+            {
+              "id": "c",
+              "label": "Add: suggestedFix (structured patch)",
+              "description": "Enables auto-fix UX (Phase 13 replay-with-edit synergy). Significantly larger scope."
+            },
+            {
+              "id": "d",
+              "label": "All of the above (a + b + c)",
+              "description": "Largest schema; richest UX."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-08",
+          "title": "Report schema versioning model",
+          "context": "Existing artifacts use single envelope `schemaVersion` (e.g. `protostar.intent.admission-decision.v1`).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single envelope `schemaVersion` per report",
+              "description": "Matches existing convention. Validator versions live inside per-finding fields."
+            },
+            {
+              "id": "b",
+              "label": "Envelope version + per-finding schema version",
+              "description": "Allows individual finding shapes to evolve independently. More plumbing."
+            },
+            {
+              "id": "c",
+              "label": "Envelope version + content hash of registered validator set",
+              "description": "Strongest determinism guarantee — replays detect validator drift."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "plugin-contract",
+      "title": "Validator Plugin Contract",
+      "questions": [
+        {
+          "id": "Q-09",
+          "title": "Where does validation logic live?",
+          "context": "Authority boundary today: only `apps/factory-cli` and `packages/repo` may do filesystem I/O. New `@protostar/validation` package would be pure (no I/O), wrapping per-stage validators.",
+          "options": [
+            {
+              "id": "a",
+              "label": "New `@protostar/validation` package (pure, no I/O)",
+              "description": "Owns Finding + Report types + plugin registry + report runner. Existing per-stage validators register into it."
+            },
+            {
+              "id": "b",
+              "label": "Each stage package owns its validators; `@protostar/validation` is just types",
+              "description": "Smallest footprint; intent owns intent validators, planning owns plan validators, etc."
+            },
+            {
+              "id": "c",
+              "label": "Subprocess plugins (capability-bounded)",
+              "description": "External validators run as child processes through repo runner. Maximum extensibility — and maximum complexity. Probably 1.0 work."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-10",
+          "title": "Plugin registration mechanism",
+          "context": "How does a validator get into the registry?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Explicit import + `register(validator)` call",
+              "description": "Boring, type-safe, no magic. Each app builds its own validator set."
+            },
+            {
+              "id": "b",
+              "label": "Manifest in package.json (`protostar.validators: [...]`)",
+              "description": "Discoverable via workspace scan. Adds runtime parsing. Existing `protostar.tier` precedent (Phase 12)."
+            },
+            {
+              "id": "c",
+              "label": "Directory convention scan",
+              "description": "Magic / brittle. Don't recommend but listing for completeness."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Validator interface shape",
+          "context": "What does a validator look like at the type level?",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pure function: `(artifact) => Finding[]`",
+              "description": "Simplest. Validator owns its own parsing/typing."
+            },
+            {
+              "id": "b",
+              "label": "`{ id, version, target: SchemaName, validate: (parsed) => Finding[] }`",
+              "description": "Registry pre-parses artifact by `target` then dispatches. Type-safe by target."
+            },
+            {
+              "id": "c",
+              "label": "Class with lifecycle: init/validate/dispose",
+              "description": "Allows expensive setup (e.g. compiled regex caches). Overkill for v1."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-12",
+          "title": "Validator ordering / dependencies",
+          "context": "Some validators may want to skip if a structural one already failed (e.g. don't run policy checks on an unparseable plan).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Independent — all validators run regardless",
+              "description": "Maximum information per pass. May produce noisy reports for malformed inputs."
+            },
+            {
+              "id": "b",
+              "label": "Two phases: structural → semantic; semantic skipped if structural blocks",
+              "description": "Matches existing intent admission staging (parse → ambiguity → policy)."
+            },
+            {
+              "id": "c",
+              "label": "Explicit DAG via `dependsOn: validatorId[]`",
+              "description": "Most flexible; harder to reason about."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "Determinism contract",
+          "context": "CONTEXT stub success criterion: same input + pinned validators → byte-identical report.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pure functions only — no I/O, no clock, no random",
+              "description": "Enforced by tier (`pure` / `no-net` / `no-fs` contracts already exist in Phase 1/12). Tested via contract test."
+            },
+            {
+              "id": "b",
+              "label": "Pure + allow read-only reference data (e.g. allowlists from a snapshot file)",
+              "description": "Reference data hashed into report so determinism holds."
+            },
+            {
+              "id": "c",
+              "label": "Best-effort; no enforcement",
+              "description": "Risk of replay drift. Don't recommend given Phase 13 dependency."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "gate-composition",
+      "title": "Composition with Admission Gates",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "Gate ↔ report relationship",
+          "context": "Existing admission posture is fail-closed default-DENY (Phase 2 lock). Phase 14 must preserve it.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Gate outcome derives from report: `admitted = report.blockers.length === 0`",
+              "description": "Single source of truth. Requires per-stage refactor — biggest blast radius but cleanest."
+            },
+            {
+              "id": "b",
+              "label": "Gate runs independently; report is a separate parallel artifact",
+              "description": "Lowest blast radius. Risk: drift between gate decision and report."
+            },
+            {
+              "id": "c",
+              "label": "Gate runs report internally then projects to its existing decision shape",
+              "description": "Hybrid — internal unification, external compatibility. Per-stage opt-in."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-15",
+          "title": "Warning semantics",
+          "context": "Reports surface warnings. Admission gates today are binary admit/refuse.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Warnings are advisory only — never affect admission",
+              "description": "Author-experience signal; gate ignores them."
+            },
+            {
+              "id": "b",
+              "label": "Default advisory + opt-in strict mode flag (`--strict-warnings`) promotes to blockers",
+              "description": "Useful for CI; requires flag plumbing."
+            },
+            {
+              "id": "c",
+              "label": "Per-validator declares `warningPolicy: 'advisory' | 'strict-in-ci'`",
+              "description": "Validator knows best. Adds schema field."
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-16",
+          "title": "Default-DENY preservation contract test",
+          "context": "Phase 2 locks default-DENY repo policy. Phase 14 must prove it.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Required — `gate-report-parity.contract.test.ts` in `@protostar/admission-e2e`",
+              "description": "Asserts: empty validator set → gate still refuses (no implicit allow). Composes with Phase 12 BOUNDARY-06 pattern."
+            },
+            {
+              "id": "b",
+              "label": "Defer — covered transitively by existing admission tests",
+              "description": "Smaller scope; weaker guarantee."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "persistence",
+      "title": "Artifact Persistence",
+      "questions": [
+        {
+          "id": "Q-17",
+          "title": "Where do reports live?",
+          "context": "Existing convention: `.protostar/runs/<id>/` for run-bundle artifacts (Phase 9). Author-time `validate` may run outside a run.",
+          "options": [
+            {
+              "id": "a",
+              "label": "`.protostar/runs/<id>/validation/<artifact>.report.json` (in run bundle only)",
+              "description": "Aligns with existing layout. Author-time `validate` outside a run prints to stdout, no persistence."
+            },
+            {
+              "id": "b",
+              "label": "Run-bundle path + `.protostar/validation/<hash>.report.json` for ad-hoc",
+              "description": "Author-time ad-hoc reports content-addressed for cache + diff."
+            },
+            {
+              "id": "c",
+              "label": "Inline in admission decision artifact",
+              "description": "Single file per gate. No author-time persistence layer."
+            },
+            {
+              "id": "d",
+              "label": "stdout only for author-time; inline in admission decision for gate-time",
+              "description": "Minimum new persistence surface."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-18",
+          "title": "Report immutability + indexing",
+          "context": "Run bundles are append-only / content-addressed today.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Append-only, content-addressed by report hash; no per-run index",
+              "description": "Matches existing run-bundle posture. Replay diffs by hash."
+            },
+            {
+              "id": "b",
+              "label": "Append-only + per-run `validation-index.jsonl` (one line per report)",
+              "description": "Faster lookup; needs writer in factory-cli (authority boundary)."
+            },
+            {
+              "id": "c",
+              "label": "Mutable file overwritten on re-validate",
+              "description": "Conflicts with Phase 13 replay determinism. Don't recommend."
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "operator-ux",
+      "title": "CLI / Operator UX",
+      "questions": [
+        {
+          "id": "Q-19",
+          "title": "CLI surface for `validate`",
+          "context": "Phase 9 added `protostar-factory` subcommands via commander. Phase 14 needs an entrypoint.",
+          "options": [
+            {
+              "id": "a",
+              "label": "`protostar-factory validate <path>`",
+              "description": "Auto-detects artifact type by content/schemaVersion. One subcommand."
+            },
+            {
+              "id": "b",
+              "label": "`protostar-factory validate <type> <path>` (e.g. `validate intent ./draft.json`)",
+              "description": "Explicit, no detection magic; predictable error messages."
+            },
+            {
+              "id": "c",
+              "label": "`protostar-factory <type> validate <path>` (subgroup per artifact type)",
+              "description": "Mirrors `git remote add` style. More commands to register."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-20",
+          "title": "Render groupings + output formats",
+          "context": "Operator reads the report; CI/automation reads JSON.",
+          "options": [
+            {
+              "id": "a",
+              "label": "JSON only; humans pipe to a renderer",
+              "description": "Smallest surface. Matches dark-factory posture (no progress logs)."
+            },
+            {
+              "id": "b",
+              "label": "JSON + human renderer (`--format human`) grouped by anchor path",
+              "description": "Default JSON; human view on demand. Anchor grouping matches 'fix one file at a time' UX."
+            },
+            {
+              "id": "c",
+              "label": "JSON + human grouped by severity (blockers first, then warnings)",
+              "description": "Fix-blockers-first UX."
+            },
+            {
+              "id": "d",
+              "label": "JSON + human + SARIF (`--format sarif`)",
+              "description": "Lights up GitHub code-scanning UI. Largest scope."
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-21",
+          "title": "Exit code semantics",
+          "context": "CI integration depends on this.",
+          "options": [
+            {
+              "id": "a",
+              "label": "0 = no blockers (warnings allowed); 1 = blockers; 2 = validator error",
+              "description": "Standard. Matches CONTEXT stub admission posture."
+            },
+            {
+              "id": "b",
+              "label": "0 = clean (no blockers AND no warnings); 1 = warnings; 2 = blockers; 3 = validator error",
+              "description": "More granular; some CIs prefer."
+            },
+            {
+              "id": "c",
+              "label": "Always 0 with JSON containing `gateOutcome`; CI parses JSON",
+              "description": "Matches dark-factory output convention; requires CI tooling."
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}

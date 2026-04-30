@@ -1,0 +1,483 @@
+{
+  "phase": "13-replay-with-edit-run-bundles",
+  "generated_at": "2026-04-29T00:00:00Z",
+  "stats": {
+    "total": 14,
+    "answered": 14,
+    "chat_more": 0,
+    "remaining": 0
+  },
+  "sections": [
+    {
+      "id": "edit-surface",
+      "title": "Edit Surface & Artifact Addressing",
+      "questions": [
+        {
+          "id": "Q-01",
+          "title": "Edit surface: single-artifact swap or multi-artifact patch set?",
+          "context": "Run bundle layout (Phase 9 Q-07): runs/<id>/{manifest, intent, plan, execution-plan, piles/<kind>/iter-<N>/, execution/{journal,snapshot}, review-gate, evaluation-report, evolution/snapshot, ci-events}. The phase goal mentions \"edit a single recorded artifact\" but multi-edit is plausible for compound counterfactuals (e.g. judge X + reviewer Y).",
+          "options": [
+            {
+              "id": "a",
+              "label": "Single-artifact swap only (v1)",
+              "description": "Each replay edits exactly one recorded artifact. Simpler determinism contract; clearer post-mortem story (\"would judge X have unblocked this?\"). Multi-edit deferred to a later phase."
+            },
+            {
+              "id": "b",
+              "label": "Multi-artifact patch set (declarative)",
+              "description": "Operator supplies an EditSet manifest mapping {artifactPath → newContent}. More expressive; lets you simulate combined fixes. Bigger schema/CLI surface; harder to argue determinism without ordering rules."
+            },
+            {
+              "id": "c",
+              "label": "Single in v1, design schema for multi",
+              "description": "CLI accepts only one --edit in v1, but the EditSet on-disk schema supports N edits so v2 unlocks multi without a breaking change."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-02",
+          "title": "Which artifact kinds are editable in v1?",
+          "context": "Phase goal lists at minimum: judge verdict, reviewer comment, task result, raw LLM completion. Bundle has many more (manifest, plan, execution-plan, intent, admission decisions, evolution snapshots). Editing admission/intent would invalidate prior gates.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Pile outputs only",
+              "description": "Only piles/<kind>/iter-<N>/{result.json,trace.json} (judge, reviewer, planning, etc.) — matches the phase’s stated minimum and keeps replay below the admission boundary."
+            },
+            {
+              "id": "b",
+              "label": "Pile outputs + execution journal entries",
+              "description": "Adds task results from execution/journal.jsonl. Lets you A/B \"what if this command had succeeded?\" but mutating an append-only journal needs a careful overlay model."
+            },
+            {
+              "id": "c",
+              "label": "Pile + journal + raw LLM completions",
+              "description": "Also exposes per-call LLM completion records (if recorded as separate artifacts). Maximum counterfactual power; biggest surface to schema-pin."
+            },
+            {
+              "id": "d",
+              "label": "Allowlist pinned in SEED — explicit kinds, nothing else",
+              "description": "Discuss-phase enumerates the exact kinds (e.g. {pile.result, pile.trace, journal.taskResult, llmCompletion}); anything not on the list is refused at the CLI."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-03",
+          "title": "How are editable artifacts addressed?",
+          "context": "Run bundle paths are relative to runs/<id>/. Pile artifacts have stable paths (piles/<kind>/iter-<N>/result.json). LLM completions and journal entries are inside aggregate files.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Relative path (e.g. piles/review/iter-2/result.json)",
+              "description": "Simple, matches the inspect command’s path-indexed view. Doesn’t address sub-records inside aggregate files."
+            },
+            {
+              "id": "b",
+              "label": "Path + JSON Pointer for sub-records",
+              "description": "e.g. execution/journal.jsonl#/lines/42 or piles/review/iter-2/result.json#/findings/3. More expressive; needs an addressing schema."
+            },
+            {
+              "id": "c",
+              "label": "Content-hash address (sha256 of original)",
+              "description": "Edit references the original artifact’s sha256; CLI resolves to path. Tamper-evident; awkward UX (operators must look up hashes)."
+            },
+            {
+              "id": "d",
+              "label": "Path-only in v1, JSON Pointer reserved for v2",
+              "description": "v1 only edits whole artifacts identified by relative path; sub-record edits deferred."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-04",
+          "title": "Does the edited artifact have to validate against its schema?",
+          "context": "Most run-bundle artifacts have JSON schemas (intent, plan, pile results, evaluation report). An invalid edit could crash downstream replay in confusing ways.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Yes — validate at replay-CLI entry, refuse on schema fail",
+              "description": "CLI runs the same schema validation as a fresh artifact before starting replay. Refusal artifact emitted (matches admission-style UX). Strongest correctness guarantee."
+            },
+            {
+              "id": "b",
+              "label": "Validate, but allow --force to bypass",
+              "description": "Default validates; --force-invalid skips for niche debugging (\"what happens if the judge returns malformed JSON?\"). Power-user escape hatch."
+            },
+            {
+              "id": "c",
+              "label": "No — pass through and let downstream stages refuse naturally",
+              "description": "Replay surfaces whatever error a fresh run would surface for malformed input. Less work; harder to tell schema bugs from logic bugs in the post-mortem."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "determinism",
+      "title": "Determinism Contract & Downstream Replay",
+      "questions": [
+        {
+          "id": "Q-05",
+          "title": "Downstream LLM calls: replay recorded outputs, or re-call live?",
+          "context": "Phase 13 success criterion: \"identical edited prefix → identical downstream artifacts\". Determinism requires either replaying recorded LLM outputs, or treating the edit as invalidating only the artifact + its direct consumers.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Replay all downstream artifacts unchanged (cache)",
+              "description": "Every artifact after the edit point is re-served from the bundle as-is. The edit only changes how the *consumers* of the edited artifact behave — but they too replay their recorded output unless they directly consumed the edited artifact. Matches \"counterfactual without re-running upstream stages\" wording."
+            },
+            {
+              "id": "b",
+              "label": "Re-run any stage that read the edited artifact; replay everything else",
+              "description": "Compute a dependency closure: stages that read artifact A (transitively) are re-executed (real LLM calls, real subprocesses); others are served from cache. Most realistic counterfactual; needs a recorded read-set."
+            },
+            {
+              "id": "c",
+              "label": "Re-run everything downstream (full re-execution from edit point)",
+              "description": "Edit point onward is a fresh run. Cheapest determinism story (no read-set tracking) but costs LLM tokens and isn’t what the phase goal describes."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-06",
+          "title": "How is the determinism contract proved?",
+          "context": "Success criterion mandates content-hash comparison on a fixture: identical edited prefix → identical downstream artifacts.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Per-artifact sha256, asserted in the contract test",
+              "description": "Replay produces an overlay manifest of {path → sha256}; contract test asserts byte-equality to a recorded fixture. Same model used by inspect command."
+            },
+            {
+              "id": "b",
+              "label": "Whole-bundle merkle root",
+              "description": "Compute one root hash over the canonicalized artifact tree. One number to compare; harder to localize a regression."
+            },
+            {
+              "id": "c",
+              "label": "Per-stage hash chain (each stage hashes its inputs + outputs)",
+              "description": "Stronger property: any drift surfaces at the stage that introduced it. Bigger contract surface."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-07",
+          "title": "Edit-cascade scope: how do we know which artifacts a stage \"read\"?",
+          "context": "Without a recorded read-set, option Q-05(b) is infeasible. Today’s bundle records outputs; reads are implicit in code.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Static dependency map, hand-maintained in @protostar/replay",
+              "description": "A table {stageKind → reads[]} encodes which artifacts each stage consumes. Cheap; goes stale silently."
+            },
+            {
+              "id": "b",
+              "label": "Record a read-set during the original run (Phase 4/5 instrumentation)",
+              "description": "Each stage emits a read-set to its trace.json: {pathsRead: [...]}. Most accurate; requires touching the execution engine and review loop."
+            },
+            {
+              "id": "c",
+              "label": "Coarse-grained: edit invalidates the *current iter* only; later iters re-run from journal",
+              "description": "Skip read-set tracking entirely. Anything in iter-N or later re-executes; iter-0..N-1 replay unchanged. Simple but blunt."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "b",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "storage-layout",
+      "title": "Replay Bundle Storage Layout",
+      "questions": [
+        {
+          "id": "Q-08",
+          "title": "Where do replayed runs live on disk?",
+          "context": "Original bundle must never be mutated (success criterion). Two natural shapes: a sibling replay bundle, or an overlay manifest that references the original by hash.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Sibling bundle: .protostar/runs/<runId>/replays/<replayId>/",
+              "description": "Full bundle copy under a replays/ subdir. Self-contained; addressable by inspect; biggest disk footprint."
+            },
+            {
+              "id": "b",
+              "label": "Sibling bundle at top level: .protostar/runs/<replayId>/ with parentRunId field",
+              "description": "Replay is just another run, with manifest.parentRunId + manifest.editSet pointing back. Operator surface (status/inspect/prune) treats it uniformly. Storage cost: same as (a) unless deduplicated."
+            },
+            {
+              "id": "c",
+              "label": "Overlay manifest: .protostar/runs/<runId>/replays/<replayId>/overlay.json",
+              "description": "Only stores edits + newly-produced artifacts; everything else resolved by reference to the parent bundle. Smallest footprint; most plumbing; inspect needs overlay-aware resolution."
+            },
+            {
+              "id": "d",
+              "label": "Hybrid: sibling bundle for new artifacts, overlay manifest pinning unchanged ones by hash",
+              "description": "Replay dir contains only changed artifacts plus an overlay.json listing {path → originalSha256} for unchanged ones. Tamper-evident and compact."
+            },
+            {
+              "id": "e",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "d",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-09",
+          "title": "How does prune (OP-08) treat replay bundles?",
+          "context": "Phase 9 OP-08 prune has a lineage-preservation guarantee. Replays are a new lineage relationship.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Replays inherit parent’s prune protection",
+              "description": "If parent run is protected, replays are protected. If parent is prunable, replays go too (unless individually protected by status)."
+            },
+            {
+              "id": "b",
+              "label": "Replays are independently prunable by their own status",
+              "description": "Treat replay like any other run. Risk: pruning the parent orphans the replay’s overlay references (only matters if (c)/(d) chosen for Q-08)."
+            },
+            {
+              "id": "c",
+              "label": "Replays are never auto-pruned in v1",
+              "description": "Conservative posture: counterfactual debug data is high-signal-per-byte. Revisit in v2."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "cli-ux",
+      "title": "Operator CLI / UX",
+      "questions": [
+        {
+          "id": "Q-10",
+          "title": "Replay command shape on factory-cli",
+          "context": "Phase 9 OP-07 pinned a multi-subcommand binary: run | status | resume | cancel | inspect | deliver | prune. Replay is a new verb.",
+          "options": [
+            {
+              "id": "a",
+              "label": "New top-level verb: factory-cli replay --run <id> --edit <path>=<file>",
+              "description": "First-class command. Mirrors inspect/deliver. Composable with --json-only contract."
+            },
+            {
+              "id": "b",
+              "label": "Subverb under inspect: factory-cli inspect <id> replay --edit ...",
+              "description": "Groups under \"inspection\" mental model. Stretches inspect’s scope (currently read-only)."
+            },
+            {
+              "id": "c",
+              "label": "Flag on run: factory-cli run --replay <id> --edit ...",
+              "description": "Treats replay as a special run mode. Conceptually unifies; conflates fresh-run and replay UX."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-11",
+          "title": "Edit input format on the CLI",
+          "context": "The operator needs to point at an edited artifact. JSON files are the obvious input shape.",
+          "options": [
+            {
+              "id": "a",
+              "label": "--edit <path>=<file> (repeatable for multi if Q-01 picks b/c)",
+              "description": "Each flag pairs a bundle-relative path with a local file. Familiar, scriptable."
+            },
+            {
+              "id": "b",
+              "label": "--edit-set <manifest.json>",
+              "description": "A single EditSet file lists all edits. Better for committed regression fixtures."
+            },
+            {
+              "id": "c",
+              "label": "Both — --edit for ad-hoc, --edit-set for fixtures",
+              "description": "Most flexible; small extra surface area."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "authority",
+      "title": "Authority Boundary & Delivery",
+      "questions": [
+        {
+          "id": "Q-12",
+          "title": "Delivery from replayed runs",
+          "context": "Success criterion: \"Replay-with-edit defaults to no delivery — no PRs, no pushes; opt-in flag required and audited.\" Phase 12 stabilized the authority boundary; replay must compose cleanly.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Hard-disable: replay can never deliver, no flag",
+              "description": "Replays are forensic-only. Simplest authority story. Loses the \"verify the fix actually ships\" use case."
+            },
+            {
+              "id": "b",
+              "label": "Default off; --allow-delivery requires manifest opt-in + audit log entry",
+              "description": "Per success criterion. Audit entry written to admission-decisions.jsonl with the editSet hash."
+            },
+            {
+              "id": "c",
+              "label": "Default off; opt-in via factory-config.json replay.allowDelivery + per-invocation flag",
+              "description": "Two-key for delivery from replay. Strictest path; matches Phase 2 two-key launch posture."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "c",
+          "chat_more": "",
+          "status": "answered"
+        },
+        {
+          "id": "Q-13",
+          "title": "Admission re-entry on replay",
+          "context": "Phase 1 admission gates apply to fresh runs. Editing the intent or planning-result of a replay would re-enter admission. Editing pile outputs is below the gate.",
+          "options": [
+            {
+              "id": "a",
+              "label": "Replay re-runs admission gates against any edited admission-input artifact",
+              "description": "If the edit touches intent/plan/capability inputs, gates re-fire. Matches \"replay surfaces refusal evidence the same way a fresh run does\"."
+            },
+            {
+              "id": "b",
+              "label": "Replay refuses edits to admission-input artifacts; only post-admission edits allowed",
+              "description": "Editable allowlist (Q-02) excludes anything that would re-enter admission. Cleaner separation; loses \"what if the plan had been different?\" counterfactuals."
+            },
+            {
+              "id": "c",
+              "label": "Replay allows the edit but always uses original run’s admission decisions",
+              "description": "Runs from edit point with cached admission. Fastest; opens an authority hole if the edit changes capability requirements."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    },
+    {
+      "id": "eval-integration",
+      "title": "Evaluation Integration (Phase 8)",
+      "questions": [
+        {
+          "id": "Q-14",
+          "title": "Counterfactual signal feeding Phase 8 evolution",
+          "context": "Phase 8 (evaluation+evolution) is largely complete. Replay-with-edit could supply counterfactual data to evolve specs/plans (\"this judge was the bottleneck\"). Phase 13 success criterion: \"Eval integration path is decided\" — in-scope vs deferred is fine, just must be documented.",
+          "options": [
+            {
+              "id": "a",
+              "label": "In-scope: replay produces an eval-counterfactual artifact consumed by Phase 8",
+              "description": "Replay writes evaluation/counterfactual.json (delta vs parent run’s eval). Phase 8 evolution-runner reads it. More integration work; immediate signal payoff."
+            },
+            {
+              "id": "b",
+              "label": "Deferred: design the artifact shape only, no Phase 8 wiring this phase",
+              "description": "Replay emits the counterfactual artifact in a stable schema; Phase 8 hookup tracked as a follow-up requirement (e.g. EVAL-05). Lets Phase 13 ship without dragging Phase 8."
+            },
+            {
+              "id": "c",
+              "label": "Out of scope entirely — replays are forensic-only in v1",
+              "description": "No counterfactual artifact; eval integration revisited only when an explicit later phase asks. Smallest scope."
+            },
+            {
+              "id": "d",
+              "label": "Custom",
+              "description": ""
+            }
+          ],
+          "answer": "a",
+          "chat_more": "",
+          "status": "answered"
+        }
+      ]
+    }
+  ]
+}

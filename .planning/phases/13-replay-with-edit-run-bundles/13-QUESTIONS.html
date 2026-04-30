@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Phase 13: Replay-with-Edit — Discussion Questions</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #11172b;
+    --card: #ffffff;
+    --card-bg: #ffffff;
+    --text: #0f172a;
+    --muted: #475569;
+    --border: #e2e8f0;
+    --green: #22c55e;
+    --green-tint: #f0fdf4;
+    --orange: #f97316;
+    --orange-tint: #fff7ed;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--text);
+    background: #f8fafc;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg); color: #fff;
+    padding: 14px 20px; border-bottom: 1px solid #1e293b;
+  }
+  header h1 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+  .stats {
+    display: flex; gap: 16px; align-items: center; font-size: 13px;
+    color: #cbd5e1;
+  }
+  .stats b { color: #fff; font-weight: 600; }
+  .progress {
+    flex: 1; max-width: 320px; height: 8px; border-radius: 4px;
+    background: #1e293b; overflow: hidden;
+  }
+  .progress > div { height: 100%; background: var(--green); transition: width .2s; }
+  .actions { display: flex; gap: 8px; }
+  button {
+    padding: 6px 14px; border: 1px solid #334155; background: #1e293b; color: #fff;
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { background: #334155; }
+  button.primary { background: var(--green); border-color: var(--green); }
+  button.primary:hover { background: #16a34a; }
+
+  main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+  .help {
+    padding: 12px 16px; background: #fef3c7; border: 1px solid #fde68a;
+    border-radius: 6px; margin-bottom: 20px; color: #78350f;
+  }
+  .help code { background: #fcd34d; padding: 1px 5px; border-radius: 3px; }
+
+  section.section { margin-bottom: 28px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; user-select: none;
+    padding: 10px 12px; background: var(--panel); color: #fff;
+    border-radius: 6px; margin-bottom: 12px;
+  }
+  .section-header h2 { margin: 0; font-size: 15px; font-weight: 600; flex: 1; }
+  .section-header .count { font-size: 12px; color: #94a3b8; }
+  .section-header .chev { transition: transform .15s; }
+  .section.collapsed .section-header .chev { transform: rotate(-90deg); }
+  .section.collapsed .grid { display: none; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: border-color .15s, background .15s;
+  }
+  .card.answered {
+    border: 2px solid var(--green);
+    background: var(--green-tint);
+    padding: 13px;
+  }
+  .card-head { display: flex; align-items: baseline; gap: 8px; }
+  .badge {
+    font-family: ui-monospace, SF Mono, Menlo, monospace;
+    font-size: 11px; font-weight: 600;
+    background: #e2e8f0; color: #334155;
+    padding: 2px 6px; border-radius: 3px;
+  }
+  .card.answered .badge { background: var(--green); color: #fff; }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-context {
+    font-size: 12px; color: var(--muted); font-style: italic;
+    border-left: 2px solid var(--border); padding-left: 8px;
+  }
+  .options { display: flex; flex-direction: column; gap: 8px; }
+  .option {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 8px; border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer;
+  }
+  .option:hover { background: #f1f5f9; }
+  .option input[type=radio] { margin-top: 2px; }
+  .option-body { flex: 1; }
+  .option-label { font-weight: 600; font-size: 13px; }
+  .option-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .option input[type=text] {
+    width: 100%; padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: 4px; font: inherit;
+  }
+
+  .chat-more textarea {
+    width: 100%; min-height: 50px; padding: 6px 8px;
+    border: 1px solid var(--border); border-radius: 4px;
+    font: inherit; resize: vertical;
+  }
+  .chat-more textarea:focus { outline: none; border-color: #94a3b8; }
+  .chat-more textarea.has-content {
+    border: 2px solid var(--orange);
+    background: var(--orange-tint);
+  }
+  .chat-more label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 600;
+  }
+
+  footer {
+    padding: 20px; text-align: center; color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase 13: Replay-with-Edit for Run Bundles — Discussion</h1>
+  <div class="stats">
+    <span><b id="answered-count">0</b> / <b id="total-count">0</b> answered</span>
+    <span><b id="remaining-count">0</b> remaining</span>
+    <span><b id="chatmore-count">0</b> chat-more</span>
+    <div class="progress"><div id="progress-bar" style="width:0%"></div></div>
+    <div class="actions">
+      <button id="save-btn" class="primary">Save answers</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="help">
+    Answer at your own pace. Click <b>Save answers</b> — your browser will write back to
+    <code>13-QUESTIONS.json</code> if it has File System Access (Chromium), otherwise it
+    downloads a JSON file you save over the original. Then return to Claude and say
+    <code>refresh</code> (re-read state) or <code>finalize</code> (generate CONTEXT.md).
+  </div>
+  <div id="root"></div>
+</main>
+
+<footer>Power mode — generated by /gsd-discuss-phase 13 --power</footer>
+
+<script>
+const STATE_PATH = "13-QUESTIONS.json";
+let state = null;
+let fileHandle = null;
+
+const EMBEDDED_STATE = {"phase": "13-replay-with-edit-run-bundles", "generated_at": "2026-04-29T00:00:00Z", "stats": {"total": 14, "answered": 0, "chat_more": 0, "remaining": 14}, "sections": [{"id": "edit-surface", "title": "Edit Surface & Artifact Addressing", "questions": [{"id": "Q-01", "title": "Edit surface: single-artifact swap or multi-artifact patch set?", "context": "Run bundle layout (Phase 9 Q-07): runs/<id>/{manifest, intent, plan, execution-plan, piles/<kind>/iter-<N>/, execution/{journal,snapshot}, review-gate, evaluation-report, evolution/snapshot, ci-events}. The phase goal mentions \"edit a single recorded artifact\" but multi-edit is plausible for compound counterfactuals (e.g. judge X + reviewer Y).", "options": [{"id": "a", "label": "Single-artifact swap only (v1)", "description": "Each replay edits exactly one recorded artifact. Simpler determinism contract; clearer post-mortem story (\"would judge X have unblocked this?\"). Multi-edit deferred to a later phase."}, {"id": "b", "label": "Multi-artifact patch set (declarative)", "description": "Operator supplies an EditSet manifest mapping {artifactPath \u2192 newContent}. More expressive; lets you simulate combined fixes. Bigger schema/CLI surface; harder to argue determinism without ordering rules."}, {"id": "c", "label": "Single in v1, design schema for multi", "description": "CLI accepts only one --edit in v1, but the EditSet on-disk schema supports N edits so v2 unlocks multi without a breaking change."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-02", "title": "Which artifact kinds are editable in v1?", "context": "Phase goal lists at minimum: judge verdict, reviewer comment, task result, raw LLM completion. Bundle has many more (manifest, plan, execution-plan, intent, admission decisions, evolution snapshots). Editing admission/intent would invalidate prior gates.", "options": [{"id": "a", "label": "Pile outputs only", "description": "Only piles/<kind>/iter-<N>/{result.json,trace.json} (judge, reviewer, planning, etc.) \u2014 matches the phase\u2019s stated minimum and keeps replay below the admission boundary."}, {"id": "b", "label": "Pile outputs + execution journal entries", "description": "Adds task results from execution/journal.jsonl. Lets you A/B \"what if this command had succeeded?\" but mutating an append-only journal needs a careful overlay model."}, {"id": "c", "label": "Pile + journal + raw LLM completions", "description": "Also exposes per-call LLM completion records (if recorded as separate artifacts). Maximum counterfactual power; biggest surface to schema-pin."}, {"id": "d", "label": "Allowlist pinned in SEED \u2014 explicit kinds, nothing else", "description": "Discuss-phase enumerates the exact kinds (e.g. {pile.result, pile.trace, journal.taskResult, llmCompletion}); anything not on the list is refused at the CLI."}, {"id": "e", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-03", "title": "How are editable artifacts addressed?", "context": "Run bundle paths are relative to runs/<id>/. Pile artifacts have stable paths (piles/<kind>/iter-<N>/result.json). LLM completions and journal entries are inside aggregate files.", "options": [{"id": "a", "label": "Relative path (e.g. piles/review/iter-2/result.json)", "description": "Simple, matches the inspect command\u2019s path-indexed view. Doesn\u2019t address sub-records inside aggregate files."}, {"id": "b", "label": "Path + JSON Pointer for sub-records", "description": "e.g. execution/journal.jsonl#/lines/42 or piles/review/iter-2/result.json#/findings/3. More expressive; needs an addressing schema."}, {"id": "c", "label": "Content-hash address (sha256 of original)", "description": "Edit references the original artifact\u2019s sha256; CLI resolves to path. Tamper-evident; awkward UX (operators must look up hashes)."}, {"id": "d", "label": "Path-only in v1, JSON Pointer reserved for v2", "description": "v1 only edits whole artifacts identified by relative path; sub-record edits deferred."}, {"id": "e", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-04", "title": "Does the edited artifact have to validate against its schema?", "context": "Most run-bundle artifacts have JSON schemas (intent, plan, pile results, evaluation report). An invalid edit could crash downstream replay in confusing ways.", "options": [{"id": "a", "label": "Yes \u2014 validate at replay-CLI entry, refuse on schema fail", "description": "CLI runs the same schema validation as a fresh artifact before starting replay. Refusal artifact emitted (matches admission-style UX). Strongest correctness guarantee."}, {"id": "b", "label": "Validate, but allow --force to bypass", "description": "Default validates; --force-invalid skips for niche debugging (\"what happens if the judge returns malformed JSON?\"). Power-user escape hatch."}, {"id": "c", "label": "No \u2014 pass through and let downstream stages refuse naturally", "description": "Replay surfaces whatever error a fresh run would surface for malformed input. Less work; harder to tell schema bugs from logic bugs in the post-mortem."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}, {"id": "determinism", "title": "Determinism Contract & Downstream Replay", "questions": [{"id": "Q-05", "title": "Downstream LLM calls: replay recorded outputs, or re-call live?", "context": "Phase 13 success criterion: \"identical edited prefix \u2192 identical downstream artifacts\". Determinism requires either replaying recorded LLM outputs, or treating the edit as invalidating only the artifact + its direct consumers.", "options": [{"id": "a", "label": "Replay all downstream artifacts unchanged (cache)", "description": "Every artifact after the edit point is re-served from the bundle as-is. The edit only changes how the *consumers* of the edited artifact behave \u2014 but they too replay their recorded output unless they directly consumed the edited artifact. Matches \"counterfactual without re-running upstream stages\" wording."}, {"id": "b", "label": "Re-run any stage that read the edited artifact; replay everything else", "description": "Compute a dependency closure: stages that read artifact A (transitively) are re-executed (real LLM calls, real subprocesses); others are served from cache. Most realistic counterfactual; needs a recorded read-set."}, {"id": "c", "label": "Re-run everything downstream (full re-execution from edit point)", "description": "Edit point onward is a fresh run. Cheapest determinism story (no read-set tracking) but costs LLM tokens and isn\u2019t what the phase goal describes."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-06", "title": "How is the determinism contract proved?", "context": "Success criterion mandates content-hash comparison on a fixture: identical edited prefix \u2192 identical downstream artifacts.", "options": [{"id": "a", "label": "Per-artifact sha256, asserted in the contract test", "description": "Replay produces an overlay manifest of {path \u2192 sha256}; contract test asserts byte-equality to a recorded fixture. Same model used by inspect command."}, {"id": "b", "label": "Whole-bundle merkle root", "description": "Compute one root hash over the canonicalized artifact tree. One number to compare; harder to localize a regression."}, {"id": "c", "label": "Per-stage hash chain (each stage hashes its inputs + outputs)", "description": "Stronger property: any drift surfaces at the stage that introduced it. Bigger contract surface."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-07", "title": "Edit-cascade scope: how do we know which artifacts a stage \"read\"?", "context": "Without a recorded read-set, option Q-05(b) is infeasible. Today\u2019s bundle records outputs; reads are implicit in code.", "options": [{"id": "a", "label": "Static dependency map, hand-maintained in @protostar/replay", "description": "A table {stageKind \u2192 reads[]} encodes which artifacts each stage consumes. Cheap; goes stale silently."}, {"id": "b", "label": "Record a read-set during the original run (Phase 4/5 instrumentation)", "description": "Each stage emits a read-set to its trace.json: {pathsRead: [...]}. Most accurate; requires touching the execution engine and review loop."}, {"id": "c", "label": "Coarse-grained: edit invalidates the *current iter* only; later iters re-run from journal", "description": "Skip read-set tracking entirely. Anything in iter-N or later re-executes; iter-0..N-1 replay unchanged. Simple but blunt."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}, {"id": "storage-layout", "title": "Replay Bundle Storage Layout", "questions": [{"id": "Q-08", "title": "Where do replayed runs live on disk?", "context": "Original bundle must never be mutated (success criterion). Two natural shapes: a sibling replay bundle, or an overlay manifest that references the original by hash.", "options": [{"id": "a", "label": "Sibling bundle: .protostar/runs/<runId>/replays/<replayId>/", "description": "Full bundle copy under a replays/ subdir. Self-contained; addressable by inspect; biggest disk footprint."}, {"id": "b", "label": "Sibling bundle at top level: .protostar/runs/<replayId>/ with parentRunId field", "description": "Replay is just another run, with manifest.parentRunId + manifest.editSet pointing back. Operator surface (status/inspect/prune) treats it uniformly. Storage cost: same as (a) unless deduplicated."}, {"id": "c", "label": "Overlay manifest: .protostar/runs/<runId>/replays/<replayId>/overlay.json", "description": "Only stores edits + newly-produced artifacts; everything else resolved by reference to the parent bundle. Smallest footprint; most plumbing; inspect needs overlay-aware resolution."}, {"id": "d", "label": "Hybrid: sibling bundle for new artifacts, overlay manifest pinning unchanged ones by hash", "description": "Replay dir contains only changed artifacts plus an overlay.json listing {path \u2192 originalSha256} for unchanged ones. Tamper-evident and compact."}, {"id": "e", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-09", "title": "How does prune (OP-08) treat replay bundles?", "context": "Phase 9 OP-08 prune has a lineage-preservation guarantee. Replays are a new lineage relationship.", "options": [{"id": "a", "label": "Replays inherit parent\u2019s prune protection", "description": "If parent run is protected, replays are protected. If parent is prunable, replays go too (unless individually protected by status)."}, {"id": "b", "label": "Replays are independently prunable by their own status", "description": "Treat replay like any other run. Risk: pruning the parent orphans the replay\u2019s overlay references (only matters if (c)/(d) chosen for Q-08)."}, {"id": "c", "label": "Replays are never auto-pruned in v1", "description": "Conservative posture: counterfactual debug data is high-signal-per-byte. Revisit in v2."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}, {"id": "cli-ux", "title": "Operator CLI / UX", "questions": [{"id": "Q-10", "title": "Replay command shape on factory-cli", "context": "Phase 9 OP-07 pinned a multi-subcommand binary: run | status | resume | cancel | inspect | deliver | prune. Replay is a new verb.", "options": [{"id": "a", "label": "New top-level verb: factory-cli replay --run <id> --edit <path>=<file>", "description": "First-class command. Mirrors inspect/deliver. Composable with --json-only contract."}, {"id": "b", "label": "Subverb under inspect: factory-cli inspect <id> replay --edit ...", "description": "Groups under \"inspection\" mental model. Stretches inspect\u2019s scope (currently read-only)."}, {"id": "c", "label": "Flag on run: factory-cli run --replay <id> --edit ...", "description": "Treats replay as a special run mode. Conceptually unifies; conflates fresh-run and replay UX."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-11", "title": "Edit input format on the CLI", "context": "The operator needs to point at an edited artifact. JSON files are the obvious input shape.", "options": [{"id": "a", "label": "--edit <path>=<file> (repeatable for multi if Q-01 picks b/c)", "description": "Each flag pairs a bundle-relative path with a local file. Familiar, scriptable."}, {"id": "b", "label": "--edit-set <manifest.json>", "description": "A single EditSet file lists all edits. Better for committed regression fixtures."}, {"id": "c", "label": "Both \u2014 --edit for ad-hoc, --edit-set for fixtures", "description": "Most flexible; small extra surface area."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}, {"id": "authority", "title": "Authority Boundary & Delivery", "questions": [{"id": "Q-12", "title": "Delivery from replayed runs", "context": "Success criterion: \"Replay-with-edit defaults to no delivery \u2014 no PRs, no pushes; opt-in flag required and audited.\" Phase 12 stabilized the authority boundary; replay must compose cleanly.", "options": [{"id": "a", "label": "Hard-disable: replay can never deliver, no flag", "description": "Replays are forensic-only. Simplest authority story. Loses the \"verify the fix actually ships\" use case."}, {"id": "b", "label": "Default off; --allow-delivery requires manifest opt-in + audit log entry", "description": "Per success criterion. Audit entry written to admission-decisions.jsonl with the editSet hash."}, {"id": "c", "label": "Default off; opt-in via factory-config.json replay.allowDelivery + per-invocation flag", "description": "Two-key for delivery from replay. Strictest path; matches Phase 2 two-key launch posture."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}, {"id": "Q-13", "title": "Admission re-entry on replay", "context": "Phase 1 admission gates apply to fresh runs. Editing the intent or planning-result of a replay would re-enter admission. Editing pile outputs is below the gate.", "options": [{"id": "a", "label": "Replay re-runs admission gates against any edited admission-input artifact", "description": "If the edit touches intent/plan/capability inputs, gates re-fire. Matches \"replay surfaces refusal evidence the same way a fresh run does\"."}, {"id": "b", "label": "Replay refuses edits to admission-input artifacts; only post-admission edits allowed", "description": "Editable allowlist (Q-02) excludes anything that would re-enter admission. Cleaner separation; loses \"what if the plan had been different?\" counterfactuals."}, {"id": "c", "label": "Replay allows the edit but always uses original run\u2019s admission decisions", "description": "Runs from edit point with cached admission. Fastest; opens an authority hole if the edit changes capability requirements."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}, {"id": "eval-integration", "title": "Evaluation Integration (Phase 8)", "questions": [{"id": "Q-14", "title": "Counterfactual signal feeding Phase 8 evolution", "context": "Phase 8 (evaluation+evolution) is largely complete. Replay-with-edit could supply counterfactual data to evolve specs/plans (\"this judge was the bottleneck\"). Phase 13 success criterion: \"Eval integration path is decided\" \u2014 in-scope vs deferred is fine, just must be documented.", "options": [{"id": "a", "label": "In-scope: replay produces an eval-counterfactual artifact consumed by Phase 8", "description": "Replay writes evaluation/counterfactual.json (delta vs parent run\u2019s eval). Phase 8 evolution-runner reads it. More integration work; immediate signal payoff."}, {"id": "b", "label": "Deferred: design the artifact shape only, no Phase 8 wiring this phase", "description": "Replay emits the counterfactual artifact in a stable schema; Phase 8 hookup tracked as a follow-up requirement (e.g. EVAL-05). Lets Phase 13 ship without dragging Phase 8."}, {"id": "c", "label": "Out of scope entirely \u2014 replays are forensic-only in v1", "description": "No counterfactual artifact; eval integration revisited only when an explicit later phase asks. Smallest scope."}, {"id": "d", "label": "Custom", "description": ""}], "answer": null, "chat_more": "", "status": "unanswered"}]}]};
+
+async function loadState() {
+  // file:// can't fetch siblings (CORS). Use embedded state.
+  // If served over http(s), prefer fetch so we pick up external edits.
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    try {
+      const res = await fetch(STATE_PATH + "?t=" + Date.now());
+      state = await res.json();
+      render();
+      return;
+    } catch (_) { /* fall through */ }
+  }
+  state = JSON.parse(JSON.stringify(EMBEDDED_STATE));
+  render();
+}
+
+function render() {
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+  for (const sec of state.sections) {
+    const answered = sec.questions.filter(q => q.status === "answered").length;
+    const secEl = document.createElement("section");
+    secEl.className = "section";
+    secEl.innerHTML = `
+      <div class="section-header" data-toggle>
+        <span class="chev">▼</span>
+        <h2>${escapeHtml(sec.title)}</h2>
+        <span class="count">${answered}/${sec.questions.length} answered</span>
+      </div>
+      <div class="grid"></div>
+    `;
+    const grid = secEl.querySelector(".grid");
+    for (const q of sec.questions) grid.appendChild(renderCard(q));
+    secEl.querySelector("[data-toggle]").addEventListener("click", () => {
+      secEl.classList.toggle("collapsed");
+    });
+    root.appendChild(secEl);
+  }
+  recomputeStats();
+}
+
+function renderCard(q) {
+  const div = document.createElement("div");
+  div.className = "card" + (q.status === "answered" ? " answered" : "");
+  div.dataset.qid = q.id;
+  div.innerHTML = `
+    <div class="card-head">
+      <span class="badge">${q.id}</span>
+      <span class="card-title">${escapeHtml(q.title)}</span>
+    </div>
+    <div class="card-context">${escapeHtml(q.context)}</div>
+    <div class="options"></div>
+    <div class="chat-more">
+      <label>Chat more / nuance</label>
+      <textarea placeholder="Add context, nuance, or clarification for this question...">${escapeHtml(q.chat_more || "")}</textarea>
+    </div>
+  `;
+  const opts = div.querySelector(".options");
+  for (const opt of q.options) {
+    const id = `opt-${q.id}-${opt.id}`;
+    const lbl = document.createElement("label");
+    lbl.className = "option";
+    lbl.htmlFor = id;
+    lbl.innerHTML = `
+      <input type="radio" name="${q.id}" id="${id}" value="${opt.id}" ${q.answer === opt.id ? "checked" : ""}/>
+      <div class="option-body">
+        <div class="option-label">${escapeHtml(opt.label)}</div>
+        <div class="option-desc">${escapeHtml(opt.description || "")}</div>
+        ${opt.id === "custom" || /custom/i.test(opt.label) ? `<input type="text" placeholder="Custom answer..." data-custom value="${typeof q.answer === 'string' && !q.options.some(o => o.id === q.answer) ? escapeHtml(q.answer) : ''}"/>` : ""}
+      </div>
+    `;
+    opts.appendChild(lbl);
+  }
+  div.addEventListener("change", () => onCardChange(div, q));
+  div.addEventListener("input", (e) => {
+    if (e.target.matches("textarea")) onChatMore(div, q, e.target);
+    if (e.target.matches("[data-custom]")) onCustom(div, q, e.target);
+  });
+  return div;
+}
+
+function onCardChange(div, q) {
+  const radio = div.querySelector('input[type=radio]:checked');
+  if (radio) {
+    const optId = radio.value;
+    const opt = q.options.find(o => o.id === optId);
+    if (opt && /custom/i.test(opt.label)) {
+      const custom = div.querySelector('[data-custom]');
+      q.answer = custom && custom.value ? custom.value : optId;
+    } else {
+      q.answer = optId;
+    }
+    q.status = "answered";
+    div.classList.add("answered");
+  }
+  recomputeStats();
+}
+
+function onChatMore(div, q, ta) {
+  q.chat_more = ta.value;
+  ta.classList.toggle("has-content", ta.value.trim().length > 0);
+  if ((q.answer === null || q.answer === "") && ta.value.trim().length > 0) {
+    q.status = "chat-more";
+  }
+  recomputeStats();
+}
+
+function onCustom(div, q, input) {
+  const radio = div.querySelector('input[type=radio]:checked');
+  if (radio && /custom/i.test(q.options.find(o => o.id === radio.value)?.label || "")) {
+    q.answer = input.value || radio.value;
+    q.status = q.answer ? "answered" : "unanswered";
+    div.classList.toggle("answered", q.status === "answered");
+    recomputeStats();
+  }
+}
+
+function recomputeStats() {
+  let answered = 0, chatMore = 0;
+  for (const sec of state.sections) {
+    for (const q of sec.questions) {
+      if (q.answer !== null && q.answer !== "") answered++;
+      if (q.chat_more && q.chat_more.trim().length > 0) chatMore++;
+    }
+  }
+  const total = state.sections.reduce((n, s) => n + s.questions.length, 0);
+  state.stats = { total, answered, chat_more: chatMore, remaining: total - answered };
+  document.getElementById("answered-count").textContent = answered;
+  document.getElementById("total-count").textContent = total;
+  document.getElementById("remaining-count").textContent = total - answered;
+  document.getElementById("chatmore-count").textContent = chatMore;
+  document.getElementById("progress-bar").style.width = total ? `${(answered / total) * 100}%` : "0%";
+}
+
+async function save() {
+  const json = JSON.stringify(state, null, 2);
+  if (window.showSaveFilePicker) {
+    try {
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: STATE_PATH,
+          types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        });
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(json);
+      await w.close();
+      flash("Saved.");
+      return;
+    } catch (e) { /* fall back to download */ }
+  }
+  const blob = new Blob([json], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = STATE_PATH;
+  a.click();
+  flash("Downloaded — replace original file.");
+}
+
+function flash(msg) {
+  const btn = document.getElementById("save-btn");
+  const orig = btn.textContent;
+  btn.textContent = msg;
+  setTimeout(() => (btn.textContent = orig), 1500);
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+document.getElementById("save-btn").addEventListener("click", save);
+loadState();
+</script>
+</body>
+</html>

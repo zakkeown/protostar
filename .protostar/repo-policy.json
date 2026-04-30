@@ -9,7 +9,11 @@
     { "workspace": "*", "path": "packages/intent", "access": "write" },
     { "workspace": "*", "path": "packages/policy", "access": "write" },
     { "workspace": "*", "path": "examples/intents", "access": "write" },
-    { "workspace": "protostar-toy-ttt", "path": "src/components/PrimaryButton.tsx", "access": "write" }
+    { "workspace": "protostar-toy-ttt", "path": "src/components/PrimaryButton.tsx", "access": "write" },
+    { "workspace": "protostar-toy-ttt", "path": "src/App.tsx", "access": "write" },
+    { "workspace": "protostar-toy-ttt", "path": "src/components/TicTacToeBoard.tsx", "access": "write" },
+    { "workspace": "protostar-toy-ttt", "path": "src/ttt/state.ts", "access": "write" },
+    { "workspace": "protostar-toy-ttt", "path": "playwright.config.ts", "access": "write" }
   ],
   "toolPermissions": [
     { "tool": "node:test", "permissionLevel": "use" },
