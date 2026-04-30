@@ -9,7 +9,7 @@ import {
   isAuthorizationPayload,
   type AuthorizationPayload
 } from "@protostar/delivery/authorization-payload";
-import { buildBranchName } from "@protostar/delivery-runtime";
+import { buildBranchName, type DeliveryResult } from "@protostar/delivery-runtime";
 import type { CapabilityEnvelope } from "@protostar/intent";
 import {
   loadDeliveryAuthorization,
@@ -66,6 +66,7 @@ export interface BuildAndExecuteDeliveryInput {
 export interface BuildAndExecuteDeliveryResult {
   readonly deliveryAuthorizationPayloadWritten: boolean;
   readonly deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
+  readonly deliveryResult?: DeliveryResult;
 }
 
 export async function buildAndExecuteDelivery(
@@ -182,6 +183,7 @@ export async function buildAndExecuteDelivery(
     octokit: octokit!,
     baseSha: baseSha!,
     workspaceDir: repoRuntime.cloneDir,
+    commitFilepaths: deliveryCommitFilepathsForEnvelope(intent.capabilityEnvelope),
     fs: fsPromises,
     signal: input.signal,
     requiredChecks: input.requiredChecks
@@ -191,8 +193,17 @@ export async function buildAndExecuteDelivery(
   }
   return {
     deliveryAuthorizationPayloadWritten: true,
-    deliveryWireStatus: wireResult.status
+    deliveryWireStatus: wireResult.status,
+    deliveryResult: wireResult.deliveryResult
   };
+}
+
+export function deliveryCommitFilepathsForEnvelope(envelope: CapabilityEnvelope): readonly string[] {
+  return [...new Set(envelope.repoScopes.filter((scope) => scope.access === "write").map((scope) => scope.path))].sort();
+}
+
+export function isDeliveryCiCompletionVerdict(verdict: DeliveryResult["ciVerdict"] | undefined): boolean {
+  return verdict === "pass" || verdict === "no-checks-configured";
 }
 
 export function buildAuthorizationPayload(

@@ -90,7 +90,7 @@ async function persistAbort(
   resultPath: string
 ): Promise<DeliveryResult> {
   const at = new Date().toISOString();
-  if (input.signal.reason === "timeout") {
+  if (isTimeoutReason(input.signal.reason)) {
     const timeoutResult = {
       ...result,
       ciVerdict: "timeout-pending" as const,
@@ -137,7 +137,20 @@ function terminalVerdict(verdict: CiSnapshot["verdict"]): "pass" | "fail" | "no-
 }
 
 function cancelReason(reason: unknown): CiCancelledReason {
+  if (isTimeoutReason(reason)) return "timeout";
   return reason === "sigint" || reason === "timeout" || reason === "sentinel" ? reason : "parent-abort";
+}
+
+function isTimeoutReason(reason: unknown): boolean {
+  return reason === "timeout" || reasonName(reason) === "TimeoutError";
+}
+
+function reasonName(reason: unknown): string | undefined {
+  if (typeof reason !== "object" || reason === null || !("name" in reason)) {
+    return undefined;
+  }
+  const name = (reason as { readonly name?: unknown }).name;
+  return typeof name === "string" ? name : undefined;
 }
 
 function isAbortLike(error: unknown): boolean {

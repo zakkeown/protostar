@@ -368,6 +368,8 @@ Plans:
 
 **Requirements:** STRESS-01, STRESS-02, STRESS-03, STRESS-04, STRESS-05, STRESS-06, STRESS-07, STRESS-08, STRESS-09, STRESS-10, STRESS-11, STRESS-12, STRESS-13, STRESS-14
 
+**Status:** Complete (2026-04-30). Final gate returned `ok: true` for `ttt-delivered AND stress-clean` using factory PR #5 plus sustained-load, concurrency, and fault-injection stress reports recorded in `11-VERIFICATION.md`.
+
 **Success criteria:**
 - Factory runs end-to-end without an interactive operator (driven from CI / cron / detached runner) — no operator-attached terminal required for any successful path
 - Pipeline survives sustained-load, concurrency, and fault-injection stress sessions without a wedge, artifact corruption, prompt hang, secret leak, or merge/update-branch authority
@@ -392,9 +394,9 @@ Plans:
 - [x] 11-10-sustained-load-bash-driver-PLAN.md — W5; deps: 11-05, 11-09, 11-15 — `scripts/stress.sh` for sustained-load only
 - [x] 11-11-concurrency-fault-ts-driver-PLAN.md — W5; deps: 11-09, 11-15 — TypeScript concurrency and fault-injection stress runner covering `network-drop`, `llm-timeout`, `disk-full`, and `abort-signal`
 - [x] 11-13-ci-headless-security-gates-PLAN.md — W6; deps: 11-05, 11-07, 11-10, 11-11, 11-12, 11-15 — PR mock smokes, all-three headless-mode setup contracts, no-prompt, secret-redaction, no-merge, and security review gates
-- [ ] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W7; deps: 11-02, 11-03, 11-04, 11-09, 11-10, 11-11, 11-12, 11-13, 11-15 — final non-autonomous `(ttt-delivered AND stress-clean)` evidence gate, TTT 50-attempt/14-day caps, and all four fault scenarios
+- [x] 11-14-ttt-delivery-and-stress-gate-PLAN.md — W7; deps: 11-02, 11-03, 11-04, 11-09, 11-10, 11-11, 11-12, 11-13, 11-15 — final non-autonomous `(ttt-delivered AND stress-clean)` evidence gate, TTT 50-attempt/14-day caps, and all four fault scenarios
 
-**Notes:** Phase 11 chooses Q-17 R2: append-only `.protostar/stress/<sessionId>/events.jsonl` and no HTTP dashboard/server. LM Studio remains the default backend; hosted OpenAI-compatible and deterministic mock backends are sibling packages behind the existing `ExecutionAdapter` contract. The toy repo verification files are operator-authored preconditions and immutable from factory-generated plans. Stress and TTT runs use materialized draft files plus signed confirmed-intent files before `protostar-factory run`. PR CI gets fast mock smokes; full stress caps are manual/scheduled phase-gate evidence.
+**Notes:** Phase 11 chooses Q-17 R2: append-only `.protostar/stress/<sessionId>/events.jsonl` and no HTTP dashboard/server. LM Studio remains the default backend; hosted OpenAI-compatible and deterministic mock backends are sibling packages behind the existing `ExecutionAdapter` contract. The toy repo verification files are operator-authored preconditions and immutable from factory-generated plans. Stress and TTT runs use materialized draft files plus signed confirmed-intent files before `protostar-factory run`. PR CI gets fast mock smokes; full stress caps are manual/scheduled phase-gate evidence. Final completion evidence is recorded in `.planning/phases/11-headless-mode-e2e-stress/11-VERIFICATION.md`: PR #5, green `build-and-test`, 31/50 TTT attempts under 14 days, sustained-load report `stress_20260430T041858Z_23474`, concurrency report `stress_20260430T044921_81415`, and fault-injection report `stress_20260430T045931_13644`.
 
 ## Phase 12 — Authority Boundary Stabilization
 

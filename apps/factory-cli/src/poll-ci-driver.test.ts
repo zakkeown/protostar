@@ -127,6 +127,26 @@ describe("drivePollCiStatus", () => {
     assert.deepEqual((await readEvents(runDir)).map((event) => event["kind"]), ["ci-timeout"]);
   });
 
+  it("records timeout-pending for AbortSignal.timeout-style TimeoutError reasons", async () => {
+    const runDir = await makeRunDir("run_ci_timeout_error_");
+    const controller = new AbortController();
+    const timeout = new Error("The operation was aborted due to timeout");
+    timeout.name = "TimeoutError";
+    controller.abort(timeout);
+
+    const result = await drivePollCiStatus({
+      initialResult: initialResult(),
+      poll: throwingGenerator(abortError()),
+      runDir,
+      fs,
+      signal: controller.signal
+    });
+
+    assert.equal(result.ciVerdict, "timeout-pending");
+    assert.equal(typeof result.exhaustedAt, "string");
+    assert.deepEqual((await readEvents(runDir)).map((event) => event["kind"]), ["ci-timeout"]);
+  });
+
   it("writes ci-events.jsonl append-only with monotonically growing byte offsets", async () => {
     const runDir = await makeRunDir("run_ci_append_");
 

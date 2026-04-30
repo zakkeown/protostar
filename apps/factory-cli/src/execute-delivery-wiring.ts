@@ -34,11 +34,16 @@ export interface WireExecuteDeliveryInput {
   readonly octokit: ProtostarOctokit;
   readonly baseSha: string;
   readonly workspaceDir: string;
+  readonly commitFilepaths?: readonly string[];
   readonly fs: typeof FsPromises;
   readonly signal: AbortSignal;
   readonly branchSuffix?: string;
   readonly requiredChecks?: readonly string[];
 }
+
+export type WireExecuteDeliveryResult =
+  | { readonly status: "delivered"; readonly deliveryResult: DeliveryResult }
+  | { readonly status: "delivery-blocked" };
 
 export async function wireExecuteDelivery(
   input: WireExecuteDeliveryInput,
@@ -47,7 +52,7 @@ export async function wireExecuteDelivery(
     readonly pollCiStatus?: typeof defaultPollCiStatus;
     readonly drivePollCiStatus?: typeof drivePollCiStatus;
   } = {}
-): Promise<{ readonly status: "delivered" | "delivery-blocked" }> {
+): Promise<WireExecuteDeliveryResult> {
   const deliveryDir = resolve(input.runDir, "delivery");
   const resultPath = resolve(deliveryDir, "delivery-result.json");
   const eventsPath = resolve(deliveryDir, "ci-events.jsonl");
@@ -87,7 +92,8 @@ export async function wireExecuteDelivery(
       octokit: input.octokit,
       remoteUrl: `https://github.com/${input.target.owner}/${input.target.repo}.git`,
       workspaceDir: input.workspaceDir,
-      expectedRemoteSha: null
+      expectedRemoteSha: null,
+      ...(input.commitFilepaths !== undefined ? { commitFilepaths: input.commitFilepaths } : {})
     }
   );
 
@@ -104,7 +110,7 @@ export async function wireExecuteDelivery(
     octokit: input.octokit,
     signal: input.signal
   });
-  await (deps.drivePollCiStatus ?? drivePollCiStatus)({
+  const deliveryResult = await (deps.drivePollCiStatus ?? drivePollCiStatus)({
     initialResult: buildInitialResult(input, branch.value, outcome),
     poll,
     runDir: input.runDir,
@@ -112,7 +118,7 @@ export async function wireExecuteDelivery(
     signal: input.signal
   });
 
-  return { status: "delivered" };
+  return { status: "delivered", deliveryResult };
 }
 
 function mintBranch(

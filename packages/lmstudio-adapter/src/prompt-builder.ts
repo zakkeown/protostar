@@ -95,7 +95,10 @@ export function buildRepairNoopNudgeMessages(
           "Your previous replacement produced no actual diff against the current scoped files.",
           "You must change one of the scoped files to address the listed diagnostics.",
           "For Playwright getByTestId locator failures, ensure the data-testid is present on a rendered DOM element, not only on a custom React component unless its source is in scope and forwards props.",
-          "For TypeScript TS6133 or \"declared but never read\" diagnostics, remove the unused import or local binding from a scoped file.",
+          "For TypeScript TS6133 or \"declared but never read\" diagnostics, remove the unused import, local binding, or function parameter from a scoped file and update call sites if a parameter is removed.",
+          "For src/ttt/state.ts TS6133 on a nextPlayer parameter in updateStatus, change updateStatus(board, nextPlayer) to updateStatus(board) and update callers to pass only the board.",
+          "For TS2693 diagnostics where TttMark only refers to a type but is used as a value, compare marks to string literals \"X\" and \"O\" or export TttMark as a runtime enum/value.",
+          "For Playwright failures where data-testid=\"ttt-reset\" is disabled, remove the disabled attribute/prop from the reset button so the spec can click it at any time.",
           "Return {\"entries\":[]} only when the diagnostics are already impossible in the current scoped files.",
           'Output ONLY a single fenced ```json block containing {"entries":[{"path":"...","content":"full replacement UTF-8 file content"}]} or {"entries":[]}. No prose.'
         ].join("\n")
@@ -195,11 +198,24 @@ function diagnosticHints(output: string): readonly string[] {
       "Playwright clicks occupied tic-tac-toe cells to verify they cannot be overwritten; do not disable occupied cells. Keep cell buttons enabled and ignore occupied or terminal moves in the click handler/state transition."
     );
   }
+  if (
+    /getByTestId\(['"]ttt-reset['"]\)|data-testid=["']ttt-reset["']/u.test(output) &&
+    /element is not enabled|waiting for element to be visible, enabled and stable/u.test(output)
+  ) {
+    hints.push(
+      "Playwright clicks data-testid \"ttt-reset\" even after normal moves; keep the reset button enabled at all times. Remove any disabled attribute/prop from the ttt-reset button and let the click reset the board."
+    );
+  }
   const hasUndefinedVsPlayingDiff =
     /^\s*\+\s*undefined\s*$/mu.test(output) && /^\s*-\s*['"]playing['"]\s*$/mu.test(output);
   if (hasUndefinedVsPlayingDiff || /expected:\s*['"]playing['"]/u.test(output)) {
     hints.push(
       "The property test expected state.status to be \"playing\" but received undefined; TttState must carry a status field, createInitialTttState must set status: \"playing\", and applyTttMove must update status to \"playing\", \"x-won\", \"o-won\", or \"draw\"."
+    );
+  }
+  if (/does not provide an export named ['"]applyTttMove['"]/u.test(output)) {
+    hints.push(
+      "The immutable property test imports applyTttMove from src/ttt/state.ts. Implement and export the full tic-tac-toe state API there: TttMark, TttState, createInitialTttState, and applyTttMove with occupied/terminal moves ignored and status updated to playing, x-won, o-won, or draw."
     );
   }
   if (
@@ -218,7 +234,26 @@ function diagnosticHints(output: string): readonly string[] {
   }
   if (/TS6133|declared but (?:its value is )?never read/u.test(output)) {
     hints.push(
-      "TypeScript TS6133 reports an unused symbol; remove the unused import specifier or local binding from the scoped file instead of returning the file unchanged."
+      "TypeScript TS6133 reports an unused symbol; remove the unused import specifier, local binding, or function parameter from the scoped file instead of returning the file unchanged. If you remove a parameter, update every scoped call site for that function."
+    );
+  }
+  if (/TS2693: 'TttMark' only refers to a type, but is being used as a value here/u.test(output)) {
+    hints.push(
+      "TttMark is a type-only mark union in this workspace. Do not write TttMark.X or TttMark.O unless state.ts exports a runtime enum; compare mark values to the string literals \"X\" and \"O\", and remove unused TttMark imports if they are no longer needed."
+    );
+  }
+  if (/src\/ttt\/state\.ts\(\d+,\d+\): error TS6133: 'nextPlayer' is declared but its value is never read/u.test(output)) {
+    hints.push(
+      "The tic-tac-toe state helper has an unused nextPlayer parameter. If updateStatus is declared as updateStatus(board, nextPlayer) but never reads nextPlayer, remove that parameter and call it as updateStatus(newBoard)."
+    );
+  }
+  if (
+    /getByTestId\(['"]ttt-status['"]\)/u.test(output) &&
+    /Expected pattern:\s*(?:\u001b\[[\d;]*m)*\/x wins\/i/u.test(output) &&
+    /Received string:\s*(?:\u001b\[[\d;]*m)*"?X won!?/iu.test(output)
+  ) {
+    hints.push(
+      "Playwright expects the terminal tic-tac-toe status to contain \"X wins\". Render exactly \"X wins\" for an X victory, not \"X won\" or \"X won!\"."
     );
   }
   if (/Timed out waiting \d+ms from config\.webServer/u.test(output)) {

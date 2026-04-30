@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import type { Dirent } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 
@@ -693,32 +695,74 @@ async function runFactoryProcess(input: FactoryRunInput): Promise<FactoryRunResu
       resolveResult(result);
     };
     child.on("error", (error: NodeJS.ErrnoException) => {
-      const result: FactoryRunResult = {
-        exitCode: null,
-        stdout,
-        stderr,
-        signalAborted: input.signal?.aborted === true
-      };
-      const errorCode = input.signal?.aborted === true
-        ? input.env?.["PROTOSTAR_MOCK_LLM_MODE"] === "llm-timeout"
-          ? "llm-abort-timeout"
-          : "external-abort-signal"
-        : error.code;
-      if (errorCode !== undefined) {
-        Object.assign(result, { errorCode });
-      }
-      finish(result);
+      void (async () => {
+        const errorCode = await detectedFactoryErrorCode(input, stdout, stderr, error.code);
+        finish({
+          exitCode: null,
+          stdout,
+          stderr,
+          signalAborted: input.signal?.aborted === true,
+          ...(errorCode !== undefined ? { errorCode } : {})
+        });
+      })();
     });
     child.on("close", (exitCode, signal) => {
-      finish({
-        exitCode,
-        stdout,
-        stderr,
-        signal,
-        signalAborted: input.signal?.aborted === true
-      });
+      void (async () => {
+        const errorCode = await detectedFactoryErrorCode(input, stdout, stderr);
+        finish({
+          exitCode,
+          stdout,
+          stderr,
+          signal,
+          signalAborted: input.signal?.aborted === true,
+          ...(errorCode !== undefined ? { errorCode } : {})
+        });
+      })();
     });
   });
+}
+
+async function detectedFactoryErrorCode(
+  input: FactoryRunInput,
+  stdout: string,
+  stderr: string,
+  fallback?: string
+): Promise<string | undefined> {
+  if (input.signal?.aborted === true) {
+    return input.env?.["PROTOSTAR_MOCK_LLM_MODE"] === "llm-timeout" ? "llm-abort-timeout" : "external-abort-signal";
+  }
+
+  const inlineEvidence = `${stdout}\n${stderr}`;
+  if (inlineEvidence.includes("adapter-network-refusal")) return "adapter-network-refusal";
+  if (inlineEvidence.includes("lmstudio-unreachable")) return "adapter-network-refusal";
+
+  const runDir = join(input.workspaceRoot, ".protostar", "runs", input.runId);
+  if (await runArtifactsContain(runDir, "adapter-network-refusal")) return "adapter-network-refusal";
+  if (await runArtifactsContain(runDir, "lmstudio-unreachable")) return "adapter-network-refusal";
+  return fallback;
+}
+
+async function runArtifactsContain(dir: string, needle: string): Promise<boolean> {
+  let entries: readonly Dirent[];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (await runArtifactsContain(path, needle)) return true;
+    } else if (entry.isFile() && entry.name.endsWith(".json")) {
+      try {
+        if ((await readFile(path, "utf8")).includes(needle)) return true;
+      } catch {
+        // Ignore artifacts that disappear while a child process is finalizing.
+      }
+    }
+  }
+  return false;
 }
 
 function outcomeFromFactoryResult(result: FactoryRunResult): StressOutcome {

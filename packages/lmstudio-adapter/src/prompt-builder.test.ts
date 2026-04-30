@@ -92,7 +92,7 @@ describe("buildCoderMessages", () => {
                 stderrTail:
                   "Type '{ children: string; onClick: () => void; }' is not assignable\nProperty 'onClick' does not exist on type 'IntrinsicAttributes & { children: ReactNode; }'.",
                 stdoutTail:
-                  "src/components/TicTacToeBoard.tsx(2,10): error TS6133: 'TttMark' is declared but its value is never read.\nLocator: getByTestId('ttt-board')\nExpected: visible\nError: element(s) not found\n+ undefined\n- 'playing'\nLocator: getByTestId('ttt-status')\nExpected pattern: /x/i\nReceived string: \"playing\"\n- locator resolved to <button disabled class=\"ttt-cell\" data-testid=\"ttt-cell-0\">X</button>\n- element is not enabled\nError: Timed out waiting 120000ms from config.webServer."
+                  "src/components/TicTacToeBoard.tsx(2,10): error TS6133: 'TttMark' is declared but its value is never read.\nsrc/ttt/state.ts(38,53): error TS6133: 'nextPlayer' is declared but its value is never read.\nsrc/components/TicTacToeBoard.tsx(44,23): error TS2693: 'TttMark' only refers to a type, but is being used as a value here.\nSyntaxError: The requested module '../src/ttt/state' does not provide an export named 'applyTttMove'\nLocator: getByTestId('ttt-board')\nExpected: visible\nError: element(s) not found\n+ undefined\n- 'playing'\nLocator: getByTestId('ttt-status')\nExpected pattern: /x/i\nReceived string: \"playing\"\nLocator: getByTestId('ttt-status')\nExpected pattern: /x wins/i\nReceived string: \"X won!\"\n- locator resolved to <button disabled class=\"ttt-cell\" data-testid=\"ttt-cell-0\">X</button>\n- element is not enabled\nwaiting for getByTestId('ttt-reset')\n- locator resolved to <button disabled data-testid=\"ttt-reset\">Reset</button>\n- element is not enabled\nError: Timed out waiting 120000ms from config.webServer."
               }
             }
           }
@@ -112,12 +112,21 @@ describe("buildCoderMessages", () => {
     assert.match(user, /actual rendered DOM element/);
     assert.match(user, /do not disable occupied cells/);
     assert.match(user, /ignore occupied or terminal moves/);
+    assert.match(user, /keep the reset button enabled at all times/);
     assert.match(user, /state\.status to be "playing" but received undefined/);
     assert.match(user, /status: "playing"/);
+    assert.match(user, /property test imports applyTttMove/);
+    assert.match(user, /TttMark, TttState, createInitialTttState, and applyTttMove/);
     assert.match(user, /ttt-status" but it only rendered "playing"/);
     assert.match(user, /Next player: X/);
     assert.match(user, /TypeScript TS6133 reports an unused symbol/);
-    assert.match(user, /remove the unused import specifier or local binding/);
+    assert.match(user, /remove the unused import specifier, local binding, or function parameter/);
+    assert.match(user, /update every scoped call site/);
+    assert.match(user, /TttMark is a type-only mark union/);
+    assert.match(user, /string literals "X" and "O"/);
+    assert.match(user, /updateStatus\(newBoard\)/);
+    assert.match(user, /terminal tic-tac-toe status to contain "X wins"/);
+    assert.match(user, /not "X won"/);
     assert.match(user, /Playwright timed out waiting for config\.webServer/);
     assert.match(user, /pnpm run dev --host 127\.0\.0\.1 --port 1420/);
     assert.match(result.messages[0]?.content ?? "", /This is a repair attempt/);
@@ -148,7 +157,10 @@ describe("buildCoderMessages", () => {
     assert.match(result.messages.at(-1)?.content ?? "", /change one of the scoped files/);
     assert.match(result.messages.at(-1)?.content ?? "", /getByTestId locator failures/);
     assert.match(result.messages.at(-1)?.content ?? "", /TS6133/);
-    assert.match(result.messages.at(-1)?.content ?? "", /remove the unused import/);
+    assert.match(result.messages.at(-1)?.content ?? "", /function parameter/);
+    assert.match(result.messages.at(-1)?.content ?? "", /updateStatus\(board\)/);
+    assert.match(result.messages.at(-1)?.content ?? "", /TS2693/);
+    assert.match(result.messages.at(-1)?.content ?? "", /ttt-reset/);
     assert.match(result.messages.at(-1)?.content ?? "", /Output ONLY a single fenced/);
   });
 });

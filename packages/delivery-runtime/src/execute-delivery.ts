@@ -28,6 +28,7 @@ export interface DeliveryRunContext {
   readonly remoteUrl: string;
   readonly workspaceDir: string;
   readonly expectedRemoteSha: string | null;
+  readonly commitFilepaths?: readonly string[];
 }
 
 export interface InitialCiSnapshot {
@@ -135,6 +136,7 @@ async function pushStep(plan: DeliveryExecutionPlan, ctx: DeliveryRunContext): P
     remoteUrl: ctx.remoteUrl,
     token: ctx.token,
     expectedRemoteSha: ctx.expectedRemoteSha,
+    ...(ctx.commitFilepaths !== undefined ? { commitFilepaths: ctx.commitFilepaths } : {}),
     signal: ctx.signal,
     fs: ctx.fs
   });

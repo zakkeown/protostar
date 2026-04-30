@@ -25,10 +25,12 @@ import {
   PLANNING_ADMISSION_SCHEMA_VERSION,
   type PlanGraph
 } from "@protostar/planning/schema";
+import type { ExecutionRunPlan } from "@protostar/execution";
 
-import { runFactory, type FactoryCompositionDependencies } from "./main.js";
+import { realExecutionAsDryRunResult, runFactory, type FactoryCompositionDependencies } from "./main.js";
 import { loadRepoPolicy } from "./load-repo-policy.js";
 import { buildTierConstraints } from "./precedence-tier-loader.js";
+import type { RunRealExecutionResult } from "./run-real-execution.js";
 
 interface CliResult {
   readonly exitCode: number | null;
@@ -83,6 +85,56 @@ const executionAndReviewArtifactFiles = [
 ] as const;
 
 describe("factory CLI draft admission hardening", () => {
+  it("can convert repair execution results without marking unobserved repair tasks failed", () => {
+    const execution = {
+      runId: "run-repair-summary",
+      planId: "plan-repair-summary",
+      admittedPlan: {} as never,
+      workspace: { root: "/tmp/protostar-workspace", trust: "trusted", defaultBranch: "main" },
+      tasks: [
+        { planTaskId: "task-1", title: "repair changed file", status: "pending", dependsOn: [] },
+        { planTaskId: "task-2", title: "stale repair task", status: "pending", dependsOn: [] }
+      ]
+    } satisfies ExecutionRunPlan;
+    const repairResult = {
+      outcome: "complete" as const,
+      events: [
+        {
+          type: "task-pending",
+          runId: execution.runId,
+          planTaskId: "task-1",
+          at: "2026-04-30T00:00:00.000Z",
+          attempt: 2,
+          status: "pending"
+        },
+        {
+          type: "task-running",
+          runId: execution.runId,
+          planTaskId: "task-1",
+          at: "2026-04-30T00:00:01.000Z",
+          attempt: 2,
+          status: "running"
+        },
+        {
+          type: "task-succeeded",
+          runId: execution.runId,
+          planTaskId: "task-1",
+          at: "2026-04-30T00:00:02.000Z",
+          attempt: 2,
+          status: "succeeded"
+        }
+      ],
+      perTaskEvidence: []
+    } satisfies RunRealExecutionResult;
+
+    const observedOnly = realExecutionAsDryRunResult(execution, repairResult, { observedOnly: true });
+    const full = realExecutionAsDryRunResult(execution, repairResult);
+
+    assert.equal(observedOnly.status, "succeeded");
+    assert.deepEqual(observedOnly.tasks.map((task) => task.planTaskId), ["task-1"]);
+    assert.deepEqual(full.tasks.map((task) => task.status), ["succeeded", "failed"]);
+  });
+
   it("refuses trusted launch without confirmed intent before runFactory gates", async () => {
     await withTempDir(async (tempDir) => {
       const draftPath = resolve(tempDir, "clear-cosmetic.json");

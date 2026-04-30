@@ -27,7 +27,9 @@ describe("wireExecuteDelivery", () => {
 
     const result = await wireExecuteDelivery(baseInput(runDir), { executeDelivery, pollCiStatus });
 
-    assert.deepEqual(result, { status: "delivered" });
+    assert.equal(result.status, "delivered");
+    if (result.status !== "delivered") return;
+    assert.equal(result.deliveryResult.ciVerdict, "pass");
     assert.equal(executeDelivery.mock.callCount(), 1);
     assert.equal(pollCiStatus.mock.callCount(), 1);
     const plan = (executeDelivery.mock.calls as readonly { readonly arguments: readonly unknown[] }[])[0]?.arguments[1] as
@@ -50,6 +52,37 @@ describe("wireExecuteDelivery", () => {
       "ci-snapshot",
       "ci-terminal"
     ]);
+  });
+
+  it("returns the final CI verdict so callers can block failed releases", async () => {
+    const runDir = await makeRunDir("run_wire_ci_fail_");
+    const executeDelivery = mock.fn(async (): Promise<DeliveryRunOutcome> => deliveredOutcome());
+    const pollCiStatus = mock.fn(() => generator([snapshot("2026-04-28T12:00:02.000Z", "fail", true)]));
+
+    const result = await wireExecuteDelivery(baseInput(runDir), { executeDelivery, pollCiStatus });
+
+    assert.equal(result.status, "delivered");
+    if (result.status !== "delivered") return;
+    assert.equal(result.deliveryResult.ciVerdict, "fail");
+    assert.equal((await readResult(runDir))["ciVerdict"], "fail");
+  });
+
+  it("threads authorized commit filepaths into the delivery runtime context", async () => {
+    const runDir = await makeRunDir("run_wire_commit_filepaths_");
+    const executeDelivery = mock.fn(async (): Promise<DeliveryRunOutcome> => deliveredOutcome());
+
+    await wireExecuteDelivery(
+      {
+        ...baseInput(runDir),
+        commitFilepaths: ["src/App.tsx", "src/components/TicTacToeBoard.tsx"]
+      },
+      { executeDelivery, pollCiStatus: () => generator([snapshot("2026-04-28T12:00:02.000Z", "pass", true)]) }
+    );
+
+    const ctx = (executeDelivery.mock.calls as readonly { readonly arguments: readonly unknown[] }[])[0]?.arguments[2] as
+      | { readonly commitFilepaths?: readonly string[] }
+      | undefined;
+    assert.deepEqual(ctx?.commitFilepaths, ["src/App.tsx", "src/components/TicTacToeBoard.tsx"]);
   });
 
   it("persists delivery-blocked when executeDelivery refuses and does not start polling", async () => {

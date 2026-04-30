@@ -32,4 +32,33 @@ describe("wiring/delivery.ts source-shape", () => {
     const minted = Date.parse(payload.mintedAt);
     assert.ok(minted >= before && minted <= after);
   });
+
+  it("derives delivery commit filepaths from write-scoped capability grants only", async () => {
+    const { deliveryCommitFilepathsForEnvelope } = await import("./delivery.js");
+
+    assert.deepEqual(
+      deliveryCommitFilepathsForEnvelope({
+        repoScopes: [
+          { workspace: "toy", path: "src/ttt/state.ts", access: "write" },
+          { workspace: "toy", path: "README.md", access: "read" },
+          { workspace: "toy", path: "src/App.tsx", access: "write" },
+          { workspace: "toy", path: "src/App.tsx", access: "write" }
+        ],
+        toolPermissions: [],
+        budget: {}
+      }),
+      ["src/App.tsx", "src/ttt/state.ts"]
+    );
+  });
+
+  it("treats only passing or intentionally unconfigured CI as release-completing", async () => {
+    const { isDeliveryCiCompletionVerdict } = await import("./delivery.js");
+
+    assert.equal(isDeliveryCiCompletionVerdict("pass"), true);
+    assert.equal(isDeliveryCiCompletionVerdict("no-checks-configured"), true);
+    assert.equal(isDeliveryCiCompletionVerdict("fail"), false);
+    assert.equal(isDeliveryCiCompletionVerdict("timeout-pending"), false);
+    assert.equal(isDeliveryCiCompletionVerdict("cancelled"), false);
+    assert.equal(isDeliveryCiCompletionVerdict(undefined), false);
+  });
 });

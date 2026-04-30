@@ -25,6 +25,7 @@ export interface PushBranchInput {
   readonly remoteUrl: string;
   readonly token: string;
   readonly expectedRemoteSha: string | null;
+  readonly commitFilepaths?: readonly string[];
   readonly signal: AbortSignal;
   readonly fs: unknown;
   readonly http?: unknown;
@@ -113,7 +114,8 @@ export async function pushBranch(input: PushBranchInput): Promise<PushResult> {
     const commitResult = await commitTrackedWorkspaceChanges({
       fs,
       dir: input.workspaceDir,
-      branchName: input.branchName
+      branchName: input.branchName,
+      ...(input.commitFilepaths !== undefined ? { commitFilepaths: input.commitFilepaths } : {})
     });
     if (!commitResult.ok) {
       return commitResult;
@@ -164,19 +166,28 @@ async function commitTrackedWorkspaceChanges(input: {
   readonly fs: PushOptions["fs"];
   readonly dir: string;
   readonly branchName: BranchName;
+  readonly commitFilepaths?: readonly string[];
 }): Promise<{ readonly ok: true } | { readonly ok: false; readonly refusal: DeliveryRefusal }> {
   const matrix = await dependencies.statusMatrix({ fs: input.fs, dir: input.dir });
-  const trackedChanges = matrix.filter(([_filepath, head, workdir, stage]) => {
+  const commitFilepathSet = input.commitFilepaths === undefined ? undefined : new Set(input.commitFilepaths);
+  const trackedChanges = matrix.filter(([filepath, head, workdir, stage]) => {
+    if (commitFilepathSet !== undefined) {
+      return commitFilepathSet.has(filepath) && isWorkspaceChange(head, workdir, stage);
+    }
     if (head === 0) return false;
-    return head !== workdir || head !== stage || workdir !== stage;
+    return isWorkspaceChange(head, workdir, stage);
   });
 
   if (trackedChanges.length === 0) {
+    const message =
+      commitFilepathSet === undefined
+        ? "no tracked workspace changes to commit"
+        : "no authorized workspace changes to commit";
     return {
       ok: false,
       refusal: {
         kind: "push-failed",
-        evidence: { phase: "push", message: "no tracked workspace changes to commit" }
+        evidence: { phase: "push", message }
       }
     };
   }
@@ -200,6 +211,10 @@ async function commitTrackedWorkspaceChanges(input: {
   });
 
   return { ok: true };
+}
+
+function isWorkspaceChange(head: number, workdir: number, stage: number): boolean {
+  return head !== workdir || head !== stage || workdir !== stage;
 }
 
 async function readRemoteSha(input: {

@@ -85,6 +85,63 @@ describe("pushBranch", () => {
     ]);
   });
 
+  it("stages authorized new files while ignoring out-of-scope generated artifacts", async (t) => {
+    const calls: string[] = [];
+    __setPushBranchDependenciesForTests({
+      add: async (options) => {
+        calls.push(`add-${options.filepath}`);
+      },
+      branch: async (options) => {
+        calls.push(`branch-${options.ref}-checkout-${String(options.checkout)}`);
+      },
+      commit: async () => {
+        calls.push("commit");
+        return "local-new-sha";
+      },
+      fetch: async () => {
+        calls.push("fetch");
+        const error = new Error("not found");
+        Object.assign(error, { code: "NotFoundError" });
+        throw error;
+      },
+      push: async (options) => {
+        calls.push(`push-force-${String(options.force)}`);
+        return { ok: true, error: null, refs: { [`refs/heads/${branchName}`]: { ok: true, error: "" } } };
+      },
+      remove: async () => {
+        throw new Error("remove should not be called");
+      },
+      resolveRef: async () => "local-new-sha",
+      statusMatrix: async () => [
+        ["src/App.tsx", 1, 2, 1],
+        ["src/components/TicTacToeBoard.tsx", 0, 2, 0],
+        ["test-results/ttt/error-context.md", 0, 2, 0]
+      ]
+    });
+    t.after(() => __resetPushBranchDependenciesForTests());
+
+    const result = await pushBranch({
+      workspaceDir: "/workspace",
+      branchName,
+      remoteUrl: "https://github.com/owner/repo.git",
+      token: "ghp_valid_token",
+      expectedRemoteSha: null,
+      commitFilepaths: ["src/App.tsx", "src/components/TicTacToeBoard.tsx"],
+      signal: new AbortController().signal,
+      fs: {}
+    });
+
+    assert.deepEqual(result, { ok: true, newSha: "local-new-sha" });
+    assert.deepEqual(calls, [
+      "fetch",
+      `branch-${branchName}-checkout-true`,
+      "add-src/App.tsx",
+      "add-src/components/TicTacToeBoard.tsx",
+      "commit",
+      "push-force-false"
+    ]);
+  });
+
   it("refuses before fetch or push when the parent signal is already aborted", async (t) => {
     let pushed = false;
     __setPushBranchDependenciesForTests({

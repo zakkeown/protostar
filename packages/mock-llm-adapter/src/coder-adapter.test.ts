@@ -19,15 +19,41 @@ describe("createMockCoderAdapter", () => {
     assert.equal(events[0]?.kind, "progress");
     assert.equal(final.result.outcome, "change-set");
     if (final.result.outcome !== "change-set") throw new Error("expected change-set");
-    assert.deepEqual(entriesOf(final.result.changeSet), [
-      {
-        path: "src/App.tsx",
-        op: "modify",
-        diff: "--- a/src/App.tsx\n+++ b/src/App.tsx\n@@ -1 +1 @@\n-before\n+after\n",
-        preImageSha256: sha256Hex(new TextEncoder().encode(PRE_IMAGE))
-      }
-    ]);
+    const entries = entriesOf(final.result.changeSet);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]?.path, "src/App.tsx");
+    assert.equal(entries[0]?.op, "modify");
+    assert.equal(entries[0]?.preImageSha256, sha256Hex(new TextEncoder().encode(PRE_IMAGE)));
+    assert.equal(extractAddedText(entries[0]!.diff), "before\n// Protostar mock deterministic change\n");
     assert.equal(final.result.evidence.model, "mock-llm-adapter/ttt-success");
+  });
+
+  it("emits a complete deterministic TTT implementation for stress feature-add runs", async () => {
+    const adapter = createMockCoderAdapter({ mode: "ttt-success" });
+    const final = finalEvent(await collectEvents(adapter.execute(toTttAdapterTask(), createAdapterContext({
+      preImages: {
+        "src/App.tsx": PRE_IMAGE,
+        "src/components/TicTacToeBoard.tsx": "",
+        "src/ttt/state.ts": "",
+        "playwright.config.ts": ""
+      }
+    }))));
+
+    assert.equal(final.result.outcome, "change-set");
+    if (final.result.outcome !== "change-set") throw new Error("expected change-set");
+
+    const entries = entriesOf(final.result.changeSet);
+    assert.deepEqual(entries.map((entry) => entry.path), [
+      "src/App.tsx",
+      "src/components/TicTacToeBoard.tsx",
+      "src/ttt/state.ts",
+      "playwright.config.ts"
+    ]);
+    assert.match(extractAddedText(requiredEntry(entries, "src/ttt/state.ts").diff), /export function applyTttMove/);
+    assert.match(extractAddedText(requiredEntry(entries, "src/ttt/state.ts").diff), /export type TttMark = "X" \| "O"/);
+    assert.match(extractAddedText(requiredEntry(entries, "src/components/TicTacToeBoard.tsx").diff), /data-testid="ttt-board"/);
+    assert.match(extractAddedText(requiredEntry(entries, "src/components/TicTacToeBoard.tsx").diff), /X wins/);
+    assert.doesNotMatch(extractAddedText(requiredEntry(entries, "playwright.config.ts").diff), /pnpm run dev -- --host/);
   });
 
   it("can return an empty deterministic change-set for smoke plumbing", async () => {
@@ -95,8 +121,19 @@ function toAdapterTask() {
   };
 }
 
-function createAdapterContext(input: { readonly signal?: AbortSignal } = {}): AdapterContext {
-  const preImageBytes = new TextEncoder().encode(PRE_IMAGE);
+function toTttAdapterTask() {
+  return {
+    planTaskId: "task-ttt",
+    title: "Mock deterministic TTT task",
+    targetFiles: ["src/App.tsx", "src/components/TicTacToeBoard.tsx", "src/ttt/state.ts", "playwright.config.ts"],
+    adapterRef: "mock"
+  };
+}
+
+function createAdapterContext(input: {
+  readonly signal?: AbortSignal;
+  readonly preImages?: Readonly<Record<string, string>>;
+} = {}): AdapterContext {
   return {
     signal: input.signal ?? new AbortController().signal,
     confirmedIntent: {
@@ -112,7 +149,8 @@ function createAdapterContext(input: { readonly signal?: AbortSignal } = {}): Ad
     network: { allow: "none" },
     repoReader: {
       async readFile(path: string) {
-        assert.equal(path, "src/App.tsx");
+        const preImage = input.preImages?.[path] ?? PRE_IMAGE;
+        const preImageBytes = new TextEncoder().encode(preImage);
         return { bytes: preImageBytes, sha256: sha256Hex(preImageBytes) };
       },
       async glob() {
@@ -152,6 +190,24 @@ interface PlanChangeSetEntry {
 
 function entriesOf(changeSet: unknown): readonly PlanChangeSetEntry[] {
   return (changeSet as { readonly entries: readonly PlanChangeSetEntry[] }).entries;
+}
+
+function requiredEntry(entries: readonly PlanChangeSetEntry[], path: string): PlanChangeSetEntry {
+  const entry = entries.find((candidate) => candidate.path === path);
+  if (entry === undefined) throw new Error(`missing ${path}`);
+  return entry;
+}
+
+function extractAddedText(diff: string): string {
+  const lines = diff.split("\n");
+  const hunkStart = lines.findIndex((line) => line.startsWith("@@ "));
+  assert.notEqual(hunkStart, -1);
+  return lines
+    .slice(hunkStart + 1)
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
+    .map((line) => line.slice(1))
+    .join("\n")
+    .concat("\n");
 }
 
 function sha256Hex(bytes: Uint8Array): string {

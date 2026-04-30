@@ -35,10 +35,11 @@ import {
   prepareExecutionRun as defaultPrepareExecutionRun,
   runExecutionDryRun,
   type ExecutionAdapter,
-  type ExecutionDryRunResult
+  type ExecutionDryRunResult,
+  type ExecutionLifecycleEvent
 } from "@protostar/execution";
 import { createLmstudioCoderAdapter } from "@protostar/lmstudio-adapter";
-import { buildBranchName } from "@protostar/delivery-runtime";
+import { buildBranchName, type DeliveryResult } from "@protostar/delivery-runtime";
 import {
   type IntentAmbiguityAssessment,
   type IntentAmbiguityMode
@@ -122,7 +123,7 @@ import { buildStressStepCommand } from "./commands/__stress-step.js";
 import { runFastDeliveryPreflight } from "./delivery-preflight-wiring.js";
 import { type DeliveryBodyInput } from "./assemble-delivery-body.js";
 import { createMechanicalSubprocessRunner } from "./wiring/command-execution.js";
-import { buildAndExecuteDelivery } from "./wiring/delivery.js";
+import { buildAndExecuteDelivery, isDeliveryCiCompletionVerdict } from "./wiring/delivery.js";
 import { resolvePileMode, type FactoryCliPileKind } from "./pile-mode-resolver.js";
 import { writePileArtifacts } from "./pile-persistence.js";
 import { installCancelWiring } from "./cancel.js";
@@ -910,7 +911,7 @@ export async function runFactory(
             await writeCancelledManifestForSentinelAbort({ runDir, abortReason: cancel.rootController.signal.reason });
             throw new CliExitError("cancelled by operator sentinel", ExitCode.CancelledByOperator);
           }
-          const repairedDry = realExecutionAsDryRunResult(execution, repairResult);
+          const repairedDry = realExecutionAsDryRunResult(execution, repairResult, { observedOnly: true });
           currentExecution = mergeRepairExecutionResult({
             previous: currentExecution,
             repaired: executionRunResultFromDry(repairedDry, repairExecutionAttempt),
@@ -1220,6 +1221,7 @@ export async function runFactory(
     timestamp: evaluationTimestamp
   });
   let deliveryWireStatus: "delivered" | "delivery-blocked" | undefined;
+  let deliveryResult: DeliveryResult | undefined;
   let deliveryAuthorizationPayloadWritten = false;
   if (loop.status === "approved" && intent.capabilityEnvelope.delivery !== undefined) {
     const deliveryWallClockMs = intent.capabilityEnvelope.budget.deliveryWallClockMs ?? 600_000;
@@ -1249,7 +1251,10 @@ export async function runFactory(
     });
     deliveryAuthorizationPayloadWritten = deliveryOutcome.deliveryAuthorizationPayloadWritten;
     deliveryWireStatus = deliveryOutcome.deliveryWireStatus;
+    deliveryResult = deliveryOutcome.deliveryResult;
   }
+  const deliveryReleasePassed = deliveryWireStatus === "delivered" && isDeliveryCiCompletionVerdict(deliveryResult?.ciVerdict);
+  const deliveryReleaseFailed = deliveryWireStatus === "delivered" && !deliveryReleasePassed;
   const reviewMission = buildReviewMission(intent, admittedPlanningOutput.planningAdmission);
   const startedAt = new Date().toISOString();
   const finalManifest = [
@@ -1350,7 +1355,7 @@ export async function runFactory(
     },
     {
       stage: "release" as const,
-      status: deliveryWireStatus === "delivered" ? ("passed" as const) : ("skipped" as const),
+      status: deliveryReleasePassed ? ("passed" as const) : deliveryReleaseFailed ? ("failed" as const) : ("skipped" as const),
       artifacts: [
         ...(deliveryAuthorizationPayloadWritten
           ? [
@@ -1383,7 +1388,7 @@ export async function runFactory(
   );
   const reviewedManifest = setFactoryRunStatus(
     finalManifest,
-    deliveryWireStatus === "delivered" ? "completed" : statusForReviewVerdict(review.verdict)
+    deliveryReleasePassed ? "completed" : deliveryReleaseFailed ? "blocked" : statusForReviewVerdict(review.verdict)
   );
 
   await mkdir(runDir, { recursive: true });
@@ -1416,6 +1421,10 @@ export async function runFactory(
   await writeJson(resolve(runDir, "review-gate.json"), review);
   await writeJson(resolve(runDir, "evaluation-report.json"), evaluationReport);
   await writeJson(resolve(runDir, "evolution-decision.json"), evolutionDecision);
+
+  if (deliveryReleaseFailed) {
+    throw new CliExitError(`Delivery CI verdict ${deliveryResult?.ciVerdict ?? "unknown"}; release is blocked.`, 1);
+  }
 
   const finalResult = {
     runId,
@@ -1631,13 +1640,22 @@ function statusForReviewVerdict(verdict: ReviewVerdict) {
   return "blocked";
 }
 
-function realExecutionAsDryRunResult(
+export function realExecutionAsDryRunResult(
   execution: ReturnType<typeof defaultPrepareExecutionRun>,
-  result: RunRealExecutionResult
+  result: RunRealExecutionResult,
+  options: { readonly observedOnly?: boolean } = {}
 ): ExecutionDryRunResult {
   const evidence = result.events.flatMap((event) => event.evidence ?? []);
-  const terminalByTask = new Map(result.events.map((event) => [event.planTaskId, event]));
-  const tasks = execution.tasks.map((task) => {
+  const terminalByTask = new Map(
+    result.events
+      .filter((event) => isLifecycleTerminalStatus(event.status))
+      .map((event) => [event.planTaskId, event])
+  );
+  const observedTaskIds = new Set(result.events.map((event) => event.planTaskId));
+  const sourceTasks = options.observedOnly === true
+    ? execution.tasks.filter((task) => observedTaskIds.has(task.planTaskId))
+    : execution.tasks;
+  const tasks = sourceTasks.map((task) => {
     const terminal = terminalByTask.get(task.planTaskId);
     const status: "succeeded" | "failed" = terminal?.status === "succeeded" ? "succeeded" : "failed";
     return {
@@ -1657,6 +1675,10 @@ function realExecutionAsDryRunResult(
     events: result.events,
     evidence
   };
+}
+
+function isLifecycleTerminalStatus(status: ExecutionLifecycleEvent["status"]): boolean {
+  return status === "succeeded" || status === "failed" || status === "timeout" || status === "cancelled";
 }
 
 function executionRunResultFromDry(result: ExecutionDryRunResult, attempt = 0): ExecutionRunResult {
